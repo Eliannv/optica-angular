@@ -1,0 +1,126 @@
+.sidebar {
+    background-color: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    width: 260px;
+    overflow-y: auto;
+    transition: background-color var(--transition-normal), color var(--transition-normal);
+}
+
+.sidebar-header {
+    padding: 1.5rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.logo-icon {
+    font-size: 2rem;
+    font-style: normal;
+}
+
+.logo-text {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--sidebar-text-hover);
+}
+
+.sidebar-nav {
+    flex: 1;
+    padding: 1rem 0;
+}
+
+.menu-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.menu-item {
+    margin: 0.25rem 0;
+}
+
+.menu-link {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.875rem 1.5rem;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    transition: all var(--transition-fast);
+    position: relative;
+}
+
+.menu-link:hover {
+    background-color: var(--sidebar-hover);
+    color: var(--sidebar-text-hover);
+}
+
+.menu-link.active {
+    background-color: var(--sidebar-active);
+    color: var(--sidebar-active-border);
+    border-left: 3px solid var(--sidebar-active-border);
+}
+
+.menu-link.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background-color: var(--sidebar-active-border);
+}
+
+.menu-icon {
+    font-size: 1.25rem;
+    font-style: normal;
+    min-width: 24px;
+    text-align: center;
+}
+
+.menu-label {
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.sidebar-footer {
+    padding: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.footer-info {
+    text-align: center;
+}
+
+.app-version {
+    font-size: 0.75rem;
+    color: #7f8c8d;
+    margin: 0;
+}
+
+
+/* Scrollbar personalizado */
+
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}

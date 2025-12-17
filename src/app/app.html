@@ -1,1 +1,45 @@
-<router-outlet />
+<ng-container *ngIf="!isAuthRoute(); else authView">
+    <div class="app-layout" [class.admin-theme]="isAdminUser()">
+
+        <!-- Navbar -->
+        <app-navbar class="navbar-wrapper" (toggleSidebarEvent)="toggleSidebar()">
+        </app-navbar>
+
+        <div class="content-wrapper">
+
+            <!-- Sidebar - Mostrado para usuarios admin -->
+            <ng-container>
+                <!-- Sidebar flotante en móvil -->
+                <ng-container *ngIf="mobileView">
+                    <div class="sidebar-overlay" *ngIf="sidebarVisible" (click)="toggleSidebar()">
+                    </div>
+
+                    <div class="sidebar-drawer" [class.active]="sidebarVisible">
+                        <app-sidebar class="inside-drawer" (closeSidebar)="toggleSidebar()">
+                        </app-sidebar>
+                    </div>
+                </ng-container>
+
+                <!-- Sidebar fijo escritorio -->
+                <ng-container *ngIf="!mobileView">
+                    <app-sidebar class="sidebar-desktop"></app-sidebar>
+                </ng-container>
+            </ng-container>
+
+            <!-- MAIN -->
+            <main class="main-content">
+                <app-splash-screen *ngIf="showSplash"></app-splash-screen>
+
+                <router-outlet></router-outlet>
+            </main>
+        </div>
+
+    </div>
+    <!-- Footer (solo en layout principal) -->
+    <app-footer></app-footer>
+</ng-container>
+
+<!-- Vista de autenticación -->
+<ng-template #authView>
+    <router-outlet></router-outlet>
+</ng-template>

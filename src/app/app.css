@@ -1,0 +1,180 @@
+/* Reset y estilos globales */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+
+/* Layout principal */
+
+.app-layout {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background-color: var(--bg-secondary);
+    transition: background-color var(--transition-normal);
+}
+
+
+/* Tema admin - Variables adicionales si es necesario */
+
+.admin-theme {
+    /* Las variables ya están definidas en styles.css global */
+}
+
+
+/* Navbar wrapper */
+
+.navbar-wrapper {
+    width: 100%;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+
+/* Content wrapper - contiene sidebar y main */
+
+.content-wrapper {
+    display: flex;
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+
+/* Sidebar Desktop */
+
+.sidebar-desktop {
+    width: 260px;
+    height: calc(100vh - 64px);
+    position: sticky;
+    top: 64px;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+
+/* Sidebar Mobile */
+
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 1001;
+    opacity: 0;
+    animation: fadeInOverlay 0.3s ease forwards;
+}
+
+@keyframes fadeInOverlay {
+    from {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+        -webkit-backdrop-filter: blur(0px);
+    }
+    to {
+        opacity: 1;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
+}
+
+.sidebar-drawer {
+    position: fixed;
+    top: 0;
+    left: -280px;
+    bottom: 0;
+    width: 260px;
+    z-index: 1002;
+    transition: left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: var(--shadow-xl);
+    transform: translateX(0);
+}
+
+.sidebar-drawer.active {
+    left: 0;
+    animation: slideInFromLeft 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+@keyframes slideInFromLeft {
+    from {
+        left: -280px;
+        opacity: 0.8;
+    }
+    to {
+        left: 0;
+        opacity: 1;
+    }
+}
+
+.inside-drawer {
+    height: 100%;
+}
+
+
+/* Main content */
+
+.main-content {
+    flex: 1;
+    background-color: var(--bg-secondary);
+    min-height: calc(100vh - 64px - 80px);
+    /* viewport - navbar - footer */
+    padding: 1.5rem;
+    overflow-y: auto;
+    transition: background-color var(--transition-normal);
+}
+
+
+/* Animaciones */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+
+/* Responsive */
+
+
+/* Mobile: menos de 1150px */
+
+@media (max-width: 1149px) {
+    .main-content {
+        padding: 1rem;
+    }
+    .sidebar-desktop {
+        display: none;
+    }
+}
+
+
+/* Desktop: mayor o igual a 1150px */
+
+@media (min-width: 1150px) {
+    .sidebar-drawer,
+    .sidebar-overlay {
+        display: none;
+    }
+}
+
+
+/* Utilidades */
+
+.hidden {
+    display: none;
+}
+
+.visible {
+    display: block;
+}
