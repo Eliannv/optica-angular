@@ -1,0 +1,61 @@
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header d-flex justify-between align-center">
+            <h3 class="card-title">Listado de Productos</h3>
+            <button class="btn btn-primary" (click)="crearProducto()">
+        + Nuevo Producto
+      </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>Marca/Tipo</th>
+                            <th>Stock</th>
+                            <th>Costo</th>
+                            <th>PVP</th>
+                            <th>IVA</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let producto of productos$ | async">
+                            <td>{{ producto.codArti }}</td>
+                            <td>{{ producto.nomArti }}</td>
+                            <td>{{ producto.dato1 || '-' }}</td>
+                            <td>
+                                <span class="badge" [class.badge-success]="(producto.stoUnid || 0) > 10" [class.badge-warning]="(producto.stoUnid || 0) <= 10 && (producto.stoUnid || 0) > 0" [class.badge-danger]="(producto.stoUnid || 0) === 0">
+                  {{ producto.stoUnid || 0 }}
+                </span>
+                            </td>
+                            <td>${{ producto.cosUnid?.toFixed(2) || '0.00' }}</td>
+                            <td>${{ producto.pvpUnid?.toFixed(2) || '0.00' }}</td>
+                            <td>
+                                <span class="badge" [class.badge-success]="producto.ivaProd === 'S'" [class.badge-secondary]="producto.ivaProd === 'N'">
+                  {{ producto.ivaProd === 'S' ? 'Sí' : 'No' }}
+                </span>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-danger" (click)="eliminarProducto(producto.id!)">
+                    🗑️
+                  </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div *ngIf="(productos$ | async)?.length === 0" class="text-center p-4">
+                    <p class="text-muted">No hay productos registrados</p>
+                    <button class="btn btn-primary mt-3" (click)="crearProducto()">
+            Crear Primer Producto
+          </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

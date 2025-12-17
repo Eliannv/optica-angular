@@ -1,0 +1,143 @@
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Crear Nuevo Producto</h3>
+        </div>
+        <div class="card-body">
+            <form>
+                <div class="row">
+                    <!-- Código de Artículo -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Código de Artículo *</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.codArti" name="codArti" placeholder="Ej: PROD001" required>
+                        </div>
+                    </div>
+
+                    <!-- Nuevo Código -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Nuevo Código</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.nueCod" name="nueCod" placeholder="Código alternativo">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nombre del Artículo -->
+                <div class="form-group">
+                    <label class="form-label">Nombre del Producto *</label>
+                    <input type="text" class="form-control" [(ngModel)]="producto.nomArti" name="nomArti" placeholder="Ej: Lentes de Sol Ray-Ban" required>
+                </div>
+
+                <div class="row">
+                    <!-- Dato 1 -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Dato 1 (Marca/Tipo)</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.dato1" name="dato1" placeholder="Ej: Ray-Ban">
+                        </div>
+                    </div>
+
+                    <!-- Dato 2 -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Dato 2 (Modelo/Color)</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.dato2" name="dato2" placeholder="Ej: Aviator Negro">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- Stock -->
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Stock en Unidades</label>
+                            <input type="number" class="form-control" [(ngModel)]="producto.stoUnid" name="stoUnid" min="0" placeholder="0">
+                        </div>
+                    </div>
+
+                    <!-- Costo Unidad -->
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Costo Unitario</label>
+                            <input type="number" class="form-control" [(ngModel)]="producto.cosUnid" name="cosUnid" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+
+                    <!-- PVP Unidad -->
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Precio de Venta</label>
+                            <input type="number" class="form-control" [(ngModel)]="producto.pvpUnid" name="pvpUnid" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- Costo Caja -->
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">Costo Caja</label>
+                            <input type="number" class="form-control" [(ngModel)]="producto.cosCaja" name="cosCaja" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+
+                    <!-- PVP Caja -->
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">PVP Caja</label>
+                            <input type="number" class="form-control" [(ngModel)]="producto.pvpCaja" name="pvpCaja" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+
+                    <!-- PVP Precio 1 -->
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">PVP Precio 1</label>
+                            <input type="number" class="form-control" [(ngModel)]="producto.pvpProd1" name="pvpProd1" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+
+                    <!-- PVP Precio 2 -->
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="form-label">PVP Precio 2</label>
+                            <input type="number" class="form-control" [(ngModel)]="producto.pvpProd2" name="pvpProd2" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- IVA -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">IVA</label>
+                            <select class="form-control" [(ngModel)]="producto.ivaProd" name="ivaProd">
+                <option value="S">Sí</option>
+                <option value="N">No</option>
+              </select>
+                        </div>
+                    </div>
+
+                    <!-- Código de Unidad -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Código de Unidad</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.codUnid" name="codUnid" placeholder="Ej: UND, CAJA">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Observaciones -->
+                <div class="form-group">
+                    <label class="form-label">Observaciones</label>
+                    <textarea class="form-control" [(ngModel)]="producto.obsProd" name="obsProd" rows="3" placeholder="Observaciones adicionales del producto"></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="card-footer d-flex justify-between">
+            <button class="btn btn-secondary" (click)="cancelar()">Cancelar</button>
+            <button class="btn btn-primary" (click)="guardar()">Guardar Producto</button>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,21 @@
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.col-md-6 {
+    flex: 1;
+    min-width: 200px;
+}
+
+.col-md-6 {
+    flex: 0 0 calc(50% - 0.5rem);
+}
+
+@media (max-width: 768px) {
+    .col-md-6 {
+        flex: 0 0 100%;
+    }
+}

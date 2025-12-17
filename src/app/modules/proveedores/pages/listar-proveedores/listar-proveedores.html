@@ -1,0 +1,55 @@
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header d-flex justify-between align-center">
+            <h3 class="card-title">Listado de Proveedores</h3>
+            <button class="btn btn-primary" (click)="crearProveedor()">
+        + Nuevo Proveedor
+      </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>RUC</th>
+                            <th>Representante</th>
+                            <th>Teléfono</th>
+                            <th>Dirección</th>
+                            <th>Saldo</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let proveedor of proveedores$ | async">
+                            <td><strong>{{ proveedor.nomProv }}</strong></td>
+                            <td>{{ proveedor.rucProv }}</td>
+                            <td>{{ proveedor.repProv || '-' }}</td>
+                            <td>{{ proveedor.telProv || '-' }}</td>
+                            <td>{{ proveedor.dirProv || '-' }}</td>
+                            <td>
+                                <span class="badge" [class.badge-success]="(proveedor.saldo || 0) >= 0" [class.badge-danger]="(proveedor.saldo || 0) < 0">
+                  ${{ (proveedor.saldo || 0).toFixed(2) }}
+                </span>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-danger" (click)="eliminarProveedor(proveedor.id!)">
+                    🗑️
+                  </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div *ngIf="(proveedores$ | async)?.length === 0" class="text-center p-4">
+                    <p class="text-muted">No hay proveedores registrados</p>
+                    <button class="btn btn-primary mt-3" (click)="crearProveedor()">
+            Crear Primer Proveedor
+          </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
