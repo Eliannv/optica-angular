@@ -1,0 +1,62 @@
+<nav class="navbar">
+    <div class="navbar-container">
+        <div class="navbar-left">
+            <button class="menu-toggle" (click)="toggleSidebar()">
+        <i class="menu-icon">☰</i>
+      </button>
+            <div class="navbar-brand">
+                <span class="brand-text">Óptica Macias</span>
+            </div>
+        </div>
+
+        <div class="navbar-right">
+            <div class="navbar-actions">
+                <button class="navbar-btn" title="Cambiar tema" (click)="toggleTheme()">
+  <span class="icon">
+    <!-- Sol -->
+    <svg *ngIf="themeService.isDark()"
+      xmlns="http://www.w3.org/2000/svg"
+      width="24" height="24" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+      class="lucide lucide-sun">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v2"/>
+      <path d="M12 20v2"/>
+      <path d="m4.93 4.93 1.41 1.41"/>
+      <path d="m17.66 17.66 1.41 1.41"/>
+      <path d="M2 12h2"/>
+      <path d="M20 12h2"/>
+      <path d="m4.93 19.07 1.41-1.41"/>
+      <path d="m17.66 6.34 1.41-1.41"/>
+    </svg>
+
+    <!-- Luna -->
+    <svg *ngIf="!themeService.isDark()"
+      xmlns="http://www.w3.org/2000/svg"
+      width="24" height="24" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+      class="lucide lucide-moon">
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>
+    </svg>
+  </span>
+</button>
+
+                <button class="navbar-btn" title="Notificaciones">
+          <i class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bell-icon lucide-bell"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg></i>
+        </button>
+                <div class="user-menu">
+                    <button class="user-btn">
+            <span class="user-avatar"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user-icon lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+            <span class="user-name">Admin</span>
+          </button>
+                    <div class="dropdown-menu">
+                        <a class="dropdown-item" routerLink="/perfil">Mi Perfil</a>
+                        <a class="dropdown-item" (click)="logout()">Cerrar Sesión</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>

@@ -1,0 +1,23 @@
+.container {
+    padding: 20px;
+}
+
+.btn {
+    display: inline-block;
+    margin-bottom: 10px;
+    background: #4caf50;
+    color: white;
+    padding: 8px 12px;
+    text-decoration: none;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th,
+td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}

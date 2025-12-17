@@ -1,0 +1,87 @@
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Crear Nuevo Proveedor</h3>
+        </div>
+        <div class="card-body">
+            <form>
+                <div class="row">
+                    <!-- Código del Proveedor -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Código del Proveedor</label>
+                            <input type="text" class="form-control" [(ngModel)]="proveedor.codigo" name="codigo" placeholder="Ej: P001">
+                        </div>
+                    </div>
+
+                    <!-- Código de Lugar -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Código de Lugar</label>
+                            <input type="text" class="form-control" [(ngModel)]="proveedor.direccion!.codigoLugar" name="codigoLugar" placeholder="Ej: 09">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nombre del Proveedor -->
+                <div class="form-group">
+                    <label class="form-label">Nombre del Proveedor *</label>
+                    <input type="text" class="form-control" [(ngModel)]="proveedor.nombre" name="nombre" placeholder="Ej: Distribuidora Óptica S.A." required>
+                </div>
+
+                <div class="row">
+                    <!-- RUC -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">RUC *</label>
+                            <input type="text" class="form-control" [(ngModel)]="proveedor.ruc" name="ruc" placeholder="Ej: 1234567890001" maxlength="13" required>
+                        </div>
+                    </div>
+
+                    <!-- Representante -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Representante</label>
+                            <input type="text" class="form-control" [(ngModel)]="proveedor.representante" name="representante" placeholder="Nombre del representante">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- Teléfono 1 -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Teléfono Principal</label>
+                            <input type="tel" class="form-control" [(ngModel)]="proveedor.telefonos!.principal" name="telefonoPrincipal" placeholder="Ej: 0991234567" maxlength="10">
+                        </div>
+                    </div>
+
+                    <!-- Teléfono 2 -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Teléfono Secundario</label>
+                            <input type="tel" class="form-control" [(ngModel)]="proveedor.telefonos!.secundario" name="telefonoSecundario" placeholder="Ej: 0991234568" maxlength="10">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dirección -->
+                <div class="form-group">
+                    <label class="form-label">Dirección</label>
+                    <input type="text" class="form-control" [(ngModel)]="proveedor.direccion!.direccion" name="direccion" placeholder="Dirección completa del proveedor">
+                </div>
+
+                <!-- Saldo -->
+                <div class="form-group">
+                    <label class="form-label">Saldo Inicial</label>
+                    <input type="number" class="form-control" [(ngModel)]="proveedor.saldo" name="saldo" step="0.01" placeholder="0.00">
+                    <span class="form-text">Saldo a favor o deuda inicial con el proveedor</span>
+                </div>
+            </form>
+        </div>
+        <div class="card-footer d-flex justify-between">
+            <button class="btn btn-secondary" (click)="cancelar()">Cancelar</button>
+            <button class="btn btn-primary" (click)="guardar()">Guardar Proveedor</button>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,127 @@
+<div class="productos-wrapper">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Crear Nuevo Producto</h3>
+        </div>
+        <div class="card-body">
+            <form>
+                <div class="row">
+                    <!-- Código -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Código *</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.codigo" name="codigo" placeholder="Ej: O0012" required>
+                        </div>
+                    </div>
+
+                    <!-- Nuevo Código -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Nuevo Código</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.nuevoCodigo" name="nuevoCodigo" placeholder="Código alternativo">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nombre del Producto -->
+                <div class="form-group">
+                    <label class="form-label">Nombre del Producto *</label>
+                    <input type="text" class="form-control" [(ngModel)]="producto.nombre" name="nombre" placeholder="Ej: ARMAZON DE METAL ECO" required>
+                </div>
+
+                <div class="row">
+                    <!-- Dato 2 (Modelo/Color) -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Modelo/Color (Dato 2)</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.datos.dato2" name="dato2" placeholder="Ej: AZUL">
+                        </div>
+                    </div>
+
+                    <!-- Grupo -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Grupo</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.grupo" name="grupo" placeholder="Ej: O002">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- Stock -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Stock</label>
+                            <input type="number" class="form-control" [(ngModel)]="producto.stock" name="stock" min="0" placeholder="0">
+                        </div>
+                    </div>
+
+                    <!-- Unidad -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Unidad</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.unidad" name="unidad" placeholder="Ej: 1">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- Costo Caja -->
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Costo Caja</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.costos.caja" name="costoCaja" placeholder="0.00">
+                        </div>
+                    </div>
+
+                    <!-- Precio Caja -->
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Precio Caja</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.precios.caja" name="precioCaja" placeholder="0.00">
+                        </div>
+                    </div>
+
+                    <!-- PVP1 -->
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">PVP1</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.precios.pvp1" name="pvp1" placeholder="0.00">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- Proveedor Principal -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Proveedor Principal</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.proveedores.principal" name="proveedorPrincipal" placeholder="Ej: P014">
+                        </div>
+                    </div>
+
+                    <!-- IVA -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">IVA *</label>
+                            <select class="form-control" [(ngModel)]="producto.iva" name="iva">
+                <option [ngValue]="true">Sí</option>
+                <option [ngValue]="false">No</option>
+              </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Observaciones -->
+                <div class="form-group">
+                    <label class="form-label">Observaciones</label>
+                    <textarea class="form-control" [(ngModel)]="producto.observacion" name="observacion" rows="3" placeholder="Observaciones adicionales del producto"></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="card-footer d-flex justify-between">
+            <button class="btn btn-secondary" (click)="cancelar()">Cancelar</button>
+            <button class="btn btn-primary" (click)="guardar()">Guardar Producto</button>
+        </div>
+    </div>
+</div>

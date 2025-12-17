@@ -1,0 +1,40 @@
+/* Contenedor de productos con márgenes optimizados */
+
+.productos-wrapper {
+    max-width: 100%;
+    width: 100%;
+}
+
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.col-md-3,
+.col-md-4,
+.col-md-6 {
+    flex: 1;
+    min-width: 200px;
+}
+
+.col-md-3 {
+    flex: 0 0 calc(25% - 1rem);
+}
+
+.col-md-4 {
+    flex: 0 0 calc(33.333% - 1rem);
+}
+
+.col-md-6 {
+    flex: 0 0 calc(50% - 1rem);
+}
+
+@media (max-width: 768px) {
+    .col-md-3,
+    .col-md-4,
+    .col-md-6 {
+        flex: 0 0 100%;
+    }
+}
