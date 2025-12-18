@@ -1,8 +1,51 @@
 # OpticaAngular
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.2.1.
+Sistema de gestión para ópticas desarrollado con Angular 20 y Firebase.
 
-## Development server
+## 🚀 Características
+
+- ✅ Autenticación con Firebase Auth
+- ✅ Base de datos Firestore
+- ✅ Gestión de clientes
+- ✅ Gestión de productos
+- ✅ Gestión de proveedores
+- ✅ Control de roles (Admin/Empleado)
+- ✅ Sistema de facturas y fichas médicas
+
+## 📋 Requisitos Previos
+
+- Node.js (v18 o superior)
+- npm o yarn
+- Angular CLI (`npm install -g @angular/cli`)
+- Cuenta de Firebase
+
+## 🔧 Instalación
+
+1. **Clonar el repositorio**
+```bash
+git clone https://github.com/Eliannv/optica-angular.git
+cd optica-angular
+```
+
+2. **Instalar dependencias**
+```bash
+npm install
+```
+
+3. **Configurar Firebase**
+   - Crea un proyecto en [Firebase Console](https://console.firebase.google.com)
+   - Habilita Authentication (Email/Password)
+   - Crea una base de datos Firestore
+   - Copia las credenciales en `src/environments/environment.ts`
+
+4. **Crear usuarios iniciales**
+   - Descarga la clave privada de Firebase Admin SDK
+   - Guárdala como `serviceAccountKey.json` en la raíz
+   - Ejecuta: `node crear-usuarios-iniciales.js`
+
+📖 **Ver [AUTH-README.md](AUTH-README.md) para más detalles sobre autenticación**
+
+## 🏃 Development server
 
 To start a local development server, run:
 
