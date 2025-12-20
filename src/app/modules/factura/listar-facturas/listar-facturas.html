@@ -1,108 +1,182 @@
 <div class="facturas-container">
-    <div class="facturas-card">
-        <!-- HEADER -->
-        <div class="facturas-header">
-            <div class="header-content">
-                <h3 class="facturas-title">Facturas</h3>
-                <button class="btn-primary" (click)="nuevaVenta()">
+  <div class="facturas-card">
+
+    <!-- HEADER -->
+    <div class="facturas-header">
+      <div class="header-content">
+        <h3 class="facturas-title">Facturas</h3>
+        <button class="btn-primary" (click)="nuevaVenta()">
           <span>+ Nueva Venta</span>
         </button>
-            </div>
+      </div>
 
-            <div class="search-container">
-                <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <!-- ✅ NUEVO: Filtro por tipo -->
+      <div class="search-container" style="margin-bottom: 0.75rem;">
+        <label style="display:block; font-weight:600; font-size:0.85rem; margin-bottom:0.35rem; opacity:0.8;">
+          Mostrar
+        </label>
+        <select class="search-input" [(ngModel)]="filtroEstado" (ngModelChange)="filtrar()">
+          <option value="TODAS">📋 Todas</option>
+          <option value="PENDIENTES">⚠️ Con deuda</option>
+          <option value="PAGADAS">✅ Finales</option>
+        </select>
+      </div>
+
+      <div class="search-container">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"></circle>
           <path d="m21 21-4.35-4.35"></path>
         </svg>
-                <input class="search-input" placeholder="Buscar por cliente, ID, método de pago..." [(ngModel)]="term" (input)="filtrar()">
-                <button class="clear-btn" *ngIf="term" (click)="term = ''; filtrar()">✕</button>
-            </div>
-        </div>
+        <input class="search-input" placeholder="Buscar por cliente, ID, método de pago..."
+               [(ngModel)]="term" (input)="filtrar()">
+        <button class="clear-btn" *ngIf="term" (click)="term = ''; filtrar()">✕</button>
+      </div>
+    </div>
 
-        <!-- BODY -->
-        <div class="facturas-body">
-            <!-- TABLA DESKTOP -->
-            <div class="table-wrapper desktop-only" *ngIf="totalFacturas > 0; else empty">
-                <table class="facturas-table">
-                    <thead>
-                        <tr>
-                            <th class="col-id">ID</th>
-                            <th class="col-cliente">Cliente</th>
-                            <th class="col-pago">Método Pago</th>
-                            <th class="col-total">Total</th>
-                            <th class="col-acciones">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr *ngFor="let f of facturasPaginadas" class="factura-row">
-                            <td class="col-id">
-                                <span class="badge-id">{{ f.id }}</span>
-                            </td>
-                            <td class="col-cliente">
-                                <strong>{{ f.clienteNombre }}</strong>
-                            </td>
-                            <td class="col-pago">
-                                <span class="badge-pago">{{ f.metodoPago }}</span>
-                            </td>
-                            <td class="col-total">
-                                <span class="precio">${{ (f.total || 0).toFixed(2) }}</span>
-                            </td>
-                            <td class="col-acciones">
-                                <button class="btn-ver" (click)="ver(f.id)">
+    <!-- BODY -->
+    <div class="facturas-body">
+
+      <!-- TABLA DESKTOP -->
+      <div class="table-wrapper desktop-only" *ngIf="totalFacturas > 0; else empty">
+        <table class="facturas-table">
+          <thead>
+            <tr>
+              <th class="col-id">ID</th>
+              <th class="col-cliente">Cliente</th>
+              <th class="col-pago">Método Pago</th>
+              <th class="col-total">Total</th>
+
+              <!-- ✅ NUEVO -->
+              <th class="col-total">Estado</th>
+
+              <th class="col-acciones">Acciones</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngFor="let f of facturasPaginadas" class="factura-row">
+              <td class="col-id">
+                <span class="badge-id">{{ f.id }}</span>
+              </td>
+
+              <td class="col-cliente">
+                <strong>{{ f.clienteNombre }}</strong>
+              </td>
+
+              <td class="col-pago">
+                <span class="badge-pago">{{ f.metodoPago }}</span>
+              </td>
+
+              <td class="col-total">
+                <span class="precio">${{ (Number(f.total) || 0).toFixed(2) }}</span>
+              </td>
+
+              <!-- ✅ NUEVO: Estado + saldo -->
+              <td class="col-total">
+                <ng-container *ngIf="(Number(f.saldoPendiente) || 0) > 0; else pagada">
+                  <span class="badge badge-danger">⚠ Deuda</span>
+                  <div style="font-size: 0.82rem; opacity: 0.85; margin-top: 2px;">
+                    Saldo: <b>${{ (Number(f.saldoPendiente) || 0).toFixed(2) }}</b>
+                  </div>
+                </ng-container>
+
+                <ng-template #pagada>
+                  <span class="badge badge-success">✅ Final</span>
+                </ng-template>
+              </td>
+
+              <td class="col-acciones">
+                <button class="btn-ver" (click)="ver(f.id)">
                   Ver Detalles
                 </button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+
+                <!-- ✅ NUEVO: Cobrar deuda -->
+                <button class="btn-ver"
+                        *ngIf="(Number(f.saldoPendiente) || 0) > 0"
+                        style="margin-left: 8px; background: rgba(241, 196, 15, 0.15); border: 1px solid rgba(241, 196, 15, 0.35); color: #b88700;"
+                        (click)="cobrarDeuda(f.clienteId, $event)">
+                  Cobrar deuda
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- CARDS MÓVIL -->
+      <div class="mobile-cards mobile-only" *ngIf="totalFacturas > 0">
+        <div class="factura-card-mobile" *ngFor="let f of facturasPaginadas">
+          <div class="card-mobile-header" (click)="ver(f.id)">
+            <span class="badge-id">{{ f.id }}</span>
+            <span class="badge-pago">{{ f.metodoPago }}</span>
+          </div>
+
+          <div class="card-mobile-body" (click)="ver(f.id)">
+            <div class="cliente-mobile">
+              <span class="label">Cliente</span>
+              <strong>{{ f.clienteNombre }}</strong>
             </div>
 
-            <!-- CARDS MÓVIL -->
-            <div class="mobile-cards mobile-only" *ngIf="totalFacturas > 0">
-                <div class="factura-card-mobile" *ngFor="let f of facturasPaginadas" (click)="ver(f.id)">
-                    <div class="card-mobile-header">
-                        <span class="badge-id">{{ f.id }}</span>
-                        <span class="badge-pago">{{ f.metodoPago }}</span>
-                    </div>
-                    <div class="card-mobile-body">
-                        <div class="cliente-mobile">
-                            <span class="label">Cliente</span>
-                            <strong>{{ f.clienteNombre }}</strong>
-                        </div>
-                        <div class="total-mobile">
-                            <span class="label">Total</span>
-                            <span class="precio">${{ (f.total || 0).toFixed(2) }}</span>
-                        </div>
-                    </div>
-                    <div class="card-mobile-footer">
-                        <span class="ver-detalle">Ver detalles →</span>
-                    </div>
-                </div>
+            <div class="total-mobile">
+              <span class="label">Total</span>
+              <span class="precio">${{ (Number(f.total) || 0).toFixed(2) }}</span>
             </div>
 
-            <!-- Controles de paginación -->
-            <div class="pagination-controls" *ngIf="totalFacturas > 0">
-                <div class="pagination-info">
-                    <span class="text-muted">Mostrando {{ (paginaActual - 1) * facturasPorPagina + 1 }} - {{ Math.min(paginaActual * facturasPorPagina, totalFacturas) }} de {{ totalFacturas }} facturas</span>
-                </div>
-                <div class="pagination-buttons">
-                    <button class="btn-pagination" [disabled]="paginaActual === 1" (click)="paginaAnterior()">
+            <!-- ✅ NUEVO: estado -->
+            <div class="total-mobile" style="margin-top: 6px;">
+              <span class="label">Estado</span>
+              <span *ngIf="(Number(f.saldoPendiente) || 0) > 0" class="badge badge-danger">
+                Deuda ${{ (Number(f.saldoPendiente) || 0).toFixed(2) }}
+              </span>
+              <span *ngIf="(Number(f.saldoPendiente) || 0) <= 0" class="badge badge-success">
+                Final
+              </span>
+            </div>
+          </div>
+
+          <div class="card-mobile-footer" style="display:flex; gap:10px; justify-content:flex-end;">
+            <span class="ver-detalle" (click)="ver(f.id)">Ver detalles →</span>
+
+            <!-- ✅ NUEVO: Cobrar deuda -->
+            <button class="btn-ver"
+                    *ngIf="(Number(f.saldoPendiente) || 0) > 0"
+                    style="background: rgba(241, 196, 15, 0.15); border: 1px solid rgba(241, 196, 15, 0.35); color: #b88700;"
+                    (click)="cobrarDeuda(f.clienteId, $event)">
+              Cobrar deuda
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controles de paginación -->
+      <div class="pagination-controls" *ngIf="totalFacturas > 0">
+        <div class="pagination-info">
+          <span class="text-muted">
+            Mostrando {{ (paginaActual - 1) * facturasPorPagina + 1 }} -
+            {{ Math.min(paginaActual * facturasPorPagina, totalFacturas) }} de
+            {{ totalFacturas }} facturas
+          </span>
+        </div>
+
+        <div class="pagination-buttons">
+          <button class="btn-pagination" [disabled]="paginaActual === 1" (click)="paginaAnterior()">
             ← Anterior
           </button>
-                    <button class="btn-pagination" [disabled]="paginaActual * facturasPorPagina >= totalFacturas" (click)="paginaSiguiente()">
+          <button class="btn-pagination" [disabled]="paginaActual * facturasPorPagina >= totalFacturas" (click)="paginaSiguiente()">
             Siguiente →
           </button>
-                </div>
-            </div>
-
-            <!-- ESTADO VACÍO -->
-            <ng-template #empty>
-                <div class="empty-state">
-                    <div class="empty-icon">📋</div>
-                    <p>No hay facturas aún</p>
-                    <span>Crea tu primera venta para generar facturas</span>
-                </div>
-            </ng-template>
         </div>
+      </div>
+
+      <!-- ESTADO VACÍO -->
+      <ng-template #empty>
+        <div class="empty-state">
+          <div class="empty-icon">📋</div>
+          <p>No hay facturas aún</p>
+          <span>Crea tu primera venta para generar facturas</span>
+        </div>
+      </ng-template>
+
     </div>
+  </div>
 </div>

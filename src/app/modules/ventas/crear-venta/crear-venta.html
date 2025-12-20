@@ -119,6 +119,24 @@
                 <option value="Tarjeta">💳 Tarjeta</option>
               </select>
                         </div>
+                        <!-- ✅ ABONO -->
+<div class="metodo-pago">
+  <label>Abono (paga hoy)</label>
+  <input
+    type="number"
+    min="0"
+    class="search-input"
+    [(ngModel)]="abono"
+    (ngModelChange)="recalcularAbono()"
+    placeholder="0.00"
+  />
+  <small class="muted">Si es menor al total, quedará saldo pendiente.</small>
+</div>
+
+<div class="total-row">
+  <span>Saldo pendiente</span>
+  <strong>${{ saldoPendiente.toFixed(2) }}</strong>
+</div>
                     </div>
                 </div>
 
@@ -152,32 +170,37 @@
 
     <div class="t-hr"></div>
 
-    <!-- MEDIDAS -->
-    <div class="t-bold t-small">MEDIDAS</div>
-    <div class="t-small">
-        OD: Esf {{ facturaParaImprimir.historialSnapshot?.odEsfera || '-' }} Cil {{ facturaParaImprimir.historialSnapshot?.odCilindro || '-' }} Eje {{ facturaParaImprimir.historialSnapshot?.odEje || '-' }}
-    </div>
-    <div class="t-small">
-        OI: Esf {{ facturaParaImprimir.historialSnapshot?.oiEsfera || '-' }} Cil {{ facturaParaImprimir.historialSnapshot?.oiCilindro || '-' }} Eje {{ facturaParaImprimir.historialSnapshot?.oiEje || '-' }}
-    </div>
-
-    <div class="t-hr"></div>
-
     <!-- TABLA -->
     <div class="t-table-head t-small">
-        <div>COD</div>
-        <div>DESCRIPCIÓN</div>
-        <div>CANT</div>
-        <div>P.U</div>
-        <div>TOTAL</div>
+
+
+
+
+
     </div>
 
     <div class="t-table-row t-small" *ngFor="let it of facturaParaImprimir.items; let i = index">
-        <div>{{ i + 1 }}</div>
-        <div class="t-cut">{{ it.nombre }}</div>
-        <div>{{ it.cantidad }}</div>
-        <div>{{ it.precioUnitario | number:'1.2-2' }}</div>
-        <div>{{ it.total | number:'1.2-2' }}</div>
+      <div class="t-kv t-small">
+        <span>COD</span>
+        <span>{{ i + 1 }}</span>
+    </div>
+    <div class="t-kv t-small">
+        <span>DESCRIPCIÓN</span>
+        <span class="t-cut">{{ it.nombre }}</span>
+    </div>
+    <div class="t-kv t-small">
+        <span>CANT</span>
+        <span>{{ it.cantidad }}</span>
+    </div>
+     <div class="t-kv t-small">
+        <span>P.U</span>
+        <span>{{ it.precioUnitario | number:'1.2-2' }}</span>
+    </div>
+    <div class="t-kv t-small">
+        <span>P.T</span>
+        <span>{{ it.total | number:'1.2-2' }}</span>
+    </div>
+
     </div>
 
     <div class="t-hr"></div>
@@ -195,6 +218,15 @@
         <span>TOTAL</span>
         <span>{{ facturaParaImprimir.total | number:'1.2-2' }}</span>
     </div>
+    <div class="t-kv t-small">
+  <span>Abono</span>
+  <span>{{ facturaParaImprimir.abonado | number:'1.2-2' }}</span>
+</div>
+<div class="t-kv t-small">
+  <span>Saldo pendiente</span>
+  <span>{{ facturaParaImprimir.saldoPendiente | number:'1.2-2' }}</span>
+</div>
+
 
     <div class="t-hr"></div>
 

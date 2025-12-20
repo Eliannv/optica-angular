@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { FacturasService } from '../../../core/services/facturas';
 
+type FiltroEstado = 'TODAS' | 'PENDIENTES' | 'PAGADAS';
 
 @Component({
   selector: 'app-listar-facturas',
@@ -13,35 +14,80 @@ import { FacturasService } from '../../../core/services/facturas';
   styleUrl: './listar-facturas.css'
 })
 export class ListarFacturasComponent {
-  term = '';
+  Number = Number;
+
+  // ✅ NUEVO
+  filtroEstado: FiltroEstado = 'TODAS';
+  term: string = '';
+
   facturas: any[] = [];
   filtradas: any[] = [];
   facturasPaginadas: any[] = [];
+
   paginaActual: number = 1;
   facturasPorPagina: number = 10;
   totalFacturas: number = 0;
-  Math = Math; // Para usar Math.min en el template
+  Math = Math;
 
   constructor(private facturasSrv: FacturasService, private router: Router) {
     this.facturasSrv.getFacturas().subscribe((data: any[]) => {
-      this.facturas = data || [];
+      this.facturas = (data || []).map(f => ({
+        ...f,
+        total: Number(f?.total || 0),
+        saldoPendiente: Number(f?.saldoPendiente || 0),
+      }));
+
+      // ✅ SIEMPRE ordenar por más recientes al inicio
+      this.facturas.sort((a, b) => this.getFechaMs(b) - this.getFechaMs(a));
+
       this.filtrar();
     });
   }
 
+  // obtiene ms de fecha (Timestamp o Date o string)
+  private getFechaMs(f: any): number {
+    const v = f?.fecha;
+    if (!v) return 0;
+
+    // Firestore Timestamp
+    if (typeof v?.toDate === 'function') return v.toDate().getTime();
+
+    // Date
+    if (v instanceof Date) return v.getTime();
+
+    // string/number
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? 0 : d.getTime();
+  }
+
   filtrar() {
     const t = (this.term || '').trim().toLowerCase();
-    if (!t) { 
-      this.filtradas = [...this.facturas]; 
+
+    // 1) filtro por estado
+    let base = [...this.facturas];
+
+    if (this.filtroEstado === 'PENDIENTES') {
+      base = base.filter(f => (Number(f.saldoPendiente) || 0) > 0);
+    } else if (this.filtroEstado === 'PAGADAS') {
+      base = base.filter(f => (Number(f.saldoPendiente) || 0) <= 0);
+    }
+
+    // 2) filtro texto
+    if (!t) {
+      this.filtradas = base;
     } else {
-      this.filtradas = this.facturas.filter(f =>
+      this.filtradas = base.filter(f =>
         (f.clienteNombre || '').toLowerCase().includes(t) ||
         (f.metodoPago || '').toLowerCase().includes(t) ||
         (f.id || '').toLowerCase().includes(t)
       );
     }
+
+    // 3) mantener orden "últimas primero" siempre
+    this.filtradas.sort((a, b) => this.getFechaMs(b) - this.getFechaMs(a));
+
     this.totalFacturas = this.filtradas.length;
-    this.paginaActual = 1; // Resetear a la primera página al filtrar
+    this.paginaActual = 1;
     this.actualizarPaginacion();
   }
 
@@ -69,7 +115,16 @@ export class ListarFacturasComponent {
     this.router.navigate(['/facturas', id]);
   }
 
+  // ✅ NUEVO
+  cobrarDeuda(clienteId: string, ev?: Event) {
+    ev?.stopPropagation();
+    if (!clienteId) return;
+    this.router.navigate(['/ventas/deuda'], {
+      queryParams: { clienteId }
+    });
+  }
+
   nuevaVenta() {
-    this.router.navigate(['/clientes/historial-clinico']);
+    this.router.navigate(['/clientes/historial-clinica']);
   }
 }

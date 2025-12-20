@@ -42,7 +42,8 @@ export class CrearVentaComponent implements OnInit {
 
   // para ticket
   facturaParaImprimir: any = null;
-
+abono = 0;
+saldoPendiente = 0;
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -87,6 +88,13 @@ export class CrearVentaComponent implements OnInit {
     });
   }
 
+
+recalcularAbono() {
+  const a = Math.max(0, Number(this.abono || 0));
+  // no permitir que el abono supere el total
+  this.abono = Math.min(a, this.total);
+  this.saldoPendiente = +(this.total - this.abono).toFixed(2);
+}
 agregarProducto(p: any) {
   const id = p.id;
 
@@ -155,25 +163,37 @@ async guardarEImprimir() {
   this.guardando = true;
 
   try {
-    const factura: any = {
-      clienteId: this.clienteId,
-      clienteNombre: `${this.cliente?.nombres || ''} ${this.cliente?.apellidos || ''}`.trim(),
-      historialSnapshot: this.historial || null,
-      items: this.items.map((i: any) => ({
-        productoId: i.productoId,
-        nombre: i.nombre,
-        tipo: i.tipo,
-        cantidad: i.cantidad,
-        precioUnitario: i.precioUnitario,
-        total: i.total,
-      })),
-      subtotal: +this.subtotal.toFixed(2),
-      iva: +this.iva.toFixed(2),
-      total: +this.total.toFixed(2),
-      metodoPago: this.metodoPago,
-      fecha: new Date(),
-      usuarioId: 'admin',
-    };
+    const abonado = Math.min(Math.max(0, Number(this.abono || 0)), this.total);
+const saldoPendiente = +(this.total - abonado).toFixed(2);
+
+const factura: any = {
+  clienteId: this.clienteId,
+  clienteNombre: `${this.cliente?.nombres || ''} ${this.cliente?.apellidos || ''}`.trim(),
+  historialSnapshot: this.historial || null,
+
+  items: this.items.map((i: any) => ({
+    productoId: i.productoId,
+    nombre: i.nombre,
+    tipo: i.tipo,
+    cantidad: i.cantidad,
+    precioUnitario: i.precioUnitario,
+    total: i.total,
+  })),
+
+  subtotal: +this.subtotal.toFixed(2),
+  iva: +this.iva.toFixed(2),
+  total: +this.total.toFixed(2),
+
+  metodoPago: this.metodoPago,
+  fecha: new Date(),
+  usuarioId: 'admin',
+
+  // ✅ NUEVO
+  tipoVenta: saldoPendiente > 0 ? 'CREDITO' : 'CONTADO',
+  abonado: +abonado.toFixed(2),
+  saldoPendiente,
+  estadoPago: saldoPendiente > 0 ? 'PENDIENTE' : 'PAGADA',
+};
 
     const facturaLimpia = this.cleanUndefined(factura);
 const ref = await this.facturasSrv.crearFactura(facturaLimpia);

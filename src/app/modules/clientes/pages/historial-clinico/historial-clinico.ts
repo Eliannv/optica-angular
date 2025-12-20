@@ -6,6 +6,8 @@ import { FormsModule } from '@angular/forms';
 
 import { ClientesService } from '../../../../core/services/clientes';
 import { HistorialClinicoService } from '../../../../core/services/historial-clinico.service';
+import { FacturasService } from '../../../../core/services/facturas'; // ✅ NUEVO
+
 import { Cliente } from '../../../../core/models/cliente.model';
 import { HistoriaClinica } from '../../../../core/models/historia-clinica.model';
 
@@ -32,6 +34,9 @@ export class HistorialClinicoComponent implements OnInit {
 
   cargando = true;
 
+  // ✅ NUEVO: deuda por cliente
+  deudas: Record<string, { deudaTotal: number; pendientes: number }> = {};
+
   // Modal
   clienteSeleccionado: ClienteUI | null = null;
   historialClinico: HistoriaClinica | null = null;
@@ -41,7 +46,8 @@ export class HistorialClinicoComponent implements OnInit {
   constructor(
     private router: Router,
     private clientesSrv: ClientesService,
-    private historialSrv: HistorialClinicoService
+    private historialSrv: HistorialClinicoService,
+    private facturasSrv: FacturasService // ✅ NUEVO
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -67,6 +73,26 @@ export class HistorialClinicoComponent implements OnInit {
 
     this.clientes = withHistorial;
     this.aplicarFiltro();
+
+    // ✅ NUEVO: cargar deuda por cliente (después de tener clientes listos)
+    await this.cargarDeudasClientes(this.clientes);
+  }
+
+  // ✅ NUEVO: cargar deuda total por cliente
+  private async cargarDeudasClientes(lista: ClienteUI[]): Promise<void> {
+    // carga en paralelo
+    const tasks = lista.map(async c => {
+      if (!c?.id) return;
+      try {
+        const res = await this.facturasSrv.getResumenDeuda(c.id);
+        this.deudas[c.id] = res;
+      } catch (e) {
+        console.error('Error deuda cliente', c.id, e);
+        this.deudas[c.id] = { deudaTotal: 0, pendientes: 0 };
+      }
+    });
+
+    await Promise.all(tasks);
   }
 
   // 🔎 Buscar
@@ -162,7 +188,6 @@ export class HistorialClinicoComponent implements OnInit {
     this.historialClinico = null;
   }
 
-
   // ✅ Si NO tiene historial => crear
   crearHistorial(clienteId: string): void {
     this.router.navigate([`/clientes/${clienteId}/crear-historial-clinico`], {
@@ -177,9 +202,16 @@ export class HistorialClinicoComponent implements OnInit {
     });
   }
 
-  // ✅ NUEVO: Crear Recibo (POS)
+  // ✅ Crear Recibo (POS)
   crearRecibo(clienteId: string): void {
     this.router.navigate(['/ventas/crear'], {
+      queryParams: { clienteId }
+    });
+  }
+
+  // ✅ NUEVO: Cobrar deuda (solo navega)
+  cobrarDeuda(clienteId: string): void {
+    this.router.navigate(['/ventas/deuda'], {
       queryParams: { clienteId }
     });
   }

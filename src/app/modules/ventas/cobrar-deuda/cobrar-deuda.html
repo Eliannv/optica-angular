@@ -1,0 +1,230 @@
+<!-- ✅ ZONA NO IMPRIMIBLE -->
+<div class="venta-container no-print" *ngIf="!loading">
+  <div class="venta-card">
+
+    <!-- HEADER -->
+    <div class="venta-header">
+      <div class="header-content">
+        <h3 class="venta-title">
+          💳 Cobro de Deudas
+        </h3>
+
+        <div class="header-actions">
+          <button class="btn-secondary" type="button" (click)="volver()">
+            <span>← Volver</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="cliente-info">
+        <div class="info-item">
+          <span class="info-label">Cliente:</span>
+          <span class="info-value">{{ clienteNombre || '-' }}</span>
+        </div>
+
+        <div class="info-item">
+          <span class="info-label">Deuda total:</span>
+          <span class="badge badge-danger">
+            ${{ deudaTotal.toFixed(2) }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BODY (misma grid que POS) -->
+    <div class="venta-body">
+
+      <!-- IZQUIERDA: Facturas pendientes -->
+      <div class="productos-section">
+        <div class="section-header">
+          <h4>📌 Facturas Pendientes</h4>
+          <span class="items-count" *ngIf="pendientes.length">{{ pendientes.length }} pendiente(s)</span>
+        </div>
+
+        <div class="empty-state" *ngIf="!pendientes.length">
+          <span>✅ No hay deudas pendientes</span>
+        </div>
+
+        <div class="productos-list" *ngIf="pendientes.length">
+          <button class="producto-item"
+                  type="button"
+                  *ngFor="let f of pendientes"
+                  (click)="seleccionarFactura(f)">
+            <div class="producto-info">
+              <div class="producto-nombre">Factura #{{ f.id }}</div>
+              <div class="producto-categoria">
+                Fecha:
+                <ng-container *ngIf="f.fecha?.toDate; else fechaNormal">
+                  {{ f.fecha.toDate() | date:'dd/MM/yyyy HH:mm' }}
+                </ng-container>
+                <ng-template #fechaNormal>
+                  {{ f.fecha | date:'dd/MM/yyyy HH:mm' }}
+                </ng-template>
+              </div>
+              <div class="producto-categoria">
+                Abonado: ${{ (f.abonado || 0) | number:'1.2-2' }} | Saldo: <b>${{ (f.saldoPendiente || 0) | number:'1.2-2' }}</b>
+              </div>
+            </div>
+
+            <div class="producto-precio">
+              ${{ (f.total || 0) | number:'1.2-2' }}
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- DERECHA: Panel de abono (estilo carrito) -->
+      <div class="carrito-section">
+        <div class="section-header">
+          <h4>🧾 Registrar Abono</h4>
+          <span class="items-count" *ngIf="facturaSeleccionada">1 seleccionada</span>
+        </div>
+
+        <!-- Si no ha elegido -->
+        <div class="carrito-empty" *ngIf="!facturaSeleccionada">
+          <div class="empty-icon">🧾</div>
+          <p>Selecciona una factura</p>
+          <span>Haz clic en una factura pendiente para cobrar</span>
+        </div>
+
+        <!-- Si eligió -->
+        <div class="carrito-content" *ngIf="facturaSeleccionada">
+          <div class="carrito-items" style="max-height: 28vh;">
+            <div class="carrito-item">
+              <div class="item-info">
+                <div class="item-nombre">Factura #{{ facturaSeleccionada.id }}</div>
+                <div class="item-tipo">
+                  Total: ${{ (facturaSeleccionada.total || 0) | number:'1.2-2' }}
+                </div>
+                <div class="item-tipo">
+                  Abonado: ${{ (facturaSeleccionada.abonado || 0) | number:'1.2-2' }}
+                </div>
+                <div class="item-tipo">
+                  Saldo: <b>${{ (facturaSeleccionada.saldoPendiente || 0) | number:'1.2-2' }}</b>
+                </div>
+              </div>
+
+              <div class="item-cantidad" style="align-items: stretch;">
+                <label>Abono</label>
+                <input type="number"
+                       min="0"
+                       [ngModel]="abono"
+                       (ngModelChange)="onChangeAbono($event)" />
+                <span class="precio-unit">
+                  Máx: ${{ (facturaSeleccionada.saldoPendiente || 0) | number:'1.2-2' }}
+                </span>
+              </div>
+
+              <div class="item-total" style="flex-direction: column; align-items: flex-end;">
+                <div class="total-precio">
+                  ${{ abono.toFixed(2) }}
+                </div>
+
+                <button class="btn-primary"
+                        type="button"
+                        [disabled]="pagando || abono <= 0"
+                        (click)="registrarAbono()">
+                  <span>{{ pagando ? 'Procesando...' : 'Guardar + Imprimir' }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="carrito-totales">
+            <div class="total-row">
+              <span>Saldo actual</span>
+              <strong>${{ (facturaSeleccionada.saldoPendiente || 0) | number:'1.2-2' }}</strong>
+            </div>
+
+            <div class="total-row">
+              <span>Abono</span>
+              <strong>${{ abono.toFixed(2) }}</strong>
+            </div>
+
+            <div class="total-row total-final">
+              <span>Saldo nuevo</span>
+              <strong>${{ saldoNuevo.toFixed(2) }}</strong>
+            </div>
+
+            <div class="metodo-pago">
+              <label>Método de Pago</label>
+              <select class="select-pago" [(ngModel)]="metodoPago">
+                <option value="Efectivo">💵 Efectivo</option>
+                <option value="Transferencia">🏦 Transferencia</option>
+                <option value="Tarjeta">💳 Tarjeta</option>
+              </select>
+            </div>
+
+            <div class="total-row" *ngIf="saldoNuevo <= 0">
+              <span>Estado</span>
+              <strong class="badge badge-success">✅ Pagada</strong>
+            </div>
+            <div class="total-row" *ngIf="saldoNuevo > 0">
+              <span>Estado</span>
+              <strong class="badge badge-danger">⚠ Pendiente</strong>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ================= TICKET (COMPROBANTE ABONO) ================= -->
+<div class="ticket" *ngIf="ticketPago">
+
+  <div class="t-center t-bold">ÓPTICA MACÍAS</div>
+  <div class="t-center t-small">RUC: 0999999999001</div>
+  <div class="t-center t-small">Machala - Ecuador</div>
+
+  <div class="t-hr"></div>
+
+  <div class="t-small">
+    <div><b>COMPROBANTE:</b> PAGO / ABONO</div>
+    <div><b>FACTURA No:</b> {{ ticketPago.facturaId }}</div>
+    <div><b>Fecha:</b> {{ ticketPago.fecha | date:'dd/MM/yyyy HH:mm' }}</div>
+    <div><b>Cliente:</b> {{ ticketPago.clienteNombre }}</div>
+    <div><b>Método pago:</b> {{ ticketPago.metodoPago }}</div>
+  </div>
+
+  <div class="t-hr"></div>
+
+  <div class="t-kv t-small">
+    <span>Total factura</span>
+    <span>{{ ticketPago.totalFactura | number:'1.2-2' }}</span>
+  </div>
+
+  <div class="t-kv t-small">
+    <span>Abonado anterior</span>
+    <span>{{ ticketPago.abonadoAnterior | number:'1.2-2' }}</span>
+  </div>
+
+  <div class="t-kv t-small">
+    <span>Abono realizado</span>
+    <span>{{ ticketPago.abonoRealizado | number:'1.2-2' }}</span>
+  </div>
+
+  <div class="t-kv t-small">
+    <span>Abonado total</span>
+    <span>{{ ticketPago.abonadoNuevo | number:'1.2-2' }}</span>
+  </div>
+
+  <div class="t-hr"></div>
+
+  <div class="t-kv t-bold">
+    <span>SALDO</span>
+    <span>{{ ticketPago.saldoNuevo | number:'1.2-2' }}</span>
+  </div>
+
+  <div class="t-center t-small" style="margin-top: 6px;">
+    {{ ticketPago.saldoNuevo <= 0 ? '✅ DEUDA CANCELADA' : '⚠️ SALDO PENDIENTE' }}
+  </div>
+
+  <div class="t-hr"></div>
+
+  <div class="t-center t-small">Gracias</div>
+  <div class="t-center t-small">Conserve este comprobante</div>
+
+</div>
