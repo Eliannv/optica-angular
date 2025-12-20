@@ -55,7 +55,15 @@ export class ListarProveedores implements OnInit {
       this.actualizarPaginacion();
     }
   }
+  irPrimeraPagina(): void {
+    this.paginaActual = 1;
+    this.actualizarPaginacion();
+  }
 
+  irUltimaPagina(): void {
+    this.paginaActual = Math.ceil(this.totalProveedores / this.proveedoresPorPagina);
+    this.actualizarPaginacion();
+  }
   crearProveedor() {
     this.router.navigate(['/proveedores/crear']);
   }

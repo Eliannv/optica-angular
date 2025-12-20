@@ -77,16 +77,22 @@
                 </table>
 
                 <!-- Controles de paginación -->
-                <div class="d-flex justify-between align-center mt-3" *ngIf="totalProductos > 0">
-                    <div>
+                <div class="pagination-controls" *ngIf="totalProductos > 0">
+                    <div class="pagination-info">
                         <span class="text-muted">Mostrando {{ (paginaActual - 1) * productosPorPagina + 1 }} - {{ Math.min(paginaActual * productosPorPagina, totalProductos) }} de {{ totalProductos }} productos</span>
                     </div>
-                    <div class="d-flex gap-2">
+                    <div class="pagination-buttons">
+                        <button class="btn btn-secondary" [disabled]="paginaActual === 1" (click)="irPrimeraPagina()">
+                            «« Primera
+                        </button>
                         <button class="btn btn-secondary" [disabled]="paginaActual === 1" (click)="paginaAnterior()">
                             ← Anterior
                         </button>
                         <button class="btn btn-secondary" [disabled]="paginaActual * productosPorPagina >= totalProductos" (click)="paginaSiguiente()">
                             Siguiente →
+                        </button>
+                        <button class="btn btn-secondary" [disabled]="paginaActual * productosPorPagina >= totalProductos" (click)="irUltimaPagina()">
+                            Última »»
                         </button>
                     </div>
                 </div>

@@ -55,7 +55,15 @@ export class ListarProductos implements OnInit {
       this.actualizarPaginacion();
     }
   }
+  irPrimeraPagina(): void {
+    this.paginaActual = 1;
+    this.actualizarPaginacion();
+  }
 
+  irUltimaPagina(): void {
+    this.paginaActual = Math.ceil(this.totalProductos / this.productosPorPagina);
+    this.actualizarPaginacion();
+  }
   crearProducto() {
     this.router.navigate(['/productos/crear']);
   }

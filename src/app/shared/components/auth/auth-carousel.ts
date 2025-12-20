@@ -12,6 +12,7 @@ import { RolUsuario } from '../../../core/models/usuario.model';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import Swal from 'sweetalert2';
+import { trigger, transition, style, animate } from '@angular/animations';
 
 @Component({
   selector: 'app-auth-carousel',
@@ -19,6 +20,14 @@ import Swal from 'sweetalert2';
   imports: [CommonModule, ReactiveFormsModule, FormsModule],
   templateUrl: './auth-carousel.html',
   styleUrl: './auth-carousel.scss',
+  animations: [
+    trigger('fadeSlide', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(20px)' }),
+        animate('300ms ease-out', style({ opacity: 1, transform: 'translateY(0)' }))
+      ])
+    ])
+  ]
 })
 export class AuthCarousel {
   // Control de las secciones: 1 = login | 2 = registro | 3 = forgot password

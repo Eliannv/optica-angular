@@ -118,6 +118,16 @@ export class HistorialClinicoComponent implements OnInit {
     }
   }
 
+  irPrimeraPagina(): void {
+    this.paginaActual = 1;
+    this.actualizarPaginacion();
+  }
+
+  irUltimaPagina(): void {
+    this.paginaActual = Math.ceil(this.totalClientes / this.clientesPorPagina);
+    this.actualizarPaginacion();
+  }
+
   // ✅ Acciones
   crearCliente(): void {
     this.router.navigate(['/clientes/crear'], {

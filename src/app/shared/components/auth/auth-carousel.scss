@@ -13,7 +13,7 @@
 .auth-left {
     flex: 1.8;
     position: relative;
-    background: linear-gradient(135deg, #2c3e50, #2c3e50bb);
+    background: linear-gradient(135deg, #1E3A5F, #FF8C00);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -115,7 +115,7 @@
 h2,
 .auth-title {
     text-align: center;
-    color: var(--sidebar-active-border);
+    color: #1E3A5F;
     margin-bottom: 1.5rem;
     font-weight: 700;
     letter-spacing: 0.5px;
@@ -157,8 +157,8 @@ input {
 }
 
 input:focus {
-    border-color: #22c55e;
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+    border-color: #6BBF59;
+    box-shadow: 0 0 0 3px rgba(107, 191, 89, 0.2);
 }
 
 
@@ -230,8 +230,8 @@ input:focus {
 
 .btn-submit,
 .auth-btn {
-    background: #009067;
-    color: #fff;
+    background: #FF8C00 !important;
+    color: #fff !important;
     border: none;
     padding: 12px;
     border-radius: 30px;
@@ -240,13 +240,24 @@ input:focus {
     cursor: pointer;
     transition: all 0.3s ease;
     margin-top: 12px;
+    text-align: center;
+    display: block;
+    width: 100%;
+    * {
+        color: #fff !important;
+    }
+    span {
+        color: #fff !important;
+    }
     &:hover {
-        background: #009067;
+        background: #FF7000 !important;
         transform: translateY(-2px);
+        color: #fff !important;
     }
     &:disabled {
-        background: #9ca3af;
+        background: #9ca3af !important;
         cursor: not-allowed;
+        color: #fff !important;
     }
 }
 
@@ -261,12 +272,13 @@ p {
 }
 
 a {
-    color: #009067;
+    color: #1E3A5F;
     cursor: pointer;
     text-decoration: none;
     font-weight: 500;
     &:hover {
         text-decoration: underline;
+        color: #FF8C00;
     }
 }
 
@@ -287,7 +299,7 @@ a {
 
 .info,
 .message {
-    color: #009067;
+    color: #6BBF59;
     text-align: center;
     margin-top: 1rem;
     font-size: 0.85rem;
@@ -345,7 +357,7 @@ a {
     right: 10px;
     top: 50%;
     transform: translateY(-50%);
-    color: #009067;
+    color: #6BBF59;
     animation: spin 1s linear infinite;
 }
 
@@ -386,7 +398,7 @@ a {
 @media (max-width: 992px) {
     .auth-container {
         flex-direction: column;
-        background: linear-gradient(135deg, #2c3e50, #2c3e50bb);
+        background: linear-gradient(135deg, #1E3A5F, #FF8C00);
         overflow-y: auto;
         height: 100vh;
     }
