@@ -8,6 +8,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
+import { RolUsuario } from '../../../core/models/usuario.model';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import Swal from 'sweetalert2';
@@ -105,8 +106,13 @@ export class AuthCarousel {
     this.authService.login(email, password).subscribe({
       next: (usuario) => {
         this.isLoading = false;
-        // Redirigir a productos después del login
-        this.router.navigate(['/productos']);
+        
+        // Redirigir según el rol del usuario
+        if (usuario.rol === RolUsuario.ADMINISTRADOR) {
+          this.router.navigate(['/productos']);
+        } else if (usuario.rol === RolUsuario.OPERADOR) {
+          this.router.navigate(['/clientes/historial-clinico']);
+        }
 
         Swal.fire({
           icon: 'success',

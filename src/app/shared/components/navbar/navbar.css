@@ -131,6 +131,10 @@
     color: var(--navbar-text);
 }
 
+.user-role {
+    color: var(--navbar-text);
+}
+
 .dropdown-menu {
     display: none;
     position: absolute;

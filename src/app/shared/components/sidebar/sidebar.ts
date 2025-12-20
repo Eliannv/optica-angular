@@ -1,7 +1,18 @@
-import { Component, output, signal, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, output, signal, Inject, PLATFORM_ID, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { AuthService } from '../../../core/services/auth.service';
+import { RolUsuario } from '../../../core/models/usuario.model';
+
+interface MenuItem {
+  label: string;
+  icon: SafeHtml | string;
+  route: string;
+  active: boolean;
+  badge?: number;
+  roles: RolUsuario[]; // Roles permitidos para ver este item
+}
 
 @Component({
   selector: 'app-sidebar',
@@ -14,14 +25,20 @@ export class SidebarComponent {
   closeSidebar = output<void>();
 
   collapsed = false;
-
-  menuItems: Array<{ label: string; icon: SafeHtml | string; route: string; active: boolean; badge?: number }>;
+  
+  private authService = inject(AuthService);
+  
+  // Todos los items del menú con sus permisos
+  private allMenuItems: MenuItem[];
+  
+  // Items filtrados según el rol del usuario
+  menuItems: MenuItem[] = [];
 
   constructor(
     private sanitizer: DomSanitizer,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
-    this.menuItems = [
+    this.allMenuItems = [
   {
     label: 'Historial Clínico',
     icon: this.sanitizer.bypassSecurityTrustHtml(`
@@ -36,7 +53,8 @@ export class SidebarComponent {
     `),
     route: '/clientes/historial-clinico',
     active: true,
-    badge: 0
+    badge: 0,
+    roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR] // Operadores y Administradores
   },
       /*{
 
@@ -80,7 +98,8 @@ export class SidebarComponent {
           </svg>
         `),
       route: '/productos',
-      active: false
+      active: false,
+      roles: [RolUsuario.ADMINISTRADOR] // Solo administradores
     },
     {
       label: 'Proveedores',
@@ -88,7 +107,8 @@ export class SidebarComponent {
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package-search-icon lucide-package-search"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/><path d="m7.5 4.27 9 5.15"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/><circle cx="18.5" cy="15.5" r="2.5"/><path d="M20.27 17.27 22 19"/></svg>
         `),
       route: '/proveedores',
-      active: false
+      active: false,
+      roles: [RolUsuario.ADMINISTRADOR] // Solo administradores
     },
     {
   label: 'Ventas (POS)',
@@ -101,7 +121,8 @@ export class SidebarComponent {
     </svg>
   `),
   route: '/ventas/crear',
-  active: false
+  active: false,
+  roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR] // Operadores y Administradores
 },
 {
   label: 'Facturas',
@@ -115,7 +136,8 @@ export class SidebarComponent {
     </svg>
   `),
   route: '/facturas',
-  active: false
+  active: false,
+  roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR] // Operadores y Administradores
 }/*,
 
     {
@@ -140,6 +162,26 @@ export class SidebarComponent {
         active: false
       }*/
     ];
+    
+    // Filtrar menú según el rol del usuario
+    this.filterMenuByRole();
+  }
+
+  /**
+   * Filtrar items del menú según el rol del usuario actual
+   */
+  private filterMenuByRole(): void {
+    const currentUser = this.authService.getCurrentUser();
+    
+    if (!currentUser) {
+      this.menuItems = [];
+      return;
+    }
+    
+    // Filtrar items que incluyan el rol del usuario
+    this.menuItems = this.allMenuItems.filter(item => 
+      item.roles.includes(currentUser.rol)
+    );
   }
 
   toggleSidebar() {

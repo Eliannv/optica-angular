@@ -1,4 +1,8 @@
-export type RolUsuario = 'admin' | 'empleado';
+// Roles del sistema
+export enum RolUsuario {
+  ADMINISTRADOR = 1,
+  OPERADOR = 2
+}
 
 export interface Usuario {
   id?: string;

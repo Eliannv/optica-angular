@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { ThemeService } from '../../../core/services/theme.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { RolUsuario } from '../../../core/models/usuario.model';
 import Swal from 'sweetalert2';
 
 @Component({
@@ -66,6 +67,6 @@ export class NavbarComponent {
 
   get userRole(): string {
     const user = this.authService.getCurrentUser();
-    return user?.rol === 'admin' ? 'Administrador' : 'Empleado';
+    return user?.rol === RolUsuario.ADMINISTRADOR ? 'Administrador' : 'Operador';
   }
 }

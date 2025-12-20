@@ -21,7 +21,7 @@ import {
   serverTimestamp
 } from '@angular/fire/firestore';
 import { Observable, from, map, switchMap, of } from 'rxjs';
-import { Usuario } from '../models/usuario.model';
+import { Usuario, RolUsuario } from '../models/usuario.model';
 import { Router } from '@angular/router';
 
 @Injectable({
@@ -112,7 +112,7 @@ export class AuthService {
           id: credential.user.uid,
           nombre: `${userData.nombre} ${userData.apellido}`,
           email: userData.email,
-          rol: 'empleado', // Siempre se registra como empleado
+          rol: RolUsuario.OPERADOR, // Siempre se registra como OPERADOR (rol 2)
           activo: true,
           createdAt: serverTimestamp()
         };
@@ -151,7 +151,14 @@ export class AuthService {
    * Verificar si el usuario es administrador
    */
   isAdmin(): boolean {
-    return this.currentUserData?.rol === 'admin';
+    return this.currentUserData?.rol === RolUsuario.ADMINISTRADOR;
+  }
+
+  /**
+   * Verificar si el usuario es operador
+   */
+  isOperador(): boolean {
+    return this.currentUserData?.rol === RolUsuario.OPERADOR;
   }
 
   /**

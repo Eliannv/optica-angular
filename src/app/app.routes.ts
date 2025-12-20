@@ -1,5 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { roleGuard } from './core/guards/role.guard';
+import { RolUsuario } from './core/models/usuario.model';
 
 export const routes: Routes = [
 
@@ -11,50 +13,52 @@ export const routes: Routes = [
         .then(m => m.AuthCarousel)
   },
 
-  // 🔐 Rutas protegidas
+  // 🔐 Rutas protegidas - OPERADOR y ADMINISTRADOR: Clientes e Historial Clínico
   {
     path: 'clientes',
     loadChildren: () =>
       import('./modules/clientes/clientes-module')
         .then(m => m.ClientesModule),
-    canActivate: [authGuard]
+    canActivate: [authGuard, roleGuard([RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR])]
   },
 
+  // 🔐 Rutas protegidas - ADMINISTRADOR: Productos
   {
     path: 'productos',
     loadChildren: () =>
       import('./modules/productos/productos-module')
         .then(m => m.ProductosModule),
-    canActivate: [authGuard]
+    canActivate: [authGuard, roleGuard([RolUsuario.ADMINISTRADOR])]
   },
 
+  // 🔐 Rutas protegidas - ADMINISTRADOR: Proveedores
   {
     path: 'proveedores',
     loadChildren: () =>
       import('./modules/proveedores/proveedores-module')
         .then(m => m.ProveedoresModule),
-    canActivate: [authGuard]
+    canActivate: [authGuard, roleGuard([RolUsuario.ADMINISTRADOR])]
   },
 
-  // ✅ NUEVO: Ventas (POS)
+  // 🔐 Rutas protegidas - OPERADOR y ADMINISTRADOR: Ventas (POS)
   {
     path: 'ventas',
     loadChildren: () =>
       import('./modules/ventas/ventas-routing-module')
         .then(m => m.VentasRoutingModule),
-    canActivate: [authGuard]
+    canActivate: [authGuard, roleGuard([RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR])]
   },
 
-  // ✅ NUEVO: Facturas
+  // 🔐 Rutas protegidas - OPERADOR y ADMINISTRADOR: Facturas
   {
     path: 'facturas',
     loadChildren: () =>
       import('./modules/factura/facturas-routing-module')
         .then(m => m.FacturasRoutingModule),
-    canActivate: [authGuard]
+    canActivate: [authGuard, roleGuard([RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR])]
   },
 
   // 🔁 Redirecciones
-  { path: '', redirectTo: 'clientes', pathMatch: 'full' },
-  { path: '**', redirectTo: 'clientes' }
+  { path: '', redirectTo: 'login', pathMatch: 'full' },
+  { path: '**', redirectTo: 'login' }
 ];
