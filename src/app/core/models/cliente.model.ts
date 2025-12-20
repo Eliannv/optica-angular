@@ -7,5 +7,8 @@ export interface Cliente {
   email?: string;
   fechaNacimiento?: Date;
   direccion?: string;
+  pais?: string;
+  provincia?: string;
+  ciudad?: string;
   createdAt?: any;
 }

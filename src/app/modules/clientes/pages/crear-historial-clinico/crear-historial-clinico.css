@@ -1,0 +1,250 @@
+.historial-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+.historial-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.historial-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.historial-header h3 {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 600;
+}
+
+form {
+    padding: 1.5rem;
+}
+
+.cliente-form-section {
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 1.5rem;
+}
+
+
+/* Títulos de sección */
+
+.section-title {
+    margin-bottom: 1rem;
+}
+
+.section-title h4 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: inherit;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid rgba(79, 140, 255, 0.3);
+    display: inline-block;
+}
+
+
+/* Grid de información del cliente */
+
+.cliente-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.cliente-grid .full-width {
+    grid-column: 1 / -1;
+}
+
+
+/* Secciones compactas */
+
+.section-medidas {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.ojos-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.ojo-card {
+    background: rgba(0, 0, 0, 0.15);
+    padding: 1rem;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ojo-card h4 {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    opacity: 0.9;
+}
+
+.ojo-inputs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+
+.section-extra {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.section-observacion {
+    margin-bottom: 1.5rem;
+}
+
+
+/* Inputs */
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.input-group label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-bottom: 0.35rem;
+    opacity: 0.8;
+}
+
+.input-group input,
+.input-group select,
+.section-observacion textarea {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    padding: 0.5rem 0.5rem;
+    font-size: 0.9rem;
+    color: inherit;
+    transition: all 0.2s;
+}
+
+.input-group input:focus,
+.input-group select:focus,
+.section-observacion textarea:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--primary, #4f8cff);
+    box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.15);
+}
+
+
+/* Mensajes de error */
+
+.error-msg {
+    font-size: 0.75rem;
+    color: #ef4444;
+    margin-top: 0.25rem;
+    font-weight: 500;
+}
+
+.section-observacion label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    display: block;
+    opacity: 0.85;
+}
+
+.section-observacion textarea {
+    width: 100%;
+    resize: vertical;
+    font-family: inherit;
+}
+
+
+/* Footer */
+
+.historial-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.btn-cancel,
+.btn-save {
+    padding: 0.6rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cancel {
+    background: rgba(255, 255, 255, 0.08);
+    color: inherit;
+}
+
+.btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.btn-save {
+    background: var(--primary, #4f8cff);
+    color: white;
+}
+
+.btn-save:hover:not(:disabled) {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+}
+
+.btn-save:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+
+/* Responsive */
+
+@media (max-width: 768px) {
+    .historial-container {
+        padding: 1rem;
+    }
+    .cliente-grid {
+        grid-template-columns: 1fr;
+    }
+    .section-medidas {
+        grid-template-columns: 1fr;
+    }
+    .ojos-grid {
+        grid-template-columns: 1fr;
+    }
+    .ojo-inputs {
+        grid-template-columns: 1fr;
+    }
+    .section-extra {
+        grid-template-columns: 1fr;
+    }
+    .historial-footer {
+        flex-direction: column;
+    }
+    .btn-cancel,
+    .btn-save {
+        width: 100%;
+    }
+}

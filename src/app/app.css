@@ -67,24 +67,21 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     z-index: 1001;
-    opacity: 0;
-    animation: fadeInOverlay 0.3s ease forwards;
+    animation: fadeInOverlay 0.25s ease;
+    pointer-events: auto;
+    touch-action: none;
 }
 
 @keyframes fadeInOverlay {
     from {
         opacity: 0;
-        backdrop-filter: blur(0px);
-        -webkit-backdrop-filter: blur(0px);
     }
     to {
         opacity: 1;
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
     }
 }
 
@@ -95,29 +92,21 @@
     bottom: 0;
     width: 260px;
     z-index: 1002;
-    transition: left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-    box-shadow: var(--shadow-xl);
-    transform: translateX(0);
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s ease;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+    will-change: left, width;
+    background: var(--sidebar-bg);
 }
 
 .sidebar-drawer.active {
     left: 0;
-    animation: slideInFromLeft 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-
-@keyframes slideInFromLeft {
-    from {
-        left: -280px;
-        opacity: 0.8;
-    }
-    to {
-        left: 0;
-        opacity: 1;
-    }
 }
 
 .inside-drawer {
     height: 100%;
+    width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 
@@ -156,14 +145,38 @@
         padding: 1rem 1.5rem;
     }
     .sidebar-desktop {
-        display: none;
+        display: none !important;
     }
 }
 
 @media (min-width: 1150px) {
     .sidebar-drawer,
     .sidebar-overlay {
-        display: none;
+        display: none !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .main-content {
+        padding: 0.75rem 1rem;
+    }
+    .content-wrapper {
+        height: calc(100vh - 56px);
+        max-height: calc(100vh - 56px);
+    }
+    .sidebar-drawer {
+        width: 280px;
+        left: -300px;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-content {
+        padding: 0.5rem 0.75rem;
+    }
+    .sidebar-drawer {
+        width: 85vw;
+        max-width: 280px;
     }
 }
 

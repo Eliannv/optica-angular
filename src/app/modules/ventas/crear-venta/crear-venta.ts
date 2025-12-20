@@ -17,7 +17,7 @@ import { FacturasService } from '../../../core/services/facturas';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './crear-venta.html',
-  styleUrl: './crear-venta.css',
+  styleUrls: ['./crear-venta.css'],
 })
 export class CrearVentaComponent implements OnInit {
   clienteId = '';

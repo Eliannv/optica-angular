@@ -1,105 +1,170 @@
 <div *ngIf="!loading && factura">
 
-  <!-- (OPCIONAL) vista normal en pantalla -->
-  <div class="card no-print">
-    <div class="card-header header">
-      <h3>Factura #{{ factura.id }}</h3>
-      <button class="btn btn-primary" type="button" (click)="reimprimir()">Reimprimir</button>
+    <!-- VISTA EN PANTALLA -->
+    <div class="ver-factura-container no-print">
+        <div class="ver-factura-card">
+
+            <!-- HEADER -->
+            <div class="ver-factura-header">
+                <div class="header-content">
+                    <h3 class="factura-title">📄 Factura #{{ factura.id }}</h3>
+                    <button class="btn-reimprimir" type="button" (click)="reimprimir()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-printer-icon lucide-printer"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg> Reimprimir
+          </button>
+                </div>
+            </div>
+
+            <!-- BODY -->
+            <div class="ver-factura-body">
+                <!-- INFO CLIENTE -->
+                <div class="info-section">
+                    <h4 class="section-title">Información del Cliente</h4>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Cliente</span>
+                            <strong class="info-value">{{ factura.clienteNombre }}</strong>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Método de Pago</span>
+                            <span class="badge-pago">{{ factura.metodoPago }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Fecha</span>
+                            <span class="info-value">
+                {{ factura.fecha?.toDate ? (factura.fecha.toDate() | date:'dd/MM/yyyy HH:mm') : (factura.fecha | date:'dd/MM/yyyy HH:mm') }}
+              </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MEDIDAS (SI EXISTEN) -->
+                <div class="medidas-section" *ngIf="factura.historialSnapshot">
+                    <h4 class="section-title">Medidas Oftalmológicas</h4>
+                    <div class="medidas-grid">
+                        <div class="medida-ojo">
+                            <div class="ojo-title">OD (Ojo Derecho)</div>
+                            <div class="medida-valores">
+                                <span>Esf: <strong>{{ factura.historialSnapshot?.odEsfera || '-' }}</strong></span>
+                                <span>Cil: <strong>{{ factura.historialSnapshot?.odCilindro || '-' }}</strong></span>
+                                <span>Eje: <strong>{{ factura.historialSnapshot?.odEje || '-' }}</strong></span>
+                            </div>
+                        </div>
+                        <div class="medida-ojo">
+                            <div class="ojo-title">OI (Ojo Izquierdo)</div>
+                            <div class="medida-valores">
+                                <span>Esf: <strong>{{ factura.historialSnapshot?.oiEsfera || '-' }}</strong></span>
+                                <span>Cil: <strong>{{ factura.historialSnapshot?.oiCilindro || '-' }}</strong></span>
+                                <span>Eje: <strong>{{ factura.historialSnapshot?.oiEje || '-' }}</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ITEMS / PRODUCTOS -->
+                <div class="items-section">
+                    <h4 class="section-title">Productos</h4>
+                    <div class="items-list">
+                        <div class="item-row" *ngFor="let it of factura.items">
+                            <div class="item-info">
+                                <div class="item-nombre">{{ it.nombre }}</div>
+                                <div class="item-tipo">{{ it.tipo }}</div>
+                            </div>
+                            <div class="item-cantidad">
+                                <span>{{ it.cantidad }} × ${{ it.precioUnitario.toFixed(2) }}</span>
+                            </div>
+                            <div class="item-total">
+                                <strong>${{ it.total.toFixed(2) }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TOTALES -->
+                <div class="totales-section">
+                    <div class="total-row">
+                        <span>Subtotal</span>
+                        <strong>${{ factura.subtotal.toFixed(2) }}</strong>
+                    </div>
+                    <div class="total-row">
+                        <span>IVA (15%)</span>
+                        <strong>${{ factura.iva.toFixed(2) }}</strong>
+                    </div>
+                    <div class="total-row total-final">
+                        <span>Total a Pagar</span>
+                        <strong>${{ factura.total.toFixed(2) }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="card-body">
-      <p><strong>Cliente:</strong> {{ factura.clienteNombre }}</p>
-      <p><strong>Método de pago:</strong> {{ factura.metodoPago }}</p>
-      <hr>
+    <!-- ================= TICKET / FACTURA (MISMO FORMATO) ================= -->
+    <div class="ticket">
 
-      <div *ngFor="let it of factura.items" class="row">
-        <div><strong>{{ it.nombre }}</strong> <span class="muted">{{ it.tipo }}</span></div>
-        <div>{{ it.cantidad }} x ${{ it.precioUnitario.toFixed(2) }}</div>
-        <div><strong>${{ it.total.toFixed(2) }}</strong></div>
-      </div>
+        <div class="t-center t-bold">ÓPTICA MACÍAS</div>
+        <div class="t-center t-small">RUC: 0999999999001</div>
+        <div class="t-center t-small">Machala - Ecuador</div>
 
-      <hr>
+        <div class="t-hr"></div>
 
-      <div class="tot">
-        <div><span>Subtotal</span><strong>${{ factura.subtotal.toFixed(2) }}</strong></div>
-        <div><span>IVA</span><strong>${{ factura.iva.toFixed(2) }}</strong></div>
-        <div class="big"><span>Total</span><strong>${{ factura.total.toFixed(2) }}</strong></div>
-      </div>
+        <div class="t-small">
+            <div><b>FACTURA No:</b> {{ factura.id }}</div>
+            <div><b>Fecha:</b> {{ factura.fecha?.toDate ? (factura.fecha.toDate() | date:'dd/MM/yyyy HH:mm') : (factura.fecha | date:'dd/MM/yyyy HH:mm') }}
+            </div>
+            <div><b>Cliente:</b> {{ factura.clienteNombre }}</div>
+            <div><b>Método pago:</b> {{ factura.metodoPago }}</div>
+        </div>
+
+        <div class="t-hr"></div>
+
+        <!-- MEDIDAS (si existen) -->
+        <div class="t-bold t-small">MEDIDAS</div>
+        <div class="t-small">
+            OD: Esf {{ factura.historialSnapshot?.odEsfera || '-' }} Cil {{ factura.historialSnapshot?.odCilindro || '-' }} Eje {{ factura.historialSnapshot?.odEje || '-' }}
+        </div>
+        <div class="t-small">
+            OI: Esf {{ factura.historialSnapshot?.oiEsfera || '-' }} Cil {{ factura.historialSnapshot?.oiCilindro || '-' }} Eje {{ factura.historialSnapshot?.oiEje || '-' }}
+        </div>
+
+        <div class="t-hr"></div>
+
+        <!-- TABLA -->
+        <div class="t-table-head t-small">
+            <div>COD</div>
+            <div>DESCRIPCIÓN</div>
+            <div>CANT</div>
+            <div>P.U</div>
+            <div>TOTAL</div>
+        </div>
+
+        <div class="t-table-row t-small" *ngFor="let it of factura.items; let i = index">
+            <div>{{ i + 1 }}</div>
+            <div class="t-cut">{{ it.nombre }}</div>
+            <div>{{ it.cantidad }}</div>
+            <div>{{ it.precioUnitario | number:'1.2-2' }}</div>
+            <div>{{ it.total | number:'1.2-2' }}</div>
+        </div>
+
+        <div class="t-hr"></div>
+
+        <!-- TOTALES -->
+        <div class="t-kv t-small">
+            <span>Subtotal</span>
+            <span>{{ factura.subtotal | number:'1.2-2' }}</span>
+        </div>
+        <div class="t-kv t-small">
+            <span>IVA</span>
+            <span>{{ factura.iva | number:'1.2-2' }}</span>
+        </div>
+        <div class="t-kv t-bold">
+            <span>TOTAL</span>
+            <span>{{ factura.total | number:'1.2-2' }}</span>
+        </div>
+
+        <div class="t-hr"></div>
+
+        <div class="t-center t-small">Gracias por su compra</div>
+        <div class="t-center t-small">Conserve su factura</div>
+
     </div>
-  </div>
-
-  <!-- ================= TICKET / FACTURA (MISMO FORMATO) ================= -->
-  <div class="ticket">
-
-    <div class="t-center t-bold">ÓPTICA MACÍAS</div>
-    <div class="t-center t-small">RUC: 0999999999001</div>
-    <div class="t-center t-small">Machala - Ecuador</div>
-
-    <div class="t-hr"></div>
-
-    <div class="t-small">
-      <div><b>FACTURA No:</b> {{ factura.id }}</div>
-      <div><b>Fecha:</b>
-        {{ factura.fecha?.toDate ? (factura.fecha.toDate() | date:'dd/MM/yyyy HH:mm') : (factura.fecha | date:'dd/MM/yyyy HH:mm') }}
-      </div>
-      <div><b>Cliente:</b> {{ factura.clienteNombre }}</div>
-      <div><b>Método pago:</b> {{ factura.metodoPago }}</div>
-    </div>
-
-    <div class="t-hr"></div>
-
-    <!-- MEDIDAS (si existen) -->
-    <div class="t-bold t-small">MEDIDAS</div>
-    <div class="t-small">
-      OD: Esf {{ factura.historialSnapshot?.odEsfera || '-' }}
-      Cil {{ factura.historialSnapshot?.odCilindro || '-' }}
-      Eje {{ factura.historialSnapshot?.odEje || '-' }}
-    </div>
-    <div class="t-small">
-      OI: Esf {{ factura.historialSnapshot?.oiEsfera || '-' }}
-      Cil {{ factura.historialSnapshot?.oiCilindro || '-' }}
-      Eje {{ factura.historialSnapshot?.oiEje || '-' }}
-    </div>
-
-    <div class="t-hr"></div>
-
-    <!-- TABLA -->
-    <div class="t-table-head t-small">
-      <div>COD</div>
-      <div>DESCRIPCIÓN</div>
-      <div>CANT</div>
-      <div>P.U</div>
-      <div>TOTAL</div>
-    </div>
-
-    <div class="t-table-row t-small" *ngFor="let it of factura.items; let i = index">
-      <div>{{ i + 1 }}</div>
-      <div class="t-cut">{{ it.nombre }}</div>
-      <div>{{ it.cantidad }}</div>
-      <div>{{ it.precioUnitario | number:'1.2-2' }}</div>
-      <div>{{ it.total | number:'1.2-2' }}</div>
-    </div>
-
-    <div class="t-hr"></div>
-
-    <!-- TOTALES -->
-    <div class="t-kv t-small">
-      <span>Subtotal</span>
-      <span>{{ factura.subtotal | number:'1.2-2' }}</span>
-    </div>
-    <div class="t-kv t-small">
-      <span>IVA</span>
-      <span>{{ factura.iva | number:'1.2-2' }}</span>
-    </div>
-    <div class="t-kv t-bold">
-      <span>TOTAL</span>
-      <span>{{ factura.total | number:'1.2-2' }}</span>
-    </div>
-
-    <div class="t-hr"></div>
-
-    <div class="t-center t-small">Gracias por su compra</div>
-    <div class="t-center t-small">Conserve su factura</div>
-
-  </div>
 </div>

@@ -19,3 +19,58 @@
         flex: 0 0 100%;
     }
 }
+
+
+/* Validaciones */
+
+.input-with-validation {
+    position: relative;
+}
+
+.validation-feedback {
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    min-height: 1.2rem;
+}
+
+.validation-feedback i {
+    margin-right: 0.25rem;
+}
+
+.form-control.is-valid {
+    border-color: var(--success, #28a745);
+}
+
+.form-control.is-invalid {
+    border-color: var(--danger, #dc3545);
+}
+
+.text-info {
+    color: var(--info, #17a2b8);
+}
+
+.text-success {
+    color: var(--success, #28a745);
+}
+
+.text-danger {
+    color: var(--danger, #dc3545);
+}
+
+.text-warning {
+    color: var(--warning, #ffc107);
+}
+
+.text-muted {
+    color: var(--text-muted, #6c757d);
+}
+
+.form-text {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.form-text.text-muted {
+    color: var(--text-muted, #6c757d);
+}

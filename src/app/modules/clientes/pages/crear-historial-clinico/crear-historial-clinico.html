@@ -1,156 +1,173 @@
-<div class="container mt-4" *ngIf="!loading">
-  <div class="card">
+<div class="historial-container" *ngIf="!loading">
+    <div class="historial-card">
+        <!-- HEADER -->
+        <div class="historial-header">
+            <h3>{{ cliente?.nombres }} {{ cliente?.apellidos }} - Historia Clínica</h3>
+        </div>
 
-    <!-- HEADER -->
-    <div class="card-header">
-      <h3 class="card-title">Historia Clínica</h3>
+        <!-- BODY -->
+        <form [formGroup]="clienteForm" class="cliente-form-section">
+            <!-- INFORMACIÓN PERSONAL -->
+            <div class="section-title">
+                <h4>📋 Información Personal</h4>
+            </div>
+
+            <div class="cliente-grid">
+                <div class="input-group">
+                    <label>Nombres *</label>
+                    <input type="text" formControlName="nombres" placeholder="Ej: Juan Carlos">
+                    <span class="error-msg" *ngIf="esInvalidoCliente('nombres')">
+            {{ getMensajeErrorCliente('nombres') }}
+          </span>
+                </div>
+
+                <div class="input-group">
+                    <label>Apellidos *</label>
+                    <input type="text" formControlName="apellidos" placeholder="Ej: Pérez García">
+                    <span class="error-msg" *ngIf="esInvalidoCliente('apellidos')">
+            {{ getMensajeErrorCliente('apellidos') }}
+          </span>
+                </div>
+
+                <div class="input-group">
+                    <label>Cédula *</label>
+                    <input type="text" formControlName="cedula" placeholder="1234567890" maxlength="10">
+                    <span class="error-msg" *ngIf="esInvalidoCliente('cedula')">
+            {{ getMensajeErrorCliente('cedula') }}
+          </span>
+                </div>
+
+                <div class="input-group">
+                    <label>Teléfono *</label>
+                    <input type="text" formControlName="telefono" placeholder="0987654321" maxlength="10">
+                    <span class="error-msg" *ngIf="esInvalidoCliente('telefono')">
+            {{ getMensajeErrorCliente('telefono') }}
+          </span>
+                </div>
+
+                <div class="input-group">
+                    <label>Email</label>
+                    <input type="email" formControlName="email" placeholder="ejemplo@correo.com">
+                    <span class="error-msg" *ngIf="esInvalidoCliente('email')">
+            {{ getMensajeErrorCliente('email') }}
+          </span>
+                </div>
+
+                <div class="input-group">
+                    <label>País</label>
+                    <input type="text" formControlName="pais" placeholder="Ecuador">
+                </div>
+
+                <div class="input-group">
+                    <label>Provincia</label>
+                    <select formControlName="provincia">
+            <option value="">Seleccione una provincia</option>
+            <option *ngFor="let prov of provinciasEcuador" [value]="prov">{{ prov }}</option>
+          </select>
+                </div>
+
+                <div class="input-group">
+                    <label>Ciudad</label>
+                    <input type="text" formControlName="ciudad" placeholder="Ej: Quito">
+                </div>
+
+                <div class="input-group full-width">
+                    <label>Dirección</label>
+                    <input type="text" formControlName="direccion" placeholder="Ej: Av. Principal 123 y Secundaria">
+                </div>
+            </div>
+        </form>
+
+        <!-- HISTORIAL CLÍNICO -->
+        <form [formGroup]="form" (ngSubmit)="guardar()">
+            <div class="section-title">
+                <h4>👁️ Historial Clínico</h4>
+            </div>
+
+            <!-- MEDIDAS PRINCIPALES -->
+            <div class="section-medidas">
+                <div class="input-group">
+                    <label>DP</label>
+                    <input type="number" step="0.5" formControlName="dp" placeholder="62">
+                </div>
+                <div class="input-group">
+                    <label>ADD</label>
+                    <input type="number" step="0.25" formControlName="add" placeholder="2.00">
+                </div>
+                <div class="input-group">
+                    <label>Altura</label>
+                    <input type="number" step="0.1" formControlName="altura" placeholder="18.5">
+                </div>
+            </div>
+
+            <!-- OD / OI -->
+            <div class="ojos-grid">
+                <!-- OD -->
+                <div class="ojo-card">
+                    <h4>Ojo Derecho (OD)</h4>
+                    <div class="ojo-inputs">
+                        <div class="input-group">
+                            <label>Esfera</label>
+                            <input type="number" step="0.25" formControlName="odEsfera">
+                        </div>
+                        <div class="input-group">
+                            <label>Cilindro</label>
+                            <input type="number" step="0.25" formControlName="odCilindro">
+                        </div>
+                        <div class="input-group">
+                            <label>Eje</label>
+                            <input type="number" step="1" min="0" max="180" formControlName="odEje">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OI -->
+                <div class="ojo-card">
+                    <h4>Ojo Izquierdo (OI)</h4>
+                    <div class="ojo-inputs">
+                        <div class="input-group">
+                            <label>Esfera</label>
+                            <input type="number" step="0.25" formControlName="oiEsfera">
+                        </div>
+                        <div class="input-group">
+                            <label>Cilindro</label>
+                            <input type="number" step="0.25" formControlName="oiCilindro">
+                        </div>
+                        <div class="input-group">
+                            <label>Eje</label>
+                            <input type="number" step="1" min="0" max="180" formControlName="oiEje">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EXTRA -->
+            <div class="section-extra">
+                <div class="input-group">
+                    <label>De</label>
+                    <input type="text" formControlName="de" placeholder="Cerca / Lejos / DP">
+                </div>
+                <div class="input-group">
+                    <label>Color</label>
+                    <input type="text" formControlName="color" placeholder="Negro / Transparente">
+                </div>
+            </div>
+
+            <!-- OBSERVACIÓN -->
+            <div class="section-observacion">
+                <label>Observación</label>
+                <textarea rows="3" formControlName="observacion" placeholder="Notas adicionales..."></textarea>
+            </div>
+
+            <!-- FOOTER -->
+            <div class="historial-footer">
+                <button type="button" class="btn-cancel" (click)="cancelar()">
+          Cancelar
+        </button>
+                <button type="submit" class="btn-save" [disabled]="form.invalid || clienteForm.invalid">
+          Guardar Todo
+        </button>
+            </div>
+        </form>
     </div>
-
-    <!-- BODY -->
-    <div class="card-body">
-      <form [formGroup]="form" (ngSubmit)="guardar()">
-
-        <!-- MEDIDAS -->
-        <h5 class="mb-3">Medidas</h5>
-        <div class="row">
-          <div class="col-md-4">
-            <div class="form-group">
-              <label class="form-label">DP (Distancia pupilar)</label>
-              <input
-                type="number"
-                step="0.5"
-                class="form-control"
-                formControlName="dp"
-                placeholder="Ej: 62">
-            </div>
-          </div>
-
-          <div class="col-md-4">
-            <div class="form-group">
-              <label class="form-label">ADD (Adición)</label>
-              <input
-                type="number"
-                step="0.25"
-                class="form-control"
-                formControlName="add"
-                placeholder="Ej: 2.00">
-            </div>
-          </div>
-
-          <div class="col-md-4">
-            <div class="form-group">
-              <label class="form-label">Altura</label>
-              <input
-                type="number"
-                step="0.1"
-                class="form-control"
-                formControlName="altura"
-                placeholder="Ej: 18.5">
-            </div>
-          </div>
-        </div>
-
-        <hr>
-
-        <!-- OD / OI -->
-        <div class="row">
-          <!-- OD -->
-          <div class="col-md-6">
-            <h5>Ojo derecho (OD)</h5>
-
-            <div class="form-group">
-              <label class="form-label">Esfera</label>
-              <input type="number" step="0.25" class="form-control" formControlName="odEsfera">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Cilindro</label>
-              <input type="number" step="0.25" class="form-control" formControlName="odCilindro">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Eje</label>
-              <input type="number" step="1" min="0" max="180" class="form-control" formControlName="odEje">
-            </div>
-          </div>
-
-          <!-- OI -->
-          <div class="col-md-6">
-            <h5>Ojo izquierdo (OI)</h5>
-
-            <div class="form-group">
-              <label class="form-label">Esfera</label>
-              <input type="number" step="0.25" class="form-control" formControlName="oiEsfera">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Cilindro</label>
-              <input type="number" step="0.25" class="form-control" formControlName="oiCilindro">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Eje</label>
-              <input type="number" step="1" min="0" max="180" class="form-control" formControlName="oiEje">
-            </div>
-          </div>
-        </div>
-
-        <hr>
-
-        <!-- EXTRA -->
-        <div class="row">
-          <div class="col-md-6">
-            <div class="form-group">
-              <label class="form-label">De</label>
-              <input
-                type="text"
-                class="form-control"
-                formControlName="de"
-                placeholder="Ej: Cerca / Lejos / DP">
-            </div>
-          </div>
-
-          <div class="col-md-6">
-            <div class="form-group">
-              <label class="form-label">Color</label>
-              <input
-                type="text"
-                class="form-control"
-                formControlName="color"
-                placeholder="Ej: Negro / Transparente">
-            </div>
-          </div>
-        </div>
-
-        <!-- OBSERVACIÓN -->
-        <div class="form-group mt-3">
-          <label class="form-label">Observación</label>
-          <textarea
-            rows="4"
-            class="form-control"
-            formControlName="observacion">
-          </textarea>
-        </div>
-
-        <!-- FOOTER -->
-        <div class="card-footer d-flex justify-content-between mt-4 px-0">
-          <button
-            type="button"
-            class="btn btn-secondary"
-            (click)="cancelar()">
-            Cancelar
-          </button>
-
-          <button
-            type="submit"
-            class="btn btn-primary"
-            [disabled]="form.invalid">
-            Guardar Historia Clínica
-          </button>
-        </div>
-
-      </form>
-    </div>
-
-  </div>
 </div>

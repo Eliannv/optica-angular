@@ -1,6 +1,7 @@
 export interface Producto {
-  id?: string;
-  codigo: string;
+  id?: string; // ID de Firestore (auto-generado)
+  idInterno?: number; // ID incremental (1001, 1002, etc.)
+  codigo: string; // Código de armazón (identificador para el trabajador)
   nombre: string;
   nuevoCodigo?: string;
   grupo?: string;

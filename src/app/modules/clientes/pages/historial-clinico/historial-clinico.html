@@ -1,133 +1,268 @@
 <div class="hc-wrapper">
-  <div class="card">
+    <div class="card">
 
-    <!-- HEADER -->
-    <div class="card-header">
-      <div class="header-content">
-        <h3 class="card-title">Historial Clínico</h3>
+        <!-- HEADER -->
+        <div class="card-header">
+            <div class="header-content">
+                <h3 class="card-title">Historial Clínico</h3>
 
-        <!-- Search -->
-        <div class="search-wrapper">
-          <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20"
-               viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <path d="m21 21-4.35-4.35"></path>
-          </svg>
-
-          <input
-            type="text"
-            class="search-input"
-            placeholder="Buscar cliente por nombre, cédula o teléfono..."
-            [(ngModel)]="terminoBusqueda"
-            (input)="buscarClientes()"
-          />
-
-          <button *ngIf="terminoBusqueda" class="clear-btn" (click)="limpiarBusqueda()" title="Limpiar búsqueda">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
-                 viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
+                <div class="search-wrapper">
+                    <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                    <input type="text" class="search-input" placeholder="Buscar cliente por nombre, cédula o teléfono..." [(ngModel)]="terminoBusqueda" (input)="buscarClientes()" />
+                    <button *ngIf="terminoBusqueda" class="clear-btn" (click)="limpiarBusqueda()" title="Limpiar búsqueda">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+                <button class="btn btn-primary" (click)="crearCliente()">
+                    + Nuevo Cliente
+                </button>
+            </div>
+            <div class="search-results" *ngIf="terminoBusqueda">
+                <span class="text-muted">{{ totalClientes }} resultado(s) encontrado(s)</span>
+            </div>
         </div>
 
-        <!-- Actions -->
-        <div class="d-flex gap-2">
-          <button class="btn btn-primary" (click)="crearCliente()">
-            + Nuevo Cliente
-          </button>
-        </div>
-      </div>
+        <!-- BODY -->
+        <div class="card-body">
+            <div class="table-responsive">
 
-      <div class="search-results" *ngIf="terminoBusqueda">
-        <span class="text-muted">{{ totalClientes }} resultado(s) encontrado(s)</span>
-      </div>
-    </div>
+                <table class="table" *ngIf="totalClientes > 0; else emptyState">
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Cédula</th>
+                            <th>Teléfono</th>
+                            <th>Estado Historial</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
 
-    <!-- BODY -->
-    <div class="card-body">
-      <div class="table-responsive">
+                    <tbody>
+                        <tr *ngFor="let c of clientesPaginados; trackBy: trackByClienteId" (click)="verDetalle(c)" class="clickable-row">
+                            <td><strong>{{ c.nombres }} {{ c.apellidos }}</strong></td>
+                            <td>{{ c.cedula || '-' }}</td>
+                            <td>{{ c.telefono || '-' }}</td>
 
-        <table class="table" *ngIf="totalClientes > 0; else emptyState">
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>Cédula</th>
-              <th>Teléfono</th>
-              <th>Estado Historial</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <tr *ngFor="let c of clientesFiltrados; trackBy: trackByClienteId">
-              <td><strong>{{ c.nombres }} {{ c.apellidos }}</strong></td>
-              <td>{{ c.cedula || '-' }}</td>
-              <td>{{ c.telefono || '-' }}</td>
-
-              <td>
-                <span class="badge"
-                      [class.badge-success]="c.tieneHistorial"
-                      [class.badge-danger]="!c.tieneHistorial">
+                            <td>
+                                <span class="badge" [class.badge-success]="c.tieneHistorial" [class.badge-danger]="!c.tieneHistorial">
                   {{ c.tieneHistorial ? 'Con historial' : 'Sin historial' }}
                 </span>
-              </td>
+                            </td>
 
-              <td>
-                <div class="d-flex gap-2">
-
-                  <!-- Si tiene historial => Abrir (editar) -->
-                  <button
-                    *ngIf="c.tieneHistorial; else btnCrear"
-                    class="btn btn-sm btn-primary"
-                    (click)="abrirHistorial(c.id)">
-                    Abrir
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <!-- Si NO tiene historial => Crear -->
+                                    <button *ngIf="!c.tieneHistorial" class="btn btn-sm btn-success" (click)="crearHistorial(c.id); $event.stopPropagation()">
+                    Crear Historial
                   </button>
 
-                  <!-- Si NO tiene historial => Crear -->
-                  <ng-template #btnCrear>
-                    <button
-                      class="btn btn-sm btn-success"
-                      (click)="crearHistorial(c.id)">
-                      Crear
-                    </button>
-                  </ng-template>
-
-                  <!-- Editar (solo si tiene historial) -->
-                  <button
-                    class="btn btn-sm btn-secondary"
-                    [disabled]="!c.tieneHistorial"
-                    (click)="editarHistorial(c.id)">
+                                    <!-- Editar (solo si tiene historial) -->
+                                    <button *ngIf="c.tieneHistorial" class="btn btn-sm btn-secondary" (click)="editarHistorial(c.id); $event.stopPropagation()">
                     Editar
                   </button>
 
-                  <!-- ✅ NUEVO: Recibo / POS (solo si tiene historial) -->
-                  <button
-                    class="btn btn-sm btn-success"
-                    [disabled]="!c.tieneHistorial"
-                    (click)="crearRecibo(c.id)">
+                                    <!-- ✅ Recibo / POS (solo si tiene historial) -->
+                                    <button class="btn btn-sm btn-success" [disabled]="!c.tieneHistorial" (click)="crearRecibo(c.id); $event.stopPropagation()">
                     Recibo
                   </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
 
+                <!-- Controles de paginación -->
+                <div class="d-flex justify-between align-center mt-3" *ngIf="totalClientes > 0">
+                    <div>
+                        <span class="text-muted">Mostrando {{ (paginaActual - 1) * clientesPorPagina + 1 }} - {{ Math.min(paginaActual * clientesPorPagina, totalClientes) }} de {{ totalClientes }} clientes</span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-secondary" [disabled]="paginaActual === 1" (click)="paginaAnterior()">
+                            ← Anterior
+                        </button>
+                        <button class="btn btn-secondary" [disabled]="paginaActual * clientesPorPagina >= totalClientes" (click)="paginaSiguiente()">
+                            Siguiente →
+                        </button>
+                    </div>
                 </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
 
-        <ng-template #emptyState>
-          <div class="text-center p-4">
-            <p class="text-muted">No hay clientes para mostrar</p>
-            <button class="btn btn-primary mt-3" (click)="crearCliente()">
+                <ng-template #emptyState>
+                    <div class="text-center p-4">
+                        <p class="text-muted">No hay clientes para mostrar</p>
+                        <button class="btn btn-primary mt-3" (click)="crearCliente()">
               Crear Primer Cliente
             </button>
-          </div>
-        </ng-template>
+                    </div>
+                </ng-template>
 
-      </div>
+            </div>
+        </div>
+
     </div>
+</div>
 
-  </div>
+<!-- Modal de Detalle del Cliente y Historial Clínico -->
+<div class="modal-overlay" *ngIf="mostrarModal" (click)="cerrarModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <h2>Detalles del Cliente</h2>
+            <button class="btn-close" (click)="cerrarModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        <div class="modal-body" *ngIf="clienteSeleccionado">
+            <div class="detalle-grid">
+                <!-- Información Personal -->
+                <div class="detalle-section">
+                    <h3>Información Personal</h3>
+                    <div class="detalle-item">
+                        <span class="detalle-label">Nombre Completo:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.nombres }} {{ clienteSeleccionado.apellidos }}</span>
+                    </div>
+                    <div class="detalle-item">
+                        <span class="detalle-label">Cédula:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.cedula }}</span>
+                    </div>
+                    <div class="detalle-item" *ngIf="clienteSeleccionado.email">
+                        <span class="detalle-label">Email:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.email }}</span>
+                    </div>
+                    <div class="detalle-item" *ngIf="clienteSeleccionado.telefono">
+                        <span class="detalle-label">Teléfono:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.telefono }}</span>
+                    </div>
+                </div>
+
+                <!-- Ubicación -->
+                <div class="detalle-section">
+                    <h3>Ubicación</h3>
+                    <div class="detalle-item" *ngIf="clienteSeleccionado.pais">
+                        <span class="detalle-label">País:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.pais }}</span>
+                    </div>
+                    <div class="detalle-item" *ngIf="clienteSeleccionado.provincia">
+                        <span class="detalle-label">Provincia:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.provincia }}</span>
+                    </div>
+                    <div class="detalle-item" *ngIf="clienteSeleccionado.ciudad">
+                        <span class="detalle-label">Ciudad:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.ciudad }}</span>
+                    </div>
+                    <div class="detalle-item" *ngIf="clienteSeleccionado.direccion">
+                        <span class="detalle-label">Dirección:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.direccion }}</span>
+                    </div>
+                </div>
+
+                <!-- Historial Clínico -->
+                <div class="detalle-section historial-section">
+                    <h3>Historial Clínico</h3>
+
+                    <div *ngIf="cargandoHistorial" class="loading">
+                        <p>Cargando historial clínico...</p>
+                    </div>
+
+                    <div *ngIf="!cargandoHistorial && !historialClinico" class="no-historial">
+                        <p>Este cliente no tiene historial clínico registrado.</p>
+                        <button class="btn btn-primary-small" (click)="crearHistorial(clienteSeleccionado.id); cerrarModal()">
+                            Crear Historial Clínico
+                        </button>
+                    </div>
+
+                    <div *ngIf="!cargandoHistorial && historialClinico" class="historial-data">
+                        <!-- Ojo Derecho -->
+                        <div class="ojo-section">
+                            <h4>Ojo Derecho (OD)</h4>
+                            <div class="ojo-valores">
+                                <div class="valor-item">
+                                    <span class="valor-label">Esfera:</span>
+                                    <span class="valor-dato">{{ historialClinico.odEsfera ?? '-' }}</span>
+                                </div>
+                                <div class="valor-item">
+                                    <span class="valor-label">Cilindro:</span>
+                                    <span class="valor-dato">{{ historialClinico.odCilindro ?? '-' }}</span>
+                                </div>
+                                <div class="valor-item">
+                                    <span class="valor-label">Eje:</span>
+                                    <span class="valor-dato">{{ historialClinico.odEje ?? '-' }}°</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ojo Izquierdo -->
+                        <div class="ojo-section">
+                            <h4>Ojo Izquierdo (OI)</h4>
+                            <div class="ojo-valores">
+                                <div class="valor-item">
+                                    <span class="valor-label">Esfera:</span>
+                                    <span class="valor-dato">{{ historialClinico.oiEsfera ?? '-' }}</span>
+                                </div>
+                                <div class="valor-item">
+                                    <span class="valor-label">Cilindro:</span>
+                                    <span class="valor-dato">{{ historialClinico.oiCilindro ?? '-' }}</span>
+                                </div>
+                                <div class="valor-item">
+                                    <span class="valor-label">Eje:</span>
+                                    <span class="valor-dato">{{ historialClinico.oiEje ?? '-' }}°</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Información Adicional -->
+                        <div class="info-adicional">
+                            <div class="detalle-item" *ngIf="historialClinico.de">
+                                <span class="detalle-label">DE:</span>
+                                <span class="detalle-value">{{ historialClinico.de }}</span>
+                            </div>
+                            <div class="detalle-item" *ngIf="historialClinico.altura">
+                                <span class="detalle-label">Altura:</span>
+                                <span class="detalle-value">{{ historialClinico.altura }} cm</span>
+                            </div>
+                            <div class="detalle-item" *ngIf="historialClinico.color">
+                                <span class="detalle-label">Color:</span>
+                                <span class="detalle-value">{{ historialClinico.color }}</span>
+                            </div>
+                            <div class="detalle-item" *ngIf="historialClinico.observacion">
+                                <span class="detalle-label">Observaciones:</span>
+                                <span class="detalle-value">{{ historialClinico.observacion }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Botones de acción -->
+                        <div class="historial-actions">
+                            <button class="btn btn-secondary-small" (click)="editarHistorial(clienteSeleccionado.id); cerrarModal()">
+                                Editar Historial
+                            </button>
+                            <button class="btn btn-success-small" (click)="crearRecibo(clienteSeleccionado.id); cerrarModal()">
+                                Crear Recibo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fechas -->
+                <div class="detalle-section" *ngIf="clienteSeleccionado.createdAt">
+                    <h3>Información del Registro</h3>
+                    <div class="detalle-item">
+                        <span class="detalle-label">Fecha de Registro:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.createdAt.toDate() | date:'dd/MM/yyyy HH:mm' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-secondary" (click)="cerrarModal()">Cerrar</button>
+        </div>
+    </div>
 </div>

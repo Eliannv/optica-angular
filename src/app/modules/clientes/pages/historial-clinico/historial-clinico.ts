@@ -7,6 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { ClientesService } from '../../../../core/services/clientes';
 import { HistorialClinicoService } from '../../../../core/services/historial-clinico.service';
 import { Cliente } from '../../../../core/models/cliente.model';
+import { HistoriaClinica } from '../../../../core/models/historia-clinica.model';
 
 type ClienteUI = Cliente & { id: string; tieneHistorial: boolean };
 
@@ -24,8 +25,18 @@ export class HistorialClinicoComponent implements OnInit {
 
   clientes: ClienteUI[] = [];
   clientesFiltrados: ClienteUI[] = [];
+  clientesPaginados: ClienteUI[] = [];
+  paginaActual: number = 1;
+  clientesPorPagina: number = 10;
+  Math = Math; // Para usar Math.min en el template
 
   cargando = true;
+
+  // Modal
+  clienteSeleccionado: ClienteUI | null = null;
+  historialClinico: HistoriaClinica | null = null;
+  mostrarModal: boolean = false;
+  cargandoHistorial: boolean = false;
 
   constructor(
     private router: Router,
@@ -83,6 +94,28 @@ export class HistorialClinicoComponent implements OnInit {
     }
 
     this.totalClientes = this.clientesFiltrados.length;
+    this.paginaActual = 1; // Resetear a la primera página al filtrar
+    this.actualizarPaginacion();
+  }
+
+  actualizarPaginacion(): void {
+    const inicio = (this.paginaActual - 1) * this.clientesPorPagina;
+    const fin = inicio + this.clientesPorPagina;
+    this.clientesPaginados = [...this.clientesFiltrados.slice(inicio, fin)];
+  }
+
+  paginaSiguiente(): void {
+    if (this.paginaActual * this.clientesPorPagina < this.totalClientes) {
+      this.paginaActual++;
+      this.actualizarPaginacion();
+    }
+  }
+
+  paginaAnterior(): void {
+    if (this.paginaActual > 1) {
+      this.paginaActual--;
+      this.actualizarPaginacion();
+    }
   }
 
   // ✅ Acciones
@@ -92,10 +125,32 @@ export class HistorialClinicoComponent implements OnInit {
     });
   }
 
-  // ✅ SI tiene historial => abrir (en tu form real)
-  abrirHistorial(clienteId: string): void {
-  this.router.navigate(['/clientes/historial-clinico/ver', clienteId]);
-}
+  // ✅ Ver detalles en modal
+  async verDetalle(cliente: ClienteUI): Promise<void> {
+    this.clienteSeleccionado = cliente;
+    this.mostrarModal = true;
+    this.cargandoHistorial = true;
+    this.historialClinico = null;
+
+    try {
+      if (cliente.id) {
+        const snap = await this.historialSrv.obtenerHistorial(cliente.id);
+        if (snap.exists()) {
+          this.historialClinico = snap.data() as HistoriaClinica;
+        }
+      }
+    } catch (error) {
+      console.error('Error al cargar historial clínico:', error);
+    } finally {
+      this.cargandoHistorial = false;
+    }
+  }
+
+  cerrarModal(): void {
+    this.mostrarModal = false;
+    this.clienteSeleccionado = null;
+    this.historialClinico = null;
+  }
 
 
   // ✅ Si NO tiene historial => crear

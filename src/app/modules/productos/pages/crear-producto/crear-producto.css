@@ -38,3 +38,145 @@
         flex: 0 0 100%;
     }
 }
+
+
+/* Preview del ID interno en el header */
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.id-preview {
+    background-color: rgba(255, 255, 255, 0.2);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+}
+
+.id-preview .text-primary {
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+
+/* Validación de código de armazón */
+
+.input-with-validation {
+    position: relative;
+}
+
+.validation-feedback {
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    min-height: 1.2rem;
+}
+
+.validation-feedback i {
+    margin-right: 0.25rem;
+}
+
+.form-control.is-valid {
+    border-color: var(--success, #28a745);
+}
+
+.form-control.is-invalid {
+    border-color: var(--danger, #dc3545);
+}
+
+.spinner-border-sm {
+    width: 0.875rem;
+    height: 0.875rem;
+    border-width: 0.125rem;
+}
+
+.text-info {
+    color: var(--info, #17a2b8);
+}
+
+.text-success {
+    color: var(--success, #28a745);
+}
+
+.text-danger {
+    color: var(--danger, #dc3545);
+}
+
+.text-muted {
+    color: var(--text-muted, #6c757d);
+}
+
+
+/* Alerta de validación */
+
+.alert {
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.alert-warning {
+    color: var(--warning-text, #856404);
+    background-color: var(--warning-bg, #fff3cd);
+    border-color: var(--warning-border, #ffeaa7);
+}
+
+.alert i {
+    font-size: 1.1rem;
+}
+
+
+/* Form text mejorado */
+
+.form-text {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.form-text.text-muted {
+    color: var(--text-muted, #6c757d);
+}
+
+
+/* Formulario de nuevo proveedor */
+
+.nuevo-proveedor-form {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    border-radius: 8px;
+    background-color: var(--bg-secondary, #f8f9fa);
+}
+
+.nuevo-proveedor-form .card {
+    border: 2px solid var(--success, #28a745);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.nuevo-proveedor-form .card-header {
+    background-color: var(--success, #28a745) !important;
+}
+
+.d-flex {
+    display: flex;
+}
+
+.gap-2 {
+    gap: 0.5rem;
+}
+
+.justify-content-end {
+    justify-content: flex-end;
+}
+
+.btn {
+    white-space: nowrap;
+}
+
+.btn i {
+    margin-right: 0.25rem;
+}

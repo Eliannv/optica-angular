@@ -1,5 +1,5 @@
-import { Component, output } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, output, signal, Inject, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
@@ -17,25 +17,28 @@ export class SidebarComponent {
 
   menuItems: Array<{ label: string; icon: SafeHtml | string; route: string; active: boolean; badge?: number }>;
 
-  constructor(private sanitizer: DomSanitizer) {
+  constructor(
+    private sanitizer: DomSanitizer,
+    @Inject(PLATFORM_ID) private platformId: Object
+  ) {
     this.menuItems = [
   {
     label: 'Historial Clínico',
     icon: this.sanitizer.bypassSecurityTrustHtml(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-        viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="4" y="3" width="16" height="18" rx="2"/>
-        <path d="M8 7h8"/>
-        <path d="M8 11h8"/>
-        <path d="M8 15h6"/>
-      </svg>
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            class="lucide lucide-users-icon lucide-users">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+            <path d="M16 3.128a4 4 0 0 1 0 7.744"/>
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+            <circle cx="9" cy="7" r="4"/>
+          </svg>
     `),
     route: '/clientes/historial-clinico',
     active: true,
     badge: 0
   },
-      {
+      /*{
 
         label: 'Principal',
         icon: this.sanitizer.bypassSecurityTrustHtml(`
@@ -50,8 +53,8 @@ export class SidebarComponent {
         `),
         route: '/dashboard',
         active: false
-      },
-      {
+      },*/
+      /*{
         label: 'Clientes',
         icon: this.sanitizer.bypassSecurityTrustHtml(`
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -65,7 +68,7 @@ export class SidebarComponent {
         `),
         route: '/clientes/listar',
         active: true
-      },
+      },*/
       {
         label: 'Productos',
         icon: this.sanitizer.bypassSecurityTrustHtml(`
@@ -113,7 +116,7 @@ export class SidebarComponent {
   `),
   route: '/facturas',
   active: false
-},
+}/*,
 
     {
       label: 'Reportes',
@@ -135,7 +138,7 @@ export class SidebarComponent {
         `),
         route: '/configuracion',
         active: false
-      }
+      }*/
     ];
   }
 
@@ -143,11 +146,28 @@ export class SidebarComponent {
     this.collapsed = !this.collapsed;
   }
 
-  onMenuItemClick() {
-    // Si quieres: colapsar al navegar (solo escritorio)
-    this.collapsed = true;
+  onLogoClick() {
+    if (isPlatformBrowser(this.platformId)) {
+      const isMobile = window.innerWidth < 1150;
+      
+      // Solo permitir toggle en escritorio
+      if (!isMobile) {
+        this.collapsed = !this.collapsed;
+      }
+    }
+  }
 
-    // móvil: cerrar drawer
-    this.closeSidebar.emit();
+  onMenuItemClick() {
+    if (isPlatformBrowser(this.platformId)) {
+      const isMobile = window.innerWidth < 1150;
+      
+      if (isMobile) {
+        // Móvil: cerrar drawer completamente
+        this.closeSidebar.emit();
+      } else {
+        // Escritorio: colapsar sidebar
+        this.collapsed = true;
+      }
+    }
   }
 }

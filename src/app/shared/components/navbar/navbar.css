@@ -141,8 +141,25 @@
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-lg);
     min-width: 180px;
-    margin-top: 0.5rem;
     overflow: hidden;
+    margin-top: 0.5rem;
+}
+
+
+/* Crear un "puente" invisible entre el botón y el menú */
+
+.user-menu::before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 100%;
+    height: 0.5rem;
+    display: none;
+}
+
+.user-menu:hover::before {
+    display: block;
 }
 
 .user-menu:hover .dropdown-menu {

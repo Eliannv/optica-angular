@@ -1,15 +1,10 @@
 <aside class="sidebar" [class.collapsed]="collapsed">
 
-  <!-- HEADER -->
-  <div class="sidebar-header">
+    <!-- HEADER -->
+    <div class="sidebar-header">
 
-    <!-- LOGO = BOTÓN TOGGLE -->
-    <button
-      class="sidebar-logo-btn"
-      type="button"
-      (click)="toggleSidebar()"
-      [attr.title]="collapsed ? 'Abrir menú' : 'Cerrar menú'"
-    >
+        <!-- LOGO = BOTÓN TOGGLE -->
+        <button class="sidebar-logo-btn" type="button" (click)="onLogoClick()" [attr.title]="collapsed ? 'Abrir menú' : 'Cerrar menú'">
       <span class="logo-icon">
         <!-- SVG LENTES -->
         <svg xmlns="http://www.w3.org/2000/svg"
@@ -31,32 +26,26 @@
       <span class="logo-text" *ngIf="!collapsed">Óptica</span>
     </button>
 
-  </div>
+    </div>
 
-  <!-- NAV -->
-  <nav class="sidebar-nav">
-    <ul class="menu-list">
-      <li *ngFor="let item of menuItems" class="menu-item">
-        <a
-          [routerLink]="item.route"
-          routerLinkActive="active"
-          class="menu-link"
-          (click)="onMenuItemClick()"
-          [attr.title]="collapsed ? item.label : null"
-        >
-          <span class="menu-icon" [innerHTML]="item.icon"></span>
-          <span class="menu-label" *ngIf="!collapsed">{{ item.label }}</span>
-          <span *ngIf="item.badge && item.badge > 0" class="badge">
+    <!-- NAV -->
+    <nav class="sidebar-nav">
+        <ul class="menu-list">
+            <li *ngFor="let item of menuItems" class="menu-item">
+                <a [routerLink]="item.route" routerLinkActive="active" class="menu-link" (click)="onMenuItemClick()" [attr.title]="collapsed ? item.label : null">
+                    <span class="menu-icon" [innerHTML]="item.icon"></span>
+                    <span class="menu-label" *ngIf="!collapsed">{{ item.label }}</span>
+                    <span *ngIf="item.badge && item.badge > 0" class="badge">
     {{ item.badge }}
   </span>
-        </a>
-      </li>
-    </ul>
-  </nav>
+                </a>
+            </li>
+        </ul>
+    </nav>
 
-  <!-- FOOTER -->
-  <div class="sidebar-footer" *ngIf="!collapsed">
-    <p class="app-version">Versión 1.0.0</p>
-  </div>
+    <!-- FOOTER -->
+    <div class="sidebar-footer" *ngIf="!collapsed">
+        <p class="app-version">Versión 1.0.0</p>
+    </div>
 
 </aside>

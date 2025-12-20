@@ -10,15 +10,39 @@
                     <div class="col-md-6">
                         <div class="form-group">
                             <label class="form-label">Código del Proveedor</label>
-                            <input type="text" class="form-control" [(ngModel)]="proveedor.codigo" name="codigo" placeholder="Ej: P001">
+                            <div class="input-with-validation">
+                                <input type="text" class="form-control" [class.is-invalid]="validaciones.codigo.mensaje && !validaciones.codigo.valido" [class.is-valid]="validaciones.codigo.valido" [(ngModel)]="proveedor.codigo" (input)="validarCodigo()" (blur)="validarCodigo()" name="codigo"
+                                    placeholder="Ej: P0001, PROV1234">
+                                <div class="validation-feedback">
+                                    <span *ngIf="validaciones.codigo.mensaje && !validaciones.codigo.valido" class="text-danger">
+                                        <i class="bi bi-x-circle"></i> {{ validaciones.codigo.mensaje }}
+                                    </span>
+                                    <span *ngIf="validaciones.codigo.valido" class="text-success">
+                                        <i class="bi bi-check-circle"></i> {{ validaciones.codigo.mensaje }}
+                                    </span>
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">Mínimo 1 letra y 4 números (opcional)</small>
                         </div>
                     </div>
 
                     <!-- Código de Lugar -->
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label class="form-label">Código de Lugar</label>
-                            <input type="text" class="form-control" [(ngModel)]="proveedor.direccion!.codigoLugar" name="codigoLugar" placeholder="Ej: 09">
+                            <label class="form-label">Código de Lugar (Provincia)</label>
+                            <div class="input-with-validation">
+                                <input type="text" class="form-control" [class.is-invalid]="validaciones.codigoLugar.mensaje && !validaciones.codigoLugar.valido" [class.is-valid]="validaciones.codigoLugar.valido" [(ngModel)]="proveedor.direccion!.codigoLugar" (input)="validarCodigoLugar()"
+                                    (blur)="validarCodigoLugar()" name="codigoLugar" placeholder="07" maxlength="2">
+                                <div class="validation-feedback">
+                                    <span *ngIf="validaciones.codigoLugar.mensaje && !validaciones.codigoLugar.valido" class="text-danger">
+                                        <i class="bi bi-x-circle"></i> {{ validaciones.codigoLugar.mensaje }}
+                                    </span>
+                                    <span *ngIf="validaciones.codigoLugar.valido" class="text-success">
+                                        <i class="bi bi-check-circle"></i> {{ validaciones.codigoLugar.mensaje }}
+                                    </span>
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">07 = El Oro - Pasaje</small>
                         </div>
                     </div>
                 </div>
@@ -34,7 +58,19 @@
                     <div class="col-md-6">
                         <div class="form-group">
                             <label class="form-label">RUC *</label>
-                            <input type="text" class="form-control" [(ngModel)]="proveedor.ruc" name="ruc" placeholder="Ej: 1234567890001" maxlength="13" required>
+                            <div class="input-with-validation">
+                                <input type="text" class="form-control" [class.is-invalid]="validaciones.ruc.mensaje && !validaciones.ruc.valido" [class.is-valid]="validaciones.ruc.valido" [(ngModel)]="proveedor.ruc" (input)="validarRUC()" (blur)="validarRUC()" name="ruc" placeholder="Ej: 0701234567001"
+                                    maxlength="13" required>
+                                <div class="validation-feedback">
+                                    <span *ngIf="validaciones.ruc.mensaje && !validaciones.ruc.valido" class="text-danger">
+                                        <i class="bi bi-x-circle"></i> {{ validaciones.ruc.mensaje }}
+                                    </span>
+                                    <span *ngIf="validaciones.ruc.valido" class="text-success">
+                                        <i class="bi bi-check-circle"></i> {{ validaciones.ruc.mensaje }}
+                                    </span>
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">13 dígitos - Debe iniciar con código de provincia (07 para El Oro)</small>
                         </div>
                     </div>
 
@@ -48,19 +84,43 @@
                 </div>
 
                 <div class="row">
-                    <!-- Teléfono 1 -->
+                    <!-- Teléfono Principal -->
                     <div class="col-md-6">
                         <div class="form-group">
                             <label class="form-label">Teléfono Principal</label>
-                            <input type="tel" class="form-control" [(ngModel)]="proveedor.telefonos!.principal" name="telefonoPrincipal" placeholder="Ej: 0991234567" maxlength="10">
+                            <div class="input-with-validation">
+                                <input type="tel" class="form-control" [class.is-invalid]="validaciones.telefonoPrincipal.mensaje && !validaciones.telefonoPrincipal.valido" [class.is-valid]="validaciones.telefonoPrincipal.valido" [(ngModel)]="proveedor.telefonos!.principal" (input)="validarTelefono(proveedor.telefonos!.principal || '', 'principal')"
+                                    (blur)="validarTelefono(proveedor.telefonos!.principal || '', 'principal')" name="telefonoPrincipal" placeholder="0991234567 ó 072931234" maxlength="10">
+                                <div class="validation-feedback">
+                                    <span *ngIf="validaciones.telefonoPrincipal.mensaje && !validaciones.telefonoPrincipal.valido" class="text-danger">
+                                        <i class="bi bi-x-circle"></i> {{ validaciones.telefonoPrincipal.mensaje }}
+                                    </span>
+                                    <span *ngIf="validaciones.telefonoPrincipal.valido" class="text-success">
+                                        <i class="bi bi-check-circle"></i> {{ validaciones.telefonoPrincipal.mensaje }}
+                                    </span>
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">Celular: 09XXXXXXXX | Convencional El Oro: 07XXXXXXX</small>
                         </div>
                     </div>
 
-                    <!-- Teléfono 2 -->
+                    <!-- Teléfono Secundario -->
                     <div class="col-md-6">
                         <div class="form-group">
                             <label class="form-label">Teléfono Secundario</label>
-                            <input type="tel" class="form-control" [(ngModel)]="proveedor.telefonos!.secundario" name="telefonoSecundario" placeholder="Ej: 0991234568" maxlength="10">
+                            <div class="input-with-validation">
+                                <input type="tel" class="form-control" [class.is-invalid]="validaciones.telefonoSecundario.mensaje && !validaciones.telefonoSecundario.valido" [class.is-valid]="validaciones.telefonoSecundario.valido" [(ngModel)]="proveedor.telefonos!.secundario" (input)="validarTelefono(proveedor.telefonos!.secundario || '', 'secundario')"
+                                    (blur)="validarTelefono(proveedor.telefonos!.secundario || '', 'secundario')" name="telefonoSecundario" placeholder="0991234568 ó 072931235" maxlength="10">
+                                <div class="validation-feedback">
+                                    <span *ngIf="validaciones.telefonoSecundario.mensaje && !validaciones.telefonoSecundario.valido" class="text-danger">
+                                        <i class="bi bi-x-circle"></i> {{ validaciones.telefonoSecundario.mensaje }}
+                                    </span>
+                                    <span *ngIf="validaciones.telefonoSecundario.valido" class="text-success">
+                                        <i class="bi bi-check-circle"></i> {{ validaciones.telefonoSecundario.mensaje }}
+                                    </span>
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">Celular: 09XXXXXXXX | Convencional El Oro: 07XXXXXXX</small>
                         </div>
                     </div>
                 </div>
@@ -74,8 +134,21 @@
                 <!-- Saldo -->
                 <div class="form-group">
                     <label class="form-label">Saldo Inicial</label>
-                    <input type="number" class="form-control" [(ngModel)]="proveedor.saldo" name="saldo" step="0.01" placeholder="0.00">
-                    <span class="form-text">Saldo a favor o deuda inicial con el proveedor</span>
+                    <div class="input-with-validation">
+                        <input type="number" class="form-control" [class.is-invalid]="!validaciones.saldo.valido" [class.is-valid]="validaciones.saldo.valido && proveedor.saldo !== 0" [(ngModel)]="proveedor.saldo" (input)="validarSaldo()" name="saldo" step="0.01" placeholder="0.00">
+                        <div class="validation-feedback">
+                            <span *ngIf="!validaciones.saldo.valido" class="text-danger">
+                                <i class="bi bi-x-circle"></i> {{ validaciones.saldo.mensaje }}
+                            </span>
+                            <span *ngIf="validaciones.saldo.valido && proveedor.saldo && proveedor.saldo > 0" class="text-info">
+                                <i class="bi bi-info-circle"></i> {{ validaciones.saldo.mensaje }}
+                            </span>
+                            <span *ngIf="validaciones.saldo.valido && proveedor.saldo && proveedor.saldo < 0" class="text-warning">
+                                <i class="bi bi-exclamation-triangle"></i> {{ validaciones.saldo.mensaje }}
+                            </span>
+                        </div>
+                    </div>
+                    <small class="form-text text-muted">Positivo = a favor del proveedor | Negativo = deuda con el proveedor</small>
                 </div>
             </form>
         </div>

@@ -1,20 +1,19 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 import { ClientesRoutingModule } from './clientes-routing-module';
 
-import { ListarClientes } from './pages/listar-clientes/listar-clientes';
 import { CrearCliente } from './pages/crear-cliente/crear-cliente';
 
 @NgModule({
   declarations: [
-    ListarClientes,
     CrearCliente
   ],
   imports: [
     CommonModule,
     FormsModule,
+    ReactiveFormsModule,
     ClientesRoutingModule
   ]
 })

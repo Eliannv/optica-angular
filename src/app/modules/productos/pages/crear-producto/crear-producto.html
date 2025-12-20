@@ -2,23 +2,42 @@
     <div class="card">
         <div class="card-header">
             <h3 class="card-title">Crear Nuevo Producto</h3>
+            <div *ngIf="proximoIdInterno" class="id-preview">
+                <small class="text-muted">ID Interno (auto): <strong class="text-primary">{{ proximoIdInterno }}</strong></small>
+            </div>
         </div>
         <div class="card-body">
             <form>
                 <div class="row">
-                    <!-- Código -->
+                    <!-- Código de Armazón -->
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label class="form-label">Código *</label>
-                            <input type="text" class="form-control" [(ngModel)]="producto.codigo" name="codigo" placeholder="Ej: O0012" required>
+                            <label class="form-label">Código de Armazón *</label>
+                            <div class="input-with-validation">
+                                <input type="text" class="form-control" [class.is-invalid]="codigoExiste || (validaciones.codigo.mensaje && !validaciones.codigo.valido)" [class.is-valid]="validaciones.codigo.valido && !codigoExiste && !validandoCodigo" [(ngModel)]="producto.codigo"
+                                    (blur)="validarCodigoArmazon()" (input)="validarCodigoArmazon()" name="codigo" placeholder="Ej: O0012, ARM1234" required>
+                                <div class="validation-feedback">
+                                    <span *ngIf="validandoCodigo" class="text-info">
+                                        <i class="spinner-border spinner-border-sm"></i> Validando...
+                                    </span>
+                                    <span *ngIf="!validandoCodigo && validaciones.codigo.mensaje && !validaciones.codigo.valido" class="text-danger">
+                                        <i class="bi bi-x-circle"></i> {{ validaciones.codigo.mensaje }}
+                                    </span>
+                                    <span *ngIf="!validandoCodigo && validaciones.codigo.valido" class="text-success">
+                                        <i class="bi bi-check-circle"></i> {{ validaciones.codigo.mensaje }}
+                                    </span>
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">Mínimo 1 letra y 4 números (Ej: O0012, ARM1234)</small>
                         </div>
                     </div>
 
                     <!-- Nuevo Código -->
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label class="form-label">Nuevo Código</label>
-                            <input type="text" class="form-control" [(ngModel)]="producto.nuevoCodigo" name="nuevoCodigo" placeholder="Código alternativo">
+                            <label class="form-label">Código Alternativo</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.nuevoCodigo" name="nuevoCodigo" placeholder="Código alternativo (opcional)">
+                            <small class="form-text text-muted">Código secundario si el producto tiene otra identificación</small>
                         </div>
                     </div>
                 </div>
@@ -42,7 +61,19 @@
                     <div class="col-md-6">
                         <div class="form-group">
                             <label class="form-label">Grupo</label>
-                            <input type="text" class="form-control" [(ngModel)]="producto.grupo" name="grupo" placeholder="Ej: O002">
+                            <div class="input-with-validation">
+                                <input type="text" class="form-control" [class.is-invalid]="validaciones.grupo.mensaje && !validaciones.grupo.valido" [class.is-valid]="validaciones.grupo.valido" [(ngModel)]="producto.grupo" (blur)="validarGrupo()" (input)="validarGrupo()" name="grupo"
+                                    placeholder="Ej: O0002, GRP1234">
+                                <div class="validation-feedback">
+                                    <span *ngIf="validaciones.grupo.mensaje && !validaciones.grupo.valido" class="text-danger">
+                                        <i class="bi bi-x-circle"></i> {{ validaciones.grupo.mensaje }}
+                                    </span>
+                                    <span *ngIf="validaciones.grupo.valido" class="text-success">
+                                        <i class="bi bi-check-circle"></i> {{ validaciones.grupo.mensaje }}
+                                    </span>
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">Mínimo 1 letra y 4 números (opcional)</small>
                         </div>
                     </div>
                 </div>
@@ -59,8 +90,9 @@
                     <!-- Unidad -->
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label class="form-label">Unidad</label>
-                            <input type="text" class="form-control" [(ngModel)]="producto.unidad" name="unidad" placeholder="Ej: 1">
+                            <label class="form-label">Unidad *</label>
+                            <input type="number" class="form-control" [(ngModel)]="producto.unidad" (input)="validarPrecios()" name="unidad" min="1" placeholder="Ej: 1">
+                            <small class="form-text text-muted">Cantidad de unidades por caja</small>
                         </div>
                     </div>
                 </div>
@@ -70,7 +102,8 @@
                     <div class="col-md-4">
                         <div class="form-group">
                             <label class="form-label">Costo Caja</label>
-                            <input type="text" class="form-control" [(ngModel)]="producto.costos.caja" name="costoCaja" placeholder="0.00">
+                            <input type="number" class="form-control" [(ngModel)]="producto.costos.caja" (input)="validarPrecios()" name="costoCaja" step="0.01" min="0" placeholder="0.00">
+                            <small class="form-text text-muted">Costo de compra por caja</small>
                         </div>
                     </div>
 
@@ -78,17 +111,24 @@
                     <div class="col-md-4">
                         <div class="form-group">
                             <label class="form-label">Precio Caja</label>
-                            <input type="text" class="form-control" [(ngModel)]="producto.precios.caja" name="precioCaja" placeholder="0.00">
+                            <input type="number" class="form-control" [(ngModel)]="producto.precios.caja" (input)="validarPrecios()" name="precioCaja" step="0.01" min="0" placeholder="0.00">
+                            <small class="form-text text-muted">Precio de venta por caja</small>
                         </div>
                     </div>
 
                     <!-- PVP1 -->
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label class="form-label">PVP1</label>
-                            <input type="text" class="form-control" [(ngModel)]="producto.precios.pvp1" name="pvp1" placeholder="0.00">
+                            <label class="form-label">PVP1 (Precio por Unidad)</label>
+                            <input type="number" class="form-control" [(ngModel)]="producto.precios.pvp1" (input)="validarPrecios()" name="pvp1" step="0.01" min="0" placeholder="0.00">
+                            <small class="form-text text-muted">Precio de venta unitario</small>
                         </div>
                     </div>
+                </div>
+
+                <!-- Alerta de validación de precios -->
+                <div *ngIf="!validaciones.precios.valido" class="alert alert-warning" role="alert">
+                    <i class="bi bi-exclamation-triangle"></i> {{ validaciones.precios.mensaje }}
                 </div>
 
                 <div class="row">
@@ -96,7 +136,17 @@
                     <div class="col-md-6">
                         <div class="form-group">
                             <label class="form-label">Proveedor Principal</label>
-                            <input type="text" class="form-control" [(ngModel)]="producto.proveedores.principal" name="proveedorPrincipal" placeholder="Ej: P014">
+                            <div class="d-flex gap-2">
+                                <select class="form-control" [(ngModel)]="producto.proveedores.principal" name="proveedorPrincipal">
+                                    <option value="">Seleccionar proveedor...</option>
+                                    <option *ngFor="let prov of proveedores" [value]="prov.codigo || prov.id">
+                                        {{ prov.codigo || prov.id }} - {{ prov.nombre }}
+                                    </option>
+                                </select>
+                                <button type="button" class="btn btn-success" (click)="toggleFormNuevoProveedor()" title="Crear nuevo proveedor">
+                                    <i class="bi bi-plus-lg"></i> Nuevo
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -108,6 +158,67 @@
                 <option [ngValue]="true">Sí</option>
                 <option [ngValue]="false">No</option>
               </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Formulario para crear nuevo proveedor -->
+                <div *ngIf="mostrarFormNuevoProveedor" class="nuevo-proveedor-form">
+                    <div class="card mb-3">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">Crear Nuevo Proveedor</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Código Proveedor</label>
+                                        <input type="text" class="form-control" [(ngModel)]="nuevoProveedor.codigo" name="nuevoProv_codigo" placeholder="Ej: P001">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Nombre del Proveedor *</label>
+                                        <input type="text" class="form-control" [(ngModel)]="nuevoProveedor.nombre" name="nuevoProv_nombre" placeholder="Ej: Distribuidora XYZ" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">RUC *</label>
+                                        <input type="text" class="form-control" [(ngModel)]="nuevoProveedor.ruc" name="nuevoProv_ruc" placeholder="Ej: 1234567890001" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Representante</label>
+                                        <input type="text" class="form-control" [(ngModel)]="nuevoProveedor.representante" name="nuevoProv_representante" placeholder="Nombre del representante">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Teléfono Principal</label>
+                                        <input type="text" class="form-control" [(ngModel)]="nuevoProveedor.telefonos!.principal" name="nuevoProv_telPrincipal" placeholder="Ej: 0999999999">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Teléfono Secundario</label>
+                                        <input type="text" class="form-control" [(ngModel)]="nuevoProveedor.telefonos!.secundario" name="nuevoProv_telSecundario" placeholder="Ej: 022222222">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Dirección</label>
+                                <input type="text" class="form-control" [(ngModel)]="nuevoProveedor.direccion!.direccion" name="nuevoProv_direccion" placeholder="Dirección completa">
+                            </div>
+                            <div class="d-flex gap-2 justify-content-end">
+                                <button type="button" class="btn btn-secondary" (click)="cancelarNuevoProveedor()">Cancelar</button>
+                                <button type="button" class="btn btn-success" (click)="guardarNuevoProveedor()">Guardar Proveedor</button>
+                            </div>
                         </div>
                     </div>
                 </div>
