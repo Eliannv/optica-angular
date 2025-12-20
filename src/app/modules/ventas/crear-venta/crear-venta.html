@@ -42,7 +42,10 @@
               <div class="pname">{{ p.nombre }}</div>
               <div class="muted">{{ p.tipo || p.categoria }}</div>
             </div>
-            <div class="price">${{ (p.precio || 0).toFixed(2) }}</div>
+            <div class="price">
+  ${{ (p.precios?.pvp1 || 0) | number:'1.2-2' }}
+</div>
+
           </button>
         </div>
       </div>

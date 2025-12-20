@@ -94,10 +94,9 @@ export class HistorialClinicoComponent implements OnInit {
 
   // ✅ SI tiene historial => abrir (en tu form real)
   abrirHistorial(clienteId: string): void {
-    this.router.navigate([`/clientes/${clienteId}/crear-historial-clinico`], {
-      queryParams: { mode: 'view' } // opcional
-    });
-  }
+  this.router.navigate(['/clientes/historial-clinico/ver', clienteId]);
+}
+
 
   // ✅ Si NO tiene historial => crear
   crearHistorial(clienteId: string): void {

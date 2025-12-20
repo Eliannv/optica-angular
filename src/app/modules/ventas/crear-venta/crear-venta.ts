@@ -87,26 +87,49 @@ export class CrearVentaComponent implements OnInit {
     });
   }
 
-  agregarProducto(p: any) {
-    const id = p.id;
-    const precio = Number(p.precio || 0);
+agregarProducto(p: any) {
+  const id = p.id;
 
-    const existing = this.items.find((i: any) => i.productoId === id);
-    if (existing) {
-      existing.cantidad++;
-      existing.total = existing.cantidad * existing.precioUnitario;
-    } else {
-      this.items.push({
-        productoId: id,
-        nombre: p.nombre,
-        tipo: p.tipo || p.categoria,
-        cantidad: 1,
-        precioUnitario: precio,
-        total: precio,
-      });
-    }
-    this.recalcular();
+  // ✅ PRECIO REAL DESDE FIRESTORE
+  const raw =
+    p?.precios?.pvp1 ??
+    p?.precios?.unidad ??
+    p?.precios?.caja ??
+    0;
+
+  const precio = this.toNumber(raw);
+
+  console.log('PRECIO USADO =>', precio, p);
+
+  const existing = this.items.find(i => i.productoId === id);
+  if (existing) {
+    existing.cantidad++;
+    existing.total = existing.cantidad * existing.precioUnitario;
+  } else {
+    this.items.push({
+      productoId: id,
+      nombre: p.nombre,
+      tipo: p.tipo || p.categoria || p.grupo,
+      cantidad: 1,
+      precioUnitario: precio,
+      total: precio,
+    });
   }
+
+  this.recalcular();
+}
+private toNumber(v: any): number {
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  const s = String(v ?? '')
+    .replace(/\$/g, '')
+    .replace(/\s/g, '')
+    .replace(',', '.');
+  const n = Number(s);
+  return isFinite(n) ? n : 0;
+}
+
+
+
 
   cambiarCantidad(it: any, cantidad: number) {
     const c = Math.max(1, Number(cantidad || 1));
