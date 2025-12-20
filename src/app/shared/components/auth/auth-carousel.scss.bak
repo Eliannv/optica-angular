@@ -1,0 +1,524 @@
+/* --- CONTENEDOR PRINCIPAL --- */
+
+.auth-container {
+    display: flex;
+    height: 100vh;
+    font-family: 'Poppins', sans-serif;
+    overflow: hidden;
+}
+
+
+/* --- LADO IZQUIERDO (IMAGEN + FRASES) --- */
+
+.auth-left {
+    flex: 1.8;
+    position: relative;
+    background: linear-gradient(135deg, #2c3e50, #2c3e50bb);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    color: #fff;
+    text-align: center;
+    /* Curva blanca tipo ola */
+    &::after {
+        content: '';
+        position: absolute;
+        right: -40%;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: #fff;
+        clip-path: ellipse(65% 100% at 100% 75%);
+    }
+    .auth-left-content {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        max-width: 80%;
+        text-align: center;
+    }
+    .welcome-text {
+        font-size: 3rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        letter-spacing: 0.5px;
+        color: #fff;
+        text-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+        animation: fadeInDown 0.8s ease;
+    }
+    .main-icon {
+        width: 500px;
+        height: auto;
+        border-radius: 16px;
+        margin-bottom: 1rem;
+        margin-right: 4rem;
+        animation: fadeIn 1s ease;
+    }
+    .motivation-text {
+        font-family: 'Sansita Swashed', cursive;
+        font-size: 1.5rem;
+        line-height: 1.5;
+        color: #e0f2fe;
+        max-width: 520px;
+        animation: fadeInUp 1s ease;
+        font-weight: 500;
+    }
+    .dots {
+        position: absolute;
+        bottom: 40px;
+        display: flex;
+        gap: 10px;
+        z-index: 2;
+    }
+    .dot {
+        width: 10px;
+        height: 10px;
+        background: #fff;
+        border-radius: 50%;
+        opacity: 0.5;
+        transition: 0.3s ease;
+        cursor: pointer;
+        &.active {
+            opacity: 1;
+            transform: scale(1.3);
+        }
+    }
+}
+
+
+/* --- LADO DERECHO (FORMULARIOS) --- */
+
+.auth-right {
+    flex: 0.9;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    padding: 2rem;
+    z-index: 5;
+}
+
+.form-slide {
+    width: 100%;
+    max-width: 400px;
+    background: #fff;
+    animation: fadeIn 0.5s ease;
+}
+
+h2,
+.auth-title {
+    text-align: center;
+    color: var(--sidebar-active-border);
+    margin-bottom: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+
+/* --- FORMULARIOS GENERALES --- */
+
+form {
+    display: flex;
+    flex-direction: column;
+}
+
+
+/* --- INPUTS CON TU ESTILO ORIGINAL --- */
+
+.form-group {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 1rem;
+}
+
+label {
+    display: block;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    outline: none;
+    font-size: 0.95rem;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+input:focus {
+    border-color: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+}
+
+
+/* --- Agrupador de input e ícono --- */
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-wrapper input {
+    width: 100%;
+    padding-right: 35px;
+    /* deja espacio para el icono */
+}
+
+
+/* --- Icono de advertencia y tooltip --- */
+
+.warning-icon {
+    position: absolute;
+    right: 10px;
+    font-size: 1rem;
+    color: #e11d48;
+    cursor: pointer;
+    user-select: none;
+}
+
+.tooltip {
+    visibility: hidden;
+    opacity: 0;
+    width: 220px;
+    background-color: #fff;
+    color: #333;
+    text-align: left;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid #e11d48;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    position: absolute;
+    right: 110%;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: opacity 0.25s ease;
+    z-index: 10;
+    font-size: 0.85rem;
+    line-height: 1.3;
+}
+
+.tooltip::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 100%;
+    margin-top: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent transparent #e11d48;
+}
+
+.warning-icon:hover .tooltip {
+    visibility: visible;
+    opacity: 1;
+}
+
+
+/* --- BOTONES --- */
+
+.btn-submit,
+.auth-btn {
+    background: #009067;
+    color: #fff;
+    border: none;
+    padding: 12px;
+    border-radius: 30px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 12px;
+    &:hover {
+        background: #009067;
+        transform: translateY(-2px);
+    }
+    &:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+    }
+}
+
+
+/* --- ENLACES Y TEXTOS --- */
+
+p {
+    text-align: center;
+    font-size: 0.9rem;
+    margin-top: 1.2rem;
+    color: #555;
+}
+
+a {
+    color: #009067;
+    cursor: pointer;
+    text-decoration: none;
+    font-weight: 500;
+    &:hover {
+        text-decoration: underline;
+    }
+}
+
+.auth-links {
+    text-align: center;
+    margin-top: 1rem;
+    a {
+        display: block;
+        margin-bottom: 5px;
+    }
+}
+
+.error {
+    color: #e11d48;
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+.info,
+.message {
+    color: #009067;
+    text-align: center;
+    margin-top: 1rem;
+    font-size: 0.85rem;
+}
+
+.or-divider {
+    display: block;
+    text-align: center;
+    margin: 10px 0;
+    color: #aaa;
+}
+
+.google-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: white;
+    color: #555;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 10px;
+    width: 100%;
+    cursor: pointer;
+    transition: 0.3s;
+    font-weight: 500;
+    img {
+        width: 20px;
+        height: 20px;
+    }
+    &:hover {
+        background: #f1f1f1;
+    }
+}
+
+
+/* --- ANIMACIONES --- */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* --- Loading Spinner para validadores asíncronos --- */
+
+.loading-spinner {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #009067;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: translateY(-50%) rotate(0deg);
+    }
+    100% {
+        transform: translateY(-50%) rotate(360deg);
+    }
+}
+
+
+/* --- Success Icon para validaciones exitosas --- */
+
+.success-icon {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    animation: fadeInSuccess 0.3s ease-in;
+}
+
+@keyframes fadeInSuccess {
+    0% {
+        opacity: 0;
+        transform: translateY(-50%) scale(0.8);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(-50%) scale(1);
+    }
+}
+
+
+/* --- MODO RESPONSIVE PARA TELÉFONOS --- */
+
+@media (max-width: 992px) {
+    .auth-container {
+        flex-direction: column;
+        background: linear-gradient(135deg, #2c3e50, #2c3e50bb);
+        overflow-y: auto;
+        height: 100vh;
+    }
+    /* --- Fondo azul arriba (antes lado izquierdo) --- */
+    .auth-left {
+        width: 100%;
+        height: auto;
+        min-height: auto;
+        flex-shrink: 0;
+        padding: 10rem 1rem;
+        background: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .auth-left-content {
+        max-width: 100%;
+    }
+    .welcome-text {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+    .main-icon {
+        width: 100%;
+        max-width: 280px;
+        margin-left: 3rem;
+        height: auto;
+        display: block;
+    }
+    .motivation-text {
+        font-size: 0.9rem;
+        max-width: 90%;
+        margin: 0.5rem auto 1rem;
+    }
+    /* --- Formulario abajo (antes lado derecho) --- */
+    .auth-right {
+        flex: 1;
+        width: 100%;
+        min-height: auto;
+        background: #fff;
+        border-top-left-radius: 50px;
+        border-top-right-radius: 50px;
+        box-shadow: 0 -6px 25px rgba(0, 0, 0, 0.1);
+        padding: 4.5rem 1.5rem 3rem;
+        overflow-y: visible;
+    }
+    .auth-right h2,
+    .auth-title {
+        font-size: 1.4rem;
+        text-align: center;
+        margin-bottom: 1.2rem;
+    }
+    .auth-subtitle {
+        font-size: 0.85rem;
+    }
+    .form-group label {
+        font-size: 0.9rem;
+    }
+    input {
+        padding: 10px 12px;
+        font-size: 0.9rem;
+    }
+    .btn-submit,
+    .auth-btn {
+        width: 100%;
+        font-size: 1rem;
+        padding: 12px 0;
+        border-radius: 10px;
+    }
+    .auth-links {
+        display: flex;
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
+    }
+    .dots,
+    .dot {
+        display: none;
+    }
+    .auth-left::before,
+    .auth-left::after {
+        display: none !important;
+    }
+}
+
+
+/* --- AJUSTES PARA PANTALLAS MUY PEQUEÑAS (320px) --- */
+
+@media (max-width: 400px) {
+    .auth-left {
+        padding: 10rem 1rem;
+    }
+    .main-icon {
+        max-width: 100%;
+    }
+    .auth-right {
+        padding: 2rem 1rem 2rem;
+        border-top-left-radius: 40px;
+        border-top-right-radius: 40px;
+        min-height: auto;
+    }
+    .auth-right h2,
+    .auth-title {
+        font-size: 1.2rem;
+        margin-bottom: 0.8rem;
+    }
+    .auth-subtitle {
+        font-size: 0.8rem;
+        margin-bottom: 0.5rem;
+    }
+    .form-group {
+        margin-bottom: 0.8rem;
+    }
+    .form-group label {
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+    }
+    input {
+        padding: 9px 10px;
+        font-size: 0.85rem;
+    }
+    .btn-submit,
+    .auth-btn {
+        padding: 10px 0;
+        font-size: 0.95rem;
+        margin-top: 8px;
+    }
+    .auth-links {
+        gap: 0.4rem;
+        margin-top: 0.8rem;
+    }
+    .auth-links a {
+        font-size: 0.85rem;
+    }
+}
