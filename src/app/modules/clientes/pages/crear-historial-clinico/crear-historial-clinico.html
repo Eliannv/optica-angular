@@ -1,0 +1,61 @@
+<div class="hc" *ngIf="!loading">
+  <h2>Historia Clínica</h2>
+
+  <form [formGroup]="form" (ngSubmit)="guardar()">
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Ojo derecho (OD)</h3>
+        <label>Esfera
+          <input type="number" step="0.25" formControlName="odEsfera">
+        </label>
+        <label>Cilindro
+          <input type="number" step="0.25" formControlName="odCilindro">
+        </label>
+        <label>Eje
+          <input type="number" step="1" formControlName="odEje">
+        </label>
+      </div>
+
+      <div class="card">
+        <h3>Ojo izquierdo (OI)</h3>
+        <label>Esfera
+          <input type="number" step="0.25" formControlName="oiEsfera">
+        </label>
+        <label>Cilindro
+          <input type="number" step="0.25" formControlName="oiCilindro">
+        </label>
+        <label>Eje
+          <input type="number" step="1" formControlName="oiEje">
+        </label>
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <label>De
+        <input type="text" formControlName="de" placeholder="Ej: DP / Cerca / Lejos">
+      </label>
+
+      <label>Altura
+        <input type="number" step="0.1" formControlName="altura">
+      </label>
+
+      <label>Color
+        <input type="text" formControlName="color">
+      </label>
+    </div>
+
+    <label>Observación
+      <textarea rows="4" formControlName="observacion"></textarea>
+    </label>
+
+    <div class="actions">
+     <button type="button" class="btn-outline" (click)="cancelar()">
+  Cancelar
+</button>
+      <button type="submit" class="btn-primary">
+        Guardar
+      </button>
+    </div>
+  </form>
+</div>
