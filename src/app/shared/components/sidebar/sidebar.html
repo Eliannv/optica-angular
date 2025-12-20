@@ -46,6 +46,9 @@
         >
           <span class="menu-icon" [innerHTML]="item.icon"></span>
           <span class="menu-label" *ngIf="!collapsed">{{ item.label }}</span>
+          <span *ngIf="item.badge && item.badge > 0" class="badge">
+    {{ item.badge }}
+  </span>
         </a>
       </li>
     </ul>

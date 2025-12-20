@@ -1,0 +1,104 @@
+<div class="hc-wrapper">
+  <div class="card">
+
+    <!-- HEADER -->
+    <div class="card-header">
+      <div class="header-content">
+        <div>
+          <h3 class="card-title">Ver Historial Clínico</h3>
+
+          <div class="text-muted" *ngIf="clienteNombre">
+            <strong>{{ clienteNombre }}</strong>
+            <span *ngIf="clienteCedula"> · CI: {{ clienteCedula }}</span>
+            <span *ngIf="clienteTelefono"> · Tel: {{ clienteTelefono }}</span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button class="btn btn-secondary" (click)="volver()">
+            Volver
+          </button>
+
+          <!-- Si existe historial => Editar -->
+          <button *ngIf="existeHistorial" class="btn btn-primary" (click)="editar()">
+            Editar
+          </button>
+
+          <!-- Si NO existe historial => Crear -->
+          <button *ngIf="!existeHistorial && !loading" class="btn btn-success" (click)="crear()">
+            Crear historial
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BODY -->
+    <div class="card-body">
+
+      <!-- Loading -->
+      <div *ngIf="loading" class="text-center p-4">
+        <p class="text-muted">Cargando historial...</p>
+      </div>
+
+      <!-- Empty -->
+      <div *ngIf="!loading && !existeHistorial" class="text-center p-4">
+        <p class="text-muted">Este cliente aún no tiene historial clínico.</p>
+        <button class="btn btn-success mt-2" (click)="crear()">Crear historial</button>
+      </div>
+
+      <!-- Content -->
+      <div *ngIf="!loading && existeHistorial">
+
+        <div class="row g-3">
+          <!-- OD -->
+          <div class="col-12 col-md-6">
+            <div class="p-3 border rounded">
+              <h5 class="mb-3">Ojo Derecho (OD)</h5>
+              <p class="mb-1"><strong>Esfera:</strong> {{ historial?.odEsfera ?? '-' }}</p>
+              <p class="mb-1"><strong>Cilindro:</strong> {{ historial?.odCilindro ?? '-' }}</p>
+              <p class="mb-0"><strong>Eje:</strong> {{ historial?.odEje ?? '-' }}</p>
+            </div>
+          </div>
+
+          <!-- OI -->
+          <div class="col-12 col-md-6">
+            <div class="p-3 border rounded">
+              <h5 class="mb-3">Ojo Izquierdo (OI)</h5>
+              <p class="mb-1"><strong>Esfera:</strong> {{ historial?.oiEsfera ?? '-' }}</p>
+              <p class="mb-1"><strong>Cilindro:</strong> {{ historial?.oiCilindro ?? '-' }}</p>
+              <p class="mb-0"><strong>Eje:</strong> {{ historial?.oiEje ?? '-' }}</p>
+            </div>
+          </div>
+
+          <!-- Datos generales -->
+          <div class="col-12">
+            <div class="p-3 border rounded">
+              <h5 class="mb-3">Datos Generales</h5>
+
+              <div class="row g-3">
+                <div class="col-12 col-md-4">
+                  <p class="mb-0"><strong>DE:</strong> {{ historial?.de ?? '-' }}</p>
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <p class="mb-0"><strong>Altura:</strong> {{ historial?.altura ?? '-' }}</p>
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <p class="mb-0"><strong>Color:</strong> {{ historial?.color ?? '-' }}</p>
+                </div>
+
+                <div class="col-12">
+                  <p class="mb-0"><strong>Observación:</strong> {{ historial?.observacion || '-' }}</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>

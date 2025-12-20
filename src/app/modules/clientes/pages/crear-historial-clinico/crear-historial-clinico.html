@@ -1,61 +1,156 @@
-<div class="hc" *ngIf="!loading">
-  <h2>Historia Clínica</h2>
+<div class="container mt-4" *ngIf="!loading">
+  <div class="card">
 
-  <form [formGroup]="form" (ngSubmit)="guardar()">
-
-    <div class="grid-2">
-      <div class="card">
-        <h3>Ojo derecho (OD)</h3>
-        <label>Esfera
-          <input type="number" step="0.25" formControlName="odEsfera">
-        </label>
-        <label>Cilindro
-          <input type="number" step="0.25" formControlName="odCilindro">
-        </label>
-        <label>Eje
-          <input type="number" step="1" formControlName="odEje">
-        </label>
-      </div>
-
-      <div class="card">
-        <h3>Ojo izquierdo (OI)</h3>
-        <label>Esfera
-          <input type="number" step="0.25" formControlName="oiEsfera">
-        </label>
-        <label>Cilindro
-          <input type="number" step="0.25" formControlName="oiCilindro">
-        </label>
-        <label>Eje
-          <input type="number" step="1" formControlName="oiEje">
-        </label>
-      </div>
+    <!-- HEADER -->
+    <div class="card-header">
+      <h3 class="card-title">Historia Clínica</h3>
     </div>
 
-    <div class="grid-3">
-      <label>De
-        <input type="text" formControlName="de" placeholder="Ej: DP / Cerca / Lejos">
-      </label>
+    <!-- BODY -->
+    <div class="card-body">
+      <form [formGroup]="form" (ngSubmit)="guardar()">
 
-      <label>Altura
-        <input type="number" step="0.1" formControlName="altura">
-      </label>
+        <!-- MEDIDAS -->
+        <h5 class="mb-3">Medidas</h5>
+        <div class="row">
+          <div class="col-md-4">
+            <div class="form-group">
+              <label class="form-label">DP (Distancia pupilar)</label>
+              <input
+                type="number"
+                step="0.5"
+                class="form-control"
+                formControlName="dp"
+                placeholder="Ej: 62">
+            </div>
+          </div>
 
-      <label>Color
-        <input type="text" formControlName="color">
-      </label>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label class="form-label">ADD (Adición)</label>
+              <input
+                type="number"
+                step="0.25"
+                class="form-control"
+                formControlName="add"
+                placeholder="Ej: 2.00">
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="form-group">
+              <label class="form-label">Altura</label>
+              <input
+                type="number"
+                step="0.1"
+                class="form-control"
+                formControlName="altura"
+                placeholder="Ej: 18.5">
+            </div>
+          </div>
+        </div>
+
+        <hr>
+
+        <!-- OD / OI -->
+        <div class="row">
+          <!-- OD -->
+          <div class="col-md-6">
+            <h5>Ojo derecho (OD)</h5>
+
+            <div class="form-group">
+              <label class="form-label">Esfera</label>
+              <input type="number" step="0.25" class="form-control" formControlName="odEsfera">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Cilindro</label>
+              <input type="number" step="0.25" class="form-control" formControlName="odCilindro">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Eje</label>
+              <input type="number" step="1" min="0" max="180" class="form-control" formControlName="odEje">
+            </div>
+          </div>
+
+          <!-- OI -->
+          <div class="col-md-6">
+            <h5>Ojo izquierdo (OI)</h5>
+
+            <div class="form-group">
+              <label class="form-label">Esfera</label>
+              <input type="number" step="0.25" class="form-control" formControlName="oiEsfera">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Cilindro</label>
+              <input type="number" step="0.25" class="form-control" formControlName="oiCilindro">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Eje</label>
+              <input type="number" step="1" min="0" max="180" class="form-control" formControlName="oiEje">
+            </div>
+          </div>
+        </div>
+
+        <hr>
+
+        <!-- EXTRA -->
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label class="form-label">De</label>
+              <input
+                type="text"
+                class="form-control"
+                formControlName="de"
+                placeholder="Ej: Cerca / Lejos / DP">
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="form-group">
+              <label class="form-label">Color</label>
+              <input
+                type="text"
+                class="form-control"
+                formControlName="color"
+                placeholder="Ej: Negro / Transparente">
+            </div>
+          </div>
+        </div>
+
+        <!-- OBSERVACIÓN -->
+        <div class="form-group mt-3">
+          <label class="form-label">Observación</label>
+          <textarea
+            rows="4"
+            class="form-control"
+            formControlName="observacion">
+          </textarea>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="card-footer d-flex justify-content-between mt-4 px-0">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            (click)="cancelar()">
+            Cancelar
+          </button>
+
+          <button
+            type="submit"
+            class="btn btn-primary"
+            [disabled]="form.invalid">
+            Guardar Historia Clínica
+          </button>
+        </div>
+
+      </form>
     </div>
 
-    <label>Observación
-      <textarea rows="4" formControlName="observacion"></textarea>
-    </label>
-
-    <div class="actions">
-     <button type="button" class="btn-outline" (click)="cancelar()">
-  Cancelar
-</button>
-      <button type="submit" class="btn-primary">
-        Guardar
-      </button>
-    </div>
-  </form>
+  </div>
 </div>

@@ -13,15 +13,25 @@ export class HistorialClinicoService {
 
   constructor(private fs: Firestore) {}
 
-  guardarHistorial(clienteId: string, data: Omit<HistoriaClinica, 'clienteId'>) {
+  async guardarHistorial(
+    clienteId: string,
+    data: Omit<HistoriaClinica, 'clienteId' | 'createdAt' | 'updatedAt'>
+  ) {
     const ref = doc(this.fs, `clientes/${clienteId}/historialClinico/main`);
 
-    return setDoc(ref, {
-      ...data,
-      clienteId,
-      updatedAt: serverTimestamp(),
-      createdAt: serverTimestamp()
-    }, { merge: true });
+    // 🔎 verificar si ya existe
+    const snap = await getDoc(ref);
+
+    return setDoc(
+      ref,
+      {
+        ...data,
+        clienteId,
+        updatedAt: serverTimestamp(),
+        ...(snap.exists() ? {} : { createdAt: serverTimestamp() })
+      },
+      { merge: true }
+    );
   }
 
   obtenerHistorial(clienteId: string) {

@@ -15,11 +15,28 @@ export class SidebarComponent {
 
   collapsed = false;
 
-  menuItems: Array<{ label: string; icon: SafeHtml | string; route: string; active: boolean }>;
+  menuItems: Array<{ label: string; icon: SafeHtml | string; route: string; active: boolean; badge?: number }>;
 
   constructor(private sanitizer: DomSanitizer) {
     this.menuItems = [
+  {
+    label: 'Historial Clínico',
+    icon: this.sanitizer.bypassSecurityTrustHtml(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+        viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="3" width="16" height="18" rx="2"/>
+        <path d="M8 7h8"/>
+        <path d="M8 11h8"/>
+        <path d="M8 15h6"/>
+      </svg>
+    `),
+    route: '/clientes/historial-clinico',
+    active: true,
+    badge: 0
+  },
       {
+
         label: 'Principal',
         icon: this.sanitizer.bypassSecurityTrustHtml(`
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -46,7 +63,7 @@ export class SidebarComponent {
             <circle cx="9" cy="7" r="4"/>
           </svg>
         `),
-        route: '/clientes',
+        route: '/clientes/listar',
         active: true
       },
       {
