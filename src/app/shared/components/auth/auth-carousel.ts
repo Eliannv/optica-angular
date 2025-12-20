@@ -8,7 +8,6 @@ import {
   Validators,
 } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
-import { trigger, transition, style, animate } from '@angular/animations';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import Swal from 'sweetalert2';
@@ -19,17 +18,6 @@ import Swal from 'sweetalert2';
   imports: [CommonModule, ReactiveFormsModule, FormsModule],
   templateUrl: './auth-carousel.html',
   styleUrl: './auth-carousel.scss',
-  animations: [
-    trigger('fadeSlide', [
-      transition(':enter', [
-        style({ opacity: 0, transform: 'translateX(20px)' }),
-        animate('400ms ease-out', style({ opacity: 1, transform: 'translateX(0)' })),
-      ]),
-      transition(':leave', [
-        animate('400ms ease-in', style({ opacity: 0, transform: 'translateX(-20px)' })),
-      ]),
-    ]),
-  ],
 })
 export class AuthCarousel {
   // Control de las secciones: 1 = login | 2 = registro | 3 = forgot password

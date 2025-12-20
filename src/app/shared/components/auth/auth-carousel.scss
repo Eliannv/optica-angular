@@ -43,7 +43,7 @@
         text-align: center;
     }
     .welcome-text {
-        font-size: 1.8rem;
+        font-size: 3rem;
         font-weight: 700;
         margin-bottom: 1rem;
         letter-spacing: 0.5px;
@@ -52,19 +52,21 @@
         animation: fadeInDown 0.8s ease;
     }
     .main-icon {
-        width: 600px;
+        width: 500px;
         height: auto;
         border-radius: 16px;
         margin-bottom: 1rem;
+        margin-right: 4rem;
         animation: fadeIn 1s ease;
     }
     .motivation-text {
-        font-family: 'Segoe UI', Arial, sans-serif;
-        font-size: 1rem;
+        font-family: 'Sansita Swashed', cursive;
+        font-size: 1.5rem;
         line-height: 1.5;
         color: #e0f2fe;
         max-width: 520px;
         animation: fadeInUp 1s ease;
+        font-weight: 500;
     }
     .dots {
         position: absolute;
@@ -384,44 +386,61 @@ a {
 @media (max-width: 992px) {
     .auth-container {
         flex-direction: column;
-        /* 🔹 Apila verticalmente */
-        height: auto;
+        background: linear-gradient(135deg, #2c3e50, #2c3e50bb);
+        overflow-y: auto;
+        height: 100vh;
     }
     /* --- Fondo azul arriba (antes lado izquierdo) --- */
     .auth-left {
         width: 100%;
-        height: 40vh;
+        height: auto;
+        min-height: auto;
+        flex-shrink: 0;
+        padding: 10rem 1rem;
+        background: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     .auth-left-content {
-        max-width: 10%;
-        gap: 0.5rem;
+        max-width: 100%;
     }
     .welcome-text {
-        display: none;
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
     }
     .main-icon {
-        margin-top: 10px;
-        max-width: 50%;
+        width: 100%;
+        max-width: 280px;
+        margin-left: 3rem;
+        height: auto;
+        display: block;
     }
     .motivation-text {
-        display: none;
+        font-size: 0.9rem;
+        max-width: 90%;
+        margin: 0.5rem auto 1rem;
     }
     /* --- Formulario abajo (antes lado derecho) --- */
     .auth-right {
-        flex: none;
+        flex: 1;
         width: 100%;
+        min-height: auto;
         background: #fff;
         border-top-left-radius: 50px;
         border-top-right-radius: 50px;
         box-shadow: 0 -6px 25px rgba(0, 0, 0, 0.1);
-        padding: 2.5rem 1.5rem;
-        margin-top: -0.5rem;
+        padding: 4.5rem 1.5rem 3rem;
+        overflow-y: visible;
     }
     .auth-right h2,
     .auth-title {
         font-size: 1.4rem;
         text-align: center;
         margin-bottom: 1.2rem;
+    }
+    .auth-subtitle {
+        font-size: 0.85rem;
     }
     .form-group label {
         font-size: 0.9rem;
@@ -446,11 +465,60 @@ a {
     .dots,
     .dot {
         display: none;
-        /* 🔹 Ocultamos los puntos en móvil */
     }
     .auth-left::before,
     .auth-left::after {
         display: none !important;
-        /* 🔥 Elimina cualquier forma o curva */
+    }
+}
+
+
+/* --- AJUSTES PARA PANTALLAS MUY PEQUEÑAS (320px) --- */
+
+@media (max-width: 400px) {
+    .auth-left {
+        padding: 10rem 1rem;
+    }
+    .main-icon {
+        max-width: 100%;
+    }
+    .auth-right {
+        padding: 2rem 1rem 2rem;
+        border-top-left-radius: 40px;
+        border-top-right-radius: 40px;
+        min-height: auto;
+    }
+    .auth-right h2,
+    .auth-title {
+        font-size: 1.2rem;
+        margin-bottom: 0.8rem;
+    }
+    .auth-subtitle {
+        font-size: 0.8rem;
+        margin-bottom: 0.5rem;
+    }
+    .form-group {
+        margin-bottom: 0.8rem;
+    }
+    .form-group label {
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+    }
+    input {
+        padding: 9px 10px;
+        font-size: 0.85rem;
+    }
+    .btn-submit,
+    .auth-btn {
+        padding: 10px 0;
+        font-size: 0.95rem;
+        margin-top: 8px;
+    }
+    .auth-links {
+        gap: 0.4rem;
+        margin-top: 0.8rem;
+    }
+    .auth-links a {
+        font-size: 0.85rem;
     }
 }
