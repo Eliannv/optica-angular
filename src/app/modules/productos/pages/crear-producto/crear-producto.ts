@@ -12,17 +12,33 @@ import { Router } from '@angular/router';
 export class CrearProducto {
 
   producto: Producto = {
-    codArti: '',
-    nomArti: '',
-    nueCod: '',
-    stoUnid: 0,
-    pvpUnid: 0,
-    cosUnid: 0,
-    pvpCaja: 0,
-    cosCaja: 0,
-    pvpProd1: 0,
-    pvpProd2: 0,
-    ivaProd: 'S'
+    codigo: '',
+    nombre: '',
+    nuevoCodigo: '',
+    grupo: '',
+    stock: 0,
+    unidad: '1',
+    iva: true,
+    observacion: null,
+    costos: {
+      caja: '0.00',
+      unidad: '0.00'
+    },
+    datos: {
+      dato1: '',
+      dato2: ''
+    },
+    precios: {
+      caja: '0.00',
+      pvp1: '0.00',
+      pvp2: '0.00',
+      unidad: '0.00'
+    },
+    proveedores: {
+      principal: '',
+      secundario: '',
+      terciario: ''
+    }
   };
 
   constructor(
@@ -31,7 +47,7 @@ export class CrearProducto {
   ) {}
 
   guardar() {
-    if (this.producto.codArti && this.producto.nomArti) {
+    if (this.producto.codigo && this.producto.nombre) {
       this.productosService.createProducto(this.producto).then(() => {
         alert('Producto creado exitosamente');
         this.router.navigate(['/productos']);

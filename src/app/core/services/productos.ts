@@ -39,7 +39,7 @@ export class ProductosService {
     return addDoc(this.productosRef, {
       ...producto,
       createdAt: new Date(),
-      stoUnid: producto.stoUnid || 0,
+      stock: producto.stock || 0,
     });
   }
 

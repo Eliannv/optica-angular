@@ -12,12 +12,18 @@ import { Router } from '@angular/router';
 export class CrearProveedor {
 
   proveedor: Proveedor = {
-    nomProv: '',
-    rucProv: '',
-    repProv: '',
-    telProv: '',
-    telProv2: '',
-    dirProv: '',
+    codigo: '',
+    nombre: '',
+    ruc: '',
+    representante: '',
+    telefonos: {
+      principal: '',
+      secundario: ''
+    },
+    direccion: {
+      codigoLugar: '',
+      direccion: ''
+    },
     saldo: 0
   };
 
@@ -27,8 +33,8 @@ export class CrearProveedor {
   ) {}
 
   guardar() {
-    if (this.proveedor.nomProv && this.proveedor.rucProv) {
-      this.proveedor.fecIng = new Date();
+    if (this.proveedor.nombre && this.proveedor.ruc) {
+      this.proveedor.fechaIngreso = new Date();
       this.proveedoresService.createProveedor(this.proveedor).then(() => {
         alert('Proveedor creado exitosamente');
         this.router.navigate(['/proveedores']);

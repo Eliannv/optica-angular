@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ThemeService } from '../../../core/services/theme.service';
 
 @Component({
   selector: 'app-footer',
@@ -10,4 +11,7 @@ import { CommonModule } from '@angular/common';
 })
 export class FooterComponent {
   currentYear = new Date().getFullYear();
+  private themeService = inject(ThemeService);
+
+  isDark = computed(() => this.themeService.currentTheme() === 'dark');
 }

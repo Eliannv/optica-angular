@@ -1,142 +1,179 @@
 /* Reset y estilos globales */
+
 * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
+
 
 /* Layout principal */
+
 .app-layout {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  background-color: var(--bg-secondary);
-  transition: background-color var(--transition-normal);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    /* altura completa del viewport */
+    background-color: var(--bg-secondary);
+    transition: background-color var(--transition-normal);
 }
+
 
 /* Navbar wrapper */
+
 .navbar-wrapper {
-  width: 100%;
-  position: sticky;
-  top: 0;
-  z-index: 1000;
+    width: 100%;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
 }
+
 
 /* Content wrapper - contiene sidebar y main */
-.content-wrapper {
-  display: flex;
-  flex: 1;
-  position: relative;
-  overflow: hidden;
 
-  min-height: 0; /* 🔥 clave en flex para que overflow funcione bien */
+.content-wrapper {
+    display: flex;
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    height: calc(100vh - 64px);
+    /* altura fija: viewport - navbar */
+    max-height: calc(100vh - 64px);
 }
+
 
 /* Sidebar Desktop (NO fuerces width aquí) */
-.sidebar-desktop {
-  /* width: 260px;  ❌ QUITAR */
-  height: calc(100vh - 64px);
-  position: sticky;
-  top: 64px;
-  overflow: hidden;  /* el scroll lo maneja el sidebar interno */
-  flex-shrink: 0;    /* 🔥 no se encoge */
-  display: block;
 
-  /* opcional por si tienes gaps raros */
-  min-width: 0;
+.sidebar-desktop {
+    /* width: 260px;  ❌ QUITAR */
+    height: calc(100vh - 64px);
+    position: sticky;
+    top: 64px;
+    overflow: hidden;
+    /* el scroll lo maneja el sidebar interno */
+    flex-shrink: 0;
+    /* 🔥 no se encoge */
+    display: block;
+    /* opcional por si tienes gaps raros */
+    min-width: 0;
 }
 
+
 /* Sidebar Mobile */
+
 .sidebar-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 1001;
-  opacity: 0;
-  animation: fadeInOverlay 0.3s ease forwards;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 1001;
+    opacity: 0;
+    animation: fadeInOverlay 0.3s ease forwards;
 }
 
 @keyframes fadeInOverlay {
-  from {
-    opacity: 0;
-    backdrop-filter: blur(0px);
-    -webkit-backdrop-filter: blur(0px);
-  }
-  to {
-    opacity: 1;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-  }
+    from {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+        -webkit-backdrop-filter: blur(0px);
+    }
+    to {
+        opacity: 1;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
 }
 
 .sidebar-drawer {
-  position: fixed;
-  top: 0;
-  left: -280px;
-  bottom: 0;
-  width: 260px;
-  z-index: 1002;
-  transition: left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-  box-shadow: var(--shadow-xl);
-  transform: translateX(0);
+    position: fixed;
+    top: 0;
+    left: -280px;
+    bottom: 0;
+    width: 260px;
+    z-index: 1002;
+    transition: left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: var(--shadow-xl);
+    transform: translateX(0);
 }
 
 .sidebar-drawer.active {
-  left: 0;
-  animation: slideInFromLeft 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    left: 0;
+    animation: slideInFromLeft 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 @keyframes slideInFromLeft {
-  from {
-    left: -280px;
-    opacity: 0.8;
-  }
-  to {
-    left: 0;
-    opacity: 1;
-  }
+    from {
+        left: -280px;
+        opacity: 0.8;
+    }
+    to {
+        left: 0;
+        opacity: 1;
+    }
 }
 
 .inside-drawer {
-  height: 100%;
+    height: 100%;
 }
+
 
 /* Main content */
+
 .main-content {
-  flex: 1;
-  background-color: var(--bg-secondary);
-  min-height: calc(100vh - 64px - 80px); /* viewport - navbar - footer */
-  padding: 1.5rem;
-
-  overflow-y: auto;
-  min-width: 0;   /* 🔥 evita overflow horizontal cuando sidebar cambia */
-  min-height: 0;  /* 🔥 importante junto con overflow en flex */
-
-  transition: background-color var(--transition-normal);
+    flex: 1;
+    background-color: var(--bg-secondary);
+    padding: 1.5rem 2rem;
+    overflow-y: auto;
+    /* scroll independiente */
+    overflow-x: hidden;
+    height: 100%;
+    /* toma la altura del content-wrapper */
+    max-height: 100%;
+    transition: background-color var(--transition-normal);
 }
+
 
 /* Animaciones */
+
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
+
 /* Responsive */
+
 @media (max-width: 1149px) {
-  .main-content { padding: 1rem; }
-  .sidebar-desktop { display: none; }
+    .main-content {
+        padding: 1rem 1.5rem;
+    }
+    .sidebar-desktop {
+        display: none;
+    }
 }
 
 @media (min-width: 1150px) {
-  .sidebar-drawer,
-  .sidebar-overlay { display: none; }
+    .sidebar-drawer,
+    .sidebar-overlay {
+        display: none;
+    }
 }
 
+
 /* Utilidades */
-.hidden { display: none; }
-.visible { display: block; }
+
+.hidden {
+    display: none;
+}
+
+.visible {
+    display: block;
+}

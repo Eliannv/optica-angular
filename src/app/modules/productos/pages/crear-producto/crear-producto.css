@@ -1,3 +1,10 @@
+/* Contenedor de productos con márgenes optimizados */
+
+.productos-wrapper {
+    max-width: 100%;
+    width: 100%;
+}
+
 .row {
     display: flex;
     flex-wrap: wrap;

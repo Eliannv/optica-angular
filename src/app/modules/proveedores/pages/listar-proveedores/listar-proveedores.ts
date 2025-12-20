@@ -11,7 +11,16 @@ import { Router } from '@angular/router';
   styleUrl: './listar-proveedores.css',
 })
 export class ListarProveedores implements OnInit {
-  proveedores$!: Observable<Proveedor[]>;
+  proveedores: Proveedor[] = [];
+  proveedoresFiltrados: Proveedor[] = [];
+  proveedoresPaginados: Proveedor[] = [];
+  paginaActual: number = 1;
+  proveedoresPorPagina: number = 10;
+  totalProveedores: number = 0;
+  Math = Math; // Para usar Math.min en el template
+  proveedorSeleccionado: Proveedor | null = null;
+  mostrarModal: boolean = false;
+  terminoBusqueda: string = '';
 
   constructor(
     private proveedoresService: ProveedoresService,
@@ -19,7 +28,32 @@ export class ListarProveedores implements OnInit {
   ) {}
 
   ngOnInit() {
-    this.proveedores$ = this.proveedoresService.getProveedores();
+    this.proveedoresService.getProveedores().subscribe(proveedores => {
+      this.proveedores = proveedores;
+      this.proveedoresFiltrados = proveedores;
+      this.totalProveedores = proveedores.length;
+      this.actualizarPaginacion();
+    });
+  }
+
+  actualizarPaginacion() {
+    const inicio = (this.paginaActual - 1) * this.proveedoresPorPagina;
+    const fin = inicio + this.proveedoresPorPagina;
+    this.proveedoresPaginados = [...this.proveedoresFiltrados.slice(inicio, fin)];
+  }
+
+  paginaSiguiente() {
+    if (this.paginaActual * this.proveedoresPorPagina < this.totalProveedores) {
+      this.paginaActual++;
+      this.actualizarPaginacion();
+    }
+  }
+
+  paginaAnterior() {
+    if (this.paginaActual > 1) {
+      this.paginaActual--;
+      this.actualizarPaginacion();
+    }
   }
 
   crearProveedor() {
@@ -35,5 +69,50 @@ export class ListarProveedores implements OnInit {
         alert('Error al eliminar el proveedor');
       });
     }
+  }
+
+  verDetalle(proveedor: Proveedor) {
+    this.proveedorSeleccionado = proveedor;
+    this.mostrarModal = true;
+  }
+
+  cerrarModal() {
+    this.mostrarModal = false;
+    this.proveedorSeleccionado = null;
+  }
+
+  trackByProveedorId(index: number, proveedor: Proveedor): string {
+    return proveedor.id || index.toString();
+  }
+
+  buscarProveedores() {
+    const termino = this.terminoBusqueda.toLowerCase().trim();
+
+    if (!termino) {
+      this.proveedoresFiltrados = this.proveedores;
+    } else {
+      this.proveedoresFiltrados = this.proveedores.filter(proveedor => {
+        const nombre = proveedor.nombre?.toLowerCase() || '';
+        const ruc = proveedor.ruc?.toLowerCase() || '';
+        const representante = proveedor.representante?.toLowerCase() || '';
+        const direccion = proveedor.direccion?.direccion?.toLowerCase() || '';
+        const codigo = proveedor.codigo?.toLowerCase() || '';
+
+        return nombre.includes(termino) ||
+               ruc.includes(termino) ||
+               representante.includes(termino) ||
+               direccion.includes(termino) ||
+               codigo.includes(termino);
+      });
+    }
+
+    this.totalProveedores = this.proveedoresFiltrados.length;
+    this.paginaActual = 1; // Resetear a la primera página
+    this.actualizarPaginacion();
+  }
+
+  limpiarBusqueda() {
+    this.terminoBusqueda = '';
+    this.buscarProveedores();
   }
 }

@@ -1,13 +1,18 @@
 export interface Proveedor {
   id?: string;
-  codProv?: string;
-  nomProv: string;
-  repProv?: string;
-  rucProv: string;
-  telProv?: string;
-  telProv2?: string;
-  dirProv?: string;
-  fecIng?: Date;
+  codigo?: string;
+  nombre: string;
+  representante?: string;
+  ruc: string;
+  telefonos?: {
+    principal?: string;
+    secundario?: string;
+  };
+  direccion?: {
+    codigoLugar?: string;
+    direccion?: string;
+  };
+  fechaIngreso?: Date;
   saldo?: number;
   createdAt?: any;
   updatedAt?: any;

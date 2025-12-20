@@ -1,0 +1,265 @@
+<div class="auth-container">
+    <!-- LADO IZQUIERDO -->
+    <div class="auth-left">
+        <h1 class="welcome-text">¡Bienvenido!</h1>
+        <img class="main-icon" src="img/Logo_Optica_Macias.png" alt="Logo Óptica">
+        <p class="motivation-text">
+            Aquí vemos diferente!
+        </p>
+
+        <div class="dots">
+            <span class="dot" [class.active]="activeSlide() === 1" (click)="goTo(1)"></span>
+            <span class="dot" [class.active]="activeSlide() === 2" (click)="goTo(2)"></span>
+            <span class="dot" [class.active]="activeSlide() === 3" (click)="goTo(3)"></span>
+        </div>
+    </div>
+
+    <!-- LADO DERECHO -->
+    <div class="auth-right">
+
+        <!-- LOGIN -->
+        <div class="form-slide" *ngIf="activeSlide() === 1" @fadeSlide>
+            <h2 class="auth-title">Iniciar Sesión</h2>
+            <p class="auth-subtitle">Acceso para empleados de la óptica</p>
+
+            <form class="auth-form" [formGroup]="loginForm" (ngSubmit)="onLogin()">
+                <!-- Email -->
+                <div class="form-group">
+                    <label>Correo electrónico:</label>
+                    <div class="input-wrapper">
+                        <input type="email" formControlName="email" placeholder="ejemplo@optica.com" [class.invalid]="loginForm.get('email')?.invalid && loginForm.get('email')?.touched">
+                        <div class="warning-icon" *ngIf="loginForm.get('email')?.touched && loginForm.get('email')?.invalid">
+                            <span class="tooltip">
+                                <ng-container *ngIf="loginForm.get('email')?.hasError('required')">Correo requerido.<br></ng-container>
+                                <ng-container *ngIf="loginForm.get('email')?.hasError('email')">Formato de correo inválido.</ng-container>
+                            </span>
+                            <svg class="lucide lucide-message-circle-warning" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>
+                                <path d="M12 8v4"></path>
+                                <path d="M12 16h.01"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contraseña -->
+                <div class="form-group">
+                    <label>Contraseña:</label>
+                    <div class="input-wrapper">
+                        <input type="password" formControlName="password" placeholder="********" [class.invalid]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
+                        <div class="warning-icon" *ngIf="loginForm.get('password')?.touched && loginForm.get('password')?.invalid">
+                            <span class="tooltip">
+                                <ng-container *ngIf="loginForm.get('password')?.hasError('required')">Contraseña requerida.<br></ng-container>
+                                <ng-container *ngIf="loginForm.get('password')?.hasError('minlength')">Mínimo 6 caracteres.</ng-container>
+                            </span>
+                            <svg class="lucide lucide-message-circle-warning" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>
+                                <path d="M12 8v4"></path>
+                                <path d="M12 16h.01"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="auth-btn" type="submit" [disabled]="loginForm.invalid || isLoading">
+                    <span *ngIf="!isLoading">Ingresar</span>
+                    <span *ngIf="isLoading">Ingresando...</span>
+                </button>
+            </form>
+
+            <div class="auth-links">
+                <a (click)="goTo(2)">¿No tienes cuenta? Regístrate</a>
+                <a (click)="goTo(3)">¿Olvidaste tu contraseña?</a>
+            </div>
+        </div>
+
+        <!-- REGISTRO -->
+        <div class="form-slide" *ngIf="activeSlide() === 2" @fadeSlide>
+            <h2 class="auth-title">Crear Cuenta</h2>
+            <p class="auth-subtitle">Registro para nuevos empleados</p>
+
+            <form class="auth-form" [formGroup]="registerForm" (ngSubmit)="onRegister()">
+                <!-- Cédula -->
+                <div class="form-group">
+                    <label>Cédula:</label>
+                    <div class="input-wrapper">
+                        <input type="text" formControlName="cedula" maxlength="10" placeholder="1234567890">
+                        <div class="warning-icon" *ngIf="registerForm.get('cedula')?.touched && registerForm.get('cedula')?.invalid">
+                            <span class="tooltip">
+                                <ng-container *ngIf="registerForm.get('cedula')?.hasError('required')">Cédula requerida.<br></ng-container>
+                                <ng-container *ngIf="registerForm.get('cedula')?.hasError('maxlength')">Máximo 10 dígitos.<br></ng-container>
+                                <ng-container *ngIf="registerForm.get('cedula')?.hasError('pattern')">Solo números permitidos.</ng-container>
+                            </span>
+                            <svg class="lucide lucide-message-circle-warning" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>
+                                <path d="M12 8v4"></path>
+                                <path d="M12 16h.01"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nombre -->
+                <div class="form-group">
+                    <label>Nombre:</label>
+                    <div class="input-wrapper">
+                        <input type="text" formControlName="nombre" placeholder="Juan">
+                        <div class="warning-icon" *ngIf="registerForm.get('nombre')?.touched && registerForm.get('nombre')?.invalid">
+                            <span class="tooltip">
+                                <ng-container *ngIf="registerForm.get('nombre')?.hasError('required')">Nombre requerido.<br></ng-container>
+                                <ng-container *ngIf="registerForm.get('nombre')?.hasError('minlength')">Mínimo 2 caracteres.<br></ng-container>
+                                <ng-container *ngIf="registerForm.get('nombre')?.hasError('pattern')">Solo letras permitidas.</ng-container>
+                            </span>
+                            <svg class="lucide lucide-message-circle-warning" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>
+                                <path d="M12 8v4"></path>
+                                <path d="M12 16h.01"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Apellido -->
+                <div class="form-group">
+                    <label>Apellido:</label>
+                    <div class="input-wrapper">
+                        <input type="text" formControlName="apellido" placeholder="Pérez">
+                        <div class="warning-icon" *ngIf="registerForm.get('apellido')?.touched && registerForm.get('apellido')?.invalid">
+                            <span class="tooltip">
+                                <ng-container *ngIf="registerForm.get('apellido')?.hasError('required')">Apellido requerido.<br></ng-container>
+                                <ng-container *ngIf="registerForm.get('apellido')?.hasError('minlength')">Mínimo 2 caracteres.<br></ng-container>
+                                <ng-container *ngIf="registerForm.get('apellido')?.hasError('pattern')">Solo letras permitidas.</ng-container>
+                            </span>
+                            <svg class="lucide lucide-message-circle-warning" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>
+                                <path d="M12 8v4"></path>
+                                <path d="M12 16h.01"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fecha de nacimiento -->
+                <div class="form-group">
+                    <label>Fecha de nacimiento:</label>
+                    <div class="input-wrapper">
+                        <input type="date" formControlName="fechaNacimiento">
+                        <div class="warning-icon" *ngIf="registerForm.get('fechaNacimiento')?.touched && registerForm.get('fechaNacimiento')?.invalid">
+                            <span class="tooltip">
+                                <ng-container *ngIf="registerForm.get('fechaNacimiento')?.hasError('required')">Fecha requerida.<br></ng-container>
+                                <ng-container *ngIf="registerForm.get('fechaNacimiento')?.hasError('menorEdad')">Debes ser mayor de 18 años.</ng-container>
+                            </span>
+                            <svg class="lucide lucide-message-circle-warning" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>
+                                <path d="M12 8v4"></path>
+                                <path d="M12 16h.01"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Correo -->
+                <div class="form-group">
+                    <label>Correo:</label>
+                    <div class="input-wrapper">
+                        <input type="email" formControlName="correo" placeholder="ejemplo@optica.com">
+                        <div class="warning-icon" *ngIf="registerForm.get('correo')?.touched && registerForm.get('correo')?.invalid">
+                            <span class="tooltip">
+                                <ng-container *ngIf="registerForm.get('correo')?.hasError('required')">Correo requerido.<br></ng-container>
+                                <ng-container *ngIf="registerForm.get('correo')?.hasError('email')">Formato de correo inválido.</ng-container>
+                            </span>
+                            <svg class="lucide lucide-message-circle-warning" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>
+                                <path d="M12 8v4"></path>
+                                <path d="M12 16h.01"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contraseña -->
+                <div class="form-group">
+                    <label>Contraseña:</label>
+                    <div class="input-wrapper">
+                        <input type="password" formControlName="password" placeholder="********">
+                        <div class="warning-icon" *ngIf="registerForm.get('password')?.touched && registerForm.get('password')?.invalid">
+                            <span class="tooltip">
+                                <ng-container *ngIf="registerForm.get('password')?.hasError('required')">Contraseña requerida.<br></ng-container>
+                                <ng-container *ngIf="registerForm.get('password')?.hasError('minlength')">Mínimo 8 caracteres.<br></ng-container>
+                                <ng-container *ngIf="registerForm.get('password')?.hasError('weakPassword')">Debe incluir mayúscula, minúscula, número y símbolo.</ng-container>
+                            </span>
+                            <svg class="lucide lucide-message-circle-warning" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>
+                                <path d="M12 8v4"></path>
+                                <path d="M12 16h.01"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Confirmar contraseña -->
+                <div class="form-group">
+                    <label>Confirmar contraseña:</label>
+                    <div class="input-wrapper">
+                        <input type="password" formControlName="confirmPassword" placeholder="********">
+                        <div class="warning-icon" *ngIf="registerForm.get('confirmPassword')?.touched && registerForm.hasError('passwordMismatch')">
+                            <span class="tooltip">
+                                Las contraseñas no coinciden.
+                            </span>
+                            <svg class="lucide lucide-message-circle-warning" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>
+                                <path d="M12 8v4"></path>
+                                <path d="M12 16h.01"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="auth-btn" type="submit" [disabled]="registerForm.invalid || isLoading">
+                    <span *ngIf="!isLoading">Crear Cuenta</span>
+                    <span *ngIf="isLoading">Creando cuenta...</span>
+                </button>
+            </form>
+
+            <div class="auth-links">
+                <a (click)="goTo(1)">¿Ya tienes una cuenta? Inicia sesión</a>
+            </div>
+        </div>
+
+        <!-- RECUPERAR CONTRASEÑA -->
+        <div class="form-slide" *ngIf="activeSlide() === 3" @fadeSlide>
+            <h2 class="auth-title">Recuperar Contraseña</h2>
+            <p class="auth-subtitle">Ingresa tu correo para recibir instrucciones</p>
+
+            <form class="auth-form" [formGroup]="forgotForm" (ngSubmit)="onForgotPassword()">
+                <!-- Email -->
+                <div class="form-group">
+                    <label>Correo electrónico:</label>
+                    <div class="input-wrapper">
+                        <input type="email" formControlName="email" placeholder="ejemplo@optica.com" [class.invalid]="forgotForm.get('email')?.invalid && forgotForm.get('email')?.touched">
+                        <div class="warning-icon" *ngIf="forgotForm.get('email')?.touched && forgotForm.get('email')?.invalid">
+                            <span class="tooltip">
+                                <ng-container *ngIf="forgotForm.get('email')?.hasError('required')">Correo requerido.<br></ng-container>
+                                <ng-container *ngIf="forgotForm.get('email')?.hasError('email')">Formato de correo inválido.</ng-container>
+                            </span>
+                            <svg class="lucide lucide-message-circle-warning" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>
+                                <path d="M12 8v4"></path>
+                                <path d="M12 16h.01"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="auth-btn" type="submit" [disabled]="forgotForm.invalid || isLoading">
+                    <span *ngIf="!isLoading">Enviar enlace</span>
+                    <span *ngIf="isLoading">Enviando...</span>
+                </button>
+            </form>
+
+            <div class="auth-links">
+                <a (click)="goTo(1)">Volver al inicio de sesión</a>
+            </div>
+        </div>
+    </div>
+</div>

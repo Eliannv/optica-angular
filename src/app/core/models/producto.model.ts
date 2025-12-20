@@ -1,24 +1,33 @@
 export interface Producto {
   id?: string;
-  codArti: string;
-  nueCod?: string;
-  nomArti: string;
-  dato1?: string;
-  dato2?: string;
-  stoUnid?: number;
-  cosCaja?: number;
-  pvpCaja?: number;
-  cosUnid?: number;
-  pvpProd1?: number;
-  pvpProd2?: number;
-  pvpUnid?: number;
-  obsProd?: string;
-  ivaProd?: string;
-  codProv?: string;
-  pvpCaja3?: number;
-  pvpUnid3?: number;
+  codigo: string;
+  nombre: string;
+  nuevoCodigo?: string;
+  grupo?: string;
   genera?: number;
-  codUnid?: string;
+  iva: boolean;
+  observacion?: string | null;
+  unidad?: string;
+  stock?: number;
+  costos: {
+    caja?: string;
+    unidad?: string;
+  };
+  datos: {
+    dato1?: string;
+    dato2?: string;
+  };
+  precios: {
+    caja?: string;
+    pvp1?: string;
+    pvp2?: string;
+    unidad?: string;
+  };
+  proveedores: {
+    principal?: string;
+    secundario?: string;
+    terciario?: string;
+  };
   createdAt?: any;
   updatedAt?: any;
 }

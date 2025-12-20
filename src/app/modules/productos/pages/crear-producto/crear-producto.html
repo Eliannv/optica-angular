@@ -1,4 +1,4 @@
-<div class="container mt-4">
+<div class="productos-wrapper">
     <div class="card">
         <div class="card-header">
             <h3 class="card-title">Crear Nuevo Producto</h3>
@@ -6,11 +6,11 @@
         <div class="card-body">
             <form>
                 <div class="row">
-                    <!-- Código de Artículo -->
+                    <!-- Código -->
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label class="form-label">Código de Artículo *</label>
-                            <input type="text" class="form-control" [(ngModel)]="producto.codArti" name="codArti" placeholder="Ej: PROD001" required>
+                            <label class="form-label">Código *</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.codigo" name="codigo" placeholder="Ej: O0012" required>
                         </div>
                     </div>
 
@@ -18,112 +18,96 @@
                     <div class="col-md-6">
                         <div class="form-group">
                             <label class="form-label">Nuevo Código</label>
-                            <input type="text" class="form-control" [(ngModel)]="producto.nueCod" name="nueCod" placeholder="Código alternativo">
+                            <input type="text" class="form-control" [(ngModel)]="producto.nuevoCodigo" name="nuevoCodigo" placeholder="Código alternativo">
                         </div>
                     </div>
                 </div>
 
-                <!-- Nombre del Artículo -->
+                <!-- Nombre del Producto -->
                 <div class="form-group">
                     <label class="form-label">Nombre del Producto *</label>
-                    <input type="text" class="form-control" [(ngModel)]="producto.nomArti" name="nomArti" placeholder="Ej: Lentes de Sol Ray-Ban" required>
+                    <input type="text" class="form-control" [(ngModel)]="producto.nombre" name="nombre" placeholder="Ej: ARMAZON DE METAL ECO" required>
                 </div>
 
                 <div class="row">
-                    <!-- Dato 1 -->
+                    <!-- Dato 2 (Modelo/Color) -->
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label class="form-label">Dato 1 (Marca/Tipo)</label>
-                            <input type="text" class="form-control" [(ngModel)]="producto.dato1" name="dato1" placeholder="Ej: Ray-Ban">
+                            <label class="form-label">Modelo/Color (Dato 2)</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.datos.dato2" name="dato2" placeholder="Ej: AZUL">
                         </div>
                     </div>
 
-                    <!-- Dato 2 -->
+                    <!-- Grupo -->
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label class="form-label">Dato 2 (Modelo/Color)</label>
-                            <input type="text" class="form-control" [(ngModel)]="producto.dato2" name="dato2" placeholder="Ej: Aviator Negro">
+                            <label class="form-label">Grupo</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.grupo" name="grupo" placeholder="Ej: O002">
                         </div>
                     </div>
                 </div>
 
                 <div class="row">
                     <!-- Stock -->
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <div class="form-group">
-                            <label class="form-label">Stock en Unidades</label>
-                            <input type="number" class="form-control" [(ngModel)]="producto.stoUnid" name="stoUnid" min="0" placeholder="0">
+                            <label class="form-label">Stock</label>
+                            <input type="number" class="form-control" [(ngModel)]="producto.stock" name="stock" min="0" placeholder="0">
                         </div>
                     </div>
 
-                    <!-- Costo Unidad -->
-                    <div class="col-md-4">
+                    <!-- Unidad -->
+                    <div class="col-md-6">
                         <div class="form-group">
-                            <label class="form-label">Costo Unitario</label>
-                            <input type="number" class="form-control" [(ngModel)]="producto.cosUnid" name="cosUnid" step="0.01" min="0" placeholder="0.00">
-                        </div>
-                    </div>
-
-                    <!-- PVP Unidad -->
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label class="form-label">Precio de Venta</label>
-                            <input type="number" class="form-control" [(ngModel)]="producto.pvpUnid" name="pvpUnid" step="0.01" min="0" placeholder="0.00">
+                            <label class="form-label">Unidad</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.unidad" name="unidad" placeholder="Ej: 1">
                         </div>
                     </div>
                 </div>
 
                 <div class="row">
                     <!-- Costo Caja -->
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <div class="form-group">
                             <label class="form-label">Costo Caja</label>
-                            <input type="number" class="form-control" [(ngModel)]="producto.cosCaja" name="cosCaja" step="0.01" min="0" placeholder="0.00">
+                            <input type="text" class="form-control" [(ngModel)]="producto.costos.caja" name="costoCaja" placeholder="0.00">
                         </div>
                     </div>
 
-                    <!-- PVP Caja -->
-                    <div class="col-md-3">
+                    <!-- Precio Caja -->
+                    <div class="col-md-4">
                         <div class="form-group">
-                            <label class="form-label">PVP Caja</label>
-                            <input type="number" class="form-control" [(ngModel)]="producto.pvpCaja" name="pvpCaja" step="0.01" min="0" placeholder="0.00">
+                            <label class="form-label">Precio Caja</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.precios.caja" name="precioCaja" placeholder="0.00">
                         </div>
                     </div>
 
-                    <!-- PVP Precio 1 -->
-                    <div class="col-md-3">
+                    <!-- PVP1 -->
+                    <div class="col-md-4">
                         <div class="form-group">
-                            <label class="form-label">PVP Precio 1</label>
-                            <input type="number" class="form-control" [(ngModel)]="producto.pvpProd1" name="pvpProd1" step="0.01" min="0" placeholder="0.00">
-                        </div>
-                    </div>
-
-                    <!-- PVP Precio 2 -->
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label class="form-label">PVP Precio 2</label>
-                            <input type="number" class="form-control" [(ngModel)]="producto.pvpProd2" name="pvpProd2" step="0.01" min="0" placeholder="0.00">
+                            <label class="form-label">PVP1</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.precios.pvp1" name="pvp1" placeholder="0.00">
                         </div>
                     </div>
                 </div>
 
                 <div class="row">
-                    <!-- IVA -->
+                    <!-- Proveedor Principal -->
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label class="form-label">IVA</label>
-                            <select class="form-control" [(ngModel)]="producto.ivaProd" name="ivaProd">
-                <option value="S">Sí</option>
-                <option value="N">No</option>
-              </select>
+                            <label class="form-label">Proveedor Principal</label>
+                            <input type="text" class="form-control" [(ngModel)]="producto.proveedores.principal" name="proveedorPrincipal" placeholder="Ej: P014">
                         </div>
                     </div>
 
-                    <!-- Código de Unidad -->
+                    <!-- IVA -->
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label class="form-label">Código de Unidad</label>
-                            <input type="text" class="form-control" [(ngModel)]="producto.codUnid" name="codUnid" placeholder="Ej: UND, CAJA">
+                            <label class="form-label">IVA *</label>
+                            <select class="form-control" [(ngModel)]="producto.iva" name="iva">
+                <option [ngValue]="true">Sí</option>
+                <option [ngValue]="false">No</option>
+              </select>
                         </div>
                     </div>
                 </div>
@@ -131,7 +115,7 @@
                 <!-- Observaciones -->
                 <div class="form-group">
                     <label class="form-label">Observaciones</label>
-                    <textarea class="form-control" [(ngModel)]="producto.obsProd" name="obsProd" rows="3" placeholder="Observaciones adicionales del producto"></textarea>
+                    <textarea class="form-control" [(ngModel)]="producto.observacion" name="observacion" rows="3" placeholder="Observaciones adicionales del producto"></textarea>
                 </div>
             </form>
         </div>
