@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { Cliente } from '../../../../core/models/cliente.model';
 import { ClientesService } from '../../../../core/services/clientes';
-import { Router, RouterModule } from '@angular/router';
+import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 
 @Component({
   selector: 'app-crear-cliente',
@@ -22,12 +22,17 @@ export class CrearCliente {
 
   constructor(
     private clientesService: ClientesService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute
   ) {}
+async guardar() {
+  const ref = await this.clientesService.createCliente(this.cliente);
 
-  guardar() {
-    this.clientesService.createCliente(this.cliente).then(() => {
-      this.router.navigate(['/clientes']);
-    });
-  }
+  const returnTo = this.route.snapshot.queryParamMap.get('returnTo') || '/clientes/listar';
+
+  this.router.navigate([returnTo], {
+    queryParams: { selectedId: ref.id }
+  });
 }
+}
+

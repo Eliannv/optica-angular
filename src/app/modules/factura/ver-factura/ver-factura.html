@@ -1,0 +1,105 @@
+<div *ngIf="!loading && factura">
+
+  <!-- (OPCIONAL) vista normal en pantalla -->
+  <div class="card no-print">
+    <div class="card-header header">
+      <h3>Factura #{{ factura.id }}</h3>
+      <button class="btn btn-primary" type="button" (click)="reimprimir()">Reimprimir</button>
+    </div>
+
+    <div class="card-body">
+      <p><strong>Cliente:</strong> {{ factura.clienteNombre }}</p>
+      <p><strong>Método de pago:</strong> {{ factura.metodoPago }}</p>
+      <hr>
+
+      <div *ngFor="let it of factura.items" class="row">
+        <div><strong>{{ it.nombre }}</strong> <span class="muted">{{ it.tipo }}</span></div>
+        <div>{{ it.cantidad }} x ${{ it.precioUnitario.toFixed(2) }}</div>
+        <div><strong>${{ it.total.toFixed(2) }}</strong></div>
+      </div>
+
+      <hr>
+
+      <div class="tot">
+        <div><span>Subtotal</span><strong>${{ factura.subtotal.toFixed(2) }}</strong></div>
+        <div><span>IVA</span><strong>${{ factura.iva.toFixed(2) }}</strong></div>
+        <div class="big"><span>Total</span><strong>${{ factura.total.toFixed(2) }}</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TICKET / FACTURA (MISMO FORMATO) ================= -->
+  <div class="ticket">
+
+    <div class="t-center t-bold">ÓPTICA MACÍAS</div>
+    <div class="t-center t-small">RUC: 0999999999001</div>
+    <div class="t-center t-small">Machala - Ecuador</div>
+
+    <div class="t-hr"></div>
+
+    <div class="t-small">
+      <div><b>FACTURA No:</b> {{ factura.id }}</div>
+      <div><b>Fecha:</b>
+        {{ factura.fecha?.toDate ? (factura.fecha.toDate() | date:'dd/MM/yyyy HH:mm') : (factura.fecha | date:'dd/MM/yyyy HH:mm') }}
+      </div>
+      <div><b>Cliente:</b> {{ factura.clienteNombre }}</div>
+      <div><b>Método pago:</b> {{ factura.metodoPago }}</div>
+    </div>
+
+    <div class="t-hr"></div>
+
+    <!-- MEDIDAS (si existen) -->
+    <div class="t-bold t-small">MEDIDAS</div>
+    <div class="t-small">
+      OD: Esf {{ factura.historialSnapshot?.odEsfera || '-' }}
+      Cil {{ factura.historialSnapshot?.odCilindro || '-' }}
+      Eje {{ factura.historialSnapshot?.odEje || '-' }}
+    </div>
+    <div class="t-small">
+      OI: Esf {{ factura.historialSnapshot?.oiEsfera || '-' }}
+      Cil {{ factura.historialSnapshot?.oiCilindro || '-' }}
+      Eje {{ factura.historialSnapshot?.oiEje || '-' }}
+    </div>
+
+    <div class="t-hr"></div>
+
+    <!-- TABLA -->
+    <div class="t-table-head t-small">
+      <div>COD</div>
+      <div>DESCRIPCIÓN</div>
+      <div>CANT</div>
+      <div>P.U</div>
+      <div>TOTAL</div>
+    </div>
+
+    <div class="t-table-row t-small" *ngFor="let it of factura.items; let i = index">
+      <div>{{ i + 1 }}</div>
+      <div class="t-cut">{{ it.nombre }}</div>
+      <div>{{ it.cantidad }}</div>
+      <div>{{ it.precioUnitario | number:'1.2-2' }}</div>
+      <div>{{ it.total | number:'1.2-2' }}</div>
+    </div>
+
+    <div class="t-hr"></div>
+
+    <!-- TOTALES -->
+    <div class="t-kv t-small">
+      <span>Subtotal</span>
+      <span>{{ factura.subtotal | number:'1.2-2' }}</span>
+    </div>
+    <div class="t-kv t-small">
+      <span>IVA</span>
+      <span>{{ factura.iva | number:'1.2-2' }}</span>
+    </div>
+    <div class="t-kv t-bold">
+      <span>TOTAL</span>
+      <span>{{ factura.total | number:'1.2-2' }}</span>
+    </div>
+
+    <div class="t-hr"></div>
+
+    <div class="t-center t-small">Gracias por su compra</div>
+    <div class="t-center t-small">Conserve su factura</div>
+
+  </div>
+</div>

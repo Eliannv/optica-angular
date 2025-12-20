@@ -78,7 +78,7 @@
               <td>
                 <div class="d-flex gap-2">
 
-                  <!-- Si tiene historial => Abrir -->
+                  <!-- Si tiene historial => Abrir (editar) -->
                   <button
                     *ngIf="c.tieneHistorial; else btnCrear"
                     class="btn btn-sm btn-primary"
@@ -101,6 +101,14 @@
                     [disabled]="!c.tieneHistorial"
                     (click)="editarHistorial(c.id)">
                     Editar
+                  </button>
+
+                  <!-- ✅ NUEVO: Recibo / POS (solo si tiene historial) -->
+                  <button
+                    class="btn btn-sm btn-success"
+                    [disabled]="!c.tieneHistorial"
+                    (click)="crearRecibo(c.id)">
+                    Recibo
                   </button>
 
                 </div>

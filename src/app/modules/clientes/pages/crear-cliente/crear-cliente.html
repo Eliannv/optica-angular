@@ -3,6 +3,7 @@
 
     <form (ngSubmit)="guardar()">
         <input type="text" placeholder="Nombre" [(ngModel)]="cliente.nombres" name="nombre" required />
+        <input type="text" placeholder="Cédula" [(ngModel)]="cliente.cedula" name="cedula" required />
         <input type="text" placeholder="Teléfono" [(ngModel)]="cliente.telefono" name="telefono" />
         <input type="text" placeholder="Dirección" [(ngModel)]="cliente.direccion" name="direccion" />
         <button type="submit">Guardar</button>
