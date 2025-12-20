@@ -131,122 +131,105 @@
                     </div>
                     <div class="detalle-item">
                         <span class="detalle-label">Cédula:</span>
-                        <span class="detalle-value">{{ clienteSeleccionado.cedula }}</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.cedula || '-' }}</span>
+                    </div>
+                    <div class="detalle-item">
+                        <span class="detalle-label">Teléfono:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.telefono || '-' }}</span>
                     </div>
                     <div class="detalle-item" *ngIf="clienteSeleccionado.email">
                         <span class="detalle-label">Email:</span>
                         <span class="detalle-value">{{ clienteSeleccionado.email }}</span>
-                    </div>
-                    <div class="detalle-item" *ngIf="clienteSeleccionado.telefono">
-                        <span class="detalle-label">Teléfono:</span>
-                        <span class="detalle-value">{{ clienteSeleccionado.telefono }}</span>
                     </div>
                 </div>
 
                 <!-- Ubicación -->
                 <div class="detalle-section">
                     <h3>Ubicación</h3>
-                    <div class="detalle-item" *ngIf="clienteSeleccionado.pais">
-                        <span class="detalle-label">País:</span>
-                        <span class="detalle-value">{{ clienteSeleccionado.pais }}</span>
-                    </div>
-                    <div class="detalle-item" *ngIf="clienteSeleccionado.provincia">
-                        <span class="detalle-label">Provincia:</span>
-                        <span class="detalle-value">{{ clienteSeleccionado.provincia }}</span>
+                    <div class="detalle-item">
+                        <span class="detalle-label">Dirección:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.direccion || '-' }}</span>
                     </div>
                     <div class="detalle-item" *ngIf="clienteSeleccionado.ciudad">
                         <span class="detalle-label">Ciudad:</span>
                         <span class="detalle-value">{{ clienteSeleccionado.ciudad }}</span>
                     </div>
-                    <div class="detalle-item" *ngIf="clienteSeleccionado.direccion">
-                        <span class="detalle-label">Dirección:</span>
-                        <span class="detalle-value">{{ clienteSeleccionado.direccion }}</span>
+                    <div class="detalle-item" *ngIf="clienteSeleccionado.provincia">
+                        <span class="detalle-label">Provincia:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.provincia }}</span>
+                    </div>
+                    <div class="detalle-item" *ngIf="clienteSeleccionado.pais">
+                        <span class="detalle-label">País:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.pais }}</span>
                     </div>
                 </div>
 
                 <!-- Historial Clínico -->
-                <div class="detalle-section historial-section">
-                    <h3>Historial Clínico</h3>
+                <div class="detalle-section">
+                    <h3>Historial Clínico - OD</h3>
 
-                    <div *ngIf="cargandoHistorial" class="loading">
+                    <div *ngIf="cargandoHistorial" class="loading-state">
                         <p>Cargando historial clínico...</p>
                     </div>
 
                     <div *ngIf="!cargandoHistorial && !historialClinico" class="no-historial">
-                        <p>Este cliente no tiene historial clínico registrado.</p>
-                        <button class="btn btn-primary-small" (click)="crearHistorial(clienteSeleccionado.id); cerrarModal()">
+                        <p class="text-muted">Este cliente no tiene historial clínico registrado.</p>
+                        <button class="btn btn-primary btn-sm mt-2" (click)="crearHistorial(clienteSeleccionado.id); cerrarModal()">
                             Crear Historial Clínico
                         </button>
                     </div>
 
-                    <div *ngIf="!cargandoHistorial && historialClinico" class="historial-data">
-                        <!-- Ojo Derecho -->
-                        <div class="ojo-section">
-                            <h4>Ojo Derecho (OD)</h4>
-                            <div class="ojo-valores">
-                                <div class="valor-item">
-                                    <span class="valor-label">Esfera:</span>
-                                    <span class="valor-dato">{{ historialClinico.odEsfera ?? '-' }}</span>
-                                </div>
-                                <div class="valor-item">
-                                    <span class="valor-label">Cilindro:</span>
-                                    <span class="valor-dato">{{ historialClinico.odCilindro ?? '-' }}</span>
-                                </div>
-                                <div class="valor-item">
-                                    <span class="valor-label">Eje:</span>
-                                    <span class="valor-dato">{{ historialClinico.odEje ?? '-' }}°</span>
-                                </div>
-                            </div>
+                    <div *ngIf="!cargandoHistorial && historialClinico">
+                        <div class="detalle-item">
+                            <span class="detalle-label">OD Esfera:</span>
+                            <span class="detalle-value">{{ historialClinico.odEsfera ?? '-' }}</span>
                         </div>
+                        <div class="detalle-item">
+                            <span class="detalle-label">OD Cilindro:</span>
+                            <span class="detalle-value">{{ historialClinico.odCilindro ?? '-' }}</span>
+                        </div>
+                        <div class="detalle-item">
+                            <span class="detalle-label">OD Eje:</span>
+                            <span class="detalle-value">{{ historialClinico.odEje ?? '-' }}°</span>
+                        </div>
+                    </div>
+                </div>
 
-                        <!-- Ojo Izquierdo -->
-                        <div class="ojo-section">
-                            <h4>Ojo Izquierdo (OI)</h4>
-                            <div class="ojo-valores">
-                                <div class="valor-item">
-                                    <span class="valor-label">Esfera:</span>
-                                    <span class="valor-dato">{{ historialClinico.oiEsfera ?? '-' }}</span>
-                                </div>
-                                <div class="valor-item">
-                                    <span class="valor-label">Cilindro:</span>
-                                    <span class="valor-dato">{{ historialClinico.oiCilindro ?? '-' }}</span>
-                                </div>
-                                <div class="valor-item">
-                                    <span class="valor-label">Eje:</span>
-                                    <span class="valor-dato">{{ historialClinico.oiEje ?? '-' }}°</span>
-                                </div>
-                            </div>
-                        </div>
+                <!-- Ojo Izquierdo -->
+                <div class="detalle-section" *ngIf="!cargandoHistorial && historialClinico">
+                    <h3>Historial Clínico - OI</h3>
+                    <div class="detalle-item">
+                        <span class="detalle-label">OI Esfera:</span>
+                        <span class="detalle-value">{{ historialClinico.oiEsfera ?? '-' }}</span>
+                    </div>
+                    <div class="detalle-item">
+                        <span class="detalle-label">OI Cilindro:</span>
+                        <span class="detalle-value">{{ historialClinico.oiCilindro ?? '-' }}</span>
+                    </div>
+                    <div class="detalle-item">
+                        <span class="detalle-label">OI Eje:</span>
+                        <span class="detalle-value">{{ historialClinico.oiEje ?? '-' }}°</span>
+                    </div>
+                </div>
 
-                        <!-- Información Adicional -->
-                        <div class="info-adicional">
-                            <div class="detalle-item" *ngIf="historialClinico.de">
-                                <span class="detalle-label">DE:</span>
-                                <span class="detalle-value">{{ historialClinico.de }}</span>
-                            </div>
-                            <div class="detalle-item" *ngIf="historialClinico.altura">
-                                <span class="detalle-label">Altura:</span>
-                                <span class="detalle-value">{{ historialClinico.altura }} cm</span>
-                            </div>
-                            <div class="detalle-item" *ngIf="historialClinico.color">
-                                <span class="detalle-label">Color:</span>
-                                <span class="detalle-value">{{ historialClinico.color }}</span>
-                            </div>
-                            <div class="detalle-item" *ngIf="historialClinico.observacion">
-                                <span class="detalle-label">Observaciones:</span>
-                                <span class="detalle-value">{{ historialClinico.observacion }}</span>
-                            </div>
-                        </div>
-
-                        <!-- Botones de acción -->
-                        <div class="historial-actions">
-                            <button class="btn btn-secondary-small" (click)="editarHistorial(clienteSeleccionado.id); cerrarModal()">
-                                Editar Historial
-                            </button>
-                            <button class="btn btn-success-small" (click)="crearRecibo(clienteSeleccionado.id); cerrarModal()">
-                                Crear Recibo
-                            </button>
-                        </div>
+                <!-- Información Adicional -->
+                <div class="detalle-section" *ngIf="!cargandoHistorial && historialClinico">
+                    <h3>Información Adicional</h3>
+                    <div class="detalle-item" *ngIf="historialClinico.de">
+                        <span class="detalle-label">DE:</span>
+                        <span class="detalle-value">{{ historialClinico.de }}</span>
+                    </div>
+                    <div class="detalle-item" *ngIf="historialClinico.altura">
+                        <span class="detalle-label">Altura:</span>
+                        <span class="detalle-value">{{ historialClinico.altura }} cm</span>
+                    </div>
+                    <div class="detalle-item" *ngIf="historialClinico.color">
+                        <span class="detalle-label">Color:</span>
+                        <span class="detalle-value">{{ historialClinico.color }}</span>
+                    </div>
+                    <div class="detalle-item" *ngIf="historialClinico.observacion">
+                        <span class="detalle-label">Observaciones:</span>
+                        <span class="detalle-value">{{ historialClinico.observacion }}</span>
                     </div>
                 </div>
 
@@ -263,6 +246,12 @@
 
         <div class="modal-footer">
             <button class="btn btn-secondary" (click)="cerrarModal()">Cerrar</button>
+            <button class="btn btn-primary" *ngIf="historialClinico && clienteSeleccionado" (click)="editarHistorial(clienteSeleccionado.id); cerrarModal()">
+                Editar Historial
+            </button>
+            <button class="btn btn-success" *ngIf="historialClinico && clienteSeleccionado" (click)="crearRecibo(clienteSeleccionado.id); cerrarModal()">
+                Crear Recibo
+            </button>
         </div>
     </div>
 </div>
