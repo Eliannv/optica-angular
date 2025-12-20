@@ -88,13 +88,33 @@ export class SidebarComponent {
       active: false
     },
     {
-      label: 'Ventas',
-      icon: this.sanitizer.bypassSecurityTrustHtml(`
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-dollar-sign-icon lucide-circle-dollar-sign"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
-        `),
-      route: '/ventas',
-      active: false
-    },
+  label: 'Ventas (POS)',
+  icon: this.sanitizer.bypassSecurityTrustHtml(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
+      <path d="M12 18V6"/>
+    </svg>
+  `),
+  route: '/ventas/crear',
+  active: false
+},
+{
+  label: 'Facturas',
+  icon: this.sanitizer.bypassSecurityTrustHtml(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16l4-2 4 2 4-2 4 2V8z"/>
+      <path d="M14 2v6h6"/>
+      <path d="M8 13h8"/>
+      <path d="M8 17h8"/>
+    </svg>
+  `),
+  route: '/facturas',
+  active: false
+},
+
     {
       label: 'Reportes',
       icon: this.sanitizer.bypassSecurityTrustHtml(`

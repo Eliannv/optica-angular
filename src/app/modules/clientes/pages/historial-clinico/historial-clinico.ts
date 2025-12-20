@@ -41,14 +41,12 @@ export class HistorialClinicoComponent implements OnInit {
   private async cargarClientes(): Promise<void> {
     const data = await firstValueFrom(this.clientesSrv.getClientes());
 
-    // ✅ convertir a ClienteUI (agregamos tieneHistorial)
     const clientesBase: ClienteUI[] = (data as any[]).map(c => ({
       ...(c as Cliente),
       id: (c as any).id,
       tieneHistorial: false
     }));
 
-    // ✅ revisar si existe historial por cada cliente
     const withHistorial = await Promise.all(
       clientesBase.map(async (c) => {
         const snap = await this.historialSrv.obtenerHistorial(c.id);
@@ -94,23 +92,31 @@ export class HistorialClinicoComponent implements OnInit {
     });
   }
 
-  // Si tiene historial => ver/abrir (o si tu ruta actual es el mismo form, igual sirve)
- abrirHistorial(clienteId: string): void {
-  this.router.navigate(['/clientes/historial-clinico/ver', clienteId]);
-}
-
-
-  // Si NO tiene historial => crear
-  crearHistorial(clienteId: string): void {
+  // ✅ SI tiene historial => abrir (en tu form real)
+  abrirHistorial(clienteId: string): void {
     this.router.navigate([`/clientes/${clienteId}/crear-historial-clinico`], {
-      queryParams: { mode: 'create' } // opcional
+      queryParams: { mode: 'view' } // opcional
     });
   }
 
-  // Editar (solo cuando existe historial)
+  // ✅ Si NO tiene historial => crear
+  crearHistorial(clienteId: string): void {
+    this.router.navigate([`/clientes/${clienteId}/crear-historial-clinico`], {
+      queryParams: { mode: 'create' }
+    });
+  }
+
+  // ✅ Editar
   editarHistorial(clienteId: string): void {
     this.router.navigate([`/clientes/${clienteId}/crear-historial-clinico`], {
-      queryParams: { mode: 'edit' } // opcional
+      queryParams: { mode: 'edit' }
+    });
+  }
+
+  // ✅ NUEVO: Crear Recibo (POS)
+  crearRecibo(clienteId: string): void {
+    this.router.navigate(['/ventas/crear'], {
+      queryParams: { clienteId }
     });
   }
 

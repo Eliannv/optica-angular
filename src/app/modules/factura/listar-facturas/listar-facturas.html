@@ -1,0 +1,38 @@
+<div class="card">
+  <div class="card-header">
+    <div class="header">
+      <h3>Facturas</h3>
+      <button class="btn btn-primary" (click)="nuevaVenta()">+ Nueva venta</button>
+    </div>
+
+    <input class="search" placeholder="Buscar por cliente, id, pago..."
+           [(ngModel)]="term" (input)="filtrar()">
+  </div>
+
+  <div class="card-body">
+    <table class="table" *ngIf="filtradas.length; else empty">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Cliente</th>
+          <th>Pago</th>
+          <th>Total</th>
+          <th>Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let f of filtradas">
+          <td>{{ f.id }}</td>
+          <td><strong>{{ f.clienteNombre }}</strong></td>
+          <td>{{ f.metodoPago }}</td>
+          <td>${{ (f.total || 0).toFixed(2) }}</td>
+          <td><button class="btn btn-secondary" (click)="ver(f.id)">Ver</button></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <ng-template #empty>
+      <div class="muted">No hay facturas aún.</div>
+    </ng-template>
+  </div>
+</div>

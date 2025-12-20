@@ -1,97 +1,115 @@
-.venta-wrapper { width: 100%; }
+.venta .card { background: #fff; border-radius: 18px; box-shadow: var(--shadow-xl); overflow: hidden; }
+.card-header { padding: 16px 18px; border-bottom: 1px solid rgba(0,0,0,.08); }
+.header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.subheader { display:flex; justify-content:space-between; margin-top:6px; }
+.muted { opacity:.7; font-size:.9rem; }
 
-.card {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: var(--shadow-lg);
-}
+.grid { display:grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; }
+.search { width:100%; padding:12px 14px; border-radius:12px; border:1px solid rgba(0,0,0,.12); outline:none; }
+.list { margin-top:10px; display:flex; flex-direction:column; gap:10px; max-height: 60vh; overflow:auto; padding-right: 4px; }
+.pitem { width:100%; display:flex; justify-content:space-between; gap:10px; padding:12px 14px; border-radius:14px; border:1px solid rgba(0,0,0,.08); background:#fff; cursor:pointer; text-align:left; }
+.pitem:hover { background: rgba(0,0,0,.03); }
+.pname { font-weight:600; }
+.price { font-weight:700; }
 
-.card-header { padding: 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.08); }
-.header-content { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
-.card-title { margin:0; font-weight:800; }
+.cart .row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px dashed rgba(0,0,0,.15); }
+.w1 { flex: 1; }
+.w2 { display:flex; align-items:center; gap:10px; }
+.w2 input { width:70px; padding:8px 10px; border-radius:10px; border:1px solid rgba(0,0,0,.12); }
+.w3 { display:flex; align-items:center; gap:10px; }
 
-.subheader { margin-top:.75rem; display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
-.muted { opacity:.75; }
+.tot { margin-top:14px; display:flex; flex-direction:column; gap:8px; }
+.tot > div { display:flex; justify-content:space-between; }
+.tot .big { font-size: 1.1rem; }
+.select { padding:10px 12px; border-radius:12px; border:1px solid rgba(0,0,0,.12); }
 
-.grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.panel { padding: 1rem; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; background: rgba(0,0,0,0.12); }
+/* ====== TICKET (pantalla) ====== */
+.ticket { display: none; }
 
-.search-wrapper { margin: .75rem 0; }
-.search-input {
-  width:100%;
-  padding:.7rem .85rem;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.15);
-  color: inherit;
-  outline: none;
-}
-
-.productos-list { display:flex; flex-direction:column; gap:.5rem; max-height: 420px; overflow:auto; padding-right: 6px; }
-.producto-item {
-  display:flex; justify-content:space-between; align-items:center;
-  padding:.65rem .8rem; border-radius: 12px;
-  border:1px solid rgba(255,255,255,.08);
-  background: rgba(255,255,255,.04);
-  cursor:pointer;
-}
-.producto-item:hover { filter: brightness(1.05); }
-.p-title { display:flex; flex-direction:column; gap:.1rem; }
-.p-price { font-weight:800; }
-
-.items { display:flex; flex-direction:column; gap:.65rem; }
-.item { display:flex; align-items:center; justify-content:space-between; gap:.75rem;
-  padding:.65rem .7rem; border-radius:12px; border:1px solid rgba(255,255,255,.08);
-}
-.item .mid { display:flex; align-items:center; gap:.5rem; }
-.item input { width:70px; padding:.35rem .5rem; border-radius:10px; border:1px solid rgba(255,255,255,.10); background: rgba(0,0,0,.15); color:inherit; }
-.item .right { display:flex; align-items:center; gap:.5rem; }
-
-.totales { margin-top: .75rem; border-top: 1px solid rgba(255,255,255,.08); padding-top: .75rem; display:flex; flex-direction:column; gap:.35rem; }
-.totales > div { display:flex; justify-content:space-between; }
-.totales .total { font-size: 1.05rem; font-weight: 900; }
-
-.btn { border:none; cursor:pointer; border-radius:12px; padding:.65rem .95rem; font-weight:800; }
-.btn-sm { padding:.35rem .55rem; border-radius:10px; }
-.btn-primary { background: var(--primary, #4f8cff); color:#fff; }
-.btn-secondary { background: rgba(255,255,255,.10); color:inherit; }
-.btn-danger { background: rgba(231,76,60,.16); color:#e74c3c; border:1px solid rgba(231,76,60,.24); }
-
-.badge { padding:.28rem .6rem; border-radius:999px; font-size:.78rem; font-weight:900; display:inline-flex; }
-.badge-success { background: rgba(46,204,113,.15); color:#2ecc71; border:1px solid rgba(46,204,113,.25); }
-.badge-danger { background: rgba(231,76,60,.15); color:#e74c3c; border:1px solid rgba(231,76,60,.25); }
-
-/* =========================
-   TICKET
-   ========================= */
+/* ====== ESTILO TICKET (como facturas POS) ====== */
 .ticket {
-  margin-top: 1rem;
-  padding: 10px;
-  width: 280px; /* aproximado 80mm */
-  background: #fff;
-  color: #000;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.25;
+  color: #000;
+  width: 80mm;
+  background: #fff;
 }
 
 .t-center { text-align:center; }
 .t-right { text-align:right; }
-.t-bold { font-weight: 900; }
-.t-line { border-top: 1px dashed #000; margin: 8px 0; }
+.t-bold { font-weight:700; }
+.t-hr { border-top: 1px dashed #000; margin: 6px 0; }
 
-.t-row { display:grid; grid-template-columns: 1fr 40px 70px; gap: 6px; }
-.t-cut { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.t-kv { display:flex; justify-content:space-between; gap:8px; }
+.t-kv span:first-child { width: 26mm; }
+.t-kv span:last-child { flex: 1; text-align: right; }
 
-/* PRINT: solo ticket */
-@media print {
-  body * { visibility: hidden; }
-  .ticket, .ticket * { visibility: visible; }
-  .ticket { position: fixed; left: 0; top: 0; width: 80mm; margin: 0; }
+.t-table-head {
+  display:grid;
+  grid-template-columns: 12mm 1fr 10mm 14mm 14mm; /* COD | DESC | CANT | P.U | TOTAL */
+  gap: 2mm;
+  font-weight:700;
 }
-@page { size: 80mm auto; margin: 0; }
+.t-table-row {
+  display:grid;
+  grid-template-columns: 12mm 1fr 10mm 14mm 14mm;
+  gap: 2mm;
+  margin: 2px 0;
+}
+.t-cut { overflow:hidden; white-space:nowrap; text-overflow: ellipsis; }
+.t-small { font-size: 10px; opacity: .95; }
 
-@media (max-width: 900px){
-  .grid-2 { grid-template-columns: 1fr; }
+/* ====== TICKET ====== */
+.ticket { display: none; }
+
+/* imprimir en 80mm (TM-U220) */
+@media print {
+  @page { size: 80mm auto; margin: 0; }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 80mm !important;
+    background: #fff !important;
+  }
+
+  /* 1) Oculta TODO por defecto (incluye navbar/footer aunque sean componentes) */
+  body * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* 2) Muestra SOLO el ticket */
+  .ticket, .ticket * {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  .ticket {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 80mm !important;
+    padding: 6mm 4mm !important;
+    background: #fff !important;
+    z-index: 999999 !important;
+
+    font-family: monospace !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    color: #000 !important;
+  }
+
+  /* 3) POR SI ACASO: mata contenedores típicos de layout */
+  app-root, app-navbar, app-footer,
+  .navbar, .footer, .layout, .sidebar, header, footer, nav {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* 4) Evita cortes raros */
+  .ticket * {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 }

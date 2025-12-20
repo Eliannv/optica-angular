@@ -1,112 +1,89 @@
-import { Cliente } from './../../../core/models/cliente.model';
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-
-export interface VentaItem {
-  productoId: string;
-  nombre: string;
-  tipo: string;
-  precio: number;
-  cantidad: number;
-  total: number;
-}
-
-export interface Venta {
-  clienteId: string;
-  clienteNombre: string;
-  historialSnapshot: any;
-  items: VentaItem[];
-  subtotal: number;
-  iva: number;
-  total: number;
-}
-
-
+import { firstValueFrom } from 'rxjs';
 
 import { ClientesService } from '../../../core/services/clientes';
-import { HistorialClinicoService } from '../../../core/services/historial-clinico.service';
 import { ProductosService } from '../../../core/services/productos';
-import { VentasService } from '../../../core/services/ventas.service';
+import { HistorialClinicoService } from '../../../core/services/historial-clinico.service';
+
+import { ItemVenta } from '../../../core/models/item-venta.model';
+import { Factura } from '../../../core/models/factura.model';
+import { FacturasService } from '../../../core/services/facturas';
 
 @Component({
   selector: 'app-crear-venta',
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './crear-venta.html',
-  styleUrl: './crear-venta.css'
+  styleUrl: './crear-venta.css',
 })
 export class CrearVentaComponent implements OnInit {
-
   clienteId = '';
   cliente: any = null;
   historial: any = null;
 
   productos: any[] = [];
-  filtroProducto = '';
+  filtro = '';
   productosFiltrados: any[] = [];
 
-  items: VentaItem[] = [];
+  items: any[] = []; // (tu ItemVenta ya lo usas pero aquí guardas nombre/tipo/total también)
 
-  ivaPct = 0.15; // Ecuador 15% (ajústalo si toca)
+  ivaPct = 0.15;
   subtotal = 0;
   iva = 0;
   total = 0;
 
+  metodoPago = 'Efectivo';
+
   loading = true;
   guardando = false;
 
-  // ticket
-  ventaGuardada: any = null; // guardamos para imprimir
+  // para ticket
+  facturaParaImprimir: any = null;
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private clientesSrv: ClientesService,
-    private historialSrv: HistorialClinicoService,
     private productosSrv: ProductosService,
-    private ventasSrv: VentasService
+    private historialSrv: HistorialClinicoService,
+    private facturasSrv: FacturasService
   ) {}
 
   async ngOnInit() {
-    // ✅ recibimos clienteId por query (?clienteId=xxx) o por param si prefieres
+    // ✅ puedes entrar con /ventas/crear?clienteId=xxx
     this.clienteId = this.route.snapshot.queryParamMap.get('clienteId') || '';
 
     if (!this.clienteId) {
-      // si no hay cliente, manda a pantalla donde eliges cliente
       this.router.navigate(['/clientes/historial-clinico']);
       return;
     }
 
-    // cliente
-    this.clientesSrv.getClienteById(this.clienteId).subscribe(c => {
-      this.cliente = c;
-    });
+    this.cliente = await firstValueFrom(this.clientesSrv.getClienteById(this.clienteId));
 
-    // historial
     const snap = await this.historialSrv.obtenerHistorial(this.clienteId);
     this.historial = snap.exists() ? snap.data() : null;
 
-    // productos (marcos + lunas están aquí)
-    this.productosSrv.getProductos().subscribe((prods: any[]) => {
-      this.productos = prods || [];
-      this.aplicarFiltroProductos();
+    this.productosSrv.getProductos().subscribe((data: any[]) => {
+      this.productos = data || [];
+      this.filtrarProductos();
     });
 
     this.loading = false;
   }
 
-  aplicarFiltroProductos() {
-    const t = (this.filtroProducto || '').trim().toLowerCase();
+  filtrarProductos() {
+    const t = (this.filtro || '').trim().toLowerCase();
     if (!t) {
       this.productosFiltrados = [...this.productos];
       return;
     }
     this.productosFiltrados = this.productos.filter(p => {
-      const nombre = (p.nombre || '').toLowerCase();
+      const n = (p.nombre || '').toLowerCase();
       const tipo = (p.tipo || p.categoria || '').toLowerCase();
-      return nombre.includes(t) || tipo.includes(t);
+      return n.includes(t) || tipo.includes(t);
     });
   }
 
@@ -114,76 +91,164 @@ export class CrearVentaComponent implements OnInit {
     const id = p.id;
     const precio = Number(p.precio || 0);
 
-    const existing = this.items.find(i => i.productoId === id);
+    const existing = this.items.find((i: any) => i.productoId === id);
     if (existing) {
-      existing.cantidad += 1;
-      existing.total = existing.cantidad * existing.precio;
+      existing.cantidad++;
+      existing.total = existing.cantidad * existing.precioUnitario;
     } else {
       this.items.push({
         productoId: id,
         nombre: p.nombre,
-        tipo: p.tipo || p.categoria, // como lo guardes
-        precio,
+        tipo: p.tipo || p.categoria,
         cantidad: 1,
-        total: precio
+        precioUnitario: precio,
+        total: precio,
       });
     }
-
     this.recalcular();
   }
 
-  quitarItem(item: VentaItem) {
-    this.items = this.items.filter(i => i !== item);
-    this.recalcular();
-  }
-
-  cambiarCantidad(item: VentaItem, cantidad: number) {
+  cambiarCantidad(it: any, cantidad: number) {
     const c = Math.max(1, Number(cantidad || 1));
-    item.cantidad = c;
-    item.total = item.cantidad * item.precio;
+    it.cantidad = c;
+    it.total = it.cantidad * it.precioUnitario;
     this.recalcular();
   }
 
-  private recalcular() {
-    this.subtotal = this.items.reduce((acc, i) => acc + i.total, 0);
+  quitar(it: any) {
+    this.items = this.items.filter((x: any) => x !== it);
+    this.recalcular();
+  }
+
+  recalcular() {
+    this.subtotal = this.items.reduce((a: number, i: any) => a + (Number(i.total) || 0), 0);
     this.iva = +(this.subtotal * this.ivaPct).toFixed(2);
     this.total = +(this.subtotal + this.iva).toFixed(2);
   }
 
-  async guardarVenta() {
-    if (!this.cliente) return;
-    if (!this.items.length) return;
+async guardarEImprimir() {
+  if (!this.items.length || this.guardando) return;
 
-    this.guardando = true;
+  this.guardando = true;
 
-    const venta: Venta = {
+  try {
+    const factura: any = {
       clienteId: this.clienteId,
-      clienteNombre: `${this.cliente.nombres || ''} ${this.cliente.apellidos || ''}`.trim(),
+      clienteNombre: `${this.cliente?.nombres || ''} ${this.cliente?.apellidos || ''}`.trim(),
       historialSnapshot: this.historial || null,
-      items: this.items,
+      items: this.items.map((i: any) => ({
+        productoId: i.productoId,
+        nombre: i.nombre,
+        tipo: i.tipo,
+        cantidad: i.cantidad,
+        precioUnitario: i.precioUnitario,
+        total: i.total,
+      })),
       subtotal: +this.subtotal.toFixed(2),
       iva: +this.iva.toFixed(2),
-      total: +this.total.toFixed(2)
+      total: +this.total.toFixed(2),
+      metodoPago: this.metodoPago,
+      fecha: new Date(),
+      usuarioId: 'admin',
     };
 
-    const docRef = await this.ventasSrv.crearVenta(venta);
+    const facturaLimpia = this.cleanUndefined(factura);
+const ref = await this.facturasSrv.crearFactura(facturaLimpia);
 
-    // para imprimir
-    this.ventaGuardada = {
-      id: docRef.id,
-      ...venta,
-      fecha: new Date()
+
+    // 🔥 CLAVE: primero setear el ticket
+    this.facturaParaImprimir = {
+      id: ref.id,
+      ...factura,
     };
 
+    // 🔥 CLAVE: esperar a que Angular pinte el DOM
+    setTimeout(() => {
+      window.print();
+    }, 300);
+
+  } catch (e) {
+    console.error(e);
+    alert('Error al guardar o imprimir la factura');
+  } finally {
     this.guardando = false;
 
-    // opcional: imprimir al guardar
-    this.imprimirTicket();
+// ✅ imprime SOLO el ticket
+document.body.classList.add('print-ticket');
+
+// espera 1 “tick” para que Angular pinte la facturaParaImprimir
+setTimeout(() => {
+  window.print();
+  // al terminar, quita la clase
+  setTimeout(() => document.body.classList.remove('print-ticket'), 500);
+}, 0);
+
+  }
+}
+private cleanUndefined(obj: any): any {
+  if (obj === null || obj === undefined) return null;
+
+  if (Array.isArray(obj)) {
+    return obj.map(v => this.cleanUndefined(v));
   }
 
+  if (typeof obj === 'object') {
+    const out: any = {};
+    Object.keys(obj).forEach(k => {
+      const v = obj[k];
+      if (v === undefined) return; // 🔥 quita undefined
+      out[k] = this.cleanUndefined(v);
+    });
+    return out;
+  }
+
+  return obj;
+}
+
+
   imprimirTicket() {
-    // Esto imprime la página actual con CSS @media print
-    window.print();
+    const ticket = document.getElementById('ticket');
+    if (!ticket) {
+      window.print();
+      return;
+    }
+
+    // ✅ abrimos ventana solo con el ticket para imprimir (lo más confiable)
+    const w = window.open('', 'PRINT', 'height=600,width=380');
+    if (!w) {
+      window.print();
+      return;
+    }
+
+    w.document.write(`
+      <html>
+        <head>
+          <title>Ticket</title>
+          <style>
+            body { margin: 0; padding: 0; font-family: monospace; }
+            .ticket { padding: 10px; font-size: 12px; }
+            .t-center { text-align: center; }
+            .t-right { text-align: right; }
+            .t-bold { font-weight: 700; }
+            .t-line { border-top: 1px dashed #000; margin: 8px 0; }
+            .t-row { display: flex; justify-content: space-between; gap: 8px; }
+            .t-cut { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .t-space { height: 10px; }
+            @media print {
+              @page { margin: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          ${ticket.outerHTML}
+        </body>
+      </html>
+    `);
+
+    w.document.close();
+    w.focus();
+    w.print();
+    w.close();
   }
 
   volver() {
