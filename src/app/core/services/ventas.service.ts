@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { Firestore, collection, addDoc, serverTimestamp, doc, getDoc } from '@angular/fire/firestore';
-import { Venta } from '../models/venta.model';
+import { Venta } from '../../modules/ventas/crear-venta/crear-venta';
 
 @Injectable({ providedIn: 'root' })
 export class VentasService {
