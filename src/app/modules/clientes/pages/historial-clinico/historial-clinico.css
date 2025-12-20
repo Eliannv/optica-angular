@@ -137,7 +137,7 @@
 }
 
 .table thead {
-    background: var(--table-header-bg, #f3f4f6);
+    background: var(--table-header-bg);
 }
 
 .table th {
@@ -147,18 +147,18 @@
     font-size: 0.875rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--text-primary, #1f2937);
-    border-bottom: 2px solid var(--border-color, #e5e7eb);
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--border-color);
     white-space: nowrap;
 }
 
 .table tbody tr {
-    border-bottom: 1px solid var(--border-light, #f3f4f6);
+    border-bottom: 1px solid var(--border-light);
     transition: background-color 0.2s;
 }
 
 .table tbody tr:hover {
-    background: var(--table-row-hover, #f9fafb);
+    background: var(--table-row-hover);
 }
 
 .table tbody tr.clickable-row {
@@ -167,7 +167,7 @@
 
 .table td {
     padding: 0.875rem;
-    color: var(--text-primary, #1f2937);
+    color: var(--text-primary);
     white-space: nowrap;
 }
 
@@ -267,27 +267,27 @@
 }
 
 .btn-primary {
-    background: var(--btn-primary-bg, #3b82f6);
-    color: var(--btn-primary-text, #fff);
-    border-color: var(--btn-primary-bg, #3b82f6);
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    border-color: var(--btn-primary-bg);
 }
 
 .btn-secondary {
-    background: var(--btn-secondary-bg, #6b7280);
-    color: var(--btn-secondary-text, #fff);
-    border-color: var(--btn-secondary-bg, #6b7280);
+    background: var(--btn-secondary-bg);
+    color: var(--btn-secondary-text);
+    border-color: var(--btn-secondary-bg);
 }
 
 .btn-success {
-    background: var(--btn-success-bg, #10b981);
-    color: var(--btn-success-text, #fff);
-    border-color: var(--btn-success-bg, #10b981);
+    background: var(--btn-success-bg);
+    color: var(--btn-success-text);
+    border-color: var(--btn-success-bg);
 }
 
 .btn-danger {
-    background: var(--btn-danger-bg, #ef4444);
-    color: var(--btn-danger-text, #fff);
-    border-color: var(--btn-danger-bg, #ef4444);
+    background: var(--btn-danger-bg);
+    color: var(--btn-danger-text);
+    border-color: var(--btn-danger-bg);
 }
 
 
@@ -350,7 +350,7 @@
 /* Texto */
 
 .text-muted {
-    color: var(--text-muted, #6b7280);
+    color: var(--text-muted);
 }
 
 .text-center {
@@ -839,84 +839,84 @@
 [data-theme="dark"] .card,
 [data-theme="dark"] .historial-card,
 [data-theme="dark"] .modal-content {
-    background: var(--bg-card);
-    border-color: var(--border-color);
+    background: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
 }
 
 [data-theme="dark"] .card-header,
 [data-theme="dark"] .historial-header {
-    background: rgba(255, 255, 255, 0.03);
-    border-bottom-color: var(--border-color);
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-bottom-color: var(--border-color) !important;
 }
 
 [data-theme="dark"] .card-title,
 [data-theme="dark"] .historial-title,
 [data-theme="dark"] .modal-header h2 {
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
 }
 
 [data-theme="dark"] .search-input {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: var(--border-color);
-    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
 }
 
 [data-theme="dark"] .search-input::placeholder {
-    color: var(--text-muted);
+    color: var(--text-muted) !important;
 }
 
 [data-theme="dark"] .table thead {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.03) !important;
 }
 
 [data-theme="dark"] .table th {
-    color: var(--text-primary);
-    border-bottom-color: var(--border-color);
+    color: var(--text-primary) !important;
+    border-bottom-color: var(--border-color) !important;
 }
 
 [data-theme="dark"] .table td {
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
 }
 
 [data-theme="dark"] .table tbody tr {
-    border-bottom-color: var(--border-color);
+    border-bottom-color: var(--border-color) !important;
 }
 
 [data-theme="dark"] .table tbody tr:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.05) !important;
 }
 
 [data-theme="dark"] .badge-success {
-    background-color: rgba(34, 197, 94, 0.2);
-    color: #6ee7b7;
+    background-color: rgba(34, 197, 94, 0.2) !important;
+    color: #6ee7b7 !important;
 }
 
 [data-theme="dark"] .badge-danger {
-    background-color: rgba(239, 68, 68, 0.2);
-    color: #fca5a5;
+    background-color: rgba(239, 68, 68, 0.2) !important;
+    color: #fca5a5 !important;
 }
 
 [data-theme="dark"] .badge-warning {
-    background-color: rgba(245, 158, 11, 0.2);
-    color: #fcd34d;
+    background-color: rgba(245, 158, 11, 0.2) !important;
+    color: #fcd34d !important;
 }
 
 [data-theme="dark"] .badge-secondary {
-    background-color: rgba(107, 114, 128, 0.2);
-    color: #d1d5db;
+    background-color: rgba(107, 114, 128, 0.2) !important;
+    color: #d1d5db !important;
 }
 
 [data-theme="dark"] .detalle-section {
-    background: rgba(255, 255, 255, 0.03);
-    border-color: var(--border-color);
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-color: var(--border-color) !important;
 }
 
 [data-theme="dark"] .detalle-item {
-    border-bottom-color: var(--border-color);
+    border-bottom-color: var(--border-color) !important;
 }
 
 [data-theme="dark"] .table-wrapper {
-    border-color: var(--border-color);
+    border-color: var(--border-color) !important;
 }
 
 
@@ -925,16 +925,16 @@
 @media (max-width: 768px) {
     [data-theme="dark"] .card,
     [data-theme="dark"] .historial-card {
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
     }
     [data-theme="dark"] .search-input:focus {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: var(--input-focus-border);
+        background: rgba(255, 255, 255, 0.08) !important;
+        border-color: var(--input-focus-border) !important;
     }
     [data-theme="dark"] .btn {
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
     }
     [data-theme="dark"] .table {
-        background: var(--bg-card);
+        background: var(--bg-card) !important;
     }
 }

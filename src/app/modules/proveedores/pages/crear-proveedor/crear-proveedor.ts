@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { Proveedor } from '../../../../core/models/proveedor.model';
 import { ProveedoresService } from '../../../../core/services/proveedores';
 import { Router } from '@angular/router';
+import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-crear-proveedor',

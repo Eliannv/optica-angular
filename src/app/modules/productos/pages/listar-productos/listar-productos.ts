@@ -3,6 +3,7 @@ import { Producto } from '../../../../core/models/producto.model';
 import { Observable } from 'rxjs';
 import { ProductosService } from '../../../../core/services/productos';
 import { Router } from '@angular/router';
+import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-listar-productos',

@@ -4,6 +4,7 @@ import { ProductosService } from '../../../../core/services/productos';
 import { Router } from '@angular/router';
 import { ProveedoresService } from '../../../../core/services/proveedores';
 import { Proveedor } from '../../../../core/models/proveedor.model';
+import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-crear-producto',
