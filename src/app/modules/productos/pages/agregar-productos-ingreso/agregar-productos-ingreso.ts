@@ -6,6 +6,7 @@ import { Ingreso, DetalleIngreso } from '../../../../core/models/ingreso.model';
 import { Producto } from '../../../../core/models/producto.model';
 import { IngresosService } from '../../../../core/services/ingresos.service';
 import { ProductosService } from '../../../../core/services/productos';
+import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-agregar-productos-ingreso',
@@ -33,6 +34,7 @@ export class AgregarProductosIngresoComponent implements OnInit {
   busqueda = signal('');
   proximoIdInterno = signal<number | null>(null);
   productoSeleccionado = signal<Producto | null>(null);
+  selectedIndex = signal<number>(-1); // Para navegación con flechas en búsqueda
 
   // Formularios
   formProductoExistente!: FormGroup;
@@ -63,16 +65,26 @@ export class AgregarProductosIngresoComponent implements OnInit {
       observacion: [''],
     });
 
-    // Formulario para crear producto nuevo
+    // Formulario para crear producto nuevo con lógica reactiva
     this.formProductoNuevo = this.fb.group({
       nombre: ['', Validators.required],
       modelo: [''],
       color: [''],
       grupo: [''],
+      stock: [1, [Validators.required, Validators.min(1)]],
       cantidad: [1, [Validators.required, Validators.min(1)]],
       costoUnitario: [0, Validators.min(0)],
       pvp1: [0, Validators.min(0)],
       observacion: [''],
+    });
+
+    // Lógica reactiva: sincronizar stock con cantidad
+    this.formProductoNuevo.get('cantidad')?.valueChanges.subscribe((cantidad) => {
+      this.formProductoNuevo.patchValue({ stock: cantidad }, { emitEvent: false });
+    });
+
+    this.formProductoNuevo.get('stock')?.valueChanges.subscribe((stock) => {
+      this.formProductoNuevo.patchValue({ cantidad: stock }, { emitEvent: false });
     });
   }
 
@@ -110,6 +122,7 @@ export class AgregarProductosIngresoComponent implements OnInit {
     const termino = this.busqueda().toLowerCase();
     if (!termino) {
       this.productosFiltrados.set(this.productos());
+      this.selectedIndex.set(-1);
       return;
     }
 
@@ -120,6 +133,52 @@ export class AgregarProductosIngresoComponent implements OnInit {
         p.codigo?.toLowerCase().includes(termino)
     );
     this.productosFiltrados.set(filtrados);
+    this.selectedIndex.set(-1);
+  }
+
+  // Navegación con teclado en búsqueda
+  onSearchKeydown(event: KeyboardEvent) {
+    const filtrados = this.productosFiltrados();
+    if (filtrados.length === 0) return;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      const newIndex = Math.min(this.selectedIndex() + 1, filtrados.length - 1);
+      this.selectedIndex.set(newIndex);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      const newIndex = Math.max(this.selectedIndex() - 1, 0);
+      this.selectedIndex.set(newIndex);
+    } else if (event.key === 'Enter' && this.selectedIndex() >= 0) {
+      event.preventDefault();
+      this.seleccionarProductoExistente(filtrados[this.selectedIndex()]);
+    }
+  }
+
+  // Navegar al siguiente campo con Enter
+  focusNext(event: Event, nextId: string) {
+    event.preventDefault();
+    const nextElement = document.getElementById(nextId);
+    if (nextElement) {
+      nextElement.focus();
+    }
+  }
+
+  // Manejar Enter en textareas (permitir saltos de línea, Ctrl+Enter para siguiente campo)
+  onTextareaKeydown(event: KeyboardEvent, nextId: string) {
+    if (event.key === 'Enter' && event.ctrlKey) {
+      event.preventDefault();
+      const nextElement = document.getElementById(nextId);
+      if (nextElement) {
+        nextElement.focus();
+      }
+    }
+  }
+
+  // Trigger para agregar con Enter desde el último campo
+  submitOnEnter(event: Event, callback: () => void) {
+    event.preventDefault();
+    callback();
   }
 
   seleccionarProductoExistente(producto: Producto) {
@@ -129,6 +188,13 @@ export class AgregarProductosIngresoComponent implements OnInit {
       productoId: producto.id,
       costoUnitario: producto.costo || 0,
     });
+    this.selectedIndex.set(-1);
+    
+    // Enfocar en el campo de cantidad
+    setTimeout(() => {
+      const cantidadInput = document.getElementById('existenteCantidad');
+      if (cantidadInput) cantidadInput.focus();
+    }, 100);
   }
 
   cancelarSeleccion() {
@@ -150,20 +216,27 @@ export class AgregarProductosIngresoComponent implements OnInit {
       productoId: producto.id,
       tipo: 'EXISTENTE',
       nombre: producto.nombre,
-      modelo: producto.modelo,
-      color: producto.color,
-      grupo: producto.grupo,
-      codigo: producto.codigo,
       cantidad: valores.cantidad,
       costoUnitario: valores.costoUnitario,
-      observacion: valores.observacion,
     };
+
+    // Agregar campos opcionales solo si existen
+    if (producto.modelo) detalle.modelo = producto.modelo;
+    if (producto.color) detalle.color = producto.color;
+    if (producto.grupo) detalle.grupo = producto.grupo;
+    if (producto.codigo) detalle.codigo = producto.codigo;
+    if (valores.observacion) detalle.observacion = valores.observacion;
 
     this.detalles.update((list) => [...list, detalle]);
     this.formProductoExistente.reset({ cantidad: 1, costoUnitario: 0 });
     this.productoSeleccionado.set(null);
-    this.modoAgregar.set(null);
     this.busqueda.set('');
+    
+    // Enfocar nuevamente en el buscador
+    setTimeout(() => {
+      const searchInput = document.getElementById('searchInput');
+      if (searchInput) searchInput.focus();
+    }, 100);
   }
 
   agregarProductoNuevo() {
@@ -175,22 +248,28 @@ export class AgregarProductosIngresoComponent implements OnInit {
       id: Date.now().toString(),
       tipo: 'NUEVO',
       nombre: valores.nombre,
-      modelo: valores.modelo,
-      color: valores.color,
-      grupo: valores.grupo,
-      cantidad: valores.cantidad,
-      costoUnitario: valores.costoUnitario,
-      pvp1: valores.pvp1,
-      observacion: valores.observacion,
-      stockInicial: valores.cantidad, // El stock inicial es la cantidad ingresada
+      cantidad: valores.stock || valores.cantidad,
+      costoUnitario: valores.costoUnitario || 0,
+      stockInicial: valores.stock || valores.cantidad,
     };
 
+    // Agregar campos opcionales solo si existen
+    if (valores.modelo) detalle.modelo = valores.modelo;
+    if (valores.color) detalle.color = valores.color;
+    if (valores.grupo) detalle.grupo = valores.grupo;
+    if (valores.pvp1) detalle.pvp1 = valores.pvp1;
+    if (valores.observacion) detalle.observacion = valores.observacion;
+
     this.detalles.update((list) => [...list, detalle]);
-    this.formProductoNuevo.reset({ cantidad: 1, costoUnitario: 0, pvp1: 0 });
+    this.formProductoNuevo.reset({ cantidad: 1, stock: 1, costoUnitario: 0, pvp1: 0 });
     this.modoAgregar.set(null);
     
-    // Actualizar el próximo ID
+    // Actualizar el próximo ID y enfocar en el primer campo
     this.cargarProximoId();
+    setTimeout(() => {
+      const firstInput = document.getElementById('nuevoNombre');
+      if (firstInput) firstInput.focus();
+    }, 100);
   }
 
   eliminarDetalle(id: string) {
@@ -219,10 +298,23 @@ export class AgregarProductosIngresoComponent implements OnInit {
         this.detalles()
       );
       
-      alert('¡Ingreso finalizado exitosamente!');
-      this.router.navigate(['/productos']);
+      Swal.fire({
+        icon: 'success',
+        title: '¡Éxito!',
+        text: 'Ingreso finalizado exitosamente',
+        showConfirmButton: false,
+        timer: 1500
+      }).then(() => {
+        this.router.navigate(['/productos']);
+      });
     } catch (err: any) {
       console.error('Error al finalizar ingreso:', err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al finalizar el ingreso. Intenta nuevamente.',
+        confirmButtonColor: '#3085d6'
+      });
       this.error.set('Error al finalizar el ingreso. Intenta nuevamente.');
     } finally {
       this.guardando.set(false);
@@ -230,8 +322,19 @@ export class AgregarProductosIngresoComponent implements OnInit {
   }
 
   cancelar() {
-    if (confirm('¿Deseas cancelar? Se perderán los cambios no guardados.')) {
-      this.router.navigate(['/productos']);
-    }
+    Swal.fire({
+      title: '¿Cancelar ingreso?',
+      text: '¿Deseas cancelar? Se perderán los cambios no guardados.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#e74c3c',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Sí, cancelar',
+      cancelButtonText: 'Continuar editando'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.router.navigate(['/productos']);
+      }
+    });
   }
 }

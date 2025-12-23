@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Ingreso } from '../../../../core/models/ingreso.model';
 import { IngresosService } from '../../../../core/services/ingresos.service';
+import Swal from 'sweetalert2';
 
 type FiltroEstado = 'TODOS' | 'BORRADOR' | 'FINALIZADO';
 type FiltroFecha = 'TODAS' | 'HOY' | 'SEMANA' | 'MES' | 'ANO' | 'ESPECIFICA';
@@ -196,15 +197,37 @@ export class ListarIngresosComponent implements OnInit {
   eliminar(id: string, event: Event) {
     event.stopPropagation();
     
-    if (confirm('¿Estás seguro de eliminar este ingreso?')) {
-      this.ingresosService.eliminarIngreso(id).then(() => {
-        alert('Ingreso eliminado exitosamente');
-        this.cargarIngresos();
-      }).catch(err => {
-        console.error('Error al eliminar:', err);
-        alert('Error al eliminar el ingreso');
-      });
-    }
+    Swal.fire({
+      title: '¿Eliminar ingreso?',
+      text: '¿Estás seguro de eliminar este ingreso? Esta acción no se puede deshacer.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#e74c3c',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.ingresosService.eliminarIngreso(id).then(() => {
+          Swal.fire({
+            icon: 'success',
+            title: '¡Eliminado!',
+            text: 'El ingreso ha sido eliminado exitosamente',
+            showConfirmButton: false,
+            timer: 1500
+          });
+          this.cargarIngresos();
+        }).catch(err => {
+          console.error('Error al eliminar:', err);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudo eliminar el ingreso. Inténtalo de nuevo.',
+            confirmButtonColor: '#3085d6'
+          });
+        });
+      }
+    });
   }
 
   formatearFecha(fecha: any): string {

@@ -44,11 +44,6 @@ export class VerIngresoComponent implements OnDestroy {
     this.router.navigate(['/ingresos']);
   }
 
-  imprimir() {
-    if (!this.ingreso) return;
-    window.print();
-  }
-
   calcularUnidadesTotales(): number {
     if (!this.productos || this.productos.length === 0) return 0;
     return this.productos.reduce((sum: number, p: any) => sum + (p.cantidad || 0), 0);

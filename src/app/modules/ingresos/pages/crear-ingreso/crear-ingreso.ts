@@ -239,6 +239,12 @@ export class CrearIngresoComponent implements OnInit {
       Object.keys(this.validaciones).forEach(key => {
         this.validaciones[key as keyof typeof this.validaciones] = { valido: false, mensaje: '' };
       });
+      
+      // Enfocar en el primer campo
+      setTimeout(() => {
+        const firstInput = document.getElementById('proveedorCodigo');
+        if (firstInput) firstInput.focus();
+      }, 100);
     }
   }
 
@@ -347,5 +353,25 @@ export class CrearIngresoComponent implements OnInit {
 
   cancelar() {
     this.router.navigate(['/productos']);
+  }
+
+  // Navegar al siguiente campo con Enter
+  focusNext(event: Event, nextId: string) {
+    event.preventDefault();
+    const nextElement = document.getElementById(nextId);
+    if (nextElement) {
+      nextElement.focus();
+    }
+  }
+
+  // Manejar Enter en textareas (permitir saltos de línea, Ctrl+Enter para siguiente campo)
+  onTextareaKeydown(event: KeyboardEvent, nextId: string) {
+    if (event.key === 'Enter' && event.ctrlKey) {
+      event.preventDefault();
+      const nextElement = document.getElementById(nextId);
+      if (nextElement) {
+        nextElement.focus();
+      }
+    }
   }
 }

@@ -61,7 +61,7 @@
                     <circle cx="11" cy="11" r="8"/>
                     <path d="m21 21-4.35-4.35"/>
                 </svg>
-                <input type="text" class="search-input" [(ngModel)]="busqueda" (ngModelChange)="buscarProducto()" placeholder="Buscar por nombre, modelo o código..." autofocus />
+                <input type="text" id="searchInput" class="search-input" [(ngModel)]="busqueda" (ngModelChange)="buscarProducto()" (keydown)="onSearchKeydown($event)" placeholder="Buscar por nombre, modelo o código... (usa ↑↓ y Enter)" autofocus />
             </div>
 
             <!-- Producto seleccionado -->
@@ -84,7 +84,7 @@
 
             <!-- Lista de productos -->
             <div *ngIf="!productoSeleccionado()" class="productos-lista">
-                <div *ngFor="let producto of productosFiltrados()" class="producto-item" (click)="seleccionarProductoExistente(producto)">
+                <div *ngFor="let producto of productosFiltrados(); let i = index" class="producto-item" [class.selected]="i === selectedIndex()" (click)="seleccionarProductoExistente(producto)">
                     <div class="producto-main">
                         <div class="producto-nombre">
                             <strong>{{ producto.nombre }}</strong>
@@ -105,18 +105,19 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Cantidad a Agregar *</label>
-                        <input type="number" class="form-input" formControlName="cantidad" min="1" />
+                        <input type="number" id="existenteCantidad" class="form-input" formControlName="cantidad" min="1" (keydown.enter)="focusNext($event, 'existenteCosto')" autofocus />
                     </div>
                     <div class="form-group">
                         <label class="form-label">Costo Unitario</label>
-                        <input type="number" class="form-input" formControlName="costoUnitario" min="0" step="0.01" />
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Observación</label>
-                        <input type="text" class="form-input" formControlName="observacion" placeholder="Opcional" />
+                        <input type="number" id="existenteCosto" class="form-input" formControlName="costoUnitario" min="0" step="0.01" (keydown.enter)="focusNext($event, 'existenteObs')" />
                     </div>
                 </div>
-                <button type="button" class="btn-primary" (click)="agregarProductoExistente()" [disabled]="formProductoExistente.invalid">
+                <div class="form-group">
+                    <label class="form-label">Observación</label>
+                    <textarea id="existenteObs" class="form-input form-textarea" formControlName="observacion" placeholder="Opcional" rows="3" (keydown)="onTextareaKeydown($event, 'btnAgregarExistente')"></textarea>
+                    <small class="form-hint">Presiona Ctrl+Enter para ir al botón Agregar</small>
+                </div>
+                <button type="button" id="btnAgregarExistente" class="btn-primary" (click)="agregarProductoExistente()" [disabled]="formProductoExistente.invalid">
                     ➕ Agregar
                 </button>
             </form>
@@ -127,7 +128,7 @@
     <div *ngIf="modoAgregar() === 'NUEVO'" class="form-card">
         <div class="form-header">
             <div>
-                <h4 class="form-title">✨ Crear Producto Nuevo</h4>
+                <h4 class="form-title">Crear Producto Nuevo</h4>
                 <div *ngIf="proximoIdInterno()" class="id-preview">
                     ID Interno (auto): <strong>{{ proximoIdInterno() }}</strong>
                 </div>
@@ -137,8 +138,8 @@
             <form [formGroup]="formProductoNuevo">
                 <!-- Nombre -->
                 <div class="form-group">
-                    <label class="form-label required">1. Nombre del Producto *</label>
-                    <input type="text" class="form-input" formControlName="nombre" placeholder="Ej: ARMAZON DE METAL ECO" autofocus />
+                    <label class="form-label required">1. Nombre del Producto</label>
+                    <input type="text" id="nuevoNombre" class="form-input" formControlName="nombre" placeholder="Ej: ARMAZON DE METAL ECO" (keydown.enter)="focusNext($event, 'nuevoModelo')" autofocus />
                     <small class="form-hint">El proveedor será: <strong>{{ ingreso()?.proveedor }}</strong></small>
                 </div>
 
@@ -146,19 +147,19 @@
                     <!-- Modelo -->
                     <div class="form-group">
                         <label class="form-label">2. Modelo</label>
-                        <input type="text" class="form-input" formControlName="modelo" placeholder="Ej: ECO-500" />
+                        <input type="text" id="nuevoModelo" class="form-input" formControlName="modelo" placeholder="Ej: ECO-500" (keydown.enter)="focusNext($event, 'nuevoColor')" />
                     </div>
                     <!-- Color -->
                     <div class="form-group">
                         <label class="form-label">3. Color</label>
-                        <input type="text" class="form-input" formControlName="color" placeholder="Ej: AZUL" />
+                        <input type="text" id="nuevoColor" class="form-input" formControlName="color" placeholder="Ej: AZUL" (keydown.enter)="focusNext($event, 'nuevoGrupo')" />
                     </div>
                 </div>
 
                 <!-- Grupo -->
                 <div class="form-group">
                     <label class="form-label">4. Grupo</label>
-                    <input type="text" class="form-input" formControlName="grupo" placeholder="Ej: GAFAS, LENTES DE CONTACTO" list="gruposList" />
+                    <input type="text" id="nuevoGrupo" class="form-input" formControlName="grupo" placeholder="Ej: GAFAS, LENTES DE CONTACTO" list="gruposList" (keydown.enter)="focusNext($event, 'nuevoStock')" />
                     <datalist id="gruposList">
                         <option value="ARMAZONES">ARMAZONES</option>
                         <option value="LENTES DE CONTACTO">LENTES DE CONTACTO</option>
@@ -173,21 +174,22 @@
                 </div>
 
                 <div class="form-row">
-                    <!-- Cantidad -->
+                    <!-- Stock -->
                     <div class="form-group">
-                        <label class="form-label required">5. Cantidad (Stock Inicial) *</label>
-                        <input type="number" class="form-input" formControlName="cantidad" min="1" placeholder="1" />
+                        <label class="form-label required">5. Stock (Cantidad) *</label>
+                        <input type="number" id="nuevoStock" class="form-input" formControlName="stock" min="1" placeholder="1" (keydown.enter)="focusNext($event, 'nuevoCosto')" />
+                        <small class="form-hint">Stock inicial = Cantidad ingresada</small>
                     </div>
                     <!-- Costo -->
                     <div class="form-group">
                         <label class="form-label">6. Costo Unitario</label>
-                        <input type="number" class="form-input" formControlName="costoUnitario" step="0.01" min="0" placeholder="0.00" />
+                        <input type="number" id="nuevoCosto" class="form-input" formControlName="costoUnitario" step="0.01" min="0" placeholder="0.00" (keydown.enter)="focusNext($event, 'nuevoPVP')" />
                         <small class="form-hint">Costo de compra</small>
                     </div>
                     <!-- PVP -->
                     <div class="form-group">
                         <label class="form-label">7. PVP (Precio de Venta)</label>
-                        <input type="number" class="form-input" formControlName="pvp1" step="0.01" min="0" placeholder="0.00" />
+                        <input type="number" id="nuevoPVP" class="form-input" formControlName="pvp1" step="0.01" min="0" placeholder="0.00" (keydown.enter)="focusNext($event, 'nuevoObs')" />
                         <small class="form-hint">Precio al cliente</small>
                     </div>
                 </div>
@@ -195,10 +197,11 @@
                 <!-- Observación -->
                 <div class="form-group">
                     <label class="form-label">8. Observación</label>
-                    <input type="text" class="form-input" formControlName="observacion" placeholder="Notas adicionales (opcional)" />
+                    <textarea id="nuevoObs" class="form-input form-textarea" formControlName="observacion" placeholder="Notas adicionales (opcional)" rows="3" (keydown)="onTextareaKeydown($event, 'btnCrearProducto')"></textarea>
+                    <small class="form-hint">Presiona Ctrl+Enter para ir al botón Crear</small>
                 </div>
 
-                <button type="button" class="btn-success" (click)="agregarProductoNuevo()" [disabled]="formProductoNuevo.invalid">
+                <button type="button" id="btnCrearProducto" class="btn-success" (click)="agregarProductoNuevo()" [disabled]="formProductoNuevo.invalid">
                     ✨ Crear y Agregar
                 </button>
             </form>

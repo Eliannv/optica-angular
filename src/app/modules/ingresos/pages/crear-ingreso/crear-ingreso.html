@@ -37,7 +37,8 @@
                                 <circle cx="11" cy="11" r="8"/>
                                 <path d="m21 21-4.35-4.35"/>
                             </svg>
-                            <input type="text" class="form-input search-input" [(ngModel)]="ingreso.proveedor" name="proveedor" placeholder="Escribe el código del proveedor (Ej: P001)..." required autofocus list="proveedoresList" />
+                            <input type="text" id="ingresoProveedor" class="form-input search-input" [(ngModel)]="ingreso.proveedor" name="proveedor" placeholder="Escribe el código del proveedor (Ej: P001)..." required autofocus list="proveedoresList" (keydown.enter)="focusNext($event, 'ingresoNumeroFactura')"
+                            />
                         </div>
                         <button type="button" class="btn-nuevo-proveedor" (click)="toggleFormNuevoProveedor()">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -73,8 +74,8 @@
                                     <!-- Código -->
                                     <div class="form-group">
                                         <label class="form-label">Código del Proveedor</label>
-                                        <input type="text" class="form-input" [class.is-invalid]="validaciones.codigo.mensaje && !validaciones.codigo.valido" [class.is-valid]="validaciones.codigo.valido" formControlName="codigo" (input)="validarCodigo()" (blur)="validarCodigo()" placeholder="Ej: P0001, PROV1234"
-                                        />
+                                        <input type="text" id="proveedorCodigo" class="form-input" [class.is-invalid]="validaciones.codigo.mensaje && !validaciones.codigo.valido" [class.is-valid]="validaciones.codigo.valido" formControlName="codigo" (input)="validarCodigo()" (blur)="validarCodigo()"
+                                            placeholder="Ej: P0001, PROV1234" (keydown.enter)="focusNext($event, 'proveedorCodigoLugar')" autofocus />
                                         <small class="form-hint">Mínimo 1 letra y 4 números (opcional)</small>
                                         <div class="validation-message" *ngIf="validaciones.codigo.mensaje">
                                             <span *ngIf="!validaciones.codigo.valido" class="text-danger">❌ {{ validaciones.codigo.mensaje }}</span>
@@ -85,8 +86,8 @@
                                     <!-- Código de Lugar -->
                                     <div class="form-group">
                                         <label class="form-label">Código de Provincia</label>
-                                        <input type="text" class="form-input" [class.is-invalid]="validaciones.codigoLugar.mensaje && !validaciones.codigoLugar.valido" [class.is-valid]="validaciones.codigoLugar.valido" formControlName="codigoLugar" (input)="validarCodigoLugar()" (blur)="validarCodigoLugar()"
-                                            placeholder="07" maxlength="2" />
+                                        <input type="text" id="proveedorCodigoLugar" class="form-input" [class.is-invalid]="validaciones.codigoLugar.mensaje && !validaciones.codigoLugar.valido" [class.is-valid]="validaciones.codigoLugar.valido" formControlName="codigoLugar" (input)="validarCodigoLugar()"
+                                            (blur)="validarCodigoLugar()" placeholder="07" maxlength="2" (keydown.enter)="focusNext($event, 'proveedorNombre')" />
                                         <small class="form-hint">07 = El Oro - Pasaje</small>
                                         <div class="validation-message" *ngIf="validaciones.codigoLugar.mensaje">
                                             <span *ngIf="!validaciones.codigoLugar.valido" class="text-danger">❌ {{ validaciones.codigoLugar.mensaje }}</span>
@@ -98,15 +99,15 @@
                                 <!-- Nombre -->
                                 <div class="form-group">
                                     <label class="form-label required">Nombre del Proveedor</label>
-                                    <input type="text" class="form-input" formControlName="nombre" placeholder="Ej: Distribuidora Óptica S.A." />
+                                    <input type="text" id="proveedorNombre" class="form-input" formControlName="nombre" placeholder="Ej: Distribuidora Óptica S.A." (keydown.enter)="focusNext($event, 'proveedorRuc')" />
                                 </div>
 
                                 <div class="form-row">
                                     <!-- RUC -->
                                     <div class="form-group">
                                         <label class="form-label required">RUC</label>
-                                        <input type="text" class="form-input" [class.is-invalid]="validaciones.ruc.mensaje && !validaciones.ruc.valido" [class.is-valid]="validaciones.ruc.valido" formControlName="ruc" (input)="validarRUC()" (blur)="validarRUC()" placeholder="Ej: 0701234567001"
-                                            maxlength="13" />
+                                        <input type="text" id="proveedorRuc" class="form-input" [class.is-invalid]="validaciones.ruc.mensaje && !validaciones.ruc.valido" [class.is-valid]="validaciones.ruc.valido" formControlName="ruc" (input)="validarRUC()" (blur)="validarRUC()" placeholder="Ej: 0701234567001"
+                                            maxlength="13" (keydown.enter)="focusNext($event, 'proveedorRepresentante')" />
                                         <small class="form-hint">13 dígitos - Debe iniciar con código de provincia</small>
                                         <div class="validation-message" *ngIf="validaciones.ruc.mensaje">
                                             <span *ngIf="!validaciones.ruc.valido" class="text-danger">❌ {{ validaciones.ruc.mensaje }}</span>
@@ -117,7 +118,7 @@
                                     <!-- Representante -->
                                     <div class="form-group">
                                         <label class="form-label">Representante</label>
-                                        <input type="text" class="form-input" formControlName="representante" placeholder="Nombre del representante" />
+                                        <input type="text" id="proveedorRepresentante" class="form-input" formControlName="representante" placeholder="Nombre del representante" (keydown.enter)="focusNext($event, 'proveedorTelefonoPrincipal')" />
                                     </div>
                                 </div>
 
@@ -125,8 +126,8 @@
                                     <!-- Teléfono Principal -->
                                     <div class="form-group">
                                         <label class="form-label">Teléfono Principal</label>
-                                        <input type="tel" class="form-input" [class.is-invalid]="validaciones.telefonoPrincipal.mensaje && !validaciones.telefonoPrincipal.valido" [class.is-valid]="validaciones.telefonoPrincipal.valido" formControlName="telefonoPrincipal" (input)="validarTelefono('principal')"
-                                            (blur)="validarTelefono('principal')" placeholder="0991234567 ó 072931234" maxlength="10" />
+                                        <input type="tel" id="proveedorTelefonoPrincipal" class="form-input" [class.is-invalid]="validaciones.telefonoPrincipal.mensaje && !validaciones.telefonoPrincipal.valido" [class.is-valid]="validaciones.telefonoPrincipal.valido" formControlName="telefonoPrincipal"
+                                            (input)="validarTelefono('principal')" (blur)="validarTelefono('principal')" placeholder="0991234567 ó 072931234" maxlength="10" (keydown.enter)="focusNext($event, 'proveedorTelefonoSecundario')" />
                                         <small class="form-hint">Celular: 09XXXXXXXX | Convencional: 07XXXXXXX</small>
                                         <div class="validation-message" *ngIf="validaciones.telefonoPrincipal.mensaje">
                                             <span *ngIf="!validaciones.telefonoPrincipal.valido" class="text-danger">❌ {{ validaciones.telefonoPrincipal.mensaje }}</span>
@@ -137,8 +138,8 @@
                                     <!-- Teléfono Secundario -->
                                     <div class="form-group">
                                         <label class="form-label">Teléfono Secundario</label>
-                                        <input type="tel" class="form-input" [class.is-invalid]="validaciones.telefonoSecundario.mensaje && !validaciones.telefonoSecundario.valido" [class.is-valid]="validaciones.telefonoSecundario.valido" formControlName="telefonoSecundario" (input)="validarTelefono('secundario')"
-                                            (blur)="validarTelefono('secundario')" placeholder="0991234568 ó 072931235" maxlength="10" />
+                                        <input type="tel" id="proveedorTelefonoSecundario" class="form-input" [class.is-invalid]="validaciones.telefonoSecundario.mensaje && !validaciones.telefonoSecundario.valido" [class.is-valid]="validaciones.telefonoSecundario.valido" formControlName="telefonoSecundario"
+                                            (input)="validarTelefono('secundario')" (blur)="validarTelefono('secundario')" placeholder="0991234568 ó 072931235" maxlength="10" (keydown.enter)="focusNext($event, 'proveedorDireccion')" />
                                         <small class="form-hint">Celular: 09XXXXXXXX | Convencional: 07XXXXXXX</small>
                                         <div class="validation-message" *ngIf="validaciones.telefonoSecundario.mensaje">
                                             <span *ngIf="!validaciones.telefonoSecundario.valido" class="text-danger">❌ {{ validaciones.telefonoSecundario.mensaje }}</span>
@@ -150,13 +151,13 @@
                                 <!-- Dirección -->
                                 <div class="form-group">
                                     <label class="form-label">Dirección</label>
-                                    <input type="text" class="form-input" formControlName="direccion" placeholder="Dirección completa del proveedor" />
+                                    <input type="text" id="proveedorDireccion" class="form-input" formControlName="direccion" placeholder="Dirección completa del proveedor" (keydown.enter)="focusNext($event, 'proveedorSaldo')" />
                                 </div>
 
                                 <!-- Saldo -->
                                 <div class="form-group">
                                     <label class="form-label">Saldo Inicial</label>
-                                    <input type="number" class="form-input" formControlName="saldo" step="0.01" placeholder="0.00" />
+                                    <input type="number" id="proveedorSaldo" class="form-input" formControlName="saldo" step="0.01" placeholder="0.00" (keydown.enter)="focusNext($event, 'btnGuardarProveedor')" />
                                     <small class="form-hint">Opcional: Saldo inicial con el proveedor</small>
                                 </div>
 
@@ -167,7 +168,7 @@
                             <button type="button" class="btn-secondary" (click)="cancelarNuevoProveedor()" [disabled]="guardando()">
                                 Cancelar
                             </button>
-                            <button type="button" class="btn-success" (click)="guardarNuevoProveedor()" [disabled]="guardando() || formNuevoProveedor.invalid">
+                            <button type="button" id="btnGuardarProveedor" class="btn-success" (click)="guardarNuevoProveedor()" [disabled]="guardando() || formNuevoProveedor.invalid">
                                 <span *ngIf="guardando()" class="spinner-container">
                                     <span class="spinner"></span> Guardando...
                                 </span>
@@ -185,7 +186,7 @@
                             <span>Número de Factura</span>
                             <span class="required">*</span>
                         </label>
-                        <input type="text" class="form-input" [(ngModel)]="ingreso.numeroFactura" name="numeroFactura" placeholder="Ej: 001-001-000123" required />
+                        <input type="text" id="ingresoNumeroFactura" class="form-input" [(ngModel)]="ingreso.numeroFactura" name="numeroFactura" placeholder="Ej: 001-001-000123" required (keydown.enter)="focusNext($event, 'ingresoFecha')" />
                         <small class="form-hint">Formato: Serie-Número</small>
                     </div>
 
@@ -195,7 +196,7 @@
                             <span>Fecha de Factura</span>
                             <span class="required">*</span>
                         </label>
-                        <input type="date" class="form-input" [(ngModel)]="ingreso.fecha" name="fecha" required />
+                        <input type="date" id="ingresoFecha" class="form-input" [(ngModel)]="ingreso.fecha" name="fecha" required (keydown.enter)="focusNext($event, 'ingresoObservacion')" />
                     </div>
                 </div>
 
@@ -246,8 +247,8 @@
                         <span class="label-number">5</span>
                         <span>Observación</span>
                     </label>
-                    <textarea class="form-input textarea" [(ngModel)]="ingreso.observacion" name="observacion" rows="3" placeholder="Ej: Compra especial con descuento del 10%"></textarea>
-                    <small class="form-hint">Opcional: Notas adicionales sobre esta compra</small>
+                    <textarea id="ingresoObservacion" class="form-input textarea" [(ngModel)]="ingreso.observacion" name="observacion" rows="3" placeholder="Ej: Compra especial con descuento del 10%" (keydown)="onTextareaKeydown($event, 'btnContinuar')"></textarea>
+                    <small class="form-hint">Opcional: Notas adicionales sobre esta compra (Ctrl+Enter para continuar)</small>
                 </div>
 
                 <!-- BOTONES -->
@@ -255,7 +256,7 @@
                     <button type="button" class="btn-cancel" (click)="cancelar()" [disabled]="guardando()">
                         ✕ Cancelar
                     </button>
-                    <button type="button" class="btn-continue" (click)="continuar()" [disabled]="!ingresoForm.valid || guardando()">
+                    <button type="button" id="btnContinuar" class="btn-continue" (click)="continuar()" [disabled]="!ingresoForm.valid || guardando()">
                         <span *ngIf="guardando()" class="spinner-container">
                             <span class="spinner"></span> Guardando...
                         </span>

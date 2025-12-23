@@ -143,10 +143,27 @@ export class IngresosService {
     // 🔸 Guardar detalles en subcolección
     for (const detalle of detalles) {
       const detalleRef = doc(collection(this.firestore, `ingresos/${ingresoId}/detalles`));
-      batch.set(detalleRef, {
-        ...detalle,
+      
+      // Filtrar valores undefined para Firestore
+      const detalleData: any = {
+        tipo: detalle.tipo,
+        nombre: detalle.nombre,
+        cantidad: detalle.cantidad,
+        costoUnitario: detalle.costoUnitario || 0,
         createdAt: new Date(),
-      });
+      };
+
+      // Añadir campos opcionales solo si tienen valor
+      if (detalle.productoId) detalleData.productoId = detalle.productoId;
+      if (detalle.modelo) detalleData.modelo = detalle.modelo;
+      if (detalle.color) detalleData.color = detalle.color;
+      if (detalle.grupo) detalleData.grupo = detalle.grupo;
+      if (detalle.codigo) detalleData.codigo = detalle.codigo;
+      if (detalle.observacion) detalleData.observacion = detalle.observacion;
+      if (detalle.pvp1) detalleData.pvp1 = detalle.pvp1;
+      if (detalle.stockInicial) detalleData.stockInicial = detalle.stockInicial;
+      
+      batch.set(detalleRef, detalleData);
     }
 
     // 🔸 Actualizar estado del ingreso (reusar la referencia ya obtenida)
