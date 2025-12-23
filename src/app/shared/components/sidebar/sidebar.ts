@@ -8,10 +8,13 @@ import { RolUsuario } from '../../../core/models/usuario.model';
 interface MenuItem {
   label: string;
   icon: SafeHtml | string;
-  route: string;
+  route?: string;
+  queryParams?: any; // Parámetros de consulta para la ruta
   active: boolean;
   badge?: number;
   roles: RolUsuario[]; // Roles permitidos para ver este item
+  children?: MenuItem[]; // Submenús
+  expanded?: boolean; // Estado de expansión
 }
 
 @Component({
@@ -90,21 +93,93 @@ export class SidebarComponent {
       {
         label: 'Productos',
         icon: this.sanitizer.bypassSecurityTrustHtml(`
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-            class="lucide lucide-eye-icon lucide-eye">
-            <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-store-icon lucide-store"><path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/><path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/><path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/></svg>
         `),
       route: '/productos',
       active: false,
-      roles: [RolUsuario.ADMINISTRADOR] // Solo administradores
+      roles: [RolUsuario.ADMINISTRADOR], // Solo administradores
+      expanded: false,
+      children: [
+        {
+          label: 'ARMAZONES',
+          icon: '',
+          route: '/productos',
+          queryParams: { grupo: 'ARMAZONES' },
+          active: false,
+          roles: [RolUsuario.ADMINISTRADOR]
+        },
+        {
+          label: 'LENTES DE CONTACTO',
+          icon: '',
+          route: '/productos',
+          queryParams: { grupo: 'LENTES DE CONTACTO' },
+          active: false,
+          roles: [RolUsuario.ADMINISTRADOR]
+        },
+        {
+          label: 'LIQUIDO DE LENTES DE CONTACTO',
+          icon: '',
+          route: '/productos',
+          queryParams: { grupo: 'LIQUIDO DE LENTES DE CONTACTO' },
+          active: false,
+          roles: [RolUsuario.ADMINISTRADOR]
+        },
+        {
+          label: 'LIQUIDO DESEMPAÑANTE',
+          icon: '',
+          route: '/productos',
+          queryParams: { grupo: 'LIQUIDO DESEMPAÑANTE' },
+          active: false,
+          roles: [RolUsuario.ADMINISTRADOR]
+        },
+        {
+          label: 'GAFAS',
+          icon: '',
+          route: '/productos',
+          queryParams: { grupo: 'GAFAS' },
+          active: false,
+          roles: [RolUsuario.ADMINISTRADOR]
+        },
+        {
+          label: 'LUNAS',
+          icon: '',
+          route: '/productos',
+          queryParams: { grupo: 'LUNAS' },
+          active: false,
+          roles: [RolUsuario.ADMINISTRADOR]
+        },
+        {
+          label: 'SERVICIOS',
+          icon: '',
+          route: '/productos',
+          queryParams: { grupo: 'SERVICIOS' },
+          active: false,
+          roles: [RolUsuario.ADMINISTRADOR]
+        },
+        {
+          label: 'VARIOS',
+          icon: '',
+          route: '/productos',
+          queryParams: { grupo: 'VARIOS' },
+          active: false,
+          roles: [RolUsuario.ADMINISTRADOR]
+        },
+      ]
     },
+    {
+          label: 'Ingresos',
+          icon: this.sanitizer.bypassSecurityTrustHtml(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package-search-icon lucide-package-search"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/><path d="m7.5 4.27 9 5.15"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/><circle cx="18.5" cy="15.5" r="2.5"/><path d="M20.27 17.27 22 19"/></svg>
+        `),
+          route: '/ingresos',
+          active: false,
+          roles: [RolUsuario.ADMINISTRADOR]
+        },
+        
     {
       label: 'Proveedores',
       icon: this.sanitizer.bypassSecurityTrustHtml(`
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package-search-icon lucide-package-search"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/><path d="m7.5 4.27 9 5.15"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/><circle cx="18.5" cy="15.5" r="2.5"/><path d="M20.27 17.27 22 19"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-truck-icon lucide-truck"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>
         `),
       route: '/proveedores',
       active: false,
@@ -211,5 +286,29 @@ export class SidebarComponent {
         this.collapsed = true;
       }
     }
+  }
+
+  /**
+   * Toggle del submenú (expandir/colapsar)
+   */
+  toggleSubmenu(item: MenuItem, event: Event) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    if (item.children && item.children.length > 0) {
+      item.expanded = !item.expanded;
+      
+      // Si el sidebar está colapsado, expandirlo al hacer clic en un item con hijos
+      if (this.collapsed) {
+        this.collapsed = false;
+      }
+    }
+  }
+
+  /**
+   * Verificar si el item tiene hijos
+   */
+  hasChildren(item: MenuItem): boolean {
+    return !!(item.children && item.children.length > 0);
   }
 }

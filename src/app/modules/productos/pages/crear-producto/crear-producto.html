@@ -7,158 +7,89 @@
             </div>
         </div>
         <div class="card-body">
-            <form>
-                <div class="row">
-                    <!-- Código de Armazón -->
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label class="form-label">Código de Armazón *</label>
-                            <div class="input-with-validation">
-                                <input type="text" class="form-control" [class.is-invalid]="codigoExiste || (validaciones.codigo.mensaje && !validaciones.codigo.valido)" [class.is-valid]="validaciones.codigo.valido && !codigoExiste && !validandoCodigo" [(ngModel)]="producto.codigo"
-                                    (blur)="validarCodigoArmazon()" (input)="validarCodigoArmazon()" name="codigo" placeholder="Ej: O0012, ARM1234" required>
-                                <div class="validation-feedback">
-                                    <span *ngIf="validandoCodigo" class="text-info">
-                                        <i class="spinner-border spinner-border-sm"></i> Validando...
-                                    </span>
-                                    <span *ngIf="!validandoCodigo && validaciones.codigo.mensaje && !validaciones.codigo.valido" class="text-danger">
-                                        <i class="bi bi-x-circle"></i> {{ validaciones.codigo.mensaje }}
-                                    </span>
-                                    <span *ngIf="!validandoCodigo && validaciones.codigo.valido" class="text-success">
-                                        <i class="bi bi-check-circle"></i> {{ validaciones.codigo.mensaje }}
-                                    </span>
-                                </div>
-                            </div>
-                            <small class="form-text text-muted">Mínimo 1 letra y 4 números (Ej: O0012, ARM1234)</small>
-                        </div>
-                    </div>
-
-                    <!-- Nuevo Código -->
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label class="form-label">Código Alternativo</label>
-                            <input type="text" class="form-control" [(ngModel)]="producto.nuevoCodigo" name="nuevoCodigo" placeholder="Código alternativo (opcional)">
-                            <small class="form-text text-muted">Código secundario si el producto tiene otra identificación</small>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Nombre del Producto -->
+            <form #productoForm="ngForm">
+                <!-- 1. Nombre del Producto -->
                 <div class="form-group">
-                    <label class="form-label">Nombre del Producto *</label>
-                    <input type="text" class="form-control" [(ngModel)]="producto.nombre" name="nombre" placeholder="Ej: ARMAZON DE METAL ECO" required>
+                    <label class="form-label">1. Nombre del Producto *</label>
+                    <input #nombreInput type="text" class="form-control" [(ngModel)]="producto.nombre" (keydown.enter)="modeloInput.focus(); $event.preventDefault()" name="nombre" placeholder="Ej: ARMAZON DE METAL ECO" required autofocus>
                 </div>
 
                 <div class="row">
-                    <!-- Dato 2 (Modelo/Color) -->
+                    <!-- 2. Modelo -->
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label class="form-label">Modelo/Color (Dato 2)</label>
-                            <input type="text" class="form-control" [(ngModel)]="producto.datos.dato2" name="dato2" placeholder="Ej: AZUL">
+                            <label class="form-label">2. Modelo</label>
+                            <input #modeloInput type="text" class="form-control" [(ngModel)]="producto.modelo" (keydown.enter)="colorInput.focus(); $event.preventDefault()" name="modelo" placeholder="Ej: ECO-500">
                         </div>
                     </div>
 
-                    <!-- Grupo -->
+                    <!-- 3. Color -->
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label class="form-label">Grupo</label>
-                            <div class="input-with-validation">
-                                <input type="text" class="form-control" [class.is-invalid]="validaciones.grupo.mensaje && !validaciones.grupo.valido" [class.is-valid]="validaciones.grupo.valido" [(ngModel)]="producto.grupo" (blur)="validarGrupo()" (input)="validarGrupo()" name="grupo"
-                                    placeholder="Ej: O0002, GRP1234">
-                                <div class="validation-feedback">
-                                    <span *ngIf="validaciones.grupo.mensaje && !validaciones.grupo.valido" class="text-danger">
-                                        <i class="bi bi-x-circle"></i> {{ validaciones.grupo.mensaje }}
-                                    </span>
-                                    <span *ngIf="validaciones.grupo.valido" class="text-success">
-                                        <i class="bi bi-check-circle"></i> {{ validaciones.grupo.mensaje }}
-                                    </span>
-                                </div>
-                            </div>
-                            <small class="form-text text-muted">Mínimo 1 letra y 4 números (opcional)</small>
+                            <label class="form-label">3. Color</label>
+                            <input #colorInput type="text" class="form-control" [(ngModel)]="producto.color" (keydown.enter)="grupoInput.focus(); $event.preventDefault()" name="color" placeholder="Ej: AZUL">
                         </div>
                     </div>
                 </div>
 
-                <div class="row">
-                    <!-- Stock -->
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label class="form-label">Stock</label>
-                            <input type="number" class="form-control" [(ngModel)]="producto.stock" name="stock" min="0" placeholder="0">
-                        </div>
-                    </div>
-
-                    <!-- Unidad -->
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label class="form-label">Unidad *</label>
-                            <input type="number" class="form-control" [(ngModel)]="producto.unidad" (input)="validarPrecios()" name="unidad" min="1" placeholder="Ej: 1">
-                            <small class="form-text text-muted">Cantidad de unidades por caja</small>
-                        </div>
-                    </div>
+                <!-- 4. Grupo -->
+                <div class="form-group">
+                    <label class="form-label">4. Grupo</label>
+                    <input #grupoInput type="text" class="form-control" [(ngModel)]="producto.grupo" (keydown.enter)="stockInput.focus(); $event.preventDefault()" name="grupo" placeholder="Ej: GAFAS, LENTES DE CONTACTO" list="gruposList">
+                    <datalist id="gruposList">
+                        <option value="ARMAZONES">ARMAZONES</option>
+                        <option value="LENTES DE CONTACTO">LENTES DE CONTACTO</option>
+                        <option value="LIQUIDO DE LENTES DE CONTACTO">LIQUIDO DE LENTES DE CONTACTO</option>
+                        <option value="LIQUIDO DESEMPAÑANTE">LIQUIDO DESEMPAÑANTE</option>
+                        <option value="GAFAS">GAFAS</option>
+                        <option value="LUNAS">LUNAS</option>
+                        <option value="SERVICIOS">SERVICIOS</option>
+                        <option value="VARIOS">VARIOS</option>
+                    </datalist>
+                    <small class="form-text text-muted">Escribe o selecciona el grupo del producto</small>
                 </div>
 
                 <div class="row">
-                    <!-- Costo Caja -->
+                    <!-- 5. Stock -->
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label class="form-label">Costo Caja</label>
-                            <input type="number" class="form-control" [(ngModel)]="producto.costos.caja" (input)="validarPrecios()" name="costoCaja" step="0.01" min="0" placeholder="0.00">
-                            <small class="form-text text-muted">Costo de compra por caja</small>
+                            <label class="form-label">5. Stock</label>
+                            <input #stockInput type="number" class="form-control" [(ngModel)]="producto.stock" (keydown.enter)="costoInput.focus(); $event.preventDefault()" name="stock" min="0" placeholder="0">
                         </div>
                     </div>
 
-                    <!-- Precio Caja -->
+                    <!-- 6. Costo -->
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label class="form-label">Precio Caja</label>
-                            <input type="number" class="form-control" [(ngModel)]="producto.precios.caja" (input)="validarPrecios()" name="precioCaja" step="0.01" min="0" placeholder="0.00">
-                            <small class="form-text text-muted">Precio de venta por caja</small>
+                            <label class="form-label">6. Costo</label>
+                            <input #costoInput type="number" class="form-control" [(ngModel)]="producto.costo" (keydown.enter)="pvp1Input.focus(); $event.preventDefault()" name="costo" step="0.01" min="0" placeholder="0.00">
+                            <small class="form-text text-muted">Costo del producto</small>
                         </div>
                     </div>
 
-                    <!-- PVP1 -->
+                    <!-- 7. PVP1 -->
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label class="form-label">PVP1 (Precio por Unidad)</label>
-                            <input type="number" class="form-control" [(ngModel)]="producto.precios.pvp1" (input)="validarPrecios()" name="pvp1" step="0.01" min="0" placeholder="0.00">
-                            <small class="form-text text-muted">Precio de venta unitario</small>
+                            <label class="form-label">7. PVP1 (Precio de Venta)</label>
+                            <input #pvp1Input type="number" class="form-control" [(ngModel)]="producto.pvp1" (keydown.enter)="proveedorSelect.focus(); $event.preventDefault()" name="pvp1" step="0.01" min="0" placeholder="0.00">
+                            <small class="form-text text-muted">Precio de venta</small>
                         </div>
                     </div>
                 </div>
 
-                <!-- Alerta de validación de precios -->
-                <div *ngIf="!validaciones.precios.valido" class="alert alert-warning" role="alert">
-                    <i class="bi bi-exclamation-triangle"></i> {{ validaciones.precios.mensaje }}
-                </div>
-
-                <div class="row">
-                    <!-- Proveedor Principal -->
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label class="form-label">Proveedor Principal</label>
-                            <div class="d-flex gap-2">
-                                <select class="form-control" [(ngModel)]="producto.proveedores.principal" name="proveedorPrincipal">
-                                    <option value="">Seleccionar proveedor...</option>
-                                    <option *ngFor="let prov of proveedores" [value]="prov.codigo || prov.id">
-                                        {{ prov.codigo || prov.id }} - {{ prov.nombre }}
-                                    </option>
-                                </select>
-                                <button type="button" class="btn btn-success" (click)="toggleFormNuevoProveedor()" title="Crear nuevo proveedor">
-                                    <i class="bi bi-plus-lg"></i> Nuevo
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- IVA -->
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label class="form-label">IVA *</label>
-                            <select class="form-control" [(ngModel)]="producto.iva" name="iva">
-                <option [ngValue]="true">Sí</option>
-                <option [ngValue]="false">No</option>
-              </select>
-                        </div>
+                <!-- 8. Proveedor -->
+                <div class="form-group">
+                    <label class="form-label">9. Proveedor</label>
+                    <div class="d-flex gap-2">
+                        <input #proveedorSelect type="text" class="form-control" [(ngModel)]="producto.proveedor" (keydown.enter)="observacionInput.focus(); $event.preventDefault()" name="proveedor" placeholder="Escribe el código del proveedor (Ej: P001)..." list="proveedoresList">
+                        <datalist id="proveedoresList">
+                            <option *ngFor="let prov of proveedores" [value]="prov.codigo || prov.id">
+                                {{ prov.codigo || prov.id }} - {{ prov.nombre }}
+                            </option>
+                        </datalist>
+                        <button type="button" class="btn btn-success" (click)="toggleFormNuevoProveedor()" title="Crear nuevo proveedor">
+                            <i class="bi bi-plus-lg"></i> Nuevo
+                        </button>
                     </div>
                 </div>
 
@@ -223,10 +154,10 @@
                     </div>
                 </div>
 
-                <!-- Observaciones -->
+                <!-- 9. Observaciones -->
                 <div class="form-group">
-                    <label class="form-label">Observaciones</label>
-                    <textarea class="form-control" [(ngModel)]="producto.observacion" name="observacion" rows="3" placeholder="Observaciones adicionales del producto"></textarea>
+                    <label class="form-label">10. Observaciones</label>
+                    <textarea #observacionInput class="form-control" [(ngModel)]="producto.observacion" name="observacion" rows="3" placeholder="Observaciones adicionales del producto"></textarea>
                 </div>
             </form>
         </div>

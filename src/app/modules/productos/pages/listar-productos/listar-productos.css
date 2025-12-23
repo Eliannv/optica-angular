@@ -31,6 +31,18 @@
 }
 
 
+/* Botones de acción */
+
+.action-buttons {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.action-buttons .btn {
+    white-space: nowrap;
+}
+
+
 /* Estilos de búsqueda */
 
 .search-wrapper {
@@ -39,13 +51,12 @@
     align-items: center;
     flex: 1;
     min-width: 250px;
-    max-width: 500px;
+    max-width: 550px;
 }
 
 .search-icon {
     position: absolute;
     left: 12px;
-    color: #9ca3af;
     pointer-events: none;
 }
 
@@ -62,10 +73,6 @@
     outline: none;
     border-color: #3b82f6;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.search-input::placeholder {
-    color: #9ca3af;
 }
 
 .clear-btn {
@@ -88,6 +95,28 @@
 
 .clear-btn svg {
     color: #6b7280;
+}
+
+
+/* Indicador de filtro activo */
+
+.filter-info {
+    margin-top: 0.75rem;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.badge-filter {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 0.75rem;
+    background-color: #3b82f6;
+    color: white;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
 }
 
 .search-results {

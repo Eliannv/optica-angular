@@ -1,0 +1,727 @@
+/* ============================================
+   CONTAINER PRINCIPAL
+============================================ */
+
+.agregar-productos-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+
+/* ============================================
+   INFO DEL INGRESO (HEADER)
+============================================ */
+
+.ingreso-info-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+}
+
+.info-header {
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.info-header .title {
+    margin: 0;
+    color: white;
+    font-size: 1.4rem;
+    font-weight: 600;
+}
+
+.info-body {
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    background: var(--bg-secondary);
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.info-item .label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.info-item strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.badge-factura {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-sm);
+    background: rgba(52, 152, 219, 0.1);
+    color: #3498db;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.badge-tipo {
+    display: inline-block;
+    padding: 0.3rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.badge-success {
+    background: rgba(46, 204, 113, 0.15);
+    color: #27ae60;
+}
+
+.badge-warning {
+    background: rgba(241, 196, 15, 0.15);
+    color: #f39c12;
+}
+
+
+/* ============================================
+   ALERTA DE ERROR
+============================================ */
+
+.alert-error {
+    background: rgba(231, 76, 60, 0.1);
+    border: 1px solid rgba(231, 76, 60, 0.3);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #c0392b;
+}
+
+.alert-error svg {
+    flex-shrink: 0;
+}
+
+
+/* ============================================
+   OPCIONES DE AGREGAR (BOTONES GRANDES)
+============================================ */
+
+.opciones-card {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.opcion-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.opcion-btn:hover {
+    border-color: #3498db;
+    background: rgba(52, 152, 219, 0.05);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.opcion-btn.active {
+    border-color: #3498db;
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.opcion-btn.opcion-nuevo:hover {
+    border-color: #27ae60;
+}
+
+.opcion-btn.opcion-nuevo.active {
+    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+    border-color: #27ae60;
+    box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+}
+
+.opcion-btn svg {
+    flex-shrink: 0;
+}
+
+
+/* ============================================
+   CARDS DE FORMULARIOS
+============================================ */
+
+.form-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+}
+
+.form-header {
+    padding: 1.25rem 1.5rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.form-title {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.id-preview {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.id-preview strong {
+    color: #3498db;
+}
+
+.form-body {
+    padding: 1.5rem;
+}
+
+
+/* ============================================
+   BUSCADOR
+============================================ */
+
+.search-container {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+    pointer-events: none;
+}
+
+.search-input {
+    width: 100%;
+    padding: 0.85rem 1rem 0.85rem 3rem;
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-lg);
+    background: var(--input-bg);
+    color: var(--input-text);
+    font-size: 0.95rem;
+    transition: all var(--transition-fast);
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.search-input::placeholder {
+    color: var(--input-placeholder);
+}
+
+
+/* ============================================
+   PRODUCTO SELECCIONADO
+============================================ */
+
+.selected-product {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    background: rgba(52, 152, 219, 0.1);
+    border: 1px solid rgba(52, 152, 219, 0.3);
+    border-radius: var(--radius-md);
+    margin-bottom: 1.5rem;
+}
+
+.selected-info {
+    flex: 1;
+}
+
+.product-name {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.product-name strong {
+    color: var(--text-primary);
+}
+
+.color-tag {
+    color: var(--text-secondary);
+}
+
+.product-meta {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.9rem;
+}
+
+.meta-item {
+    color: var(--text-secondary);
+}
+
+.meta-item strong {
+    color: var(--text-primary);
+}
+
+.btn-cancel-small {
+    padding: 0.5rem 0.75rem;
+    background: rgba(231, 76, 60, 0.1);
+    border: 1px solid rgba(231, 76, 60, 0.3);
+    border-radius: var(--radius-sm);
+    color: #e74c3c;
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-cancel-small:hover {
+    background: rgba(231, 76, 60, 0.2);
+    transform: scale(1.1);
+}
+
+
+/* ============================================
+   LISTA DE PRODUCTOS
+============================================ */
+
+.productos-lista {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    margin-bottom: 1.5rem;
+}
+
+.producto-item {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-light);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.producto-item:last-child {
+    border-bottom: none;
+}
+
+.producto-item:hover {
+    background: var(--bg-hover);
+}
+
+.producto-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.producto-nombre strong {
+    color: var(--text-primary);
+}
+
+.producto-nombre .color-tag {
+    color: var(--text-secondary);
+}
+
+.producto-datos {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.9rem;
+}
+
+.badge-grupo {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    background: rgba(155, 89, 182, 0.1);
+    color: #9b59b6;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.dato {
+    color: var(--text-secondary);
+}
+
+
+/* ============================================
+   FORMULARIOS
+============================================ */
+
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 0.4rem;
+    color: var(--text-primary);
+}
+
+.form-label.required::after {
+    content: ' *';
+    color: #e74c3c;
+}
+
+.form-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-md);
+    background: var(--input-bg);
+    color: var(--input-text);
+    font-size: 0.95rem;
+    transition: all var(--transition-fast);
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.form-input::placeholder {
+    color: var(--input-placeholder);
+}
+
+.form-hint {
+    display: block;
+    margin-top: 0.3rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.form-hint strong {
+    color: var(--text-primary);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.form-agregar {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+
+/* ============================================
+   BOTONES
+============================================ */
+
+.btn-primary,
+.btn-success {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+    color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+}
+
+.btn-primary:disabled,
+.btn-success:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+
+/* ============================================
+   TABLA DE PRODUCTOS AGREGADOS
+============================================ */
+
+.productos-agregados-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 1.5rem;
+}
+
+.card-header-modern {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.card-title-modern {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.total-badge {
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+    color: white;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+.productos-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.productos-table thead {
+    background: var(--table-header-bg);
+}
+
+.productos-table th {
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.productos-table tbody tr {
+    border-bottom: 1px solid var(--border-light);
+    transition: all var(--transition-fast);
+}
+
+.productos-table tbody tr:hover {
+    background: var(--table-row-hover);
+}
+
+.productos-table td {
+    padding: 1rem;
+    color: var(--text-primary);
+}
+
+.product-name {
+    font-weight: 600;
+}
+
+.product-model {
+    color: var(--text-secondary);
+}
+
+.badge-tipo-detalle {
+    display: inline-block;
+    padding: 0.3rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.badge-existente {
+    background: rgba(52, 152, 219, 0.15);
+    color: #3498db;
+}
+
+.badge-nuevo {
+    background: rgba(46, 204, 113, 0.15);
+    color: #27ae60;
+}
+
+.subtotal {
+    font-weight: 600;
+    color: var(--color-success);
+}
+
+.btn-eliminar-mini {
+    padding: 0.4rem 0.65rem;
+    background: rgba(231, 76, 60, 0.1);
+    border: 1px solid rgba(231, 76, 60, 0.3);
+    border-radius: var(--radius-sm);
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-eliminar-mini:hover {
+    background: rgba(231, 76, 60, 0.2);
+    transform: scale(1.15);
+}
+
+
+/* ============================================
+   BOTONES DE ACCIÓN FINAL
+============================================ */
+
+.form-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--border-color);
+}
+
+.btn-secondary {
+    padding: 0.85rem 1.75rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--bg-hover);
+    border-color: var(--input-focus-border);
+}
+
+.btn-finalizar {
+    padding: 0.85rem 2rem;
+    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+    border: none;
+    border-radius: var(--radius-md);
+    color: white;
+    font-size: 1.05rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-finalizar:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(39, 174, 96, 0.3);
+}
+
+.btn-finalizar:disabled,
+.btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.spinner-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+
+/* ============================================
+   RESPONSIVE
+============================================ */
+
+@media (max-width: 768px) {
+    .agregar-productos-container {
+        padding: 1rem;
+    }
+
+    .info-body {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .opciones-card {
+        grid-template-columns: 1fr;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .productos-table {
+        font-size: 0.85rem;
+    }
+
+    .productos-table th,
+    .productos-table td {
+        padding: 0.75rem 0.5rem;
+    }
+
+    .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .btn-secondary,
+    .btn-finalizar {
+        width: 100%;
+        justify-content: center;
+    }
+}

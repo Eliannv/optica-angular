@@ -118,7 +118,7 @@ export class AuthCarousel {
         
         // Redirigir según el rol del usuario
         if (usuario.rol === RolUsuario.ADMINISTRADOR) {
-          this.router.navigate(['/productos']);
+          this.router.navigate(['/clientes/historial-clinico']);
         } else if (usuario.rol === RolUsuario.OPERADOR) {
           this.router.navigate(['/clientes/historial-clinico']);
         }

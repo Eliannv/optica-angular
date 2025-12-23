@@ -1,0 +1,266 @@
+<div class="agregar-productos-container">
+    <!-- Cabecera con info del ingreso -->
+    <div class="ingreso-info-card" *ngIf="ingreso()">
+        <div class="info-header">
+            <h3 class="title">📦 Agregar Productos al Ingreso</h3>
+        </div>
+        <div class="info-body">
+            <div class="info-item">
+                <span class="label">Proveedor:</span>
+                <strong>{{ ingreso()?.proveedor }}</strong>
+            </div>
+            <div class="info-item">
+                <span class="label">Factura:</span>
+                <strong class="badge-factura">{{ ingreso()?.numeroFactura }}</strong>
+            </div>
+            <div class="info-item">
+                <span class="label">Tipo:</span>
+                <span [ngClass]="ingreso()?.tipoCompra === 'CREDITO' ? 'badge-warning' : 'badge-success'" class="badge-tipo">
+                    {{ ingreso()?.tipoCompra }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerta de error -->
+    <div *ngIf="error()" class="alert-error">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg> {{ error() }}
+    </div>
+
+    <!-- Opciones para agregar -->
+    <div class="opciones-card">
+        <button class="opcion-btn" [class.active]="modoAgregar() === 'EXISTENTE'" (click)="modoAgregar.set('EXISTENTE')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            </svg>
+            Agregar Producto Existente
+        </button>
+        <button class="opcion-btn opcion-nuevo" [class.active]="modoAgregar() === 'NUEVO'" (click)="modoAgregar.set('NUEVO')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="16"/>
+                <line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            Crear Producto Nuevo
+        </button>
+    </div>
+
+    <!-- OPCIÓN A: Agregar producto existente -->
+    <div *ngIf="modoAgregar() === 'EXISTENTE'" class="form-card">
+        <div class="form-header">
+            <h4 class="form-title">🔍 Buscar Producto Existente</h4>
+        </div>
+        <div class="form-body">
+            <!-- Buscador -->
+            <div class="search-container">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                </svg>
+                <input type="text" class="search-input" [(ngModel)]="busqueda" (ngModelChange)="buscarProducto()" placeholder="Buscar por nombre, modelo o código..." autofocus />
+            </div>
+
+            <!-- Producto seleccionado -->
+            <div *ngIf="productoSeleccionado()" class="selected-product">
+                <div class="selected-info">
+                    <div class="product-name">
+                        <strong>{{ productoSeleccionado()!.nombre }}</strong>
+                        <span *ngIf="productoSeleccionado()!.modelo"> - {{ productoSeleccionado()!.modelo }}</span>
+                        <span *ngIf="productoSeleccionado()!.color" class="color-tag"> ({{ productoSeleccionado()!.color }})</span>
+                    </div>
+                    <div class="product-meta">
+                        <span class="meta-item">📦 Stock: <strong>{{ productoSeleccionado()!.stock || 0 }}</strong></span>
+                        <span class="meta-item">💵 Costo: <strong>${{ productoSeleccionado()!.costo || 0 }}</strong></span>
+                    </div>
+                </div>
+                <button type="button" class="btn-cancel-small" (click)="cancelarSeleccion()">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Lista de productos -->
+            <div *ngIf="!productoSeleccionado()" class="productos-lista">
+                <div *ngFor="let producto of productosFiltrados()" class="producto-item" (click)="seleccionarProductoExistente(producto)">
+                    <div class="producto-main">
+                        <div class="producto-nombre">
+                            <strong>{{ producto.nombre }}</strong>
+                            <span *ngIf="producto.modelo"> - {{ producto.modelo }}</span>
+                            <span *ngIf="producto.color" class="color-tag">({{ producto.color }})</span>
+                        </div>
+                        <div class="producto-datos">
+                            <span class="badge-grupo">{{ producto.grupo }}</span>
+                            <span class="dato">📦 {{ producto.stock || 0 }}</span>
+                            <span class="dato">💵 ${{ producto.costo || 0 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulario para agregar -->
+            <form [formGroup]="formProductoExistente" *ngIf="formProductoExistente.get('productoId')?.value" class="form-agregar">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Cantidad a Agregar *</label>
+                        <input type="number" class="form-input" formControlName="cantidad" min="1" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Costo Unitario</label>
+                        <input type="number" class="form-input" formControlName="costoUnitario" min="0" step="0.01" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Observación</label>
+                        <input type="text" class="form-input" formControlName="observacion" placeholder="Opcional" />
+                    </div>
+                </div>
+                <button type="button" class="btn-primary" (click)="agregarProductoExistente()" [disabled]="formProductoExistente.invalid">
+                    ➕ Agregar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- OPCIÓN B: Crear producto nuevo -->
+    <div *ngIf="modoAgregar() === 'NUEVO'" class="form-card">
+        <div class="form-header">
+            <div>
+                <h4 class="form-title">✨ Crear Producto Nuevo</h4>
+                <div *ngIf="proximoIdInterno()" class="id-preview">
+                    ID Interno (auto): <strong>{{ proximoIdInterno() }}</strong>
+                </div>
+            </div>
+        </div>
+        <div class="form-body">
+            <form [formGroup]="formProductoNuevo">
+                <!-- Nombre -->
+                <div class="form-group">
+                    <label class="form-label required">1. Nombre del Producto *</label>
+                    <input type="text" class="form-input" formControlName="nombre" placeholder="Ej: ARMAZON DE METAL ECO" autofocus />
+                    <small class="form-hint">El proveedor será: <strong>{{ ingreso()?.proveedor }}</strong></small>
+                </div>
+
+                <div class="form-row">
+                    <!-- Modelo -->
+                    <div class="form-group">
+                        <label class="form-label">2. Modelo</label>
+                        <input type="text" class="form-input" formControlName="modelo" placeholder="Ej: ECO-500" />
+                    </div>
+                    <!-- Color -->
+                    <div class="form-group">
+                        <label class="form-label">3. Color</label>
+                        <input type="text" class="form-input" formControlName="color" placeholder="Ej: AZUL" />
+                    </div>
+                </div>
+
+                <!-- Grupo -->
+                <div class="form-group">
+                    <label class="form-label">4. Grupo</label>
+                    <input type="text" class="form-input" formControlName="grupo" placeholder="Ej: GAFAS, LENTES DE CONTACTO" list="gruposList" />
+                    <datalist id="gruposList">
+                        <option value="ARMAZONES">ARMAZONES</option>
+                        <option value="LENTES DE CONTACTO">LENTES DE CONTACTO</option>
+                        <option value="LIQUIDO DE LENTES DE CONTACTO">LIQUIDO DE LENTES DE CONTACTO</option>
+                        <option value="LIQUIDO DESEMPAÑANTE">LIQUIDO DESEMPAÑANTE</option>
+                        <option value="GAFAS">GAFAS</option>
+                        <option value="LUNAS">LUNAS</option>
+                        <option value="SERVICIOS">SERVICIOS</option>
+                        <option value="VARIOS">VARIOS</option>
+                    </datalist>
+                    <small class="form-hint">Escribe o selecciona el grupo del producto</small>
+                </div>
+
+                <div class="form-row">
+                    <!-- Cantidad -->
+                    <div class="form-group">
+                        <label class="form-label required">5. Cantidad (Stock Inicial) *</label>
+                        <input type="number" class="form-input" formControlName="cantidad" min="1" placeholder="1" />
+                    </div>
+                    <!-- Costo -->
+                    <div class="form-group">
+                        <label class="form-label">6. Costo Unitario</label>
+                        <input type="number" class="form-input" formControlName="costoUnitario" step="0.01" min="0" placeholder="0.00" />
+                        <small class="form-hint">Costo de compra</small>
+                    </div>
+                    <!-- PVP -->
+                    <div class="form-group">
+                        <label class="form-label">7. PVP (Precio de Venta)</label>
+                        <input type="number" class="form-input" formControlName="pvp1" step="0.01" min="0" placeholder="0.00" />
+                        <small class="form-hint">Precio al cliente</small>
+                    </div>
+                </div>
+
+                <!-- Observación -->
+                <div class="form-group">
+                    <label class="form-label">8. Observación</label>
+                    <input type="text" class="form-input" formControlName="observacion" placeholder="Notas adicionales (opcional)" />
+                </div>
+
+                <button type="button" class="btn-success" (click)="agregarProductoNuevo()" [disabled]="formProductoNuevo.invalid">
+                    ✨ Crear y Agregar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Vista previa de productos -->
+    <div *ngIf="detalles().length > 0" class="productos-agregados-card">
+        <div class="card-header-modern">
+            <h4 class="card-title-modern">📋 Productos Agregados ({{ detalles().length }})</h4>
+            <span class="total-badge">Total: ${{ calcularTotal() | number:'1.2-2' }}</span>
+        </div>
+        <div class="table-container">
+            <table class="productos-table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Tipo</th>
+                        <th>Cantidad</th>
+                        <th>Costo</th>
+                        <th>Subtotal</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let detalle of detalles()">
+                        <td>
+                            <strong class="product-name">{{ detalle.nombre }}</strong>
+                            <span *ngIf="detalle.modelo" class="product-model"> - {{ detalle.modelo }}</span>
+                        </td>
+                        <td>
+                            <span class="badge-tipo-detalle" [class.badge-existente]="detalle.tipo === 'EXISTENTE'" [class.badge-nuevo]="detalle.tipo === 'NUEVO'">
+                                {{ detalle.tipo }}
+                            </span>
+                        </td>
+                        <td><strong>{{ detalle.cantidad }}</strong></td>
+                        <td>${{ (detalle.costoUnitario || 0).toFixed(2) }}</td>
+                        <td class="subtotal">${{ ((detalle.costoUnitario || 0) * detalle.cantidad) | number:'1.2-2' }}</td>
+                        <td>
+                            <button class="btn-eliminar-mini" (click)="eliminarDetalle(detalle.id!)" title="Eliminar">
+                                🗑️
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Botones de acción final -->
+    <div class="form-actions">
+        <button class="btn-secondary" (click)="cancelar()" [disabled]="guardando()">
+            ✕ Cancelar
+        </button>
+        <button class="btn-finalizar" (click)="finalizar()" [disabled]="detalles().length === 0 || guardando()">
+            <span *ngIf="guardando()" class="spinner-container">
+                <span class="spinner"></span>
+                Procesando...
+            </span>
+            <span *ngIf="!guardando()">
+                ✓ Finalizar Ingreso
+            </span>
+        </button>
+    </div>
+</div>

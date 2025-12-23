@@ -1,0 +1,119 @@
+<div *ngIf="!loading && ingreso" class="ver-ingreso-container">
+    <div class="ver-ingreso-card">
+
+        <!-- HEADER -->
+        <div class="ver-ingreso-header">
+            <div class="header-content">
+                <h3 class="ingreso-title">📦 Ingreso de Inventario</h3>
+                <div class="header-actions">
+                    <button class="btn-imprimir" type="button" (click)="imprimir()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+              <path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/>
+              <rect x="6" y="14" width="12" height="8" rx="1"/>
+            </svg>
+            Imprimir
+          </button>
+                    <button class="btn-volver" type="button" (click)="volver()">
+            ← Volver
+          </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- BODY -->
+        <div class="ver-ingreso-body">
+
+            <!-- INFO GENERAL -->
+            <div class="info-section">
+                <h4 class="section-title">Información General</h4>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Proveedor</span>
+                        <strong class="info-value">{{ ingreso.proveedor }}</strong>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Nro. Factura</span>
+                        <span class="badge-factura">{{ ingreso.numeroFactura }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Tipo de Compra</span>
+                        <span [ngClass]="ingreso.tipoCompra === 'CREDITO' ? 'badge-warning' : 'badge-success'" class="badge-tipo">
+              {{ ingreso.tipoCompra }}
+            </span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Estado</span>
+                        <span [ngClass]="ingreso.estado === 'FINALIZADO' ? 'badge-primary' : 'badge-secondary'" class="badge">
+              {{ ingreso.estado }}
+            </span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Fecha de Ingreso</span>
+                        <span class="info-value">
+              {{ ingreso.fecha?.toDate ? (ingreso.fecha.toDate() | date:'dd/MM/yyyy HH:mm') : (ingreso.fecha | date:'dd/MM/yyyy HH:mm') }}
+            </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PRODUCTOS -->
+            <div class="productos-section">
+                <h4 class="section-title">Productos Ingresados</h4>
+                <div class="table-wrapper" *ngIf="productos.length > 0">
+                    <table class="productos-table">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Nombre</th>
+                                <th>Modelo</th>
+                                <th>Cantidad</th>
+                                <th>Costo Unit.</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let prod of productos">
+                                <td><span class="badge-codigo">{{ prod.codigo || 'N/A' }}</span></td>
+                                <td>
+                                    <strong>{{ prod.nombre }}</strong>
+                                    <span *ngIf="prod.tipo" class="badge-tipo-detalle" [ngClass]="prod.tipo === 'NUEVO' ? 'badge-nuevo' : 'badge-existente'">
+                                        {{ prod.tipo === 'NUEVO' ? '🆕 Nuevo' : '📦 Existente' }}
+                                    </span>
+                                </td>
+                                <td><span class="badge-tipo-producto">{{ prod.modelo || '-' }}</span></td>
+                                <td class="text-center"><strong>{{ prod.cantidad }}</strong></td>
+                                <td class="text-right">${{ (prod.costoUnitario || 0).toFixed(2) }}</td>
+                                <td class="text-right"><strong class="precio">${{ ((prod.cantidad || 0) * (prod.costoUnitario || 0)).toFixed(2) }}</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="empty-state" *ngIf="productos.length === 0">
+                    <p class="empty-icon">📦</p>
+                    <p>No hay productos asociados a este ingreso</p>
+                    <span>Los productos pueden haber sido eliminados o no se registraron correctamente.</span>
+                    <!-- TOTALES -->
+                    <div class="totales-section" *ngIf="productos.length > 0">
+                        <div class="total-row">
+                            <span>Total de Productos</span>
+                            <strong>{{ productos.length }}</strong>
+                            <div class="total-row">
+                                <span>Unidades Totales</span>
+                                <strong>{{ calcularUnidadesTotales() }}</strong>
+                            </div>
+                            <div class="total-row total-final">
+                                <span>Costo Total del Ingreso</span>
+                                <strong class="precio-total">${{ calcularCostoTotal() }}</strong>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- LOADING STATE -->
+            <div *ngIf="loading" class="loading-container">
+                <div class="spinner"></div>
+                <p>Cargando ingreso...</p>
+            </div>

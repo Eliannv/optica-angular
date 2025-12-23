@@ -31,6 +31,15 @@ export const routes: Routes = [
     canActivate: [authGuard, roleGuard([RolUsuario.ADMINISTRADOR])]
   },
 
+  // 🔐 Rutas protegidas - ADMINISTRADOR: Ingresos de Inventario
+  {
+    path: 'ingresos',
+    loadChildren: () =>
+      import('./modules/ingresos/ingresos-module')
+        .then(m => m.IngresosModule),
+    canActivate: [authGuard, roleGuard([RolUsuario.ADMINISTRADOR])]
+  },
+
   // 🔐 Rutas protegidas - ADMINISTRADOR: Proveedores
   {
     path: 'proveedores',

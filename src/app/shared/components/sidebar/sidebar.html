@@ -31,14 +31,35 @@
     <!-- NAV -->
     <nav class="sidebar-nav">
         <ul class="menu-list">
-            <li *ngFor="let item of menuItems" class="menu-item">
-                <a [routerLink]="item.route" routerLinkActive="active" class="menu-link" (click)="onMenuItemClick()" [attr.title]="collapsed ? item.label : null">
+            <li *ngFor="let item of menuItems" class="menu-item" [class.has-children]="hasChildren(item)" [class.expanded]="item.expanded">
+                <!-- Item con hijos (desplegable) -->
+                <a *ngIf="hasChildren(item)" [routerLink]="item.route" routerLinkActive="active" class="menu-link" (click)="onMenuItemClick()" [attr.title]="collapsed ? item.label : null">
+                    <span class="menu-icon" [innerHTML]="item.icon"></span>
+                    <span class="menu-label" *ngIf="!collapsed">{{ item.label }}</span>
+                    <span class="submenu-arrow" *ngIf="!collapsed" (click)="toggleSubmenu(item, $event)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </span>
+                </a>
+
+                <!-- Item sin hijos (normal) -->
+                <a *ngIf="!hasChildren(item)" [routerLink]="item.route" routerLinkActive="active" class="menu-link" (click)="onMenuItemClick()" [attr.title]="collapsed ? item.label : null">
                     <span class="menu-icon" [innerHTML]="item.icon"></span>
                     <span class="menu-label" *ngIf="!collapsed">{{ item.label }}</span>
                     <span *ngIf="item.badge && item.badge > 0" class="badge">
-    {{ item.badge }}
-  </span>
+                        {{ item.badge }}
+                    </span>
                 </a>
+
+                <!-- Submenú -->
+                <ul *ngIf="hasChildren(item) && item.expanded && !collapsed" class="submenu-list">
+                    <li *ngFor="let child of item.children" class="submenu-item">
+                        <a [routerLink]="child.route" [queryParams]="child.queryParams" routerLinkActive="active" class="submenu-link" (click)="onMenuItemClick()">
+                            <span class="submenu-label">{{ child.label }}</span>
+                        </a>
+                    </li>
+                </ul>
             </li>
         </ul>
     </nav>

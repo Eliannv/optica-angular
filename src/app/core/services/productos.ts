@@ -40,10 +40,25 @@ export class ProductosService {
     }) as Observable<Producto>;
   }
 
+  // 🔹 Obtener productos por ingreso ID
+  getProductosPorIngreso(ingresoId: string): Observable<Producto[]> {
+    const q = query(this.productosRef, where('ingresoId', '==', ingresoId));
+    return collectionData(q, { idField: 'id' }) as Observable<Producto[]>;
+  }
+
   // 🔹 Obtener el último ID del contador sin incrementarlo
   async getCounterDoc(): Promise<number | null> {
     const counterDoc = doc(this.firestore, 'counters/productos');
     const counterSnapshot = await getDoc(counterDoc);
+    
+    // Verificar si existen productos en la colección
+    const productosSnapshot = await getDocs(this.productosRef);
+    const hayProductos = !productosSnapshot.empty;
+    
+    if (!hayProductos) {
+      // Si no hay productos, el próximo será 1
+      return 1;
+    }
     
     if (counterSnapshot.exists()) {
       return counterSnapshot.data()['lastId'] || null;
@@ -59,11 +74,19 @@ export class ProductosService {
     return runTransaction(this.firestore, async (transaction) => {
       const counterSnapshot = await transaction.get(counterDoc);
       
-      let nextId = 1001; // Valor inicial
+      // Verificar si existen productos en la colección
+      const productosSnapshot = await getDocs(this.productosRef);
+      const hayProductos = !productosSnapshot.empty;
       
-      if (counterSnapshot.exists()) {
-        const currentId = counterSnapshot.data()['lastId'] || 1000;
+      let nextId = 1; // Valor inicial si no hay productos
+      
+      if (counterSnapshot.exists() && hayProductos) {
+        // Si hay productos, continuar con el contador existente
+        const currentId = counterSnapshot.data()['lastId'] || 0;
         nextId = currentId + 1;
+      } else if (!hayProductos) {
+        // Si NO hay productos, reiniciar el contador a 1
+        nextId = 1;
       }
       
       // Actualizar el contador

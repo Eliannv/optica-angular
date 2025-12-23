@@ -3,28 +3,36 @@ export interface Producto {
   idInterno?: number; // ID incremental (1001, 1002, etc.)
   codigo: string; // Código de armazón (identificador para el trabajador)
   nombre: string;
-  nuevoCodigo?: string;
-  grupo?: string;
-  genera?: number;
-  iva: boolean;
-  observacion?: string | null;
-  unidad?: string;
+  modelo?: string; // Modelo del producto
+  color?: string; // Color del producto
+  grupo?: string; // Grupo en texto (ej: GAFAS, LENTES DE CONTACTO)
   stock?: number;
-  costos: {
+  costo?: number; // Costo unitario
+  pvp1?: number; // Precio de venta público
+  proveedor?: string; // Proveedor principal
+  ingresoId?: string; // ID del ingreso/factura de donde proviene
+  observacion?: string | null;
+  
+  // Campos opcionales (legacy - mantener para compatibilidad con datos existentes)
+  nuevoCodigo?: string;
+  genera?: number;
+  iva?: boolean;
+  unidad?: string;
+  costos?: {
     caja?: string;
     unidad?: string;
   };
-  datos: {
+  datos?: {
     dato1?: string;
     dato2?: string;
   };
-  precios: {
+  precios?: {
     caja?: string;
     pvp1?: string;
     pvp2?: string;
     unidad?: string;
   };
-  proveedores: {
+  proveedores?: {
     principal?: string;
     secundario?: string;
     terciario?: string;

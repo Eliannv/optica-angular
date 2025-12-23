@@ -1,0 +1,271 @@
+<div class="crear-ingreso-container">
+    <div class="crear-ingreso-card">
+
+        <!-- HEADER -->
+        <div class="header-gradient">
+            <div class="header-content">
+                <h3 class="title">📦 Nuevo Ingreso de Inventario</h3>
+                <p class="subtitle">Paso 1: Datos de la factura del proveedor</p>
+            </div>
+        </div>
+
+        <!-- BODY -->
+        <div class="card-body">
+
+            <!-- ALERTA DE ERROR -->
+            <div *ngIf="error()" class="alert-error">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg> {{ error() }}
+            </div>
+
+            <form #ingresoForm="ngForm">
+
+                <!-- 1. PROVEEDOR -->
+                <div class="form-section">
+                    <label class="section-label">
+                        <span class="label-number">1</span>
+                        <span>Proveedor</span>
+                        <span class="required">*</span>
+                    </label>
+
+                    <div class="search-provider">
+                        <div class="input-with-icon">
+                            <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"/>
+                                <path d="m21 21-4.35-4.35"/>
+                            </svg>
+                            <input type="text" class="form-input search-input" [(ngModel)]="ingreso.proveedor" name="proveedor" placeholder="Escribe el código del proveedor (Ej: P001)..." required autofocus list="proveedoresList" />
+                        </div>
+                        <button type="button" class="btn-nuevo-proveedor" (click)="toggleFormNuevoProveedor()">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                            Nuevo
+                        </button>
+                    </div>
+
+                    <datalist id="proveedoresList">
+                        <option *ngFor="let prov of proveedores" [value]="prov.codigo || prov.id">
+                            {{ prov.codigo || prov.id }} - {{ prov.nombre }}
+                        </option>
+                    </datalist>
+
+                    <small class="form-hint">Escribe o selecciona el código del proveedor</small>
+                </div>
+
+                <!-- FORMULARIO NUEVO PROVEEDOR (Reactivo) -->
+                <div *ngIf="mostrarFormNuevoProveedor()" class="nuevo-proveedor-modal">
+                    <div class="modal-overlay" (click)="cancelarNuevoProveedor()"></div>
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h4 class="modal-title">➕ Crear Nuevo Proveedor</h4>
+                            <button type="button" class="btn-close-modal" (click)="cancelarNuevoProveedor()">✕</button>
+                        </div>
+
+                        <div class="modal-body">
+                            <form [formGroup]="formNuevoProveedor">
+
+                                <div class="form-row">
+                                    <!-- Código -->
+                                    <div class="form-group">
+                                        <label class="form-label">Código del Proveedor</label>
+                                        <input type="text" class="form-input" [class.is-invalid]="validaciones.codigo.mensaje && !validaciones.codigo.valido" [class.is-valid]="validaciones.codigo.valido" formControlName="codigo" (input)="validarCodigo()" (blur)="validarCodigo()" placeholder="Ej: P0001, PROV1234"
+                                        />
+                                        <small class="form-hint">Mínimo 1 letra y 4 números (opcional)</small>
+                                        <div class="validation-message" *ngIf="validaciones.codigo.mensaje">
+                                            <span *ngIf="!validaciones.codigo.valido" class="text-danger">❌ {{ validaciones.codigo.mensaje }}</span>
+                                            <span *ngIf="validaciones.codigo.valido" class="text-success">✅ {{ validaciones.codigo.mensaje }}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Código de Lugar -->
+                                    <div class="form-group">
+                                        <label class="form-label">Código de Provincia</label>
+                                        <input type="text" class="form-input" [class.is-invalid]="validaciones.codigoLugar.mensaje && !validaciones.codigoLugar.valido" [class.is-valid]="validaciones.codigoLugar.valido" formControlName="codigoLugar" (input)="validarCodigoLugar()" (blur)="validarCodigoLugar()"
+                                            placeholder="07" maxlength="2" />
+                                        <small class="form-hint">07 = El Oro - Pasaje</small>
+                                        <div class="validation-message" *ngIf="validaciones.codigoLugar.mensaje">
+                                            <span *ngIf="!validaciones.codigoLugar.valido" class="text-danger">❌ {{ validaciones.codigoLugar.mensaje }}</span>
+                                            <span *ngIf="validaciones.codigoLugar.valido" class="text-success">✅ {{ validaciones.codigoLugar.mensaje }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Nombre -->
+                                <div class="form-group">
+                                    <label class="form-label required">Nombre del Proveedor</label>
+                                    <input type="text" class="form-input" formControlName="nombre" placeholder="Ej: Distribuidora Óptica S.A." />
+                                </div>
+
+                                <div class="form-row">
+                                    <!-- RUC -->
+                                    <div class="form-group">
+                                        <label class="form-label required">RUC</label>
+                                        <input type="text" class="form-input" [class.is-invalid]="validaciones.ruc.mensaje && !validaciones.ruc.valido" [class.is-valid]="validaciones.ruc.valido" formControlName="ruc" (input)="validarRUC()" (blur)="validarRUC()" placeholder="Ej: 0701234567001"
+                                            maxlength="13" />
+                                        <small class="form-hint">13 dígitos - Debe iniciar con código de provincia</small>
+                                        <div class="validation-message" *ngIf="validaciones.ruc.mensaje">
+                                            <span *ngIf="!validaciones.ruc.valido" class="text-danger">❌ {{ validaciones.ruc.mensaje }}</span>
+                                            <span *ngIf="validaciones.ruc.valido" class="text-success">✅ {{ validaciones.ruc.mensaje }}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Representante -->
+                                    <div class="form-group">
+                                        <label class="form-label">Representante</label>
+                                        <input type="text" class="form-input" formControlName="representante" placeholder="Nombre del representante" />
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <!-- Teléfono Principal -->
+                                    <div class="form-group">
+                                        <label class="form-label">Teléfono Principal</label>
+                                        <input type="tel" class="form-input" [class.is-invalid]="validaciones.telefonoPrincipal.mensaje && !validaciones.telefonoPrincipal.valido" [class.is-valid]="validaciones.telefonoPrincipal.valido" formControlName="telefonoPrincipal" (input)="validarTelefono('principal')"
+                                            (blur)="validarTelefono('principal')" placeholder="0991234567 ó 072931234" maxlength="10" />
+                                        <small class="form-hint">Celular: 09XXXXXXXX | Convencional: 07XXXXXXX</small>
+                                        <div class="validation-message" *ngIf="validaciones.telefonoPrincipal.mensaje">
+                                            <span *ngIf="!validaciones.telefonoPrincipal.valido" class="text-danger">❌ {{ validaciones.telefonoPrincipal.mensaje }}</span>
+                                            <span *ngIf="validaciones.telefonoPrincipal.valido" class="text-success">✅ {{ validaciones.telefonoPrincipal.mensaje }}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Teléfono Secundario -->
+                                    <div class="form-group">
+                                        <label class="form-label">Teléfono Secundario</label>
+                                        <input type="tel" class="form-input" [class.is-invalid]="validaciones.telefonoSecundario.mensaje && !validaciones.telefonoSecundario.valido" [class.is-valid]="validaciones.telefonoSecundario.valido" formControlName="telefonoSecundario" (input)="validarTelefono('secundario')"
+                                            (blur)="validarTelefono('secundario')" placeholder="0991234568 ó 072931235" maxlength="10" />
+                                        <small class="form-hint">Celular: 09XXXXXXXX | Convencional: 07XXXXXXX</small>
+                                        <div class="validation-message" *ngIf="validaciones.telefonoSecundario.mensaje">
+                                            <span *ngIf="!validaciones.telefonoSecundario.valido" class="text-danger">❌ {{ validaciones.telefonoSecundario.mensaje }}</span>
+                                            <span *ngIf="validaciones.telefonoSecundario.valido" class="text-success">✅ {{ validaciones.telefonoSecundario.mensaje }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Dirección -->
+                                <div class="form-group">
+                                    <label class="form-label">Dirección</label>
+                                    <input type="text" class="form-input" formControlName="direccion" placeholder="Dirección completa del proveedor" />
+                                </div>
+
+                                <!-- Saldo -->
+                                <div class="form-group">
+                                    <label class="form-label">Saldo Inicial</label>
+                                    <input type="number" class="form-input" formControlName="saldo" step="0.01" placeholder="0.00" />
+                                    <small class="form-hint">Opcional: Saldo inicial con el proveedor</small>
+                                </div>
+
+                            </form>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn-secondary" (click)="cancelarNuevoProveedor()" [disabled]="guardando()">
+                                Cancelar
+                            </button>
+                            <button type="button" class="btn-success" (click)="guardarNuevoProveedor()" [disabled]="guardando() || formNuevoProveedor.invalid">
+                                <span *ngIf="guardando()" class="spinner-container">
+                                    <span class="spinner"></span> Guardando...
+                                </span>
+                                <span *ngIf="!guardando()">✅ Guardar Proveedor</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. NÚMERO DE FACTURA Y FECHA -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="section-label">
+                            <span class="label-number">2</span>
+                            <span>Número de Factura</span>
+                            <span class="required">*</span>
+                        </label>
+                        <input type="text" class="form-input" [(ngModel)]="ingreso.numeroFactura" name="numeroFactura" placeholder="Ej: 001-001-000123" required />
+                        <small class="form-hint">Formato: Serie-Número</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="section-label">
+                            <span class="label-number">3</span>
+                            <span>Fecha de Factura</span>
+                            <span class="required">*</span>
+                        </label>
+                        <input type="date" class="form-input" [(ngModel)]="ingreso.fecha" name="fecha" required />
+                    </div>
+                </div>
+
+                <!-- 4. TIPO DE COMPRA -->
+                <div class="form-section">
+                    <label class="section-label">
+                        <span class="label-number">4</span>
+                        <span>Tipo de Compra</span>
+                        <span class="required">*</span>
+                    </label>
+
+                    <div class="tipo-compra-options">
+                        <label class="radio-option" [class.active]="ingreso.tipoCompra === 'CONTADO'">
+                            <input 
+                                type="radio" 
+                                name="tipoCompra" 
+                                [(ngModel)]="ingreso.tipoCompra" 
+                                value="CONTADO" />
+                            <div class="option-content">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                                    <line x1="1" y1="10" x2="23" y2="10"/>
+                                </svg>
+                                <span>CONTADO</span>
+                            </div>
+                        </label>
+
+                        <label class="radio-option" [class.active]="ingreso.tipoCompra === 'CREDITO'">
+                            <input 
+                                type="radio" 
+                                name="tipoCompra" 
+                                [(ngModel)]="ingreso.tipoCompra" 
+                                value="CREDITO" />
+                            <div class="option-content">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                                    <line x1="1" y1="10" x2="23" y2="10"/>
+                                </svg>
+                                <span>CRÉDITO</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 5. OBSERVACIÓN -->
+                <div class="form-section">
+                    <label class="section-label">
+                        <span class="label-number">5</span>
+                        <span>Observación</span>
+                    </label>
+                    <textarea class="form-input textarea" [(ngModel)]="ingreso.observacion" name="observacion" rows="3" placeholder="Ej: Compra especial con descuento del 10%"></textarea>
+                    <small class="form-hint">Opcional: Notas adicionales sobre esta compra</small>
+                </div>
+
+                <!-- BOTONES -->
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" (click)="cancelar()" [disabled]="guardando()">
+                        ✕ Cancelar
+                    </button>
+                    <button type="button" class="btn-continue" (click)="continuar()" [disabled]="!ingresoForm.valid || guardando()">
+                        <span *ngIf="guardando()" class="spinner-container">
+                            <span class="spinner"></span> Guardando...
+                        </span>
+                        <span *ngIf="!guardando()">
+                            Continuar con productos →
+                        </span>
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>

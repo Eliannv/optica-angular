@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { Producto } from '../../../../core/models/producto.model';
 import { Observable } from 'rxjs';
 import { ProductosService } from '../../../../core/services/productos';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import Swal from 'sweetalert2';
 
 @Component({
@@ -22,18 +22,24 @@ export class ListarProductos implements OnInit {
   productoSeleccionado: Producto | null = null;
   mostrarModal: boolean = false;
   terminoBusqueda: string = '';
+  grupoSeleccionado: string = ''; // Para almacenar el grupo activo desde la URL
 
   constructor(
     private productosService: ProductosService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit() {
-    this.productosService.getProductos().subscribe(productos => {
-      this.productos = productos;
-      this.productosFiltrados = productos;
-      this.totalProductos = productos.length;
-      this.actualizarPaginacion();
+    // Suscribirse a los parámetros de consulta para detectar cambios en el grupo
+    this.route.queryParams.subscribe(params => {
+      this.grupoSeleccionado = params['grupo'] || '';
+      
+      // Cargar productos después de obtener el parámetro de grupo
+      this.productosService.getProductos().subscribe(productos => {
+        this.productos = productos;
+        this.aplicarFiltros();
+      });
     });
   }
 
@@ -69,6 +75,10 @@ export class ListarProductos implements OnInit {
     this.router.navigate(['/productos/crear']);
   }
 
+  nuevoIngreso() {
+    this.router.navigate(['/ingresos/nuevo']);
+  }
+
   eliminarProducto(id: string) {
     if (confirm('¿Está seguro de eliminar este producto?')) {
       this.productosService.deleteProducto(id).then(() => {
@@ -94,32 +104,51 @@ export class ListarProductos implements OnInit {
     return producto.id || index.toString();
   }
 
-  buscarProductos() {
-    const termino = this.terminoBusqueda.toLowerCase().trim();
+  /**
+   * Aplica filtros combinados: grupo (desde URL) y búsqueda (desde input)
+   */
+  aplicarFiltros() {
+    let productosFiltrados = [...this.productos];
 
-    if (!termino) {
-      this.productosFiltrados = this.productos;
-    } else {
-      this.productosFiltrados = this.productos.filter(producto => {
+    // Filtrar por grupo si está seleccionado
+    if (this.grupoSeleccionado) {
+      productosFiltrados = productosFiltrados.filter(producto => 
+        producto.grupo?.toUpperCase() === this.grupoSeleccionado.toUpperCase()
+      );
+    }
+
+    // Filtrar por término de búsqueda si existe
+    if (this.terminoBusqueda.trim()) {
+      const termino = this.terminoBusqueda.toLowerCase().trim();
+      productosFiltrados = productosFiltrados.filter(producto => {
         const nombre = producto.nombre?.toLowerCase() || '';
-        const modelo = producto.datos?.dato2?.toLowerCase() || '';
+        const modelo = producto.modelo?.toLowerCase() || '';
+        const color = producto.color?.toLowerCase() || '';
         const grupo = producto.grupo?.toLowerCase() || '';
-        const proveedor = producto.proveedores?.principal?.toLowerCase() || '';
+        const proveedor = producto.proveedor?.toLowerCase() || '';
+        const idInterno = producto.idInterno?.toString() || '';
 
         return nombre.includes(termino) ||
                modelo.includes(termino) ||
+               color.includes(termino) ||
                grupo.includes(termino) ||
-               proveedor.includes(termino);
+               proveedor.includes(termino) ||
+               idInterno.includes(termino);
       });
     }
 
+    this.productosFiltrados = productosFiltrados;
     this.totalProductos = this.productosFiltrados.length;
     this.paginaActual = 1; // Resetear a la primera página
     this.actualizarPaginacion();
   }
 
+  buscarProductos() {
+    this.aplicarFiltros();
+  }
+
   limpiarBusqueda() {
     this.terminoBusqueda = '';
-    this.buscarProductos();
+    this.aplicarFiltros();
   }
 }

@@ -2,8 +2,9 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProductosRoutingModule } from './productos-routing-module';
-import { CrearProducto } from './pages/crear-producto/crear-producto';
 import { ListarProductos } from './pages/listar-productos/listar-productos';
+import { CrearProducto } from './pages/crear-producto/crear-producto';
+import { AgregarProductosIngresoComponent } from './pages/agregar-productos-ingreso/agregar-productos-ingreso';
 
 @NgModule({
   declarations: [
@@ -13,7 +14,9 @@ import { ListarProductos } from './pages/listar-productos/listar-productos';
   imports: [
     CommonModule,
     FormsModule,
-    ProductosRoutingModule
+    ProductosRoutingModule,
+    // Importar componentes standalone
+    AgregarProductosIngresoComponent
   ]
 })
 export class ProductosModule { }
