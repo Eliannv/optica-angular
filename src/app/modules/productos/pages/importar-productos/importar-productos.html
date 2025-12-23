@@ -1,0 +1,370 @@
+<div class="importar-container">
+    <div class="importar-card">
+
+        <!-- HEADER -->
+        <div class="header-gradient">
+            <div class="header-content">
+                <h3 class="title"><svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cloud-upload-icon lucide-cloud-upload"><path d="M12 13v8"/><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="m8 17 4-4 4 4"/></svg>                    Importar Productos desde Excel</h3>
+                <p class="subtitle">Sube tu archivo Excel para crear un ingreso de mercadería automáticamente</p>
+            </div>
+        </div>
+
+        <!-- BODY -->
+        <div class="card-body">
+
+            <!-- Indicador de pasos -->
+            <div class="pasos-container">
+                <div class="paso-indicador" [class.activo]="paso() === 1">
+                    <div class="numero">1</div>
+                    <div class="texto">Subir archivo</div>
+                </div>
+                <div class="linea"></div>
+                <div class="paso-indicador" [class.activo]="paso() === 2">
+                    <div class="numero">2</div>
+                    <div class="texto">Revisar datos</div>
+                </div>
+                <div class="linea"></div>
+                <div class="paso-indicador" [class.activo]="paso() === 3">
+                    <div class="numero">3</div>
+                    <div class="texto">Procesar</div>
+                </div>
+            </div>
+
+            <!-- PASO 1: Subir archivo -->
+            @if (paso() === 1) {
+            <div class="paso-card">
+                <div class="paso-content text-center">
+                    <div class="upload-icon">
+                        <i class="bi bi-file-earmark-excel"></i>
+                    </div>
+
+                    <h4 class="paso-title">Selecciona tu archivo Excel</h4>
+                    <p class="paso-subtitle">Formato: OPTICA MACIAS EL GUABO - PLANTILLA DE PRODUCTOS</p>
+
+                    <div class="file-upload-wrapper">
+                        <input type="file" class="file-input" id="fileInput" accept=".xlsx,.xls" (change)="onFileSelected($event)">
+                    </div>
+
+                    @if (archivoSeleccionado()) {
+                    <div class="alert-info">
+                        <i class="bi bi-file-earmark-check"></i>
+                        <div>
+                            <strong>{{ archivoSeleccionado()!.name }}</strong>
+                            <small>({{ (archivoSeleccionado()!.size / 1024).toFixed(2) }} KB)</small>
+                        </div>
+                    </div>
+                    } @if (mensajeError()) {
+                    <div class="alert-error">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <span>{{ mensajeError() }}</span>
+                    </div>
+                    }
+
+                    <div class="actions-group">
+                        <button type="button" class="btn-secondary" (click)="descargarPlantilla()">
+                <i class="bi bi-download"></i> Descargar plantilla
+              </button>
+
+                        <button type="button" class="btn-primary" [disabled]="!archivoSeleccionado() || procesando()" (click)="procesarArchivo()">
+                @if (procesando()) {
+                  <span class="spinner"></span>
+                  Procesando...
+                } @else {
+                  <i class="bi bi-arrow-right"></i> Siguiente
+                }
+              </button>
+
+                        <button type="button" class="btn-cancel" (click)="cancelar()">
+                Cancelar
+              </button>
+                    </div>
+                </div>
+            </div>
+            }
+
+            <!-- PASO 2: Preview y edición -->
+            @if (paso() === 2 && datosImportacion()) {
+
+            <!-- Información del Ingreso -->
+            <div class="ingreso-info-card">
+                <div class="info-header">
+                    <h5>📋 Información del Ingreso</h5>
+                </div>
+                <div class="info-body">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Proveedor:</label>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span>{{ datosImportacion()!.proveedor }}</span> @if (proveedorExiste()) {
+                                <span class="badge-success" style="font-size: 0.75rem;">✓ Existe</span> } @else {
+                                <span class="badge" style="background: rgba(231, 76, 60, 0.15); color: #c0392b; border: 1px solid rgba(231, 76, 60, 0.3);">⚠ No existe</span> }
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <label>Nº Factura:</label>
+                            <span>{{ datosImportacion()!.numeroFactura }}</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Fecha:</label>
+                            <span>{{ datosImportacion()!.fecha | date: 'dd/MM/yyyy' }}</span>
+                        </div>
+                        <div class="info-item highlight">
+                            <label>Total productos:</label>
+                            <span class="big-number">{{ datosImportacion()!.productos.length }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Alerta si el proveedor no existe -->
+                    @if (!proveedorExiste()) {
+                    <div class="alert-error" style="margin-top: 1.5rem;">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <div style="flex: 1;">
+                            <strong>Proveedor no registrado</strong>
+                            <p style="margin: 0.25rem 0 0 0;">El proveedor "{{ datosImportacion()!.proveedor }}" no existe en el sistema. Debes crearlo antes de continuar.</p>
+                        </div>
+                        <button type="button" class="btn-primary" (click)="abrirFormularioProveedor()">
+                            <i class="bi bi-plus-circle"></i> Crear Proveedor
+                        </button>
+                    </div>
+                    }
+                </div>
+            </div>
+
+            <!-- MODAL FORMULARIO NUEVO PROVEEDOR -->
+            @if (mostrarFormProveedor()) {
+            <div class="nuevo-proveedor-modal">
+                <div class="modal-overlay" (click)="cerrarFormularioProveedor()"></div>
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">➕ Crear Nuevo Proveedor</h4>
+                        <button type="button" class="btn-close-modal" (click)="cerrarFormularioProveedor()">✕</button>
+                    </div>
+
+                    <div class="modal-body">
+                        <form [formGroup]="proveedorForm">
+
+                            <div class="form-row">
+                                <!-- Código -->
+                                <div class="form-group">
+                                    <label class="form-label">Código del Proveedor</label>
+                                    <input type="text" class="form-input" [class.is-invalid]="validaciones.codigo.mensaje && !validaciones.codigo.valido" [class.is-valid]="validaciones.codigo.valido" formControlName="codigo" (input)="validarCodigo()" (blur)="validarCodigo()" placeholder="Ej: P0001, PROV1234"
+                                    />
+                                    <small class="form-hint">Mínimo 1 letra y 4 números (opcional)</small> @if (validaciones.codigo.mensaje) {
+                                    <div class="validation-message">
+                                        @if (!validaciones.codigo.valido) {
+                                        <span class="text-danger">❌ {{ validaciones.codigo.mensaje }}</span> } @else {
+                                        <span class="text-success">✅ {{ validaciones.codigo.mensaje }}</span> }
+                                    </div>
+                                    }
+                                </div>
+
+                                <!-- Código de Lugar -->
+                                <div class="form-group">
+                                    <label class="form-label">Código de Provincia</label>
+                                    <input type="text" class="form-input" [class.is-invalid]="validaciones.codigoLugar.mensaje && !validaciones.codigoLugar.valido" [class.is-valid]="validaciones.codigoLugar.valido" formControlName="codigoLugar" (input)="validarCodigoLugar()" (blur)="validarCodigoLugar()"
+                                        placeholder="07" maxlength="2" />
+                                    <small class="form-hint">07 = El Oro - Pasaje</small> @if (validaciones.codigoLugar.mensaje) {
+                                    <div class="validation-message">
+                                        @if (!validaciones.codigoLugar.valido) {
+                                        <span class="text-danger">❌ {{ validaciones.codigoLugar.mensaje }}</span> } @else {
+                                        <span class="text-success">✅ {{ validaciones.codigoLugar.mensaje }}</span> }
+                                    </div>
+                                    }
+                                </div>
+                            </div>
+
+                            <!-- Nombre -->
+                            <div class="form-group">
+                                <label class="form-label required">Nombre del Proveedor</label>
+                                <input type="text" class="form-input" formControlName="nombre" placeholder="Ej: Distribuidora Óptica S.A." />
+                            </div>
+
+                            <div class="form-row">
+                                <!-- RUC -->
+                                <div class="form-group">
+                                    <label class="form-label required">RUC</label>
+                                    <input type="text" class="form-input" [class.is-invalid]="validaciones.ruc.mensaje && !validaciones.ruc.valido" [class.is-valid]="validaciones.ruc.valido" formControlName="ruc" (input)="validarRUC()" (blur)="validarRUC()" placeholder="Ej: 0701234567001"
+                                        maxlength="13" />
+                                    <small class="form-hint">13 dígitos - Debe iniciar con código de provincia</small> @if (validaciones.ruc.mensaje) {
+                                    <div class="validation-message">
+                                        @if (!validaciones.ruc.valido) {
+                                        <span class="text-danger">❌ {{ validaciones.ruc.mensaje }}</span> } @else {
+                                        <span class="text-success">✅ {{ validaciones.ruc.mensaje }}</span> }
+                                    </div>
+                                    }
+                                </div>
+
+                                <!-- Representante -->
+                                <div class="form-group">
+                                    <label class="form-label">Representante</label>
+                                    <input type="text" class="form-input" formControlName="representante" placeholder="Nombre del representante" />
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <!-- Teléfono Principal -->
+                                <div class="form-group">
+                                    <label class="form-label">Teléfono Principal</label>
+                                    <input type="tel" class="form-input" [class.is-invalid]="validaciones.telefonoPrincipal.mensaje && !validaciones.telefonoPrincipal.valido" [class.is-valid]="validaciones.telefonoPrincipal.valido" formControlName="telefonoPrincipal" (input)="validarTelefono('principal')"
+                                        (blur)="validarTelefono('principal')" placeholder="0991234567 ó 072931234" maxlength="10" />
+                                    <small class="form-hint">Celular: 09XXXXXXXX | Convencional: 07XXXXXXX</small> @if (validaciones.telefonoPrincipal.mensaje) {
+                                    <div class="validation-message">
+                                        @if (!validaciones.telefonoPrincipal.valido) {
+                                        <span class="text-danger">❌ {{ validaciones.telefonoPrincipal.mensaje }}</span> } @else {
+                                        <span class="text-success">✅ {{ validaciones.telefonoPrincipal.mensaje }}</span> }
+                                    </div>
+                                    }
+                                </div>
+
+                                <!-- Teléfono Secundario -->
+                                <div class="form-group">
+                                    <label class="form-label">Teléfono Secundario</label>
+                                    <input type="tel" class="form-input" [class.is-invalid]="validaciones.telefonoSecundario.mensaje && !validaciones.telefonoSecundario.valido" [class.is-valid]="validaciones.telefonoSecundario.valido" formControlName="telefonoSecundario" (input)="validarTelefono('secundario')"
+                                        (blur)="validarTelefono('secundario')" placeholder="0991234568 ó 072931235" maxlength="10" />
+                                    <small class="form-hint">Celular: 09XXXXXXXX | Convencional: 07XXXXXXX</small> @if (validaciones.telefonoSecundario.mensaje) {
+                                    <div class="validation-message">
+                                        @if (!validaciones.telefonoSecundario.valido) {
+                                        <span class="text-danger">❌ {{ validaciones.telefonoSecundario.mensaje }}</span> } @else {
+                                        <span class="text-success">✅ {{ validaciones.telefonoSecundario.mensaje }}</span> }
+                                    </div>
+                                    }
+                                </div>
+                            </div>
+
+                            <!-- Dirección -->
+                            <div class="form-group">
+                                <label class="form-label">Dirección</label>
+                                <input type="text" class="form-input" formControlName="direccion" placeholder="Dirección completa del proveedor" />
+                            </div>
+
+                            <!-- Saldo -->
+                            <div class="form-group">
+                                <label class="form-label">Saldo Inicial</label>
+                                <input type="number" class="form-input" formControlName="saldo" step="0.01" placeholder="0.00" />
+                                <small class="form-hint">Opcional: Saldo inicial con el proveedor</small>
+                            </div>
+
+                        </form>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn-secondary" (click)="cerrarFormularioProveedor()" [disabled]="procesando()">
+                            Cancelar
+                        </button>
+                        <button type="button" class="btn-success" (click)="guardarNuevoProveedor()" [disabled]="procesando() || proveedorForm.invalid">
+                            @if (procesando()) {
+                            <span class="spinner-container">
+                                <span class="spinner"></span> Guardando...
+                            </span>
+                            } @else {
+                            <span>✅ Guardar Proveedor</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+            }
+
+            <!-- Tabla de productos -->
+            <div class="productos-card" style="margin-top: 1.5rem;">
+                <div class="productos-header">
+                    <div>
+                        <h5>🛍️ Productos a Importar</h5>
+                        <small>Edita los costos y grupos antes de confirmar</small>
+                    </div>
+                </div>
+                <div class="productos-body">
+                    @if (mensajeError()) {
+                    <div class="alert-error">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <span>{{ mensajeError() }}</span>
+                    </div>
+                    }
+
+                    <div class="table-wrapper">
+                        <table class="productos-table">
+                            <thead>
+                                <tr>
+                                    <th class="col-estado">Estado</th>
+                                    <th class="col-cant">Cant.</th>
+                                    <th class="col-codigo">Código</th>
+                                    <th class="col-producto">Producto</th>
+                                    <th class="col-modelo">Modelo</th>
+                                    <th class="col-color">Color</th>
+                                    <th class="col-grupo">Grupo</th>
+                                    <th class="col-costo">Costo</th>
+                                    <th class="col-pvp">PVP</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (prod of datosImportacion()!.productos; track $index) {
+                                <tr>
+                                    <td class="text-center">
+                                        @if (prod.estado === 'EXISTENTE') {
+                                        <span class="badge badge-success" title="Producto existente - se aumentará stock">
+                            🟢 EXISTE
+                          </span> } @else {
+                                        <span class="badge badge-info" title="Producto nuevo - se creará">
+                            🔵 NUEVO
+                          </span> }
+                                    </td>
+                                    <td class="text-center fw-bold">{{ prod.cantidad }}</td>
+                                    <td><code class="codigo">{{ prod.codigo }}</code></td>
+                                    <td class="producto-nombre">{{ prod.nombre }}</td>
+                                    <td class="text-muted">{{ prod.modelo }}</td>
+                                    <td class="text-muted">{{ prod.color }}</td>
+                                    <td>
+                                        <select class="form-select-sm" [(ngModel)]="prod.grupo">
+                          @for (grupo of gruposDisponibles; track grupo) {
+                            <option [value]="grupo">{{ grupo }}</option>
+                          }
+                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-input-sm" [(ngModel)]="prod.costo" step="0.01" min="0" placeholder="0.00">
+                                    </td>
+                                    <td class="text-end precio">
+                                        <strong>${{ prod.pvp1.toFixed(2) }}</strong>
+                                    </td>
+                                </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="productos-footer">
+                    <div class="footer-actions">
+                        <button type="button" class="btn-secondary" (click)="volver()">
+                <i class="bi bi-arrow-left"></i> Volver
+              </button>
+
+                        <div class="footer-info">
+                            <strong>{{ datosImportacion()!.productos.length }}</strong> productos ({{ productosNuevos }} nuevos, {{ productosExistentes }} existentes)
+                        </div>
+
+                        <button type="button" class="btn-success" [disabled]="procesando() || !proveedorExiste()" (click)="confirmarImportacion()">
+                @if (!proveedorExiste()) {
+                  <i class="bi bi-exclamation-circle"></i> Crear proveedor primero
+                } @else {
+                  <i class="bi bi-check-circle"></i> Confirmar Importación
+                }
+              </button>
+                    </div>
+                </div>
+            </div>
+            }
+
+            <!-- PASO 3: Procesando -->
+            @if (paso() === 3) {
+            <div class="paso-card">
+                <div class="paso-content text-center">
+                    <div class="spinner-large"></div>
+                    <h4 class="paso-title">Procesando importación...</h4>
+                    <p class="paso-subtitle">Por favor espera mientras se procesan los productos</p>
+                </div>
+            </div>
+            }
+
+        </div>
+    </div>
+</div>

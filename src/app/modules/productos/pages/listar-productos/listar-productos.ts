@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { Producto } from '../../../../core/models/producto.model';
 import { Observable } from 'rxjs';
 import { ProductosService } from '../../../../core/services/productos';
+import { ExcelService } from '../../../../core/services/excel.service';
 import { Router, ActivatedRoute } from '@angular/router';
 import Swal from 'sweetalert2';
 
@@ -29,6 +30,8 @@ export class ListarProductos implements OnInit {
     private router: Router,
     private route: ActivatedRoute
   ) {}
+
+  private excelService = inject(ExcelService);
 
   ngOnInit() {
     // Suscribirse a los parámetros de consulta para detectar cambios en el grupo
@@ -150,5 +153,23 @@ export class ListarProductos implements OnInit {
   limpiarBusqueda() {
     this.terminoBusqueda = '';
     this.aplicarFiltros();
+  }
+
+  /**
+   * 📤 Exportar productos a Excel
+   */
+  exportarProductos(): void {
+    const productosExportar = this.productosFiltrados.length > 0 
+      ? this.productosFiltrados 
+      : this.productos;
+    
+    this.excelService.exportarProductos(productosExportar, 'productos_optica');
+  }
+
+  /**
+   * 📥 Ir a importar productos
+   */
+  importarProductos(): void {
+    this.router.navigate(['/productos/importar']);
   }
 }

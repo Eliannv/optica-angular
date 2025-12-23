@@ -71,12 +71,12 @@ export class ProductosService {
   async getNextIdInterno(): Promise<number> {
     const counterDoc = doc(this.firestore, 'counters/productos');
     
+    // Verificar si existen productos ANTES de la transacción
+    const productosSnapshot = await getDocs(this.productosRef);
+    const hayProductos = !productosSnapshot.empty;
+    
     return runTransaction(this.firestore, async (transaction) => {
       const counterSnapshot = await transaction.get(counterDoc);
-      
-      // Verificar si existen productos en la colección
-      const productosSnapshot = await getDocs(this.productosRef);
-      const hayProductos = !productosSnapshot.empty;
       
       let nextId = 1; // Valor inicial si no hay productos
       
