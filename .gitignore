@@ -48,4 +48,13 @@ Thumbs.db
 
 # Firebase / Google secrets
 serviceAccountKey.json
+
+# Electron
+/release
+/dist-electron
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
 *.json
