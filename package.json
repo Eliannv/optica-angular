@@ -9,9 +9,9 @@
         "test": "ng test",
         "electron": "electron .",
         "electron:dev": "ng serve & electron .",
-        "electron:build": "ng build --configuration production && electron-builder",
+        "electron:build": "ng build --configuration production --base-href ./ && electron-builder",
         "pack": "electron-builder --dir",
-        "dist": "electron-builder"
+        "dist": "npm run electron:build"
     },
     "main": "electron/main.js",
     "prettier": {
@@ -73,7 +73,6 @@
             "target": [
                 "nsis"
             ],
-            "icon": "public/icono/icon.ico",
             "signAndEditExecutable": false
         },
         "nsis": {

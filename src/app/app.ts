@@ -1,7 +1,12 @@
-import { Component, signal, OnInit, HostListener } from '@angular/core';
+import { Component, signal, OnInit, HostListener, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterOutlet, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
+import { AuthService } from './core/services/auth.service';
+import { SessionService } from './core/services/session.service';
+import { ConnectivityService } from './core/services/connectivity.service';
+import { Subscription } from 'rxjs';
+import Swal from 'sweetalert2';
 
 // Importar componentes
 import { NavbarComponent } from './shared/components/navbar/navbar';
@@ -22,7 +27,7 @@ import { SplashScreenComponent } from './shared/components/splash-screen/splash-
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
-export class App implements OnInit {
+export class App implements OnInit, OnDestroy {
   protected readonly title = signal('optica-angular');
   
   // Control de vista
@@ -33,7 +38,16 @@ export class App implements OnInit {
   // Rutas de autenticación
   private authRoutes = ['/login', '/register', '/forgot-password'];
 
-  constructor(private router: Router) {
+  // Suscripciones
+  private authSubscription?: Subscription;
+  private connectivitySubscription?: Subscription;
+
+  constructor(
+    private router: Router,
+    private authService: AuthService,
+    private sessionService: SessionService,
+    private connectivityService: ConnectivityService
+  ) {
     this.checkScreenSize();
   }
 
@@ -51,6 +65,52 @@ export class App implements OnInit {
           this.sidebarVisible = false;
         }
       });
+
+    // Monitorear autenticación y activar/desactivar monitoreo de inactividad
+    this.authSubscription = this.authService.authState$.subscribe(user => {
+      if (user) {
+        // Usuario autenticado → Iniciar monitoreo de inactividad
+        this.sessionService.startInactivityMonitoring();
+      } else {
+        // Usuario no autenticado → Detener monitoreo
+        this.sessionService.stopInactivityMonitoring();
+      }
+    });
+
+    // Monitorear conectividad global
+    this.connectivitySubscription = this.connectivityService.getOnlineStatus().subscribe(isOnline => {
+      if (!isOnline && this.authService.isAuthenticated() && !this.isAuthRoute()) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Conexión perdida',
+          text: 'Se ha perdido la conexión a internet. Algunas funciones pueden no estar disponibles.',
+          confirmButtonColor: '#d33',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 5000,
+          timerProgressBar: true
+        });
+      } else if (isOnline && this.authService.isAuthenticated() && !this.isAuthRoute()) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Conexión restaurada',
+          text: 'La conexión a internet ha sido restaurada.',
+          confirmButtonColor: '#28a745',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true
+        });
+      }
+    });
+  }
+
+  ngOnDestroy() {
+    this.authSubscription?.unsubscribe();
+    this.connectivitySubscription?.unsubscribe();
+    this.sessionService.stopInactivityMonitoring();
   }
 
   @HostListener('window:resize')

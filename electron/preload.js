@@ -3,9 +3,23 @@
 // y tiene acceso limitado a APIs de Node.js
 
 const { contextBridge } = require('electron');
+const os = require('os');
+const crypto = require('crypto');
+
+/**
+ * Genera el mismo ID de máquina que en main.js
+ */
+function generarIdMaquina() {
+    const hostname = os.hostname();
+    const platform = os.platform();
+    const cpus = os.cpus()[0].model;
+    const machineInfo = `${hostname}-${platform}-${cpus}`;
+    return crypto.createHash('sha256').update(machineInfo).digest('hex').substring(0, 16);
+}
 
 // Exponer APIs seguras a la aplicación Angular
 contextBridge.exposeInMainWorld('electron', {
-  sucursal: 'PASAJE',
-  version: '1.0.0', // Hardcoded para evitar errores al leer package.json en ASAR
+    sucursal: 'PASAJE',
+    version: '1.0.0',
+    machineId: generarIdMaquina(), // Exponer machine ID para validación
 });

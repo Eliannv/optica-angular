@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, OnInit, OnDestroy } from '@angular/core';
 import {
   AbstractControl,
   FormBuilder,
@@ -8,11 +8,13 @@ import {
   Validators,
 } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
+import { ConnectivityService } from '../../../core/services/connectivity.service';
 import { RolUsuario } from '../../../core/models/usuario.model';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import Swal from 'sweetalert2';
 import { trigger, transition, style, animate } from '@angular/animations';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-auth-carousel',
@@ -29,7 +31,7 @@ import { trigger, transition, style, animate } from '@angular/animations';
     ])
   ]
 })
-export class AuthCarousel {
+export class AuthCarousel implements OnInit, OnDestroy {
   // Control de las secciones: 1 = login | 2 = registro | 3 = forgot password
   activeSlide = signal(1);
 
@@ -45,9 +47,18 @@ export class AuthCarousel {
   // Estados de carga
   isLoading = false;
 
+  // Control de visibilidad de contraseñas
+  showPassword = signal(false);
+  showRegisterPassword = signal(false);
+  showConfirmPassword = signal(false);
+
+  // Suscripciones
+  private connectivitySubscription?: Subscription;
+
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
+    private connectivityService: ConnectivityService,
     private router: Router
   ) {
     // Formulario de login
@@ -74,6 +85,25 @@ export class AuthCarousel {
     this.forgotForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
     });
+  }
+
+  ngOnInit(): void {
+    // Monitorear la conectividad
+    this.connectivitySubscription = this.connectivityService.getOnlineStatus().subscribe(isOnline => {
+      if (!isOnline && !this.isLoading) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Sin conexión a internet',
+          text: 'Se ha perdido la conexión a internet. Verifica tu red para continuar.',
+          confirmButtonColor: '#d33',
+          allowOutsideClick: false
+        });
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.connectivitySubscription?.unsubscribe();
   }
 
   // ========== VALIDACIONES PERSONALIZADAS ==========
@@ -105,9 +135,31 @@ export class AuthCarousel {
     this.activeSlide.set(slide);
   }
 
+  // ========== TOGGLE VISIBILIDAD DE CONTRASEÑAS ==========
+  togglePasswordVisibility(field: 'login' | 'register' | 'confirm') {
+    if (field === 'login') {
+      this.showPassword.set(!this.showPassword());
+    } else if (field === 'register') {
+      this.showRegisterPassword.set(!this.showRegisterPassword());
+    } else if (field === 'confirm') {
+      this.showConfirmPassword.set(!this.showConfirmPassword());
+    }
+  }
+
   // ========== LOGIN ==========
   onLogin() {
     if (this.loginForm.invalid) return;
+
+    // Verificar conexión antes de intentar login
+    if (!this.connectivityService.isOnline()) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Sin conexión a internet',
+        text: 'No se puede iniciar sesión sin conexión a internet. Verifica tu red e intenta nuevamente.',
+        confirmButtonColor: '#d33',
+      });
+      return;
+    }
 
     this.isLoading = true;
     const { email, password } = this.loginForm.value;
@@ -133,15 +185,43 @@ export class AuthCarousel {
       },
       error: (err: any) => {
         this.isLoading = false;
+        console.error('Error en login:', err);
+        
         let errorMessage = 'Credenciales inválidas. Verifica tu email y contraseña.';
+        let errorTitle = 'Error de inicio de sesión';
+        let errorIcon: 'error' | 'warning' = 'error';
 
-        if (err.message && err.message.includes('inactiva')) {
-          errorMessage = err.message;
+        // Manejar errores específicos
+        if (err.message) {
+          if (err.message.startsWith('OFFLINE:')) {
+            errorIcon = 'error';
+            errorTitle = 'Sin conexión a internet';
+            errorMessage = err.message.replace('OFFLINE: ', '');
+          } else if (err.message.startsWith('UNAUTHORIZED:')) {
+            errorIcon = 'warning';
+            errorTitle = 'Cuenta sin autorización';
+            errorMessage = err.message.replace('UNAUTHORIZED: ', '');
+          } else if (err.message.startsWith('BLOCKED:')) {
+            errorIcon = 'error';
+            errorTitle = 'Cuenta bloqueada';
+            errorMessage = err.message.replace('BLOCKED: ', '');
+          } else if (err.message.includes('inactiva') || err.message.includes('bloqueada')) {
+            errorMessage = err.message;
+          } else if (err.message.includes('sucursal') || err.message.includes('computadora')) {
+            errorIcon = 'warning';
+            errorTitle = 'Acceso restringido';
+            errorMessage = err.message;
+          } else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+            errorMessage = 'Credenciales inválidas. Verifica tu email y contraseña.';
+          } else if (err.code === 'auth/network-request-failed') {
+            errorTitle = 'Error de conexión';
+            errorMessage = 'No se pudo conectar con el servidor. Verifica tu conexión a internet.';
+          }
         }
 
         Swal.fire({
-          icon: 'error',
-          title: 'Error de inicio de sesión',
+          icon: errorIcon,
+          title: errorTitle,
           text: errorMessage,
           confirmButtonColor: '#d33',
         });

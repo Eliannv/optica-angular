@@ -172,8 +172,33 @@ input:focus {
 
 .input-wrapper input {
     width: 100%;
-    padding-right: 35px;
-    /* deja espacio para el icono */
+    padding-right: 75px;
+    /* deja espacio para el icono de toggle + warning */
+}
+
+
+/* --- Botón de toggle de contraseña --- */
+
+.toggle-password {
+    position: absolute;
+    right: 40px;
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    transition: color 0.2s ease;
+    z-index: 5;
+    &:hover {
+        color: #1E3A5F;
+    }
+    svg {
+        width: 20px;
+        height: 20px;
+    }
 }
 
 

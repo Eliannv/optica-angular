@@ -20,7 +20,7 @@ import {
   collectionData,
   serverTimestamp
 } from '@angular/fire/firestore';
-import { Observable, from, map, switchMap, of } from 'rxjs';
+import { Observable, from, map, switchMap, of, tap } from 'rxjs';
 import { Usuario, RolUsuario } from '../models/usuario.model';
 import { Router } from '@angular/router';
 
@@ -58,6 +58,11 @@ export class AuthService {
    * Iniciar sesión con email y contraseña
    */
   login(email: string, password: string): Observable<Usuario> {
+    // Verificar conexión a internet
+    if (!navigator.onLine) {
+      throw new Error('OFFLINE: No hay conexión a internet. Verifica tu red e intenta nuevamente.');
+    }
+
     return from(signInWithEmailAndPassword(this.auth, email, password)).pipe(
       switchMap(credential => {
         // Obtener los datos del usuario desde Firestore
@@ -67,12 +72,63 @@ export class AuthService {
         if (!userData) {
           throw new Error('Usuario no encontrado en la base de datos');
         }
-        if (!userData.activo) {
-          throw new Error('Tu cuenta está inactiva. Contacta al administrador.');
+        
+        // Verificar si el usuario está bloqueado
+        if (userData.activo === false && userData.rol === 2) {
+          // Distinguir entre "sin autorización" y "bloqueado"
+          // Si nunca ha tenido machineId, probablemente nunca fue autorizado
+          if (!userData.machineId) {
+            throw new Error('UNAUTHORIZED: Tu cuenta aún no ha sido autorizada por el administrador. Contacta al administrador para obtener acceso.');
+          } else {
+            throw new Error('BLOCKED: Tu cuenta ha sido bloqueada. Contacta al administrador para más información.');
+          }
         }
+        
+        // 🔐 VALIDACIÓN DE SUCURSAL Y MACHINE ID (Nivel 2)
+        this.validarAccesoSucursal(userData);
+        
         return userData;
       })
     );
+  }
+
+  /**
+   * Validar que el usuario tenga acceso a esta sucursal y machine ID
+   */
+  private validarAccesoSucursal(userData: Usuario): void {
+    // Obtener datos de Electron (solo disponible en app empaquetada)
+    const electronApi = (window as any).electron;
+    
+    if (!electronApi) {
+      // En desarrollo (navegador), permitir acceso
+      console.warn('⚠️ Ejecutando en modo desarrollo - validación de sucursal deshabilitada');
+      return;
+    }
+
+    const sucursalActual = electronApi.sucursal || 'PASAJE';
+    const machineIdActual = electronApi.machineId;
+
+    // Validar sucursal
+    if (userData.sucursal && userData.sucursal !== sucursalActual) {
+      throw new Error(
+        `Tu cuenta está asignada a la sucursal ${userData.sucursal}. ` +
+        `No puedes iniciar sesión desde ${sucursalActual}.`
+      );
+    }
+
+    // Validar machine ID
+    if (userData.machineId && userData.machineId !== machineIdActual) {
+      throw new Error(
+        'Esta cuenta está autorizada para otra computadora. ' +
+        'Contacta al administrador para autorizar este equipo.'
+      );
+    }
+
+    console.log('✅ Validación de acceso exitosa:', {
+      usuario: userData.email,
+      sucursal: sucursalActual,
+      machineId: machineIdActual
+    });
   }
 
   /**
@@ -96,6 +152,11 @@ export class AuthService {
 
   /**
    * Registrar un nuevo usuario (siempre como empleado)
+   *
+   * Importante: evitamos lecturas a Firestore antes de estar autenticado.
+   * Firebase Auth ya garantiza la unicidad del email.
+   * La unicidad de "cedula" se puede validar luego de crear la cuenta,
+   * ya autenticados, o con lógica de servidor si se desea 100% estricta.
    */
   register(userData: {
     cedula: string;
@@ -107,13 +168,21 @@ export class AuthService {
   }): Observable<Usuario> {
     return from(createUserWithEmailAndPassword(this.auth, userData.email, userData.password)).pipe(
       switchMap(credential => {
+        // Datos provenientes de Electron (solo app de escritorio)
+        const electronApi = (window as any).electron;
+        const sucursalActual = electronApi?.sucursal || 'PASAJE';
+
         // Crear el documento del usuario en Firestore
         const nuevoUsuario: Usuario = {
           id: credential.user.uid,
-          nombre: `${userData.nombre} ${userData.apellido}`,
-          email: userData.email,
+          nombre: userData.nombre,
+          apellido: userData.apellido,
+          cedula: userData.cedula,
+          fechaNacimiento: userData.fechaNacimiento,
+          email: userData.email.toLowerCase(),
           rol: RolUsuario.OPERADOR, // Siempre se registra como OPERADOR (rol 2)
-          activo: true,
+          activo: false, // Por defecto sin acceso hasta que admin autorice
+          sucursal: sucursalActual,
           createdAt: serverTimestamp()
         };
 
@@ -137,6 +206,19 @@ export class AuthService {
         }
         return null;
       })
+    );
+  }
+
+  /**
+   * Garantiza que currentUserData esté cargado; reutiliza caché si existe.
+   */
+  ensureUserData(uid: string): Observable<Usuario | null> {
+    if (this.currentUserData?.id === uid) {
+      return of(this.currentUserData);
+    }
+
+    return this.getUserData(uid).pipe(
+      tap(user => this.currentUserData = user)
     );
   }
 

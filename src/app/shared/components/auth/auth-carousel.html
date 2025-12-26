@@ -46,7 +46,19 @@
                 <div class="form-group">
                     <label>Contraseña:</label>
                     <div class="input-wrapper">
-                        <input type="password" formControlName="password" placeholder="********" [class.invalid]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
+                        <input [type]="showPassword() ? 'text' : 'password'" formControlName="password" placeholder="********" [class.invalid]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
+                        <button type="button" class="toggle-password" (click)="togglePasswordVisibility('login')" tabindex="-1">
+                            <svg *ngIf="!showPassword()" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                            <svg *ngIf="showPassword()" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+                                <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
+                                <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
+                                <line x1="2" x2="22" y1="2" y2="22"/>
+                            </svg>
+                        </button>
                         <div class="warning-icon" *ngIf="loginForm.get('password')?.touched && loginForm.get('password')?.invalid">
                             <span class="tooltip">
                                 <ng-container *ngIf="loginForm.get('password')?.hasError('required')">Contraseña requerida.<br></ng-container>
@@ -181,7 +193,19 @@
                 <div class="form-group">
                     <label>Contraseña:</label>
                     <div class="input-wrapper">
-                        <input type="password" formControlName="password" placeholder="********">
+                        <input [type]="showRegisterPassword() ? 'text' : 'password'" formControlName="password" placeholder="********">
+                        <button type="button" class="toggle-password" (click)="togglePasswordVisibility('register')" tabindex="-1">
+                            <svg *ngIf="!showRegisterPassword()" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                            <svg *ngIf="showRegisterPassword()" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+                                <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
+                                <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
+                                <line x1="2" x2="22" y1="2" y2="22"/>
+                            </svg>
+                        </button>
                         <div class="warning-icon" *ngIf="registerForm.get('password')?.touched && registerForm.get('password')?.invalid">
                             <span class="tooltip">
                                 <ng-container *ngIf="registerForm.get('password')?.hasError('required')">Contraseña requerida.<br></ng-container>
@@ -201,7 +225,19 @@
                 <div class="form-group">
                     <label>Confirmar contraseña:</label>
                     <div class="input-wrapper">
-                        <input type="password" formControlName="confirmPassword" placeholder="********">
+                        <input [type]="showConfirmPassword() ? 'text' : 'password'" formControlName="confirmPassword" placeholder="********">
+                        <button type="button" class="toggle-password" (click)="togglePasswordVisibility('confirm')" tabindex="-1">
+                            <svg *ngIf="!showConfirmPassword()" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                            <svg *ngIf="showConfirmPassword()" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+                                <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
+                                <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
+                                <line x1="2" x2="22" y1="2" y2="22"/>
+                            </svg>
+                        </button>
                         <div class="warning-icon" *ngIf="registerForm.get('confirmPassword')?.touched && registerForm.hasError('passwordMismatch')">
                             <span class="tooltip">
                                 Las contraseñas no coinciden.

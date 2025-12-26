@@ -28,6 +28,8 @@
                     },
                     "configurations": {
                         "production": {
+                            "baseHref": "./",
+                            "deployUrl": "./",
                             "budgets": [{
                                     "type": "initial",
                                     "maximumWarning": "1MB",

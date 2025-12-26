@@ -67,7 +67,16 @@ export const routes: Routes = [
     canActivate: [authGuard, roleGuard([RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR])]
   },
 
-  // 🔁 Redirecciones
+  // � Rutas protegidas - ADMINISTRADOR: Gestión de Empleados
+  {
+    path: 'empleados',
+    loadComponent: () =>
+      import('./modules/empleados/empleados.component')
+        .then(m => m.EmpleadosComponent),
+    canActivate: [authGuard, roleGuard([RolUsuario.ADMINISTRADOR])]
+  },
+
+  // �🔁 Redirecciones
   { path: '', redirectTo: 'login', pathMatch: 'full' },
   { path: '**', redirectTo: 'login' }
 ];
