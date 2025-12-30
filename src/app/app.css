@@ -123,6 +123,13 @@
     /* toma la altura del content-wrapper */
     max-height: 100%;
     transition: background-color var(--transition-normal);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.main-content::-webkit-scrollbar {
+    width: 0;
+    height: 0;
 }
 
 
