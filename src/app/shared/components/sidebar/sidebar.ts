@@ -4,6 +4,7 @@ import { RouterModule } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { AuthService } from '../../../core/services/auth.service';
 import { RolUsuario } from '../../../core/models/usuario.model';
+import Swal from 'sweetalert2';
 
 interface MenuItem {
   label: string;
@@ -319,5 +320,32 @@ export class SidebarComponent {
    */
   hasChildren(item: MenuItem): boolean {
     return !!(item.children && item.children.length > 0);
+  }
+
+  logout() {
+    Swal.fire({
+      title: '¿Cerrar sesión?',
+      text: '¿Estás seguro de que deseas salir?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Sí, salir',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.authService.logout().subscribe({
+          next: () => {
+            Swal.fire({
+              icon: 'success',
+              title: 'Sesión cerrada',
+              text: 'Has cerrado sesión correctamente',
+              showConfirmButton: false,
+              timer: 1500
+            });
+          }
+        });
+      }
+    });
   }
 }

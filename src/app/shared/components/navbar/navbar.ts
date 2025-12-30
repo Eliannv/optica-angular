@@ -4,7 +4,6 @@ import { Router, RouterModule } from '@angular/router';
 import { ThemeService } from '../../../core/services/theme.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { RolUsuario } from '../../../core/models/usuario.model';
-import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-navbar',
@@ -31,33 +30,6 @@ export class NavbarComponent {
 
   toggleTheme() {
     this.themeService.toggleTheme();
-  }
-
-  logout() {
-    Swal.fire({
-      title: '¿Cerrar sesión?',
-      text: '¿Estás seguro de que deseas salir?',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Sí, salir',
-      cancelButtonText: 'Cancelar'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        this.authService.logout().subscribe({
-          next: () => {
-            Swal.fire({
-              icon: 'success',
-              title: 'Sesión cerrada',
-              text: 'Has cerrado sesión correctamente',
-              showConfirmButton: false,
-              timer: 1500
-            });
-          }
-        });
-      }
-    });
   }
 
   get userName(): string {

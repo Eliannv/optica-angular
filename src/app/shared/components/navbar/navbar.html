@@ -43,19 +43,12 @@
   </span>
 </button>
 
-                <button class="navbar-btn" title="Notificaciones">
-          <i class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bell-icon lucide-bell"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg></i>
-        </button>
                 <div class="user-menu">
                     <button class="user-btn">
             <span class="user-avatar"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user-icon lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
             <span class="user-name">{{ userName }}</span>
             <span class="user-role" style="font-size: 0.75rem; opacity: 0.7; display: block;">{{ userRole }}</span>
           </button>
-                    <div class="dropdown-menu">
-                        <a class="dropdown-item" routerLink="/perfil">Mi Perfil</a>
-                        <a class="dropdown-item" (click)="logout()">Cerrar Sesión</a>
-                    </div>
                 </div>
             </div>
         </div>

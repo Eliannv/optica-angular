@@ -125,6 +125,6 @@ export class ListarFacturasComponent {
   }
 
   nuevaVenta() {
-    this.router.navigate(['/clientes/historial-clinica']);
+    this.router.navigate(['/clientes/historial-clinico']);
   }
 }

@@ -11,6 +11,7 @@ import { ThemeService } from '../../../core/services/theme.service';
 })
 export class FooterComponent {
   currentYear = new Date().getFullYear();
+  readonly appVersion = '1.0.0';
   private themeService = inject(ThemeService);
 
   isDark = computed(() => this.themeService.currentTheme() === 'dark');
