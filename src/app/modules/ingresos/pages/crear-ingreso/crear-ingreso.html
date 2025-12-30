@@ -99,7 +99,17 @@
                                 <!-- Nombre -->
                                 <div class="form-group">
                                     <label class="form-label required">Nombre del Proveedor</label>
-                                    <input type="text" id="proveedorNombre" class="form-input" formControlName="nombre" placeholder="Ej: Distribuidora Óptica S.A." (keydown.enter)="focusNext($event, 'proveedorRuc')" />
+                                    <input type="text" id="proveedorNombre" class="form-input" [class.is-invalid]="validaciones.nombre.mensaje && !validaciones.nombre.valido" [class.is-valid]="validaciones.nombre.valido" formControlName="nombre" (blur)="validarNombre()" placeholder="Ej: Distribuidora Óptica S.A."
+                                        (keydown.enter)="focusNext($event, 'proveedorRuc')" />
+                                    <div class="validation-message" *ngIf="validandoNombre">
+                                        <span class="text-muted d-inline-flex align-items-center gap-1">
+                                            <span class="spinner"></span> Validando nombre...
+                                        </span>
+                                    </div>
+                                    <div class="validation-message" *ngIf="validaciones.nombre.mensaje">
+                                        <span *ngIf="!validaciones.nombre.valido" class="text-danger">❌ {{ validaciones.nombre.mensaje }}</span>
+                                        <span *ngIf="validaciones.nombre.valido" class="text-success">✅ {{ validaciones.nombre.mensaje }}</span>
+                                    </div>
                                 </div>
 
                                 <div class="form-row">
@@ -109,6 +119,11 @@
                                         <input type="text" id="proveedorRuc" class="form-input" [class.is-invalid]="validaciones.ruc.mensaje && !validaciones.ruc.valido" [class.is-valid]="validaciones.ruc.valido" formControlName="ruc" (input)="validarRUC()" (blur)="validarRUC()" placeholder="Ej: 0701234567001"
                                             maxlength="13" (keydown.enter)="focusNext($event, 'proveedorRepresentante')" />
                                         <small class="form-hint">13 dígitos - Debe iniciar con código de provincia</small>
+                                        <div class="validation-message" *ngIf="validandoRuc">
+                                            <span class="text-muted d-inline-flex align-items-center gap-1">
+                                                <span class="spinner"></span> Validando RUC...
+                                            </span>
+                                        </div>
                                         <div class="validation-message" *ngIf="validaciones.ruc.mensaje">
                                             <span *ngIf="!validaciones.ruc.valido" class="text-danger">❌ {{ validaciones.ruc.mensaje }}</span>
                                             <span *ngIf="validaciones.ruc.valido" class="text-success">✅ {{ validaciones.ruc.mensaje }}</span>
@@ -168,7 +183,7 @@
                             <button type="button" class="btn-secondary" (click)="cancelarNuevoProveedor()" [disabled]="guardando()">
                                 Cancelar
                             </button>
-                            <button type="button" id="btnGuardarProveedor" class="btn-success" (click)="guardarNuevoProveedor()" [disabled]="guardando() || formNuevoProveedor.invalid">
+                            <button type="button" id="btnGuardarProveedor" class="btn-success" (click)="guardarNuevoProveedor()" [disabled]="guardando() || !puedeGuardarProveedor">
                                 <span *ngIf="guardando()" class="spinner-container">
                                     <span class="spinner"></span> Guardando...
                                 </span>
@@ -186,8 +201,16 @@
                             <span>Número de Factura</span>
                             <span class="required">*</span>
                         </label>
-                        <input type="text" id="ingresoNumeroFactura" class="form-input" [(ngModel)]="ingreso.numeroFactura" name="numeroFactura" placeholder="Ej: 001-001-000123" required (keydown.enter)="focusNext($event, 'ingresoFecha')" />
+                        <input type="text" id="ingresoNumeroFactura" class="form-input" [class.is-invalid]="validaciones.numeroFactura.mensaje && !validaciones.numeroFactura.valido" [class.is-valid]="validaciones.numeroFactura.valido" [(ngModel)]="ingreso.numeroFactura" name="numeroFactura"
+                            placeholder="Ej: 001-001-000123" required (keydown.enter)="focusNext($event, 'ingresoFecha')" (blur)="validarNumeroFactura()" (input)="validarNumeroFactura()" />
                         <small class="form-hint">Formato: Serie-Número</small>
+                        <div class="validation-message" *ngIf="validandoNumeroFactura">
+                            <span class="text-muted d-inline-flex align-items-center gap-1"><span class="spinner"></span> Validando número de factura...</span>
+                        </div>
+                        <div class="validation-message" *ngIf="validaciones.numeroFactura.mensaje">
+                            <span *ngIf="!validaciones.numeroFactura.valido" class="text-danger">❌ {{ validaciones.numeroFactura.mensaje }}</span>
+                            <span *ngIf="validaciones.numeroFactura.valido" class="text-success">✅ {{ validaciones.numeroFactura.mensaje }}</span>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -256,7 +279,7 @@
                     <button type="button" class="btn-cancel" (click)="cancelar()" [disabled]="guardando()">
                         ✕ Cancelar
                     </button>
-                    <button type="button" id="btnContinuar" class="btn-continue" (click)="continuar()" [disabled]="!ingresoForm.valid || guardando()">
+                    <button type="button" id="btnContinuar" class="btn-continue" (click)="continuar()" [disabled]="!ingresoForm.valid || guardando() || validandoNumeroFactura || (validaciones.numeroFactura.mensaje && !validaciones.numeroFactura.valido)">
                         <span *ngIf="guardando()" class="spinner-container">
                             <span class="spinner"></span> Guardando...
                         </span>

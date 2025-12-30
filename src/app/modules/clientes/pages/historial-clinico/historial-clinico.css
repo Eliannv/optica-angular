@@ -529,6 +529,38 @@
     text-align: right;
 }
 
+
+/* Observaciones: admite texto largo y saltos */
+
+.observaciones-item {
+    align-items: flex-start;
+}
+
+.observaciones-value {
+    flex: 1;
+    text-align: left;
+    white-space: pre-wrap;
+    /* respeta saltos, permite wrap */
+    word-break: break-word;
+    /* rompe palabras largas */
+    overflow-wrap: anywhere;
+    /* permite corte en cualquier punto */
+    max-height: 8rem;
+    /* evitar que el modal crezca infinito */
+    overflow-y: auto;
+    /* scroll si excede */
+    padding: 0.35rem 0.5rem;
+    border-radius: var(--radius-sm);
+    background: var(--item-bg);
+}
+
+@media (max-width: 768px) {
+    .observaciones-value {
+        max-height: 10rem;
+        /* un poco más alto en móviles */
+    }
+}
+
 .loading-state,
 .no-historial {
     text-align: center;

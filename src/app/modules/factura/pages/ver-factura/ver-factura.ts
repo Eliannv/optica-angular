@@ -1,8 +1,8 @@
 import { Component, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
-import { FacturasService } from '../../../core/services/facturas';
 import { Subscription } from 'rxjs';
+import { FacturasService } from '../../../../core/services/facturas';
 
 @Component({
   selector: 'app-ver-factura',

@@ -3,8 +3,10 @@ import { Producto } from '../../../../core/models/producto.model';
 import { Observable } from 'rxjs';
 import { ProductosService } from '../../../../core/services/productos';
 import { ExcelService } from '../../../../core/services/excel.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { Router, ActivatedRoute } from '@angular/router';
 import Swal from 'sweetalert2';
+import { UpperCasePipe } from '@angular/common';
 
 @Component({
   selector: 'app-listar-productos',
@@ -32,6 +34,7 @@ export class ListarProductos implements OnInit {
   ) {}
 
   private excelService = inject(ExcelService);
+  private authService = inject(AuthService);
 
   ngOnInit() {
     // Suscribirse a los parámetros de consulta para detectar cambios en el grupo
@@ -83,14 +86,25 @@ export class ListarProductos implements OnInit {
   }
 
   eliminarProducto(id: string) {
-    if (confirm('¿Está seguro de eliminar este producto?')) {
-      this.productosService.deleteProducto(id).then(() => {
-        alert('Producto eliminado exitosamente');
-      }).catch(error => {
-        console.error('Error al eliminar producto:', error);
-        alert('Error al eliminar el producto');
-      });
-    }
+    Swal.fire({
+      title: '¿Eliminar producto?',
+      text: 'Esta acción no se puede deshacer',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    }).then(result => {
+      if (result.isConfirmed) {
+        this.productosService.deleteProducto(id)
+          .then(() => {
+            Swal.fire('Eliminado', 'Producto eliminado exitosamente', 'success');
+          })
+          .catch(error => {
+            console.error('Error al eliminar producto:', error);
+            Swal.fire('Error', 'No se pudo eliminar el producto', 'error');
+          });
+      }
+    });
   }
 
   verDetalle(producto: Producto) {
@@ -157,13 +171,29 @@ export class ListarProductos implements OnInit {
 
   /**
    * 📤 Exportar productos a Excel
+   * Nombre: "INGRESO MERCADERIA (MES) - (NOMBRE ADMINISTRADOR)"
    */
   exportarProductos(): void {
     const productosExportar = this.productosFiltrados.length > 0 
       ? this.productosFiltrados 
       : this.productos;
     
-    this.excelService.exportarProductos(productosExportar, 'productos_optica');
+    // Obtener fecha actual para el mes
+    const meses = [
+      'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+      'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
+    ];
+    const fechaActual = new Date();
+    const mesActual = meses[fechaActual.getMonth()];
+    
+    // Obtener nombre del usuario administrador actual
+    const usuarioActual = this.authService.getCurrentUser();
+    const nombreAdministrador = usuarioActual?.nombre || 'ADMINISTRADOR';
+    
+    // Generar nombre del archivo
+    const nombreArchivo = `EXPORTACIÓN PRODUCTOS PASAJE ${mesActual}-${new UpperCasePipe().transform(nombreAdministrador)}`;
+    
+    this.excelService.exportarProductos(productosExportar, nombreArchivo);
   }
 
   /**

@@ -104,13 +104,36 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label class="form-label">Código Proveedor</label>
-                                        <input type="text" class="form-control" [(ngModel)]="nuevoProveedor.codigo" name="nuevoProv_codigo" placeholder="Ej: P001">
+                                        <input type="text" class="form-control" [class.is-invalid]="validaciones.codigo.mensaje && !validaciones.codigo.valido" [class.is-valid]="validaciones.codigo.valido" [(ngModel)]="nuevoProveedor.codigo" (blur)="validarCodigoProveedor()" name="nuevoProv_codigo"
+                                            placeholder="Ej: P001">
+                                        <div class="validation-feedback" *ngIf="validaciones.codigo.mensaje">
+                                            <span *ngIf="!validaciones.codigo.valido" class="text-danger">
+                                                <i class="bi bi-x-circle"></i> {{ validaciones.codigo.mensaje }}
+                                            </span>
+                                            <span *ngIf="validaciones.codigo.valido" class="text-success">
+                                                <i class="bi bi-check-circle"></i> {{ validaciones.codigo.mensaje }}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label class="form-label">Nombre del Proveedor *</label>
-                                        <input type="text" class="form-control" [(ngModel)]="nuevoProveedor.nombre" name="nuevoProv_nombre" placeholder="Ej: Distribuidora XYZ" required>
+                                        <input type="text" class="form-control" [class.is-invalid]="validaciones.nombre.mensaje && !validaciones.nombre.valido" [class.is-valid]="validaciones.nombre.valido" [(ngModel)]="nuevoProveedor.nombre" (blur)="validarNombreProveedor()" name="nuevoProv_nombre"
+                                            placeholder="Ej: Distribuidora XYZ" required>
+                                        <div class="validation-feedback" *ngIf="validandoNombre">
+                                            <span class="text-muted d-inline-flex align-items-center gap-1">
+                                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Validando nombre...
+                                            </span>
+                                        </div>
+                                        <div class="validation-feedback" *ngIf="validaciones.nombre.mensaje">
+                                            <span *ngIf="!validaciones.nombre.valido" class="text-danger">
+                                                <i class="bi bi-x-circle"></i> {{ validaciones.nombre.mensaje }}
+                                            </span>
+                                            <span *ngIf="validaciones.nombre.valido" class="text-success">
+                                                <i class="bi bi-check-circle"></i> {{ validaciones.nombre.mensaje }}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -118,7 +141,21 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label class="form-label">RUC *</label>
-                                        <input type="text" class="form-control" [(ngModel)]="nuevoProveedor.ruc" name="nuevoProv_ruc" placeholder="Ej: 1234567890001" required>
+                                        <input type="text" class="form-control" [class.is-invalid]="validaciones.ruc.mensaje && !validaciones.ruc.valido" [class.is-valid]="validaciones.ruc.valido" [(ngModel)]="nuevoProveedor.ruc" (input)="validarRUC()" (blur)="validarRUC()" name="nuevoProv_ruc"
+                                            placeholder="Ej: 1234567890001" required maxlength="13">
+                                        <div class="validation-feedback" *ngIf="validandoRuc">
+                                            <span class="text-muted d-inline-flex align-items-center gap-1">
+                                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Validando RUC...
+                                            </span>
+                                        </div>
+                                        <div class="validation-feedback" *ngIf="validaciones.ruc.mensaje">
+                                            <span *ngIf="!validaciones.ruc.valido" class="text-danger">
+                                                <i class="bi bi-x-circle"></i> {{ validaciones.ruc.mensaje }}
+                                            </span>
+                                            <span *ngIf="validaciones.ruc.valido" class="text-success">
+                                                <i class="bi bi-check-circle"></i> {{ validaciones.ruc.mensaje }}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -148,7 +185,7 @@
                             </div>
                             <div class="d-flex gap-2 justify-content-end">
                                 <button type="button" class="btn btn-secondary" (click)="cancelarNuevoProveedor()">Cancelar</button>
-                                <button type="button" class="btn btn-success" (click)="guardarNuevoProveedor()">Guardar Proveedor</button>
+                                <button type="button" class="btn btn-success" (click)="guardarNuevoProveedor()" [disabled]="!puedeGuardarProveedor">Guardar Proveedor</button>
                             </div>
                         </div>
                     </div>

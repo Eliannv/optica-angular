@@ -102,7 +102,17 @@
                         </div>
                         <div class="info-item">
                             <label>Nº Factura:</label>
-                            <span>{{ datosImportacion()!.numeroFactura }}</span>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; flex-direction: column; align-items: start;">
+                                <span>{{ datosImportacion()!.numeroFactura }}</span> @if (validandoNumeroFactura) {
+                                <span class="text-muted d-inline-flex align-items-center gap-1" style="font-size: 0.85rem;">
+                                    <span class="spinner" style="width: 12px; height: 12px; border-width: 2px;"></span> Validando...
+                                </span>
+                                } @if (validacionFactura.mensaje && !validacionFactura.valido) {
+                                <span class="badge" style="background: rgba(231, 76, 60, 0.15); color: #c0392b; border: 1px solid rgba(231, 76, 60, 0.3); font-size: 0.75rem;">
+                                    ⚠ {{ validacionFactura.mensaje }}
+                                </span> } @if (validacionFactura.mensaje && validacionFactura.valido) {
+                                <span class="badge-success" style="font-size: 0.75rem;">✓ {{ validacionFactura.mensaje }}</span> }
+                            </div>
                         </div>
                         <div class="info-item">
                             <label>Fecha:</label>
@@ -176,7 +186,18 @@
                             <!-- Nombre -->
                             <div class="form-group">
                                 <label class="form-label required">Nombre del Proveedor</label>
-                                <input type="text" class="form-input" formControlName="nombre" placeholder="Ej: Distribuidora Óptica S.A." />
+                                <input type="text" class="form-input" [class.is-invalid]="validaciones.nombre.mensaje && !validaciones.nombre.valido" [class.is-valid]="validaciones.nombre.valido" formControlName="nombre" (blur)="validarNombre()" placeholder="Ej: Distribuidora Óptica S.A."
+                                /> @if (validandoNombre) {
+                                <div class="validation-message text-muted d-inline-flex align-items-center gap-1">
+                                    <span class="spinner"></span> Validando nombre...
+                                </div>
+                                } @if (validaciones.nombre.mensaje) {
+                                <div class="validation-message">
+                                    @if (!validaciones.nombre.valido) {
+                                    <span class="text-danger">❌ {{ validaciones.nombre.mensaje }}</span> } @else {
+                                    <span class="text-success">✅ {{ validaciones.nombre.mensaje }}</span> }
+                                </div>
+                                }
                             </div>
 
                             <div class="form-row">
@@ -190,6 +211,10 @@
                                         @if (!validaciones.ruc.valido) {
                                         <span class="text-danger">❌ {{ validaciones.ruc.mensaje }}</span> } @else {
                                         <span class="text-success">✅ {{ validaciones.ruc.mensaje }}</span> }
+                                    </div>
+                                    } @if (validandoRuc) {
+                                    <div class="validation-message text-muted d-inline-flex align-items-center gap-1">
+                                        <span class="spinner"></span> Validando RUC...
                                     </div>
                                     }
                                 </div>
@@ -251,7 +276,7 @@
                         <button type="button" class="btn-secondary" (click)="cerrarFormularioProveedor()" [disabled]="procesando()">
                             Cancelar
                         </button>
-                        <button type="button" class="btn-success" (click)="guardarNuevoProveedor()" [disabled]="procesando() || proveedorForm.invalid">
+                        <button type="button" class="btn-success" (click)="guardarNuevoProveedor()" [disabled]="procesando() || !puedeGuardarProveedor">
                             @if (procesando()) {
                             <span class="spinner-container">
                                 <span class="spinner"></span> Guardando...
@@ -342,9 +367,13 @@
                             <strong>{{ datosImportacion()!.productos.length }}</strong> productos ({{ productosNuevos }} nuevos, {{ productosExistentes }} existentes)
                         </div>
 
-                        <button type="button" class="btn-success" [disabled]="procesando() || !proveedorExiste()" (click)="confirmarImportacion()">
+                        <button type="button" class="btn-success" [disabled]="!puedeConfirmarImportacion" (click)="confirmarImportacion()">
                 @if (!proveedorExiste()) {
                   <i class="bi bi-exclamation-circle"></i> Crear proveedor primero
+                } @else if (validandoNumeroFactura) {
+                  <span class="spinner"></span> Validando factura...
+                } @else if (validacionFactura.mensaje && !validacionFactura.valido) {
+                  <i class="bi bi-exclamation-circle"></i> Número de factura duplicado
                 } @else {
                   <i class="bi bi-check-circle"></i> Confirmar Importación
                 }

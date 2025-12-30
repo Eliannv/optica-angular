@@ -115,14 +115,6 @@
 
                     <!-- Acciones -->
                     <div class="d-flex flex-wrap gap-2">
-                        <button *ngIf="!empleado.machineId" class="btn btn-success btn-sm" (click)="autorizarAcceso(empleado)" title="Autorizar acceso desde esta PC">
-                            Autorizar
-                        </button>
-
-                        <button *ngIf="empleado.machineId" class="btn btn-warning btn-sm" (click)="revocarAcceso(empleado)" title="Revocar acceso">
-                            Revocar
-                        </button>
-
                         <button class="btn btn-sm" [ngClass]="empleado.activo ? 'btn-outline-danger' : 'btn-outline-success'" (click)="toggleEstado(empleado)" [title]="empleado.activo ? 'Bloquear' : 'Desbloquear'">
                             {{ empleado.activo ? 'Bloquear' : 'Desbloquear' }}
                         </button>
@@ -178,7 +170,7 @@
             </div>
 
             <div class="form-text">
-                Nota: La sucursal y el Machine ID se gestionan desde las acciones de la tarjeta (Autorizar/Revocar).
+                Nota: La sucursal y el Machine ID se gestionan automáticamente desde la aplicación de escritorio.
             </div>
         </div>
         <div class="modal-footer">

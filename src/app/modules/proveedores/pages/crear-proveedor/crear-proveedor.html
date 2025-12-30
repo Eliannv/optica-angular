@@ -50,7 +50,21 @@
                 <!-- Nombre del Proveedor -->
                 <div class="form-group">
                     <label class="form-label">Nombre del Proveedor *</label>
-                    <input type="text" class="form-control" [(ngModel)]="proveedor.nombre" name="nombre" placeholder="Ej: Distribuidora Óptica S.A." required>
+                    <div class="input-with-validation">
+                        <input type="text" class="form-control" [class.is-invalid]="validaciones.nombre.mensaje && !validaciones.nombre.valido" [class.is-valid]="validaciones.nombre.valido" [(ngModel)]="proveedor.nombre" (blur)="validarNombre()" name="nombre" placeholder="Ej: Distribuidora Óptica S.A."
+                            required>
+                        <div class="validation-feedback">
+                            <span *ngIf="validandoNombre" class="text-muted d-inline-flex align-items-center gap-1">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Validando nombre...
+                            </span>
+                            <span *ngIf="validaciones.nombre.mensaje && !validaciones.nombre.valido" class="text-danger">
+                                <i class="bi bi-x-circle"></i> {{ validaciones.nombre.mensaje }}
+                            </span>
+                            <span *ngIf="validaciones.nombre.valido" class="text-success">
+                                <i class="bi bi-check-circle"></i> {{ validaciones.nombre.mensaje }}
+                            </span>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="row">
@@ -62,6 +76,9 @@
                                 <input type="text" class="form-control" [class.is-invalid]="validaciones.ruc.mensaje && !validaciones.ruc.valido" [class.is-valid]="validaciones.ruc.valido" [(ngModel)]="proveedor.ruc" (input)="validarRUC()" (blur)="validarRUC()" name="ruc" placeholder="Ej: 0701234567001"
                                     maxlength="13" required>
                                 <div class="validation-feedback">
+                                    <span *ngIf="validandoRuc" class="text-muted d-inline-flex align-items-center gap-1">
+                                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Validando RUC...
+                                    </span>
                                     <span *ngIf="validaciones.ruc.mensaje && !validaciones.ruc.valido" class="text-danger">
                                         <i class="bi bi-x-circle"></i> {{ validaciones.ruc.mensaje }}
                                     </span>
@@ -154,7 +171,7 @@
         </div>
         <div class="card-footer d-flex justify-between">
             <button class="btn btn-secondary" (click)="cancelar()">Cancelar</button>
-            <button class="btn btn-primary" (click)="guardar()">Guardar Proveedor</button>
+            <button class="btn btn-primary" (click)="guardar()" [disabled]="!puedeGuardar">Guardar Proveedor</button>
         </div>
     </div>
 </div>

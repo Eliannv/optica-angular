@@ -54,8 +54,12 @@ export class IngresosService {
 
   // 🔹 Crear ingreso (solo datos básicos - PASO 1)
   async crearIngresoBorrador(ingreso: Ingreso): Promise<string> {
+    const fechaSolo = ingreso.fecha ? new Date(ingreso.fecha) : new Date();
+    fechaSolo.setHours(0, 0, 0, 0);
+
     const nuevoIngreso = {
       ...ingreso,
+      fecha: fechaSolo,
       estado: 'BORRADOR',
       total: 0,
       createdAt: new Date(),
@@ -87,7 +91,7 @@ export class IngresosService {
     const ingresoDoc = doc(this.firestore, `ingresos/${ingresoId}`);
     const ingresoSnap = await getDoc(ingresoDoc);
     const ingreso = ingresoSnap.data() as Ingreso;
-    const proveedorIngreso = ingreso?.proveedor || '';
+    const proveedorIngreso = (ingreso as any)?.proveedorId || ingreso?.proveedor || '';
 
     for (const detalle of detalles) {
       if (detalle.tipo === 'NUEVO') {
@@ -198,7 +202,7 @@ export class IngresosService {
       stock: detalle.cantidad,
       costo: detalle.costoUnitario,
       pvp1: detalle.pvp1,
-      proveedor: ingreso?.proveedor || '',
+      proveedor: (ingreso as any)?.proveedorId || ingreso?.proveedor || '',
       ingresoId: ingresoId,
       observacion: detalle.observacion,
       createdAt: new Date(),
@@ -258,6 +262,15 @@ export class IngresosService {
 
       await addDoc(this.movimientosRef, nuevoMovimiento);
     }
+  }
+
+  // 🔹 Validar número de factura único
+  async numeroFacturaExists(numero: string): Promise<boolean> {
+    const numeroNormalizado = (numero || '').trim();
+    if (!numeroNormalizado) return false;
+    const qNum = query(this.ingresosRef, where('numeroFactura', '==', numeroNormalizado));
+    const snap = await getDocs(qNum);
+    return !snap.empty;
   }
 
   // 🔹 Obtener movimientos de un producto

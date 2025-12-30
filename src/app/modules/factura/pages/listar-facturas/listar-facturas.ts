@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { FacturasService } from '../../../core/services/facturas';
+import { FacturasService } from '../../../../core/services/facturas';
 
 type FiltroEstado = 'TODAS' | 'PENDIENTES' | 'PAGADAS';
 

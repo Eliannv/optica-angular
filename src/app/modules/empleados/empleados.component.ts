@@ -90,62 +90,44 @@ export class EmpleadosComponent implements OnInit {
   }
 
   toggleEstado(empleado: Usuario) {
+    const nuevoEstado = !empleado.activo;
+    
+    // Si se va a desbloquear, verificar que tengamos machineId
+    if (nuevoEstado && !this.machineIdActual) {
+      Swal.fire({ icon: 'error', title: 'Machine ID no disponible', text: 'Asegúrate de estar ejecutando la aplicación empaquetada.' });
+      return;
+    }
+
+    const texto = nuevoEstado 
+      ? `Desbloquear a ${empleado.nombre}.\nSe asignará:\nMachine ID: ${this.machineIdActual}\nSucursal: ${this.sucursalActual}`
+      : `¿Estás seguro de bloquear a ${empleado.nombre}?\nSe quitarán Machine ID y Sucursal.`;
+
     Swal.fire({
       icon: 'question',
       title: empleado.activo ? 'Bloquear empleado' : 'Desbloquear empleado',
-      text: `¿Estás seguro de ${empleado.activo ? 'bloquear' : 'desbloquear'} a ${empleado.nombre}?`,
+      text: texto,
       showCancelButton: true,
       confirmButtonText: 'Sí',
       cancelButtonText: 'No'
     }).then(res => {
       if (res.isConfirmed) {
-        this.empleadosService.toggleEstadoEmpleado(empleado.id!, !empleado.activo)
+        // Al desbloquear, asignar machineId y sucursal
+        // Al bloquear, quitar machineId y sucursal
+        const datosActualizacion = nuevoEstado 
+          ? { activo: nuevoEstado, machineId: this.machineIdActual!, sucursal: this.sucursalActual }
+          : { activo: nuevoEstado, machineId: undefined, sucursal: undefined };
+
+        this.empleadosService.toggleEstadoEmpleado(empleado.id!, datosActualizacion)
           .then(() => {
-            empleado.activo = !empleado.activo;
-            Swal.fire({ icon: 'success', title: 'Listo', text: `Empleado ${empleado.activo ? 'desbloqueado' : 'bloqueado'} exitosamente` });
-          })
-          .catch(err => Swal.fire({ icon: 'error', title: 'Error', text: err.message }));
-      }
-    });
-  }
-
-  autorizarAcceso(empleado: Usuario) {
-    if (!this.machineIdActual) {
-      Swal.fire({ icon: 'error', title: 'Machine ID no disponible', text: 'Asegúrate de estar ejecutando la aplicación empaquetada.' });
-      return;
-    }
-
-    const texto = empleado.machineId
-      ? `Actualizar acceso de ${empleado.nombre}.\nMachine ID: ${this.machineIdActual}\nSucursal: ${this.sucursalActual}`
-      : `Autorizar acceso a ${empleado.nombre}.\nMachine ID: ${this.machineIdActual}\nSucursal: ${this.sucursalActual}`;
-
-    Swal.fire({ icon: 'question', title: empleado.machineId ? 'Actualizar acceso' : 'Autorizar acceso', text: texto, showCancelButton: true })
-      .then(res => {
-        if (res.isConfirmed) {
-          this.empleadosService.autorizarAcceso(empleado.id!, this.machineIdActual!, this.sucursalActual)
-            .then(() => {
+            empleado.activo = nuevoEstado;
+            if (nuevoEstado) {
               empleado.machineId = this.machineIdActual!;
               empleado.sucursal = this.sucursalActual;
-              Swal.fire({ icon: 'success', title: 'Listo', text: 'Acceso autorizado exitosamente' });
-            })
-            .catch(err => Swal.fire({ icon: 'error', title: 'Error', text: err.message }));
-        }
-      });
-  }
-
-  revocarAcceso(empleado: Usuario) {
-    Swal.fire({
-      icon: 'warning',
-      title: 'Revocar acceso',
-      text: `¿Revocar el acceso de ${empleado.nombre}? El empleado no podrá iniciar sesión hasta ser autorizado nuevamente.`,
-      showCancelButton: true
-    }).then(res => {
-      if (res.isConfirmed) {
-        this.empleadosService.revocarAcceso(empleado.id!)
-          .then(() => {
-            empleado.machineId = undefined;
-            empleado.sucursal = undefined;
-            Swal.fire({ icon: 'success', title: 'Listo', text: 'Acceso revocado exitosamente' });
+            } else {
+              empleado.machineId = undefined;
+              empleado.sucursal = undefined;
+            }
+            Swal.fire({ icon: 'success', title: 'Listo', text: `Empleado ${nuevoEstado ? 'desbloqueado' : 'bloqueado'} exitosamente` });
           })
           .catch(err => Swal.fire({ icon: 'error', title: 'Error', text: err.message }));
       }

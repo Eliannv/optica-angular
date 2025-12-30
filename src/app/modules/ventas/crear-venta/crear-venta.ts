@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import Swal from 'sweetalert2';
 import { firstValueFrom } from 'rxjs';
 
 import { ClientesService } from '../../../core/services/clientes';
@@ -27,6 +28,8 @@ export class CrearVentaComponent implements OnInit {
   productos: any[] = [];
   filtro = '';
   productosFiltrados: any[] = [];
+  selectedIndex = -1; // Para navegación con flechas
+  productoSeleccionado: any = null; // Producto actualmente seleccionado
 
   items: any[] = []; // (tu ItemVenta ya lo usas pero aquí guardas nombre/tipo/total también)
 
@@ -42,8 +45,9 @@ export class CrearVentaComponent implements OnInit {
 
   // para ticket
   facturaParaImprimir: any = null;
-abono = 0;
-saldoPendiente = 0;
+  mostrandoVistaPrevia = false;
+  abono = 0;
+  saldoPendiente = 0;
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -79,38 +83,77 @@ saldoPendiente = 0;
     const t = (this.filtro || '').trim().toLowerCase();
     if (!t) {
       this.productosFiltrados = [...this.productos];
+      this.selectedIndex = -1;
       return;
     }
     this.productosFiltrados = this.productos.filter(p => {
       const n = (p.nombre || '').toLowerCase();
       const tipo = (p.tipo || p.categoria || '').toLowerCase();
-      return n.includes(t) || tipo.includes(t);
+      const modelo = (p.modelo || '').toLowerCase();
+      const color = (p.color || '').toLowerCase();
+      const codigo = (p.codigo || '').toLowerCase();
+      return n.includes(t) || tipo.includes(t) || modelo.includes(t) || color.includes(t) || codigo.includes(t);
     });
+    this.selectedIndex = -1;
   }
 
 
-recalcularAbono() {
-  const a = Math.max(0, Number(this.abono || 0));
-  // no permitir que el abono supere el total
-  this.abono = Math.min(a, this.total);
-  this.saldoPendiente = +(this.total - this.abono).toFixed(2);
-}
+  // Navegación con teclado en búsqueda
+  onSearchKeydown(event: KeyboardEvent) {
+    const filtrados = this.productosFiltrados;
+    if (filtrados.length === 0) return;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.selectedIndex = Math.min(this.selectedIndex + 1, filtrados.length - 1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      // Si no hay elemento seleccionado aún, seleccionar el primero
+      if (this.selectedIndex < 0) this.selectedIndex = 0;
+      // Agregar directamente al carrito SIN perder la selección
+      const p = filtrados[this.selectedIndex];
+      if (p) this.agregarProducto(p);
+      // Mantener el índice para que presionar Enter repetidas veces
+      // agregue más cantidad del mismo producto
+    }
+  }
+
+  recalcularAbono() {
+    const a = Math.max(0, Number(this.abono || 0));
+    // no permitir que el abono supere el total
+    this.abono = Math.min(a, this.total);
+    this.saldoPendiente = +(this.total - this.abono).toFixed(2);
+  }
 agregarProducto(p: any) {
   const id = p.id;
 
-  // ✅ PRECIO REAL DESDE FIRESTORE
-  const raw =
-    p?.precios?.pvp1 ??
-    p?.precios?.unidad ??
-    p?.precios?.caja ??
-    0;
+  // ✅ PRECIO REAL DESDE FIRESTORE (pvp1 o costo)
+  const precio = Number(p.pvp1 || p.costo || 0);
+  const stockDisponible = Number(p.stock || 0);
 
-  const precio = this.toNumber(raw);
-
-  console.log('PRECIO USADO =>', precio, p);
+  // Si no hay stock, no permitir agregar
+  if (!isFinite(stockDisponible) || stockDisponible <= 0) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Sin stock',
+      text: `El producto "${p.nombre}" no tiene stock disponible.`,
+    });
+    return;
+  }
 
   const existing = this.items.find(i => i.productoId === id);
   if (existing) {
+    if (existing.cantidad >= stockDisponible) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Stock insuficiente',
+        text: `Máximo disponible: ${stockDisponible}.`,
+      });
+      return;
+    }
     existing.cantidad++;
     existing.total = existing.cantidad * existing.precioUnitario;
   } else {
@@ -121,6 +164,7 @@ agregarProducto(p: any) {
       cantidad: 1,
       precioUnitario: precio,
       total: precio,
+      stockDisponible,
     });
   }
 
@@ -140,7 +184,19 @@ private toNumber(v: any): number {
 
 
   cambiarCantidad(it: any, cantidad: number) {
-    const c = Math.max(1, Number(cantidad || 1));
+    const max = Number(it?.stockDisponible ?? Number.POSITIVE_INFINITY);
+    let c = Math.max(1, Number(cantidad || 1));
+    if (isFinite(max)) {
+      const limitado = Math.min(c, max);
+      if (limitado < c) {
+        Swal.fire({
+          icon: 'info',
+          title: 'Cantidad límite',
+          text: `No puedes vender más de ${max} unidad(es) de "${it?.nombre}".`,
+        });
+      }
+      c = limitado;
+    }
     it.cantidad = c;
     it.total = it.cantidad * it.precioUnitario;
     this.recalcular();
@@ -163,6 +219,21 @@ async guardarEImprimir() {
   this.guardando = true;
 
   try {
+    // ✅ Verificar stock en tiempo real antes de guardar
+    for (const it of this.items) {
+      const prodActual: any = await firstValueFrom(this.productosSrv.getProductoById(it.productoId));
+      const disponible = Number(prodActual?.stock || 0);
+      if (disponible < it.cantidad) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Stock insuficiente',
+          text: `"${it.nombre}" ➜ disponible: ${disponible}, requerido: ${it.cantidad}.`,
+        });
+        this.guardando = false;
+        return;
+      }
+    }
+
     const abonado = Math.min(Math.max(0, Number(this.abono || 0)), this.total);
 const saldoPendiente = +(this.total - abonado).toFixed(2);
 
@@ -198,36 +269,45 @@ const factura: any = {
     const facturaLimpia = this.cleanUndefined(factura);
 const ref = await this.facturasSrv.crearFactura(facturaLimpia);
 
+    // ✅ Descontar stock de cada producto de manera segura
+    for (const it of this.items) {
+      try {
+        await this.productosSrv.descontarStock(it.productoId, it.cantidad);
+      } catch (err) {
+        console.error('Error descontando stock', err);
+        Swal.fire({
+          icon: 'error',
+          title: 'Stock no actualizado',
+          text: `Ocurrió un problema al actualizar el stock del producto "${it.nombre}". Por favor verifica manualmente.`,
+        });
+      }
+    }
 
-    // 🔥 CLAVE: primero setear el ticket
+    // Setear datos de la factura para vista previa
     this.facturaParaImprimir = {
       id: ref.id,
       ...factura,
     };
 
-    // 🔥 CLAVE: esperar a que Angular pinte el DOM
-    setTimeout(() => {
-      window.print();
-    }, 300);
+    // Mostrar vista previa en lugar de imprimir directamente
+    this.mostrandoVistaPrevia = true;
 
   } catch (e) {
     console.error(e);
-    alert('Error al guardar o imprimir la factura');
+    Swal.fire('Error', 'Error al guardar o imprimir la factura', 'error');
   } finally {
     this.guardando = false;
-
-// ✅ imprime SOLO el ticket
-document.body.classList.add('print-ticket');
-
-// espera 1 “tick” para que Angular pinte la facturaParaImprimir
-setTimeout(() => {
-  window.print();
-  // al terminar, quita la clase
-  setTimeout(() => document.body.classList.remove('print-ticket'), 500);
-}, 0);
-
   }
 }
+
+  imprimirAhora() {
+    window.print();
+    this.cerrarVistaPrevia();
+  }
+
+  cerrarVistaPrevia() {
+    this.mostrandoVistaPrevia = false;
+  }
 private cleanUndefined(obj: any): any {
   if (obj === null || obj === undefined) return null;
 

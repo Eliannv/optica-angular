@@ -42,15 +42,22 @@ export class ImportarProductosComponent {
   proveedorExistente = signal<Proveedor | null>(null);
   mostrarFormProveedor = signal<boolean>(false);
   proveedorForm!: FormGroup;
+  validandoNombre = false;
+  validandoRuc = false;
   
   // Validaciones para el proveedor
   validaciones = {
     codigo: { valido: false, mensaje: '' },
+    nombre: { valido: false, mensaje: '' },
     ruc: { valido: false, mensaje: '' },
     telefonoPrincipal: { valido: false, mensaje: '' },
     telefonoSecundario: { valido: false, mensaje: '' },
     codigoLugar: { valido: false, mensaje: '' }
   };
+
+  // Validación de factura
+  validacionFactura = { valido: true, mensaje: '' };
+  validandoNumeroFactura = false;
   
   gruposDisponibles = [
     'ARMAZONES',
@@ -65,6 +72,45 @@ export class ImportarProductosComponent {
 
   constructor() {
     this.inicializarFormularioProveedor();
+  }
+
+  get puedeConfirmarImportacion(): boolean {
+    if (!this.datosImportacion()) return false;
+    if (!this.proveedorExiste()) return false;
+    if (this.validandoNumeroFactura) return false;
+    if (this.validacionFactura.mensaje && !this.validacionFactura.valido) return false;
+    return !this.procesando();
+  }
+
+  /**
+   * Verificar si el formulario de proveedor es válido para guardar
+   */
+  get puedeGuardarProveedor(): boolean {
+    if (this.proveedorForm.invalid) {
+      return false;
+    }
+
+    if (this.validandoNombre || this.validandoRuc || this.validandoNumeroFactura) {
+      return false;
+    }
+
+    // Validar nombre (si tiene mensaje, debe ser válido)
+    if (this.validaciones.nombre.mensaje && !this.validaciones.nombre.valido) {
+      return false;
+    }
+
+    // Validar código (si hay código ingresado, debe ser válido)
+    const codigoValue = this.proveedorForm.get('codigo')?.value;
+    if (codigoValue && this.validaciones.codigo.mensaje && !this.validaciones.codigo.valido) {
+      return false;
+    }
+
+    // Validar RUC (si tiene mensaje, debe ser válido)
+    if (this.validaciones.ruc.mensaje && !this.validaciones.ruc.valido) {
+      return false;
+    }
+
+    return true;
   }
 
   /**
@@ -111,8 +157,13 @@ export class ImportarProductosComponent {
   /**
    * 📤 Descargar plantilla
    */
-  descargarPlantilla(): void {
-    this.excelService.exportarPlantilla();
+  async descargarPlantilla(): Promise<void> {
+    try {
+      await this.excelService.exportarPlantilla();
+    } catch (error) {
+      console.error('Error al descargar plantilla:', error);
+      Swal.fire('Error', 'No se pudo descargar la plantilla. Verifica que el archivo existe.', 'error');
+    }
   }
 
   /**
@@ -140,10 +191,13 @@ export class ImportarProductosComponent {
       // 2. Verificar si el proveedor existe
       await this.verificarProveedor(datos.proveedor);
       
-      // 3. Verificar qué productos existen
+      // 3. Verificar número de factura único
+      await this.validarNumeroFactura(datos.numeroFactura);
+      
+      // 4. Verificar qué productos existen
       await this.verificarProductosExistentes(datos.productos);
       
-      // 4. Mostrar preview
+      // 5. Mostrar preview
       this.datosImportacion.set(datos);
       this.paso.set(2);
       
@@ -216,6 +270,12 @@ export class ImportarProductosComponent {
   async confirmarImportacion(): Promise<void> {
     const datos = this.datosImportacion();
     if (!datos) return;
+
+    await this.validarNumeroFactura(datos.numeroFactura);
+    if (this.validacionFactura.mensaje && !this.validacionFactura.valido) {
+      this.mensajeError.set(this.validacionFactura.mensaje);
+      return;
+    }
 
     // Validar que todos tengan costo
     const sinCosto = datos.productos.filter(p => !p.costo || p.costo <= 0);
@@ -323,7 +383,7 @@ export class ImportarProductosComponent {
     return letras >= 1 && numeros >= 4;
   }
 
-  validarCodigo(): void {
+  async validarCodigo(): Promise<void> {
     const codigo = this.proveedorForm.get('codigo')?.value;
     if (!codigo || codigo.trim() === '') {
       this.validaciones.codigo.valido = false;
@@ -334,13 +394,49 @@ export class ImportarProductosComponent {
     if (!this.validarFormatoCodigo(codigo)) {
       this.validaciones.codigo.valido = false;
       this.validaciones.codigo.mensaje = 'Debe contener al menos 1 letra y 4 números';
-    } else {
-      this.validaciones.codigo.valido = true;
-      this.validaciones.codigo.mensaje = 'Formato válido';
+      return;
+    }
+
+    try {
+      const existe = await this.proveedoresService.codigoExists(codigo);
+      if (existe) {
+        this.validaciones.codigo.valido = false;
+        this.validaciones.codigo.mensaje = 'Este código ya está registrado';
+      } else {
+        this.validaciones.codigo.valido = true;
+        this.validaciones.codigo.mensaje = 'Código disponible';
+      }
+    } catch (error) {
+      console.error('Error al validar código:', error);
     }
   }
 
-  validarRUC(): void {
+  async validarNombre(): Promise<void> {
+    const nombre = this.proveedorForm.get('nombre')?.value;
+    if (!nombre || nombre.trim() === '') {
+      this.validaciones.nombre.valido = false;
+      this.validaciones.nombre.mensaje = '';
+      return;
+    }
+
+    this.validandoNombre = true;
+    try {
+      const existe = await this.proveedoresService.nombreExists(nombre);
+      if (existe) {
+        this.validaciones.nombre.valido = false;
+        this.validaciones.nombre.mensaje = 'Ya existe un proveedor con este nombre';
+      } else {
+        this.validaciones.nombre.valido = true;
+        this.validaciones.nombre.mensaje = 'Nombre disponible';
+      }
+    } catch (error) {
+      console.error('Error al validar nombre:', error);
+    } finally {
+      this.validandoNombre = false;
+    }
+  }
+
+  async validarRUC(): Promise<void> {
     const ruc = this.proveedorForm.get('ruc')?.value;
     
     if (!ruc || ruc.trim() === '') {
@@ -363,12 +459,52 @@ export class ImportarProductosComponent {
     }
 
     const tercerDigito = parseInt(ruc.charAt(2));
-    if (tercerDigito === 9 || tercerDigito === 6 || (tercerDigito >= 0 && tercerDigito <= 5)) {
-      this.validaciones.ruc.valido = true;
-      this.validaciones.ruc.mensaje = 'RUC válido';
-    } else {
+    if (!(tercerDigito === 9 || tercerDigito === 6 || (tercerDigito >= 0 && tercerDigito <= 5))) {
       this.validaciones.ruc.valido = false;
       this.validaciones.ruc.mensaje = 'Tercer dígito de RUC inválido';
+      return;
+    }
+
+    this.validandoRuc = true;
+    try {
+      const existe = await this.proveedoresService.rucExists(ruc);
+      if (existe) {
+        this.validaciones.ruc.valido = false;
+        this.validaciones.ruc.mensaje = 'Este RUC ya está registrado';
+        return;
+      }
+
+      this.validaciones.ruc.valido = true;
+      this.validaciones.ruc.mensaje = 'RUC válido';
+    } catch (error) {
+      console.error('Error al validar RUC:', error);
+    } finally {
+      this.validandoRuc = false;
+    }
+  }
+
+  async validarNumeroFactura(numero?: string): Promise<void> {
+    const value = numero ?? this.datosImportacion()?.numeroFactura;
+    if (!value || value.trim() === '') {
+      this.validacionFactura.valido = false;
+      this.validacionFactura.mensaje = '';
+      return;
+    }
+
+    this.validandoNumeroFactura = true;
+    try {
+      const existe = await this.ingresosService.numeroFacturaExists(value);
+      if (existe) {
+        this.validacionFactura.valido = false;
+        this.validacionFactura.mensaje = 'Este número de factura ya existe';
+      } else {
+        this.validacionFactura.valido = true;
+        this.validacionFactura.mensaje = 'Número de factura disponible';
+      }
+    } catch (error) {
+      console.error('Error al validar número de factura:', error);
+    } finally {
+      this.validandoNumeroFactura = false;
     }
   }
 
@@ -430,6 +566,27 @@ export class ImportarProductosComponent {
       return;
     }
 
+    // Validar nombre duplicado
+    await this.validarNombre();
+    if (!this.validaciones.nombre.valido && this.validaciones.nombre.mensaje) {
+      return;
+    }
+
+    // Validar RUC duplicado y formato
+    await this.validarRUC();
+    if (!this.validaciones.ruc.valido && this.validaciones.ruc.mensaje) {
+      return;
+    }
+
+    // Validar código si está presente
+    const codigoValue = this.proveedorForm.get('codigo')?.value;
+    if (codigoValue) {
+      await this.validarCodigo();
+      if (!this.validaciones.codigo.valido) {
+        return;
+      }
+    }
+
     this.procesando.set(true);
 
     try {
@@ -469,8 +626,8 @@ export class ImportarProductosComponent {
       console.error('Error al crear proveedor:', error);
       Swal.fire({
         icon: 'error',
-        title: 'Error',
-        text: 'No se pudo crear el proveedor. Intenta nuevamente.',
+        title: 'No se pudo crear',
+        text: error?.message || 'No se pudo crear el proveedor. Intenta nuevamente.',
         confirmButtonText: 'Cerrar'
       });
     } finally {

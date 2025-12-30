@@ -6,6 +6,7 @@ import { Ingreso } from '../../../../core/models/ingreso.model';
 import { IngresosService } from '../../../../core/services/ingresos.service';
 import { ProveedoresService } from '../../../../core/services/proveedores';
 import { Proveedor } from '../../../../core/models/proveedor.model';
+import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-crear-ingreso',
@@ -38,22 +39,60 @@ export class CrearIngresoComponent implements OnInit {
   // Lista de proveedores desde Firebase
   proveedores: Proveedor[] = [];
   proveedoresFiltrados: Proveedor[] = [];
+  proveedorSeleccionado: Proveedor | null = null;
   
   // Formulario reactivo para nuevo proveedor
   formNuevoProveedor!: FormGroup;
+  validandoNombre = false;
+  validandoRuc = false;
 
-  // Validaciones para el proveedor
+  // Validaciones para el proveedor y factura
   validaciones = {
     codigo: { valido: false, mensaje: '' },
+    nombre: { valido: false, mensaje: '' },
     ruc: { valido: false, mensaje: '' },
     telefonoPrincipal: { valido: false, mensaje: '' },
     telefonoSecundario: { valido: false, mensaje: '' },
-    codigoLugar: { valido: false, mensaje: '' }
+    codigoLugar: { valido: false, mensaje: '' },
+    numeroFactura: { valido: false, mensaje: '' }
   };
+
+  validandoNumeroFactura = false;
 
   ngOnInit() {
     this.cargarProveedores();
     this.initFormNuevoProveedor();
+  }
+
+  /**
+   * Verificar si el formulario de proveedor es válido para guardar
+   */
+  get puedeGuardarProveedor(): boolean {
+    if (this.formNuevoProveedor.invalid) {
+      return false;
+    }
+
+    if (this.validandoNombre || this.validandoRuc || this.validandoNumeroFactura) {
+      return false;
+    }
+
+    // Validar nombre (si tiene mensaje, debe ser válido)
+    if (this.validaciones.nombre.mensaje && !this.validaciones.nombre.valido) {
+      return false;
+    }
+
+    // Validar código (si hay código ingresado, debe ser válido)
+    const codigoValue = this.formNuevoProveedor.get('codigo')?.value;
+    if (codigoValue && this.validaciones.codigo.mensaje && !this.validaciones.codigo.valido) {
+      return false;
+    }
+
+    // Validar RUC (si tiene mensaje, debe ser válido)
+    if (this.validaciones.ruc.mensaje && !this.validaciones.ruc.valido) {
+      return false;
+    }
+
+    return true;
   }
 
   initFormNuevoProveedor() {
@@ -98,7 +137,16 @@ export class CrearIngresoComponent implements OnInit {
   }
 
   seleccionarProveedor(codigo: string) {
-    this.ingreso.proveedor = codigo;
+    const prov = this.proveedores.find(p =>
+      p.codigo?.toLowerCase() === codigo.toLowerCase() ||
+      p.id === codigo ||
+      p.nombre?.toLowerCase() === codigo.toLowerCase()
+    );
+
+    this.proveedorSeleccionado = prov || null;
+    // Guardar nombre visible; conservar id/código opcionalmente
+    this.ingreso.proveedor = prov?.nombre || codigo;
+    (this.ingreso as any).proveedorId = prov?.id || prov?.codigo || undefined;
     this.busquedaProveedor.set('');
   }
 
@@ -110,7 +158,7 @@ export class CrearIngresoComponent implements OnInit {
     return letras >= 1 && numeros >= 4;
   }
 
-  validarCodigo(): void {
+  async validarCodigo(): Promise<void> {
     const codigo = this.formNuevoProveedor.get('codigo')?.value;
     if (!codigo || codigo.trim() === '') {
       this.validaciones.codigo.valido = false;
@@ -121,13 +169,49 @@ export class CrearIngresoComponent implements OnInit {
     if (!this.validarFormatoCodigo(codigo)) {
       this.validaciones.codigo.valido = false;
       this.validaciones.codigo.mensaje = 'Debe contener al menos 1 letra y 4 números';
-    } else {
-      this.validaciones.codigo.valido = true;
-      this.validaciones.codigo.mensaje = 'Formato válido';
+      return;
+    }
+
+    try {
+      const existe = await this.proveedoresService.codigoExists(codigo);
+      if (existe) {
+        this.validaciones.codigo.valido = false;
+        this.validaciones.codigo.mensaje = 'Este código ya está registrado';
+      } else {
+        this.validaciones.codigo.valido = true;
+        this.validaciones.codigo.mensaje = 'Código disponible';
+      }
+    } catch (error) {
+      console.error('Error al validar código:', error);
     }
   }
 
-  validarRUC(): void {
+  async validarNombre(): Promise<void> {
+    const nombre = this.formNuevoProveedor.get('nombre')?.value;
+    if (!nombre || nombre.trim() === '') {
+      this.validaciones.nombre.valido = false;
+      this.validaciones.nombre.mensaje = '';
+      return;
+    }
+
+    this.validandoNombre = true;
+    try {
+      const existe = await this.proveedoresService.nombreExists(nombre);
+      if (existe) {
+        this.validaciones.nombre.valido = false;
+        this.validaciones.nombre.mensaje = 'Ya existe un proveedor con este nombre';
+      } else {
+        this.validaciones.nombre.valido = true;
+        this.validaciones.nombre.mensaje = 'Nombre disponible';
+      }
+    } catch (error) {
+      console.error('Error al validar nombre:', error);
+    } finally {
+      this.validandoNombre = false;
+    }
+  }
+
+  async validarRUC(): Promise<void> {
     const ruc = this.formNuevoProveedor.get('ruc')?.value;
     
     if (!ruc || ruc.trim() === '') {
@@ -150,12 +234,52 @@ export class CrearIngresoComponent implements OnInit {
     }
 
     const tercerDigito = parseInt(ruc.charAt(2));
-    if (tercerDigito === 9 || tercerDigito === 6 || (tercerDigito >= 0 && tercerDigito <= 5)) {
-      this.validaciones.ruc.valido = true;
-      this.validaciones.ruc.mensaje = 'RUC válido';
-    } else {
+    if (!(tercerDigito === 9 || tercerDigito === 6 || (tercerDigito >= 0 && tercerDigito <= 5))) {
       this.validaciones.ruc.valido = false;
       this.validaciones.ruc.mensaje = 'Tercer dígito de RUC inválido';
+      return;
+    }
+
+    this.validandoRuc = true;
+    try {
+      const existe = await this.proveedoresService.rucExists(ruc);
+      if (existe) {
+        this.validaciones.ruc.valido = false;
+        this.validaciones.ruc.mensaje = 'Este RUC ya está registrado';
+        return;
+      }
+
+      this.validaciones.ruc.valido = true;
+      this.validaciones.ruc.mensaje = 'RUC válido';
+    } catch (error) {
+      console.error('Error al validar RUC:', error);
+    } finally {
+      this.validandoRuc = false;
+    }
+  }
+
+  async validarNumeroFactura(): Promise<void> {
+    const num = this.ingreso.numeroFactura;
+    if (!num || num.trim() === '') {
+      this.validaciones.numeroFactura.valido = false;
+      this.validaciones.numeroFactura.mensaje = '';
+      return;
+    }
+
+    this.validandoNumeroFactura = true;
+    try {
+      const existe = await this.ingresosService.numeroFacturaExists(num);
+      if (existe) {
+        this.validaciones.numeroFactura.valido = false;
+        this.validaciones.numeroFactura.mensaje = 'Este número de factura ya existe';
+      } else {
+        this.validaciones.numeroFactura.valido = true;
+        this.validaciones.numeroFactura.mensaje = 'Número de factura disponible';
+      }
+    } catch (error) {
+      console.error('Error al validar número de factura:', error);
+    } finally {
+      this.validandoNumeroFactura = false;
     }
   }
 
@@ -261,6 +385,26 @@ export class CrearIngresoComponent implements OnInit {
       return;
     }
 
+    // Validar nombre duplicado
+    await this.validarNombre();
+    if (!this.validaciones.nombre.valido && this.validaciones.nombre.mensaje) {
+      return;
+    }
+
+    // Validar RUC
+    await this.validarRUC();
+    if (!this.validaciones.ruc.valido && this.validaciones.ruc.mensaje) {
+      return;
+    }
+
+    // Validar código si está presente
+    if (valores.codigo) {
+      await this.validarCodigo();
+      if (!this.validaciones.codigo.valido) {
+        return;
+      }
+    }
+
     this.guardando.set(true);
     try {
       const nuevoProveedor: Proveedor = {
@@ -280,9 +424,15 @@ export class CrearIngresoComponent implements OnInit {
       };
 
       const docRef = await this.proveedoresService.createProveedor(nuevoProveedor);
+
+      // Aviso de éxito
+      if ((window as any).Swal) {
+        await Swal.fire({ icon: 'success', title: 'Proveedor creado', timer: 1500, showConfirmButton: false });
+      }
       
-      // Asignar el código del nuevo proveedor al ingreso (o ID si no tiene código)
-      this.ingreso.proveedor = nuevoProveedor.codigo || docRef.id;
+      // Asignar el nombre del nuevo proveedor al ingreso y guardar id/código como referencia
+      this.ingreso.proveedor = nuevoProveedor.nombre;
+      (this.ingreso as any).proveedorId = nuevoProveedor.codigo || docRef.id;
       
       // Recargar proveedores
       this.cargarProveedores();
@@ -304,7 +454,11 @@ export class CrearIngresoComponent implements OnInit {
       this.error.set(null);
     } catch (err: any) {
       console.error('Error al crear proveedor:', err);
-      this.error.set('Error al crear el proveedor');
+      const msg = err?.message || 'Error al crear el proveedor';
+      this.error.set(msg);
+      if ((window as any).Swal) {
+        await Swal.fire({ icon: 'error', title: 'No se pudo crear', text: msg });
+      }
     } finally {
       this.guardando.set(false);
     }
@@ -330,6 +484,22 @@ export class CrearIngresoComponent implements OnInit {
     if (!this.ingreso.proveedor || !this.ingreso.numeroFactura) {
       this.error.set('Por favor completa los campos obligatorios');
       return;
+    }
+
+    await this.validarNumeroFactura();
+    if (this.validaciones.numeroFactura.mensaje && !this.validaciones.numeroFactura.valido) {
+      return;
+    }
+
+    // Asegurar que se guarde el nombre del proveedor (no solo el código)
+    const prov = this.proveedores.find(p =>
+      p.codigo?.toLowerCase() === this.ingreso.proveedor.toLowerCase() ||
+      p.nombre?.toLowerCase() === this.ingreso.proveedor.toLowerCase() ||
+      p.id === this.ingreso.proveedor
+    );
+    if (prov) {
+      this.ingreso.proveedor = prov.nombre;
+      (this.ingreso as any).proveedorId = prov.id || prov.codigo;
     }
 
     this.guardando.set(true);

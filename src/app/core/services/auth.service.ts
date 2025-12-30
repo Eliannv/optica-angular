@@ -181,7 +181,7 @@ export class AuthService {
           fechaNacimiento: userData.fechaNacimiento,
           email: userData.email.toLowerCase(),
           rol: RolUsuario.OPERADOR, // Siempre se registra como OPERADOR (rol 2)
-          activo: false, // Por defecto sin acceso hasta que admin autorice
+          activo: false, // Por defecto bloqueado hasta que admin desbloquee
           sucursal: sucursalActual,
           createdAt: serverTimestamp()
         };

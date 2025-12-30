@@ -7,6 +7,7 @@ import {
   getDocs,
   updateDoc,
   deleteDoc,
+  deleteField,
   collectionData,
   query,
   where,
@@ -72,12 +73,29 @@ export class EmpleadosService {
   /**
    * Bloquear/desbloquear empleado
    */
-  toggleEstadoEmpleado(id: string, activo: boolean): Promise<void> {
+  toggleEstadoEmpleado(id: string, datos: { activo: boolean; machineId?: string; sucursal?: string }): Promise<void> {
     const empleadoRef = doc(this.firestore, `usuarios/${id}`);
-    return updateDoc(empleadoRef, { 
-      activo,
+    
+    // Construir el objeto de actualización
+    const actualizacion: any = {
+      activo: datos.activo,
       updatedAt: new Date()
-    });
+    };
+
+    // Si machineId o sucursal son undefined, usar deleteField para eliminarlos
+    if (datos.machineId !== undefined) {
+      actualizacion.machineId = datos.machineId;
+    } else if ('machineId' in datos) {
+      actualizacion.machineId = deleteField();
+    }
+
+    if (datos.sucursal !== undefined) {
+      actualizacion.sucursal = datos.sucursal;
+    } else if ('sucursal' in datos) {
+      actualizacion.sucursal = deleteField();
+    }
+
+    return updateDoc(empleadoRef, actualizacion);
   }
 
   /**

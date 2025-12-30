@@ -157,6 +157,28 @@ export class ProductosService {
     });
   }
 
+  // 🔹 Descontar stock de forma segura (transacción)
+  async descontarStock(id: string, cantidad: number): Promise<void> {
+    if (!id || !isFinite(cantidad) || cantidad <= 0) return;
+    const productoDoc = doc(this.firestore, `productos/${id}`);
+
+    await runTransaction(this.firestore, async (t) => {
+      const snap = await t.get(productoDoc);
+      if (!snap.exists()) {
+        throw new Error('Producto no encontrado');
+      }
+      const data = snap.data() as any;
+      const stockActual = Number(data?.stock || 0);
+      if (stockActual < cantidad) {
+        throw new Error(`Stock insuficiente. Disponible: ${stockActual}, requerido: ${cantidad}`);
+      }
+      t.update(productoDoc, {
+        stock: stockActual - cantidad,
+        updatedAt: new Date(),
+      });
+    });
+  }
+
   // 🔹 Eliminar producto
   deleteProducto(id: string) {
     const productoDoc = doc(this.firestore, `productos/${id}`);

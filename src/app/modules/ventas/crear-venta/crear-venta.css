@@ -16,6 +16,7 @@
     box-shadow: var(--shadow-lg);
 }
 
+
 /* ============================================
    HEADER
 ============================================ */
@@ -128,6 +129,7 @@
     border: 1px solid rgba(231, 76, 60, 0.25);
 }
 
+
 /* ============================================
    BODY
 ============================================ */
@@ -163,6 +165,7 @@
     font-size: 0.75rem;
     font-weight: 700;
 }
+
 
 /* ============================================
    BÚSQUEDA
@@ -223,6 +226,7 @@
     background: var(--bg-active);
 }
 
+
 /* ============================================
    LISTA DE PRODUCTOS
 ============================================ */
@@ -275,15 +279,48 @@
     transform: translateX(4px);
 }
 
+.producto-selected {
+    background: var(--primary-color) !important;
+    color: white;
+    border-color: var(--primary-color) !important;
+}
+
+.producto-selected .producto-nombre,
+.producto-selected .producto-categoria,
+.producto-selected .producto-precio {
+    color: white !important;
+}
+
+.producto-selected .detalle-badge {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
 .producto-info {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .producto-nombre {
     font-weight: 600;
     font-size: 0.95rem;
-    margin-bottom: 0.25rem;
     color: var(--text-primary);
+}
+
+.producto-detalles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.detalle-badge {
+    background: var(--bg-subtle);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
 }
 
 .producto-categoria {
@@ -306,6 +343,7 @@
     font-size: 0.95rem;
     color: var(--text-secondary);
 }
+
 
 /* ============================================
    CARRITO
@@ -417,6 +455,7 @@
     transform: scale(1.1);
 }
 
+
 /* ============================================
    TOTALES
 ============================================ */
@@ -510,6 +549,7 @@
     opacity: 0.7;
     color: var(--text-secondary);
 }
+
 
 /* ============================================
    RESPONSIVE
@@ -631,6 +671,7 @@
     }
 }
 
+
 /* ============================================
    TICKET / PRINT STYLES
 ============================================ */
@@ -703,6 +744,233 @@
     opacity: 0.95;
 }
 
+
+/* ============================================
+   PRODUCTO SELECCIONADO
+============================================ */
+
+.selected-product-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    color: white;
+    box-shadow: var(--shadow-md);
+}
+
+.selected-product-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.selected-product-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xs);
+}
+
+.selected-product-header strong {
+    font-size: 1.1rem;
+    color: white;
+}
+
+.btn-cancel-x {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btn-cancel-x:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: rotate(90deg);
+}
+
+.selected-product-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-xs);
+}
+
+.detail-badge {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    color: white;
+    backdrop-filter: blur(10px);
+}
+
+.color-badge {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.selected-product-meta {
+    font-size: 0.9rem;
+    opacity: 0.95;
+}
+
+.meta-label {
+    opacity: 0.8;
+}
+
+.selected-product-price {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    margin: var(--spacing-sm) 0;
+}
+
+.price-label {
+    opacity: 0.9;
+    font-size: 0.9rem;
+}
+
+.price-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+}
+
+.btn-block {
+    width: 100%;
+    margin-top: var(--spacing-sm);
+}
+
+
+/* ============================================
+   MODAL DE VISTA PREVIA
+============================================ */
+
+.preview-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.preview-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+}
+
+.preview-container {
+    position: relative;
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    z-index: 1;
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-subtle);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.preview-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+}
+
+.btn-close-modal {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.btn-close-modal:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: var(--text-primary);
+    transform: rotate(90deg);
+}
+
+.preview-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-lg);
+    background: #f5f5f5;
+}
+
+.ticket-preview {
+    background: white;
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.preview-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-subtle);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.text-warning {
+    color: #ff6b00;
+    font-weight: bold;
+}
+
 @media print {
     @page {
         size: 80mm auto;
@@ -718,6 +986,9 @@
     body * {
         display: none !important;
         visibility: hidden !important;
+    }
+    .preview-modal {
+        display: none !important;
     }
     .ticket,
     .ticket * {

@@ -136,21 +136,17 @@ export class ExcelService {
   }
 
   /**
-   * 📤 Exportar productos a Excel
+   * 📤 Exportar productos a Excel (sin grupo ni costo)
    */
   exportarProductos(productos: Producto[], nombreArchivo: string = 'productos'): void {
-    // Preparar datos para exportar
+    // Preparar datos para exportar (sin GRUPO ni COSTO)
     const datosExport = productos.map(p => ({
+      'CANTIDAD': p.stock || 0, // Stock del producto
       'CÓDIGO': p.codigo || '',
-      'NOMBRE': p.nombre || '',
-      'MODELO': p.modelo || '',
-      'COLOR': p.color || '',
-      'GRUPO': p.grupo || '',
-      'STOCK': p.stock || 0,
-      'COSTO': p.costo ? `$ ${p.costo.toFixed(2)}` : '$ 0.00',
-      'PVP': p.pvp1 ? `$ ${p.pvp1.toFixed(2)}` : '$ 0.00',
-      'PROVEEDOR': p.proveedor || '',
-      'OBSERVACIÓN': p.observacion || ''
+      'PRODUCTO': p.nombre || '',
+      'DETALLE VARILLA': p.modelo || '',
+      'MATERIA / COLOR': p.color || '',
+      'V/PUBLICO': p.pvp1 ? `$ ${p.pvp1.toFixed(2)}` : '$ 0.00'
     }));
 
     // Crear hoja de cálculo
@@ -158,62 +154,116 @@ export class ExcelService {
     
     // Ajustar ancho de columnas
     const columnWidths = [
-      { wch: 15 }, // CÓDIGO
-      { wch: 30 }, // NOMBRE
-      { wch: 25 }, // MODELO
-      { wch: 25 }, // COLOR
-      { wch: 15 }, // GRUPO
-      { wch: 10 }, // STOCK
-      { wch: 12 }, // COSTO
-      { wch: 12 }, // PVP
-      { wch: 20 }, // PROVEEDOR
-      { wch: 30 }, // OBSERVACIÓN
+      { wch: 10 }, // CANTIDAD
+      { wch: 12 }, // CÓDIGO
+      { wch: 25 }, // PRODUCTO
+      { wch: 30 }, // DETALLE VARILLA
+      { wch: 30 }, // MATERIA / COLOR
+      { wch: 12 }, // V/PUBLICO
     ];
     worksheet['!cols'] = columnWidths;
 
     // Crear libro
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Productos');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'EXPORTACIÓN');
 
-    // Generar archivo y descargar
-    const fecha = new Date().toISOString().split('T')[0];
-    XLSX.writeFile(workbook, `${nombreArchivo}_${fecha}.xlsx`);
+    // Generar archivo y descargar con nombre personalizado
+    XLSX.writeFile(workbook, `${nombreArchivo}.xlsx`);
   }
 
   /**
    * 📤 Exportar plantilla vacía para importación
+   * Descarga el archivo plantilla_importacion_productos.xlsx
+   * Usa IPC en Electron, fetch en web
    */
-  exportarPlantilla(): void {
-    const plantilla = [
-      ['', 'OPTICA MACIAS EL GUABO', '', '', '', ''],
-      ['', 'PLANTILLA DE PRODUCTOS', '', '', '', ''],
-      ['PROVEEDOR', 'NOMBRE_PROVEEDOR', '', 'FACT', '', ''],
-      ['ENVIADA', 'DD/MM/YYYY', '', 'FACT/SISTEMA', 'NUM_FACTURA', ''],
-      ['', '', '', '', '', ''],
-      ['CANT', 'CODIGO', 'PRODUCTO', 'DETALLE VARILLA', 'MATERIA / COLOR', 'V/PUBLICO'],
-      [1, '917', 'ACADEMIC', 'AC1031-51-18-146-C4', 'PASTA/AZUL', '$ 30'],
-      [2, '918', 'ACADEMIC', 'AC1029-54-18-146-C4', 'PASTA/AZUL', '$ 30'],
-    ];
+  async exportarPlantilla(): Promise<void> {
+    try {
+      let blob: Blob | null = null;
 
-    const worksheet = XLSX.utils.aoa_to_sheet(plantilla);
-    
-    // Aplicar estilos (colores de fondo)
-    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
-    
-    // Ajustar ancho de columnas
-    worksheet['!cols'] = [
-      { wch: 8 },  // CANT
-      { wch: 12 }, // CODIGO
-      { wch: 25 }, // PRODUCTO
-      { wch: 30 }, // DETALLE
-      { wch: 30 }, // COLOR
-      { wch: 12 }, // V/PUBLICO
-    ];
+      // Intentar usar IPC si estamos en Electron
+      if ((window as any).electronAPI?.descargarPlantilla) {
+        console.log('📦 Usando IPC de Electron para descargar plantilla');
+        try {
+          const resultado = await (window as any).electronAPI.descargarPlantilla();
+          
+          if (resultado.success && resultado.data) {
+            // Convertir base64 a blob
+            const binaryString = atob(resultado.data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            blob = new Blob([bytes], { 
+              type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+            });
+            console.log(`✅ Archivo obtenido vía IPC (${blob.size} bytes)`);
+          } else {
+            console.log('❌ IPC retornó error:', resultado.error);
+          }
+        } catch (ipcError) {
+          console.log('❌ Error usando IPC:', ipcError);
+        }
+      }
 
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'PLANTILLA');
+      // Si no se obtuvo vía IPC, intentar fetch con múltiples rutas
+      if (!blob || blob.size === 0) {
+        console.log('📡 Intentando fetch desde web');
+        
+        const rutasIntento = [
+          '/plantilla_importacion_productos.xlsx',           // Ruta absoluta (dev)
+          './plantilla_importacion_productos.xlsx',         // Ruta relativa (Electron empaquetado)
+          '../plantilla_importacion_productos.xlsx',        // Ruta relativa (backup)
+        ];
+        
+        let ultimoError: Error | null = null;
+        
+        // Intentar cada ruta
+        for (const ruta of rutasIntento) {
+          try {
+            console.log(`🔍 Intentando descargar desde: ${ruta}`);
+            const response = await fetch(ruta, { 
+              method: 'GET',
+              cache: 'no-cache' 
+            });
+            
+            if (response.ok) {
+              blob = await response.blob();
+              
+              // Validar que es un archivo válido
+              if (blob.size > 0) {
+                console.log(`✅ Archivo descargado correctamente desde: ${ruta} (${blob.size} bytes)`);
+                break;
+              }
+            }
+          } catch (error) {
+            ultimoError = error as Error;
+            console.log(`❌ Error intentando ${ruta}:`, ultimoError.message);
+            continue;
+          }
+        }
+        
+        // Si no se encontró en ninguna ruta
+        if (!blob || blob.size === 0) {
+          throw new Error(`No se pudo descargar la plantilla desde ninguna ruta. Último error: ${ultimoError?.message || 'Desconocido'}`);
+        }
+      }
 
-    XLSX.writeFile(workbook, 'plantilla_importacion_productos.xlsx');
+      // Crear link de descarga con el blob
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'plantilla_importacion_productos.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Liberar la memoria del URL
+      URL.revokeObjectURL(link.href);
+      
+      console.log('✅ Plantilla descargada exitosamente');
+    } catch (error) {
+      console.error('Error al descargar plantilla:', error);
+      throw new Error('No se pudo descargar la plantilla. Verifica que el archivo existe.');
+    }
   }
 
   /**

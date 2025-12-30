@@ -62,13 +62,18 @@
         "appId": "com.optica.pasaje",
         "productName": "SistemaOptica-PASAJE",
         "directories": {
-            "output": "release"
+            "output": "release",
+            "buildResources": "public"
         },
         "files": [
             "dist/**/*",
             "electron/**/*",
-            "public/**/*"
+            "public/**/*",
+            "plantilla_importacion_productos.xlsx"
         ],
+        "extraMetadata": {
+            "main": "electron/main.js"
+        },
         "win": {
             "target": [
                 "nsis"

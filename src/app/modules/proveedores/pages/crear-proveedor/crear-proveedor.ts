@@ -31,6 +31,7 @@ export class CrearProveedor implements OnInit {
   // Validaciones
   validaciones = {
     codigo: { valido: false, mensaje: '' },
+    nombre: { valido: false, mensaje: '' },
     ruc: { valido: false, mensaje: '' },
     telefonoPrincipal: { valido: false, mensaje: '' },
     telefonoSecundario: { valido: false, mensaje: '' },
@@ -40,6 +41,8 @@ export class CrearProveedor implements OnInit {
 
   validandoCodigo = false;
   codigoExiste = false;
+  validandoNombre = false;
+  validandoRuc = false;
 
   constructor(
     private proveedoresService: ProveedoresService,
@@ -51,6 +54,55 @@ export class CrearProveedor implements OnInit {
     this.validaciones.saldo.valido = true;
   }
 
+  // Verificar si el formulario es válido para guardar
+  get puedeGuardar(): boolean {
+    // Campos obligatorios
+    if (!this.proveedor.nombre || !this.proveedor.ruc) {
+      return false;
+    }
+
+    // Evitar guardar mientras se valida nombre o RUC
+    if (this.validandoNombre || this.validandoRuc) {
+      return false;
+    }
+
+    // Validar nombre (si tiene mensaje, debe ser válido)
+    if (this.validaciones.nombre.mensaje && !this.validaciones.nombre.valido) {
+      return false;
+    }
+
+    // Validar código (si hay código ingresado, debe ser válido)
+    if (this.proveedor.codigo && this.validaciones.codigo.mensaje && !this.validaciones.codigo.valido) {
+      return false;
+    }
+
+    // Validar RUC (si tiene mensaje, debe ser válido)
+    if (this.validaciones.ruc.mensaje && !this.validaciones.ruc.valido) {
+      return false;
+    }
+
+    // Validar teléfonos (si están llenos y tienen mensaje, deben ser válidos)
+    if (this.proveedor.telefonos?.principal && this.validaciones.telefonoPrincipal.mensaje && !this.validaciones.telefonoPrincipal.valido) {
+      return false;
+    }
+
+    if (this.proveedor.telefonos?.secundario && this.validaciones.telefonoSecundario.mensaje && !this.validaciones.telefonoSecundario.valido) {
+      return false;
+    }
+
+    // Validar código de lugar (si está lleno y tiene mensaje, debe ser válido)
+    if (this.proveedor.direccion?.codigoLugar && this.validaciones.codigoLugar.mensaje && !this.validaciones.codigoLugar.valido) {
+      return false;
+    }
+
+    // Validar saldo
+    if (!this.validaciones.saldo.valido) {
+      return false;
+    }
+
+    return true;
+  }
+
   // Validar formato de código (1 letra y 4 números)
   validarFormatoCodigo(codigo: string): boolean {
     if (!codigo) return false;
@@ -60,7 +112,7 @@ export class CrearProveedor implements OnInit {
   }
 
   // Validar código del proveedor
-  validarCodigo(): void {
+  async validarCodigo(): Promise<void> {
     if (!this.proveedor.codigo || this.proveedor.codigo.trim() === '') {
       this.validaciones.codigo.valido = false;
       this.validaciones.codigo.mensaje = '';
@@ -70,14 +122,51 @@ export class CrearProveedor implements OnInit {
     if (!this.validarFormatoCodigo(this.proveedor.codigo)) {
       this.validaciones.codigo.valido = false;
       this.validaciones.codigo.mensaje = 'Debe contener al menos 1 letra y 4 números';
-    } else {
-      this.validaciones.codigo.valido = true;
-      this.validaciones.codigo.mensaje = 'Formato válido';
+      return;
+    }
+
+    // Verificar si el código ya existe
+    try {
+      const existe = await this.proveedoresService.codigoExists(this.proveedor.codigo);
+      if (existe) {
+        this.validaciones.codigo.valido = false;
+        this.validaciones.codigo.mensaje = 'Este código ya está registrado';
+      } else {
+        this.validaciones.codigo.valido = true;
+        this.validaciones.codigo.mensaje = 'Código disponible';
+      }
+    } catch (error) {
+      console.error('Error al validar código:', error);
+    }
+  }
+
+  // Validar nombre del proveedor (unicidad)
+  async validarNombre(): Promise<void> {
+    if (!this.proveedor.nombre || this.proveedor.nombre.trim() === '') {
+      this.validaciones.nombre.valido = false;
+      this.validaciones.nombre.mensaje = '';
+      return;
+    }
+
+    this.validandoNombre = true;
+    try {
+      const existe = await this.proveedoresService.nombreExists(this.proveedor.nombre);
+      if (existe) {
+        this.validaciones.nombre.valido = false;
+        this.validaciones.nombre.mensaje = 'Ya existe un proveedor con este nombre';
+      } else {
+        this.validaciones.nombre.valido = true;
+        this.validaciones.nombre.mensaje = 'Nombre disponible';
+      }
+    } catch (error) {
+      console.error('Error al validar nombre:', error);
+    } finally {
+      this.validandoNombre = false;
     }
   }
 
   // Validar RUC ecuatoriano (13 dígitos)
-  validarRUC(): void {
+  async validarRUC(): Promise<void> {
     const ruc = this.proveedor.ruc;
     
     if (!ruc || ruc.trim() === '') {
@@ -107,19 +196,27 @@ export class CrearProveedor implements OnInit {
     // Tipo 9 = RUC público o privado sin cédula
     // Tipo 6 = RUC sociedades públicas
     // Tipo 0-5 = Persona natural o jurídica con cédula
-    if (tercerDigito === 9 || tercerDigito === 6) {
-      this.validaciones.ruc.valido = true;
-      this.validaciones.ruc.mensaje = 'RUC válido';
+    if (!(tercerDigito === 9 || tercerDigito === 6 || (tercerDigito >= 0 && tercerDigito <= 5))) {
+      this.validaciones.ruc.valido = false;
+      this.validaciones.ruc.mensaje = 'Tercer dígito de RUC inválido';
       return;
     }
 
-    // Validación más estricta para RUC basado en cédula
-    if (tercerDigito >= 0 && tercerDigito <= 5) {
+    this.validandoRuc = true;
+    try {
+      const existe = await this.proveedoresService.rucExists(ruc);
+      if (existe) {
+        this.validaciones.ruc.valido = false;
+        this.validaciones.ruc.mensaje = 'Este RUC ya está registrado';
+        return;
+      }
+
       this.validaciones.ruc.valido = true;
       this.validaciones.ruc.mensaje = 'RUC válido';
-    } else {
-      this.validaciones.ruc.valido = false;
-      this.validaciones.ruc.mensaje = 'Tercer dígito de RUC inválido';
+    } catch (error) {
+      console.error('Error al validar RUC:', error);
+    } finally {
+      this.validandoRuc = false;
     }
   }
 
@@ -200,23 +297,31 @@ export class CrearProveedor implements OnInit {
     }
   }
 
-  guardar() {
+  async guardar() {
     // Validar campos obligatorios
     if (!this.proveedor.nombre || !this.proveedor.ruc) {
-      alert('Por favor complete los campos obligatorios (Nombre y RUC)');
+      await Swal.fire({ icon: 'warning', title: 'Campos obligatorios', text: 'Por favor complete Nombre y RUC' });
       return;
     }
 
-    // Validar formato de código si está presente
-    if (this.proveedor.codigo && !this.validarFormatoCodigo(this.proveedor.codigo)) {
-      alert('El código debe contener al menos 1 letra y 4 números (Ej: P0001, PROV1234)');
+    // Validar nombre duplicado
+    await this.validarNombre();
+    if (!this.validaciones.nombre.valido && this.validaciones.nombre.mensaje) {
       return;
+    }
+
+    // Validar código si está presente
+    if (this.proveedor.codigo) {
+      await this.validarCodigo();
+      if (!this.validaciones.codigo.valido) {
+        return;
+      }
     }
 
     // Validar RUC
     this.validarRUC();
     if (!this.validaciones.ruc.valido) {
-      alert(`Error en RUC: ${this.validaciones.ruc.mensaje}`);
+      await Swal.fire({ icon: 'error', title: 'RUC inválido', text: this.validaciones.ruc.mensaje || 'Verifique el RUC' });
       return;
     }
 
@@ -224,7 +329,7 @@ export class CrearProveedor implements OnInit {
     if (this.proveedor.telefonos?.principal) {
       this.validarTelefono(this.proveedor.telefonos.principal, 'principal');
       if (!this.validaciones.telefonoPrincipal.valido) {
-        alert(`Error en teléfono principal: ${this.validaciones.telefonoPrincipal.mensaje}`);
+        await Swal.fire({ icon: 'error', title: 'Teléfono principal', text: this.validaciones.telefonoPrincipal.mensaje });
         return;
       }
     }
@@ -233,7 +338,7 @@ export class CrearProveedor implements OnInit {
     if (this.proveedor.telefonos?.secundario) {
       this.validarTelefono(this.proveedor.telefonos.secundario, 'secundario');
       if (!this.validaciones.telefonoSecundario.valido) {
-        alert(`Error en teléfono secundario: ${this.validaciones.telefonoSecundario.mensaje}`);
+        await Swal.fire({ icon: 'error', title: 'Teléfono secundario', text: this.validaciones.telefonoSecundario.mensaje });
         return;
       }
     }
@@ -242,7 +347,7 @@ export class CrearProveedor implements OnInit {
     if (this.proveedor.direccion?.codigoLugar) {
       this.validarCodigoLugar();
       if (!this.validaciones.codigoLugar.valido) {
-        alert(`Error en código de lugar: ${this.validaciones.codigoLugar.mensaje}`);
+        await Swal.fire({ icon: 'error', title: 'Código de provincia', text: this.validaciones.codigoLugar.mensaje });
         return;
       }
     }
@@ -250,18 +355,19 @@ export class CrearProveedor implements OnInit {
     // Validar saldo
     this.validarSaldo();
     if (!this.validaciones.saldo.valido) {
-      alert(`Error en saldo: ${this.validaciones.saldo.mensaje}`);
+      await Swal.fire({ icon: 'error', title: 'Saldo inválido', text: this.validaciones.saldo.mensaje });
       return;
     }
 
-    this.proveedor.fechaIngreso = new Date();
-    this.proveedoresService.createProveedor(this.proveedor).then(() => {
-      alert('Proveedor creado exitosamente');
+    try {
+      this.proveedor.fechaIngreso = new Date();
+      await this.proveedoresService.createProveedor(this.proveedor);
+      await Swal.fire({ icon: 'success', title: 'Proveedor creado', timer: 1500, showConfirmButton: false });
       this.router.navigate(['/proveedores']);
-    }).catch(error => {
+    } catch (error: any) {
       console.error('Error al crear proveedor:', error);
-      alert('Error al crear el proveedor');
-    });
+      await Swal.fire({ icon: 'error', title: 'No se pudo crear', text: error?.message || 'Error al crear el proveedor' });
+    }
   }
 
   cancelar() {
