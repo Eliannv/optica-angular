@@ -16,6 +16,7 @@
     box-shadow: var(--shadow-lg);
 }
 
+
 /* ============================================
    HEADER
 ============================================ */
@@ -84,6 +85,30 @@
     background: var(--btn-secondary-hover);
 }
 
+.btn-volver {
+    padding: 0.65rem 1.25rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+}
+
+.btn-volver {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-volver:hover {
+    background: var(--border-color);
+}
+
 .cliente-info {
     display: flex;
     gap: 2rem;
@@ -128,6 +153,7 @@
     border: 1px solid rgba(231, 76, 60, 0.25);
 }
 
+
 /* ============================================
    BODY
 ============================================ */
@@ -163,6 +189,7 @@
     font-size: 0.75rem;
     font-weight: 700;
 }
+
 
 /* ============================================
    BÚSQUEDA
@@ -222,6 +249,7 @@
 .clear-btn:hover {
     background: var(--bg-active);
 }
+
 
 /* ============================================
    LISTA DE PRODUCTOS
@@ -307,6 +335,7 @@
     color: var(--text-secondary);
 }
 
+
 /* ============================================
    CARRITO
 ============================================ */
@@ -372,7 +401,7 @@
 }
 
 .item-cantidad input {
-    width: 70px;
+    width: 100px;
     padding: 0.5rem;
     border-radius: var(--radius-md);
     border: 1px solid var(--input-border);
@@ -416,6 +445,7 @@
     background: rgba(231, 76, 60, 0.25);
     transform: scale(1.1);
 }
+
 
 /* ============================================
    TOTALES
@@ -510,6 +540,7 @@
     opacity: 0.7;
     color: var(--text-secondary);
 }
+
 
 /* ============================================
    RESPONSIVE
@@ -630,6 +661,7 @@
         font-size: 1.15rem;
     }
 }
+
 
 /* ============================================
    TICKET / PRINT STYLES
@@ -754,10 +786,130 @@
         page-break-inside: avoid;
     }
 }
+
+
 /* opcional: el listado de facturas se comporta igual que productos */
+
 .productos-list {
-  max-height: 60vh;
+    max-height: 60vh;
 }
+
 .ventas-list {
-  max-height: 60vh;
-} 
+    max-height: 60vh;
+}
+
+
+/* ============================================
+   MEJORAS ABONO INPUT
+============================================ */
+
+.abono-input-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.abono-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.abono-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.currency-symbol {
+    position: absolute;
+    left: 1rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    pointer-events: none;
+}
+
+.abono-input {
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 2.25rem;
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--input-border);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    font-weight: 600;
+    transition: all var(--transition-fast);
+}
+
+.abono-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.abono-max {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    padding-left: 0.25rem;
+}
+
+.abono-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: stretch;
+}
+
+.abono-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+}
+
+.abono-total-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.abono-total-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.btn-guardar-abono {
+    padding: 0.85rem 1.5rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+}
+
+.btn-guardar-abono:hover:not(:disabled) {
+    transform: translateY(-2px);
+    background: var(--btn-primary-hover);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-guardar-abono:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}

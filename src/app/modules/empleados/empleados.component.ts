@@ -81,9 +81,6 @@ export class EmpleadosComponent implements OnInit {
       case 'inactivos':
         filtrados = filtrados.filter(emp => !emp.activo);
         break;
-      case 'sinAcceso':
-        filtrados = filtrados.filter(emp => !emp.machineId);
-        break;
     }
 
     this.empleadosFiltrados = filtrados;

@@ -73,26 +73,31 @@
                             <!-- ✅ NUEVO: Estado + saldo -->
                             <td class="col-total">
                                 <ng-container *ngIf="(Number(f.saldoPendiente) || 0) > 0; else pagada">
-                                    <span class="badge badge-danger">⚠ Deuda</span>
+                                    <span class="badge badge-danger">Deuda</span>
                                     <div style="font-size: 0.82rem; opacity: 0.85; margin-top: 2px;">
                                         Saldo: <b>${{ (Number(f.saldoPendiente) || 0).toFixed(2) }}</b>
                                     </div>
                                 </ng-container>
 
                                 <ng-template #pagada>
-                                    <span class="badge badge-success">✅ Final</span>
+                                    <span class="badge badge-success">Final</span>
                                 </ng-template>
                             </td>
 
                             <td class="col-acciones">
-                                <button class="btn-ver" (click)="ver(f.id)">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eye-icon lucide-eye"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
-                </button>
+                                <div class="action-buttons">
+                                    <button class="btn-action btn-action-view" (click)="ver(f.id)" title="Ver detalles">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
 
-                                <!-- ✅ NUEVO: Cobrar deuda -->
-                                <button class="btn-ver" *ngIf="(Number(f.saldoPendiente) || 0) > 0" style="margin-left: 8px; background: rgba(241, 196, 15, 0.15); border: 1px solid rgba(241, 196, 15, 0.35); color: #b88700;" (click)="cobrarDeuda(f.clienteId, $event)">
-                  Cobrar deuda
-                </button>
+                                    <!-- ✅ NUEVO: Cobrar deuda -->
+                                    <button class="btn-action btn-action-payment" *ngIf="(Number(f.saldoPendiente) || 0) > 0" (click)="cobrarDeuda(f.clienteId, $event)" title="Cobrar deuda">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                            <path d="M16 11h-4"></path>
+                        </svg>
+                    </button>
+                                </div>
                             </td>
                         </tr>
                     </tbody>
@@ -130,13 +135,22 @@
                         </div>
                     </div>
 
-                    <div class="card-mobile-footer" style="display:flex; gap:10px; justify-content:flex-end;">
-                        <span class="ver-detalle" (click)="ver(f.id)"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eye-icon lucide-eye"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg></span>
+                    <div class="card-mobile-footer">
+                        <div class="mobile-action-buttons">
+                            <button class="btn-action btn-action-view" (click)="ver(f.id)" title="Ver detalles">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
+                                Ver detalles
+                            </button>
 
-                        <!-- ✅ NUEVO: Cobrar deuda -->
-                        <button class="btn-ver" *ngIf="(Number(f.saldoPendiente) || 0) > 0" style="background: rgba(241, 196, 15, 0.15); border: 1px solid rgba(241, 196, 15, 0.35); color: #b88700;" (click)="cobrarDeuda(f.clienteId, $event)">
-              Cobrar deuda
-            </button>
+                            <!-- ✅ NUEVO: Cobrar deuda -->
+                            <button class="btn-action-payment-mobile" *ngIf="(Number(f.saldoPendiente) || 0) > 0" (click)="cobrarDeuda(f.clienteId, $event)" title="Cobrar deuda">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                                    <path d="M16 11h-4"></path>
+                                </svg>
+                                Cobrar
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -189,3 +189,15 @@
         font-size: 1rem;
     }
 }
+
+@media (max-width: 332px) {
+    .brand-text {
+        display: none;
+    }
+    .navbar-left {
+        gap: 0.5rem;
+    }
+    .navbar-container {
+        padding: 0 0.75rem;
+    }
+}

@@ -1,6 +1,6 @@
 import { Component, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { FacturasService } from '../../../../core/services/facturas';
 
@@ -17,12 +17,20 @@ export class VerFacturaComponent implements OnDestroy {
 
   private sub?: Subscription;
 
-  constructor(private route: ActivatedRoute, private facturasSrv: FacturasService) {
+  constructor(
+    private route: ActivatedRoute,
+    private router: Router,
+    private facturasSrv: FacturasService
+  ) {
     const id = this.route.snapshot.paramMap.get('id')!;
     this.sub = this.facturasSrv.getFacturaById(id).subscribe(f => {
       this.factura = f;
       this.loading = false;
     });
+  }
+
+  volver() {
+    this.router.navigate(['/facturas']);
   }
 
   reimprimir() {
