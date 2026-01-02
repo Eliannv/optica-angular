@@ -16,7 +16,7 @@
             <div class="cliente-grid">
                 <div class="input-group">
                     <label>Nombres *</label>
-                    <input type="text" formControlName="nombres" placeholder="Ej: Juan Carlos">
+                    <input type="text" formControlName="nombres" placeholder="Ej: Juan Carlos" appEnterNext>
                     <span class="error-msg" *ngIf="esInvalidoCliente('nombres')">
             {{ getMensajeErrorCliente('nombres') }}
           </span>
@@ -24,7 +24,7 @@
 
                 <div class="input-group">
                     <label>Apellidos *</label>
-                    <input type="text" formControlName="apellidos" placeholder="Ej: Pérez García">
+                    <input type="text" formControlName="apellidos" placeholder="Ej: Pérez García" appEnterNext>
                     <span class="error-msg" *ngIf="esInvalidoCliente('apellidos')">
             {{ getMensajeErrorCliente('apellidos') }}
           </span>
@@ -32,7 +32,7 @@
 
                 <div class="input-group">
                     <label>Cédula *</label>
-                    <input type="text" formControlName="cedula" placeholder="1234567890" maxlength="10">
+                    <input type="text" formControlName="cedula" placeholder="1234567890" maxlength="10" appEnterNext>
                     <span class="error-msg" *ngIf="esInvalidoCliente('cedula')">
             {{ getMensajeErrorCliente('cedula') }}
           </span>
@@ -40,7 +40,7 @@
 
                 <div class="input-group">
                     <label>Teléfono *</label>
-                    <input type="text" formControlName="telefono" placeholder="0987654321" maxlength="10">
+                    <input type="text" formControlName="telefono" placeholder="0987654321" maxlength="10" appEnterNext>
                     <span class="error-msg" *ngIf="esInvalidoCliente('telefono')">
             {{ getMensajeErrorCliente('telefono') }}
           </span>
@@ -48,7 +48,7 @@
 
                 <div class="input-group">
                     <label>Email</label>
-                    <input type="email" formControlName="email" placeholder="ejemplo@correo.com">
+                    <input type="email" formControlName="email" placeholder="ejemplo@correo.com" appEnterNext>
                     <span class="error-msg" *ngIf="esInvalidoCliente('email')">
             {{ getMensajeErrorCliente('email') }}
           </span>
@@ -56,12 +56,12 @@
 
                 <div class="input-group">
                     <label>País</label>
-                    <input type="text" formControlName="pais" placeholder="Ecuador">
+                    <input type="text" formControlName="pais" placeholder="Ecuador" appEnterNext>
                 </div>
 
                 <div class="input-group">
                     <label>Provincia</label>
-                    <select formControlName="provincia">
+                    <select formControlName="provincia" appEnterNext>
             <option value="">Seleccione una provincia</option>
             <option *ngFor="let prov of provinciasEcuador" [value]="prov">{{ prov }}</option>
           </select>
@@ -69,12 +69,12 @@
 
                 <div class="input-group">
                     <label>Ciudad</label>
-                    <input type="text" formControlName="ciudad" placeholder="Ej: Quito">
+                    <input type="text" formControlName="ciudad" placeholder="Ej: Quito" appEnterNext>
                 </div>
 
                 <div class="input-group full-width">
                     <label>Dirección</label>
-                    <input type="text" formControlName="direccion" placeholder="Ej: Av. Principal 123 y Secundaria">
+                    <input type="text" formControlName="direccion" placeholder="Ej: Av. Principal 123 y Secundaria" appEnterNext>
                 </div>
             </div>
         </form>
@@ -90,15 +90,15 @@
             <div class="section-medidas">
                 <div class="input-group">
                     <label>DP</label>
-                    <input type="number" step="0.5" formControlName="dp" placeholder="62">
+                    <input type="number" step="0.5" formControlName="dp" placeholder="62" appEnterNext>
                 </div>
                 <div class="input-group">
                     <label>ADD</label>
-                    <input type="number" step="0.25" formControlName="add" placeholder="2.00">
+                    <input type="number" step="0.25" formControlName="add" placeholder="2.00" appEnterNext>
                 </div>
                 <div class="input-group">
                     <label>Altura</label>
-                    <input type="number" step="0.1" formControlName="altura" placeholder="18.5">
+                    <input type="number" step="0.1" formControlName="altura" placeholder="18.5" appEnterNext>
                 </div>
             </div>
 
@@ -110,15 +110,15 @@
                     <div class="ojo-inputs">
                         <div class="input-group">
                             <label>Esfera</label>
-                            <input type="number" step="0.25" formControlName="odEsfera">
+                            <input type="number" step="0.25" formControlName="odEsfera" appEnterNext>
                         </div>
                         <div class="input-group">
                             <label>Cilindro</label>
-                            <input type="number" step="0.25" formControlName="odCilindro">
+                            <input type="number" step="0.25" formControlName="odCilindro" appEnterNext>
                         </div>
                         <div class="input-group">
                             <label>Eje</label>
-                            <input type="number" step="1" min="0" max="180" formControlName="odEje">
+                            <input type="number" step="1" min="0" max="180" formControlName="odEje" appEnterNext>
                         </div>
                     </div>
                 </div>
@@ -129,15 +129,15 @@
                     <div class="ojo-inputs">
                         <div class="input-group">
                             <label>Esfera</label>
-                            <input type="number" step="0.25" formControlName="oiEsfera">
+                            <input type="number" step="0.25" formControlName="oiEsfera" appEnterNext>
                         </div>
                         <div class="input-group">
                             <label>Cilindro</label>
-                            <input type="number" step="0.25" formControlName="oiCilindro">
+                            <input type="number" step="0.25" formControlName="oiCilindro" appEnterNext>
                         </div>
                         <div class="input-group">
                             <label>Eje</label>
-                            <input type="number" step="1" min="0" max="180" formControlName="oiEje">
+                            <input type="number" step="1" min="0" max="180" formControlName="oiEje" appEnterNext>
                         </div>
                     </div>
                 </div>
@@ -147,18 +147,18 @@
             <div class="section-extra">
                 <div class="input-group">
                     <label>De</label>
-                    <input type="text" formControlName="de" placeholder="Cerca / Lejos / DP">
+                    <input type="text" formControlName="de" placeholder="Cerca / Lejos / DP" appEnterNext>
                 </div>
                 <div class="input-group">
                     <label>Color</label>
-                    <input type="text" formControlName="color" placeholder="Negro / Transparente">
+                    <input type="text" formControlName="color" placeholder="Negro / Transparente" appEnterNext>
                 </div>
             </div>
 
             <!-- OBSERVACIÓN -->
             <div class="section-observacion">
                 <label>Observación</label>
-                <textarea rows="3" formControlName="observacion" placeholder="Notas adicionales..."></textarea>
+                <textarea rows="3" formControlName="observacion" placeholder="Notas adicionales..." appEnterNext></textarea>
             </div>
 
             <!-- FOOTER -->

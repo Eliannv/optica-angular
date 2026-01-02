@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, AbstractControl, AsyncValidatorFn, ValidationErrors } from '@angular/forms';
 import { Cliente } from '../../../../core/models/cliente.model';
 import { ClientesService } from '../../../../core/services/clientes';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
@@ -34,9 +34,17 @@ export class CrearCliente implements OnInit {
     this.clienteForm = this.fb.group({
       nombres: ['', [Validators.required, Validators.minLength(2), Validators.pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)]],
       apellidos: ['', [Validators.required, Validators.minLength(2), Validators.pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)]],
-      cedula: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
+      cedula: ['', {
+        validators: [Validators.required, Validators.pattern(/^\d{10}$/)],
+        asyncValidators: [this.uniqueCedulaValidator()],
+        updateOn: 'blur'
+      }],
       telefono: ['', [Validators.required, Validators.pattern(/^0\d{9}$/)]],
-      email: ['', [Validators.required, Validators.email]],
+      email: ['', {
+        validators: [Validators.required, Validators.email],
+        asyncValidators: [this.uniqueEmailValidator()],
+        updateOn: 'blur'
+      }],
       direccion: ['', [Validators.required, Validators.minLength(5)]],
       pais: ['Ecuador', [Validators.required]],
       provincia: ['', [Validators.required]],
@@ -91,6 +99,9 @@ export class CrearCliente implements OnInit {
       if (control?.hasError('pattern')) {
         return 'La cédula debe tener 10 dígitos';
       }
+      if (control?.hasError('cedulaTomada')) {
+        return 'Esta cédula ya está registrada en el sistema';
+      }
     }
     
     if (campo === 'telefono') {
@@ -102,6 +113,9 @@ export class CrearCliente implements OnInit {
     if (campo === 'email') {
       if (control?.hasError('email')) {
         return 'Ingrese un correo electrónico válido';
+      }
+      if (control?.hasError('emailTomado')) {
+        return 'Este correo ya está registrado en el sistema';
       }
     }
     
@@ -118,6 +132,26 @@ export class CrearCliente implements OnInit {
     }
     
     return '';
+  }
+
+  // Validador asíncrono para cédula única (global)
+  uniqueCedulaValidator(): AsyncValidatorFn {
+    return async (control: AbstractControl): Promise<ValidationErrors | null> => {
+      const value = (control.value || '').trim();
+      if (!value) return null;
+      const existe = await this.clientesService.existeCedula(value);
+      return existe ? { cedulaTomada: true } : null;
+    };
+  }
+
+  // Validador asíncrono para email único (global)
+  uniqueEmailValidator(): AsyncValidatorFn {
+    return async (control: AbstractControl): Promise<ValidationErrors | null> => {
+      const value = (control.value || '').trim().toLowerCase();
+      if (!value) return null;
+      const existe = await this.clientesService.existeEmail(value);
+      return existe ? { emailTomado: true } : null;
+    };
   }
 }
 

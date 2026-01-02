@@ -6,20 +6,24 @@ import {
   FormsModule,
   ReactiveFormsModule,
   Validators,
+  ValidationErrors,
+  AsyncValidatorFn,
 } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
 import { ConnectivityService } from '../../../core/services/connectivity.service';
 import { RolUsuario } from '../../../core/models/usuario.model';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import Swal from 'sweetalert2';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { Subscription } from 'rxjs';
+import { EnterNextDirective } from '../../directives/enter-next.directive';
+import { ClientesService } from '../../../core/services/clientes';
 
 @Component({
   selector: 'app-auth-carousel',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, EnterNextDirective, RouterModule],
   templateUrl: './auth-carousel.html',
   styleUrl: './auth-carousel.scss',
   animations: [
@@ -59,7 +63,8 @@ export class AuthCarousel implements OnInit, OnDestroy {
     private fb: FormBuilder,
     private authService: AuthService,
     private connectivityService: ConnectivityService,
-    private router: Router
+    private router: Router,
+    private clientesService: ClientesService
   ) {
     // Formulario de login
     this.loginForm = this.fb.group({
@@ -70,11 +75,19 @@ export class AuthCarousel implements OnInit, OnDestroy {
     // Formulario de registro
     this.registerForm = this.fb.group(
       {
-        cedula: ['', [Validators.required, Validators.maxLength(10), Validators.pattern(/^[0-9]+$/)]],
+        cedula: ['', {
+          validators: [Validators.required, Validators.maxLength(10), Validators.pattern(/^[0-9]+$/)],
+          asyncValidators: [this.uniqueCedulaValidator()],
+          updateOn: 'blur'
+        }],
         nombre: ['', [Validators.required, Validators.minLength(2), Validators.pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)]],
         apellido: ['', [Validators.required, Validators.minLength(2), Validators.pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)]],
         fechaNacimiento: ['', [Validators.required, this.mayorEdadValidator]],
-        correo: ['', [Validators.required, Validators.email]],
+        correo: ['', {
+          validators: [Validators.required, Validators.email],
+          asyncValidators: [this.uniqueEmailValidator()],
+          updateOn: 'blur'
+        }],
         password: ['', [Validators.required, Validators.minLength(8), this.passwordFuerteValidator]],
         confirmPassword: ['', Validators.required],
       },
@@ -301,24 +314,69 @@ export class AuthCarousel implements OnInit, OnDestroy {
         this.isLoading = false;
         console.error('Error en registro:', err);
 
-        let errorMessage = 'No se pudo completar el registro. Intenta nuevamente.';
-
+        // Manejar errores específicos y marcar los campos como inválidos
         if (err.message) {
-          if (err.message.includes('email-already-in-use')) {
-            errorMessage = 'Este correo ya está registrado.';
+          if (err.message.includes('email-already-in-use') || err.message.includes('correo')) {
+            // Marcar el campo de correo como inválido con error personalizado
+            this.registerForm.get('correo')?.setErrors({ emailTomado: true });
+            this.registerForm.get('correo')?.markAsTouched();
+            return; // No mostrar Swal, solo el icono de error en el campo
+          } else if (err.message.includes('cédula') || err.message.includes('cedula')) {
+            // Marcar el campo de cédula como inválido con error personalizado
+            this.registerForm.get('cedula')?.setErrors({ cedulaTomada: true });
+            this.registerForm.get('cedula')?.markAsTouched();
+            return; // No mostrar Swal, solo el icono de error en el campo
           } else if (err.message.includes('weak-password')) {
-            errorMessage = 'La contraseña es muy débil.';
+            Swal.fire({
+              icon: 'error',
+              title: 'Contraseña débil',
+              text: 'La contraseña es muy débil.',
+              confirmButtonColor: '#d33',
+            });
+            return;
           }
         }
 
+        // Para otros errores, mostrar alerta genérica
         Swal.fire({
           icon: 'error',
           title: 'Error en el registro',
-          text: errorMessage,
+          text: 'No se pudo completar el registro. Intenta nuevamente.',
           confirmButtonColor: '#d33',
         });
       },
     });
+  }
+  
+  // Validador de cédula única (global)
+  uniqueCedulaValidator(): AsyncValidatorFn {
+    return async (control: AbstractControl): Promise<ValidationErrors | null> => {
+      const value = (control.value || '').trim();
+      if (!value) return null;
+      
+      try {
+        const existe = await this.clientesService.existeCedula(value);
+        return existe ? { cedulaTomada: true } : null;
+      } catch (error) {
+        console.error('Error al validar cédula:', error);
+        return null;
+      }
+    };
+  }
+
+  uniqueEmailValidator(): AsyncValidatorFn {
+    return async (control: AbstractControl): Promise<ValidationErrors | null> => {
+      const value = (control.value || '').trim();
+      if (!value) return null;
+      
+      try {
+        const existe = await this.clientesService.existeEmail(value);
+        return existe ? { emailTomado: true } : null;
+      } catch (error) {
+        console.error('Error al validar email:', error);
+        return null;
+      }
+    };
   }
 }
 

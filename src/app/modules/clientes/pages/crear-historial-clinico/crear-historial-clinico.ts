@@ -3,17 +3,19 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, Validators, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
+import Swal from 'sweetalert2';
 
 import { HistorialClinicoService } from '../../../../core/services/historial-clinico.service';
 import { ClientesService } from '../../../../core/services/clientes';
 import { Cliente } from '../../../../core/models/cliente.model';
+import { EnterNextDirective } from '../../../../shared/directives/enter-next.directive';
 
 type Mode = 'create' | 'edit' | 'view';
 
 @Component({
   selector: 'app-crear-historial-clinico',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, EnterNextDirective],
   templateUrl: './crear-historial-clinico.html',
   styleUrl: './crear-historial-clinico.css'
 })
@@ -68,8 +70,16 @@ export class CrearHistorialClinicoComponent implements OnInit {
     this.clienteForm = this.fb.group({
       nombres: ['', [Validators.required, Validators.minLength(2)]],
       apellidos: ['', [Validators.required, Validators.minLength(2)]],
-      cedula: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
-      email: ['', [Validators.email]],
+      cedula: ['', {
+        validators: [Validators.required, Validators.pattern(/^\d{10}$/)],
+        asyncValidators: [this.uniqueCedulaClienteValidator()],
+        updateOn: 'blur'
+      }],
+      email: ['', {
+        validators: [Validators.email],
+        asyncValidators: [this.uniqueEmailClienteValidator()],
+        updateOn: 'blur'
+      }],
       telefono: ['', [Validators.required, Validators.pattern(/^0\d{9}$/)]],
       pais: ['Ecuador'],
       provincia: [''],
@@ -126,20 +136,38 @@ export class CrearHistorialClinicoComponent implements OnInit {
       return;
     }
 
-    // Guardar historial clínico
-    await this.historialSrv.guardarHistorial(
-      this.clienteId,
-      this.form.getRawValue() as any
-    );
+    try {
+      // Guardar historial clínico
+      await this.historialSrv.guardarHistorial(
+        this.clienteId,
+        this.form.getRawValue() as any
+      );
 
-    // Guardar datos personales del cliente
-    await this.clientesSrv.updateCliente(
-      this.clienteId,
-      this.clienteForm.getRawValue() as Partial<Cliente>
-    );
+      // Guardar datos personales del cliente
+      await this.clientesSrv.updateCliente(
+        this.clienteId,
+        this.clienteForm.getRawValue() as Partial<Cliente>
+      );
 
-    // volver a la lista de historiales
-    this.router.navigate(['/clientes/historial-clinico']);
+      // Mostrar mensaje de éxito
+      await Swal.fire({
+        icon: 'success',
+        title: 'Guardado exitoso',
+        text: 'La información del historial clínico y datos del cliente se han guardado correctamente.',
+        showConfirmButton: false,
+        timer: 2000
+      });
+
+      // volver a la lista de historiales
+      this.router.navigate(['/clientes/historial-clinico']);
+    } catch (error: any) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error al guardar',
+        text: error?.message || 'Ocurrió un error al guardar la información. Por favor, intenta nuevamente.',
+        confirmButtonColor: '#d33'
+      });
+    }
   }
 
   cancelar() {
@@ -163,6 +191,8 @@ export class CrearHistorialClinicoComponent implements OnInit {
       if (campo === 'telefono') return 'Debe iniciar con 0 y tener 10 dígitos';
     }
     if (control.errors['email']) return 'Correo electrónico inválido';
+    if (control.errors['emailTomado']) return 'Este correo ya está registrado en el sistema';
+    if (control.errors['cedulaTomada']) return 'Esta cédula ya está registrada en el sistema';
     return 'Campo inválido';
   }
 
@@ -170,4 +200,24 @@ export class CrearHistorialClinicoComponent implements OnInit {
   get esView() { return this.mode === 'view'; }
   get esEdit() { return this.mode === 'edit'; }
   get esCreate() { return this.mode === 'create'; }
+
+  // Validador asíncrono para email único, excluyendo el cliente actual
+  uniqueEmailClienteValidator() {
+    return async (control: any) => {
+      const value = (control.value || '').trim().toLowerCase();
+      if (!value) return null;
+      const existe = await this.clientesSrv.existeEmail(value, this.clienteId);
+      return existe ? { emailTomado: true } : null;
+    };
+  }
+
+  // Validador asíncrono para cédula única, excluyendo el cliente actual
+  uniqueCedulaClienteValidator() {
+    return async (control: any) => {
+      const value = (control.value || '').trim();
+      if (!value) return null;
+      const existe = await this.clientesSrv.existeCedula(value, this.clienteId);
+      return existe ? { cedulaTomada: true } : null;
+    };
+  }
 }

@@ -7,6 +7,19 @@ const fs = require('fs');
 // 🔐 CONFIGURACIÓN DE SUCURSAL
 const SUCURSAL_PERMITIDA = 'PASAJE';
 
+// Flag de entorno para controlar logs y DevTools
+const IS_DEV = !app.isPackaged;
+
+// Propagar entorno al renderer
+process.env.NODE_ENV = IS_DEV ? 'development' : 'production';
+
+// Log seguro: solo muestra mensajes en desarrollo
+function devLog(...args) {
+  if (IS_DEV) {
+    console.log(...args);
+  }
+}
+
 /**
  * OPCIÓN A: Verificación por nombre de máquina o usuario
  * Puedes verificar el nombre de la PC o el nombre de usuario del sistema
@@ -28,10 +41,10 @@ function verificarSucursal() {
     // Agrega aquí el Machine ID de la PC de PASAJE cuando lo obtengas
   ];
 
-  console.log('🔐 Verificación de sucursal:');
-  console.log('  - Hostname:', hostname);
-  console.log('  - Username:', username);
-  console.log('  - Machine ID:', machineId);
+  devLog('🔐 Verificación de sucursal:');
+  devLog('  - Hostname:', hostname);
+  devLog('  - Username:', username);
+  devLog('  - Machine ID:', machineId);
 
   // ✅ VALIDACIÓN ACTIVA - Solo permite PCs autorizadas
   if (!idsPermitidos.includes(machineId)) {
@@ -39,7 +52,7 @@ function verificarSucursal() {
     return false;
   }
 
-  console.log('✅ Machine ID autorizado');
+  devLog('✅ Machine ID autorizado');
   return true;
 }
 
@@ -80,15 +93,17 @@ function createWindow() {
     },
     icon: path.join(__dirname, '../public/icono/icon.ico'),
     title: `Sistema Óptica - ${SUCURSAL_PERMITIDA}`,
+    // Deshabilitar DevTools en producción
+    devTools: IS_DEV,
   });
 
   // En producción carga la app compilada, en desarrollo el servidor local
   if (app.isPackaged) {
     // Cuando está empaquetado, los archivos están en resources/app.asar/dist
     const indexPath = path.join(__dirname, '../dist/optica-angular/browser/index.html');
-    console.log('📂 Intentando cargar desde:', indexPath);
-    console.log('📂 __dirname:', __dirname);
-    console.log('📂 Ruta completa:', path.resolve(indexPath));
+    devLog('📂 Intentando cargar desde:', indexPath);
+    devLog('📂 __dirname:', __dirname);
+    devLog('📂 Ruta completa:', path.resolve(indexPath));
 
     // Cargar con loadFile para que use rutas relativas correctas
     win.loadFile(indexPath).catch((err) => {
@@ -99,21 +114,27 @@ function createWindow() {
       );
     });
 
-    // Mostrar errores de carga
+    // Mostrar errores de carga (solo se loguean en desarrollo)
     win.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-      console.error('❌ Error cargando la aplicación:', errorCode, errorDescription);
+      if (IS_DEV) {
+        console.error('❌ Error cargando la aplicación:', errorCode, errorDescription);
+      }
     });
 
-    // Log de consola del renderer
-    win.webContents.on('console-message', (event, level, message) => {
-      console.log('🖥️ Renderer console:', message);
-    });
+    // Log de consola del renderer (solo en desarrollo)
+    if (IS_DEV) {
+      win.webContents.on('console-message', (event, level, message) => {
+        console.log('🖥️ Renderer console:', message);
+      });
+    }
   } else {
     win.loadURL('http://localhost:4200');
   }
 
-  // Abrir DevTools para debugging (en producción temporalmente)
-  win.webContents.openDevTools();
+  // Abrir DevTools solo en desarrollo
+  if (IS_DEV) {
+    win.webContents.openDevTools();
+  }
 }
 
 /**
@@ -136,13 +157,13 @@ ipcMain.handle('descargar-plantilla', async () => {
       path.join(process.resourcesPath, 'plantilla_importacion_productos.xlsx'),
     ];
 
-    console.log('🔍 Buscando plantilla en:', rutasPosibles);
+    devLog('🔍 Buscando plantilla en:', rutasPosibles);
 
     // Intentar leer desde cada ruta
     for (const ruta of rutasPosibles) {
       try {
         if (fs.existsSync(ruta)) {
-          console.log(`✅ Plantilla encontrada en: ${ruta}`);
+          devLog(`✅ Plantilla encontrada en: ${ruta}`);
           const buffer = fs.readFileSync(ruta);
           return {
             success: true,
@@ -151,7 +172,7 @@ ipcMain.handle('descargar-plantilla', async () => {
           };
         }
       } catch (error) {
-        console.log(`❌ Error intentando ${ruta}:`, error.message);
+        devLog(`❌ Error intentando ${ruta}:`, error.message);
       }
     }
 

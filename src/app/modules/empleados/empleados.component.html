@@ -176,37 +176,52 @@
         </div>
         <div class="modal-body" *ngIf="empleadoSeleccionado" [formGroup]="formEditar">
             <div class="form-group mb-3">
-                <label class="form-label">Cédula</label>
-                <input type="text" class="form-control" formControlName="cedula" placeholder="1234567890">
+                <label class="form-label">Cédula <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" [class.is-invalid]="esInvalido('cedula')" [class.is-valid]="formEditar.get('cedula')?.valid && formEditar.get('cedula')?.touched" formControlName="cedula" placeholder="1234567890" maxlength="10" appEnterNext>
+                <div class="form-text text-danger" *ngIf="esInvalido('cedula')">
+                    {{ getMensajeError('cedula') }}
+                </div>
             </div>
 
             <div class="form-group mb-3">
-                <label class="form-label">Nombre</label>
-                <input type="text" class="form-control" formControlName="nombre" placeholder="Juan">
+                <label class="form-label">Nombre <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" [class.is-invalid]="esInvalido('nombre')" [class.is-valid]="formEditar.get('nombre')?.valid && formEditar.get('nombre')?.touched" formControlName="nombre" placeholder="Juan" appEnterNext>
+                <div class="form-text text-danger" *ngIf="esInvalido('nombre')">
+                    {{ getMensajeError('nombre') }}
+                </div>
             </div>
 
             <div class="form-group mb-3">
-                <label class="form-label">Apellido</label>
-                <input type="text" class="form-control" formControlName="apellido" placeholder="Pérez">
+                <label class="form-label">Apellido <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" [class.is-invalid]="esInvalido('apellido')" [class.is-valid]="formEditar.get('apellido')?.valid && formEditar.get('apellido')?.touched" formControlName="apellido" placeholder="Pérez" appEnterNext>
+                <div class="form-text text-danger" *ngIf="esInvalido('apellido')">
+                    {{ getMensajeError('apellido') }}
+                </div>
             </div>
 
             <div class="form-group mb-3">
-                <label class="form-label">Fecha de nacimiento</label>
-                <input type="date" class="form-control" formControlName="fechaNacimiento" placeholder="dd/mm/aaaa">
+                <label class="form-label">Fecha de nacimiento <span class="text-danger">*</span></label>
+                <input type="date" class="form-control" [class.is-invalid]="esInvalido('fechaNacimiento')" [class.is-valid]="formEditar.get('fechaNacimiento')?.valid && formEditar.get('fechaNacimiento')?.touched" formControlName="fechaNacimiento" appEnterNext>
+                <div class="form-text text-danger" *ngIf="esInvalido('fechaNacimiento')">
+                    {{ getMensajeError('fechaNacimiento') }}
+                </div>
             </div>
 
             <div class="form-group mb-3">
-                <label class="form-label">Correo</label>
-                <input type="email" class="form-control" formControlName="email" placeholder="ejemplo@optica.com">
+                <label class="form-label">Correo <span class="text-danger">*</span></label>
+                <input type="email" class="form-control" [class.is-invalid]="esInvalido('email')" [class.is-valid]="formEditar.get('email')?.valid && formEditar.get('email')?.touched" formControlName="email" placeholder="ejemplo@optica.com" appEnterNext>
+                <div class="form-text text-danger" *ngIf="esInvalido('email')">
+                    {{ getMensajeError('email') }}
+                </div>
             </div>
 
             <div class="form-text">
-                Nota: La sucursal y el Machine ID se gestionan automáticamente desde la aplicación de escritorio.
+                <strong>Nota:</strong> La sucursal y el Machine ID se gestionan automáticamente desde la aplicación de escritorio.
             </div>
         </div>
         <div class="modal-footer">
             <button type="button" class="btn btn-secondary" (click)="cerrarModal()">Cancelar</button>
-            <button type="button" class="btn btn-primary" (click)="guardarEdicion()">Guardar cambios</button>
+            <button type="button" class="btn btn-primary" (click)="guardarEdicion()" [disabled]="formEditar.invalid">Guardar cambios</button>
         </div>
     </div>
 </div>

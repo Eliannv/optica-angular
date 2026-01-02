@@ -13,6 +13,14 @@ export const routes: Routes = [
         .then(m => m.AuthCarousel)
   },
 
+  // 🔓 Recuperar contraseña (público)
+  {
+    path: 'forgot-password',
+    loadComponent: () =>
+      import('./shared/components/auth/forgot-password')
+        .then(m => m.ForgotPasswordComponent)
+  },
+
   // 🔐 Rutas protegidas - OPERADOR y ADMINISTRADOR: Clientes e Historial Clínico
   {
     path: 'clientes',

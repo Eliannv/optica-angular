@@ -12,7 +12,7 @@
                             <label class="form-label">Código del Proveedor</label>
                             <div class="input-with-validation">
                                 <input type="text" class="form-control" [class.is-invalid]="validaciones.codigo.mensaje && !validaciones.codigo.valido" [class.is-valid]="validaciones.codigo.valido" [(ngModel)]="proveedor.codigo" (input)="validarCodigo()" (blur)="validarCodigo()" name="codigo"
-                                    placeholder="Ej: P0001, PROV1234">
+                                    appEnterNext placeholder="Ej: P0001, PROV1234">
                                 <div class="validation-feedback">
                                     <span *ngIf="validaciones.codigo.mensaje && !validaciones.codigo.valido" class="text-danger">
                                         <i class="bi bi-x-circle"></i> {{ validaciones.codigo.mensaje }}
@@ -32,7 +32,7 @@
                             <label class="form-label">Código de Lugar (Provincia)</label>
                             <div class="input-with-validation">
                                 <input type="text" class="form-control" [class.is-invalid]="validaciones.codigoLugar.mensaje && !validaciones.codigoLugar.valido" [class.is-valid]="validaciones.codigoLugar.valido" [(ngModel)]="proveedor.direccion!.codigoLugar" (input)="validarCodigoLugar()"
-                                    (blur)="validarCodigoLugar()" name="codigoLugar" placeholder="07" maxlength="2">
+                                    appEnterNext (blur)="validarCodigoLugar()" name="codigoLugar" placeholder="07" maxlength="2">
                                 <div class="validation-feedback">
                                     <span *ngIf="validaciones.codigoLugar.mensaje && !validaciones.codigoLugar.valido" class="text-danger">
                                         <i class="bi bi-x-circle"></i> {{ validaciones.codigoLugar.mensaje }}
@@ -52,7 +52,7 @@
                     <label class="form-label">Nombre del Proveedor *</label>
                     <div class="input-with-validation">
                         <input type="text" class="form-control" [class.is-invalid]="validaciones.nombre.mensaje && !validaciones.nombre.valido" [class.is-valid]="validaciones.nombre.valido" [(ngModel)]="proveedor.nombre" (blur)="validarNombre()" name="nombre" placeholder="Ej: Distribuidora Óptica S.A."
-                            required>
+                            appEnterNext required>
                         <div class="validation-feedback">
                             <span *ngIf="validandoNombre" class="text-muted d-inline-flex align-items-center gap-1">
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Validando nombre...
@@ -74,7 +74,7 @@
                             <label class="form-label">RUC *</label>
                             <div class="input-with-validation">
                                 <input type="text" class="form-control" [class.is-invalid]="validaciones.ruc.mensaje && !validaciones.ruc.valido" [class.is-valid]="validaciones.ruc.valido" [(ngModel)]="proveedor.ruc" (input)="validarRUC()" (blur)="validarRUC()" name="ruc" placeholder="Ej: 0701234567001"
-                                    maxlength="13" required>
+                                    appEnterNext maxlength="13" required>
                                 <div class="validation-feedback">
                                     <span *ngIf="validandoRuc" class="text-muted d-inline-flex align-items-center gap-1">
                                         <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Validando RUC...
@@ -95,7 +95,7 @@
                     <div class="col-md-6">
                         <div class="form-group">
                             <label class="form-label">Representante</label>
-                            <input type="text" class="form-control" [(ngModel)]="proveedor.representante" name="representante" placeholder="Nombre del representante">
+                            <input type="text" class="form-control" [(ngModel)]="proveedor.representante" name="representante" placeholder="Nombre del representante" appEnterNext>
                         </div>
                     </div>
                 </div>
@@ -107,7 +107,7 @@
                             <label class="form-label">Teléfono Principal</label>
                             <div class="input-with-validation">
                                 <input type="tel" class="form-control" [class.is-invalid]="validaciones.telefonoPrincipal.mensaje && !validaciones.telefonoPrincipal.valido" [class.is-valid]="validaciones.telefonoPrincipal.valido" [(ngModel)]="proveedor.telefonos!.principal" (input)="validarTelefono(proveedor.telefonos!.principal || '', 'principal')"
-                                    (blur)="validarTelefono(proveedor.telefonos!.principal || '', 'principal')" name="telefonoPrincipal" placeholder="0991234567 ó 072931234" maxlength="10">
+                                    appEnterNext (blur)="validarTelefono(proveedor.telefonos!.principal || '', 'principal')" name="telefonoPrincipal" placeholder="0991234567 ó 072931234" maxlength="10">
                                 <div class="validation-feedback">
                                     <span *ngIf="validaciones.telefonoPrincipal.mensaje && !validaciones.telefonoPrincipal.valido" class="text-danger">
                                         <i class="bi bi-x-circle"></i> {{ validaciones.telefonoPrincipal.mensaje }}
@@ -127,7 +127,7 @@
                             <label class="form-label">Teléfono Secundario</label>
                             <div class="input-with-validation">
                                 <input type="tel" class="form-control" [class.is-invalid]="validaciones.telefonoSecundario.mensaje && !validaciones.telefonoSecundario.valido" [class.is-valid]="validaciones.telefonoSecundario.valido" [(ngModel)]="proveedor.telefonos!.secundario" (input)="validarTelefono(proveedor.telefonos!.secundario || '', 'secundario')"
-                                    (blur)="validarTelefono(proveedor.telefonos!.secundario || '', 'secundario')" name="telefonoSecundario" placeholder="0991234568 ó 072931235" maxlength="10">
+                                    appEnterNext (blur)="validarTelefono(proveedor.telefonos!.secundario || '', 'secundario')" name="telefonoSecundario" placeholder="0991234568 ó 072931235" maxlength="10">
                                 <div class="validation-feedback">
                                     <span *ngIf="validaciones.telefonoSecundario.mensaje && !validaciones.telefonoSecundario.valido" class="text-danger">
                                         <i class="bi bi-x-circle"></i> {{ validaciones.telefonoSecundario.mensaje }}
@@ -145,14 +145,15 @@
                 <!-- Dirección -->
                 <div class="form-group">
                     <label class="form-label">Dirección</label>
-                    <input type="text" class="form-control" [(ngModel)]="proveedor.direccion!.direccion" name="direccion" placeholder="Dirección completa del proveedor">
+                    <input type="text" class="form-control" [(ngModel)]="proveedor.direccion!.direccion" name="direccion" placeholder="Dirección completa del proveedor" appEnterNext>
                 </div>
 
                 <!-- Saldo -->
                 <div class="form-group">
                     <label class="form-label">Saldo Inicial</label>
                     <div class="input-with-validation">
-                        <input type="number" class="form-control" [class.is-invalid]="!validaciones.saldo.valido" [class.is-valid]="validaciones.saldo.valido && proveedor.saldo !== 0" [(ngModel)]="proveedor.saldo" (input)="validarSaldo()" name="saldo" step="0.01" placeholder="0.00">
+                        <input type="number" class="form-control" [class.is-invalid]="!validaciones.saldo.valido" [class.is-valid]="validaciones.saldo.valido && proveedor.saldo !== 0" [(ngModel)]="proveedor.saldo" (input)="validarSaldo()" name="saldo" step="0.01" placeholder="0.00"
+                            appEnterNext>
                         <div class="validation-feedback">
                             <span *ngIf="!validaciones.saldo.valido" class="text-danger">
                                 <i class="bi bi-x-circle"></i> {{ validaciones.saldo.mensaje }}

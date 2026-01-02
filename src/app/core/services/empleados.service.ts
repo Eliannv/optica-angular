@@ -175,22 +175,42 @@ export class EmpleadosService {
    * Verificar unicidad de correo electrónico
    */
   async existeEmail(email: string, excluirId?: string): Promise<boolean> {
+    // Buscar en usuarios
     const usuariosRef = collection(this.firestore, 'usuarios');
-    const q = query(usuariosRef, where('email', '==', email));
-    const snap = await getDocs(q);
-    if (snap.empty) return false;
-    // Si hay resultados, verificar si alguno no es el usuario excluido
-    return snap.docs.some(d => d.id !== excluirId);
+    const qUsuarios = query(usuariosRef, where('email', '==', email));
+    const snapUsuarios = await getDocs(qUsuarios);
+    const existeEnUsuarios = snapUsuarios.docs.some(d => d.id !== excluirId);
+    if (existeEnUsuarios) return true;
+
+    // Buscar también en clientes para garantizar unicidad global
+    const clientesRef = collection(this.firestore, 'clientes');
+    // Compatibilidad: documentos antiguos pueden tener 'correo'
+    const qClientesEmail = query(clientesRef, where('email', '==', email));
+    const qClientesCorreo = query(clientesRef, where('correo', '==', email));
+    const [snapClientesEmail, snapClientesCorreo] = await Promise.all([
+      getDocs(qClientesEmail),
+      getDocs(qClientesCorreo)
+    ]);
+    return (snapClientesEmail.size + snapClientesCorreo.size) > 0;
   }
 
   /**
    * Verificar unicidad de cédula
    */
   async existeCedula(cedula: string, excluirId?: string): Promise<boolean> {
+    // Buscar en usuarios
     const usuariosRef = collection(this.firestore, 'usuarios');
-    const q = query(usuariosRef, where('cedula', '==', cedula));
-    const snap = await getDocs(q);
-    if (snap.empty) return false;
-    return snap.docs.some(d => d.id !== excluirId);
+    const qUsuarios = query(usuariosRef, where('cedula', '==', cedula));
+    const snapUsuarios = await getDocs(qUsuarios);
+    const existeEnUsuarios = snapUsuarios.docs.some(d => d.id !== excluirId);
+
+    if (existeEnUsuarios) return true;
+
+    // Buscar también en clientes para garantizar unicidad global
+    const clientesRef = collection(this.firestore, 'clientes');
+    const qClientes = query(clientesRef, where('cedula', '==', cedula));
+    const snapClientes = await getDocs(qClientes);
+    // En clientes no conocemos el id del usuario a excluir, por lo tanto cualquier coincidencia ya es conflicto
+    return !snapClientes.empty;
   }
 }

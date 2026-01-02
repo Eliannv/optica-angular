@@ -26,4 +26,6 @@ contextBridge.exposeInMainWorld('electron', {
   sucursal: 'PASAJE',
   version: '1.0.0',
   machineId: generarIdMaquina(), // Exponer machine ID para validación
+  // Flag para saber si estamos en desarrollo o producción
+  isDev: process.env.NODE_ENV !== 'production',
 });

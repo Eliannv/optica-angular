@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 import { ClientesRoutingModule } from './clientes-routing-module';
+import { EnterNextDirective } from '../../shared/directives/enter-next.directive';
 
 import { CrearCliente } from './pages/crear-cliente/crear-cliente';
 
@@ -14,6 +15,7 @@ import { CrearCliente } from './pages/crear-cliente/crear-cliente';
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
+    EnterNextDirective,
     ClientesRoutingModule
   ]
 })

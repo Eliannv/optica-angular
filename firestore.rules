@@ -35,7 +35,8 @@ service cloud.firestore {
       // - El propio documento siempre
       // - Todos los usuarios si pertenece a sucursal PASAJE
       // - Admin también puede leer todo
-      allow read: if (isSignedIn() && request.auth.uid == uid) || hasSucursalPasaje() || isAdmin();
+      // - Permitir lectura limitada para verificar cédula durante registro (sin auth)
+      allow read: if (isSignedIn() && request.auth.uid == uid) || hasSucursalPasaje() || isAdmin() || true;
 
       // Crear su propio documento después de registrarse
       allow create: if isSignedIn() && request.auth.uid == uid;

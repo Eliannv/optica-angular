@@ -124,11 +124,8 @@ export class AuthService {
       );
     }
 
-    console.log('✅ Validación de acceso exitosa:', {
-      usuario: userData.email,
-      sucursal: sucursalActual,
-      machineId: machineIdActual
-    });
+    // Log removido para producción: evitar mensajes en consola en la app de escritorio
+    // Si necesitas depurar, reactivar este log temporalmente.
   }
 
   /**
@@ -166,32 +163,52 @@ export class AuthService {
     email: string;
     password: string;
   }): Observable<Usuario> {
-    return from(createUserWithEmailAndPassword(this.auth, userData.email, userData.password)).pipe(
-      switchMap(credential => {
-        // Datos provenientes de Electron (solo app de escritorio)
-        const electronApi = (window as any).electron;
-        const sucursalActual = electronApi?.sucursal || 'PASAJE';
+    // Primero verificar si la cédula ya existe
+    return from(this.verificarCedulaExistente(userData.cedula)).pipe(
+      switchMap(cedulaExiste => {
+        if (cedulaExiste) {
+          throw new Error('La cédula ya está registrada en el sistema');
+        }
+        
+        // Continuar con el registro normal
+        return from(createUserWithEmailAndPassword(this.auth, userData.email, userData.password)).pipe(
+          switchMap(credential => {
+            // Datos provenientes de Electron (solo app de escritorio)
+            const electronApi = (window as any).electron;
+            const sucursalActual = electronApi?.sucursal || 'PASAJE';
 
-        // Crear el documento del usuario en Firestore
-        const nuevoUsuario: Usuario = {
-          id: credential.user.uid,
-          nombre: userData.nombre,
-          apellido: userData.apellido,
-          cedula: userData.cedula,
-          fechaNacimiento: userData.fechaNacimiento,
-          email: userData.email.toLowerCase(),
-          rol: RolUsuario.OPERADOR, // Siempre se registra como OPERADOR (rol 2)
-          activo: false, // Por defecto bloqueado hasta que admin desbloquee
-          sucursal: sucursalActual,
-          createdAt: serverTimestamp()
-        };
+            // Crear el documento del usuario en Firestore
+            const nuevoUsuario: Usuario = {
+              id: credential.user.uid,
+              nombre: userData.nombre,
+              apellido: userData.apellido,
+              cedula: userData.cedula,
+              fechaNacimiento: userData.fechaNacimiento,
+              email: userData.email.toLowerCase(),
+              rol: RolUsuario.OPERADOR, // Siempre se registra como OPERADOR (rol 2)
+              activo: false, // Por defecto bloqueado hasta que admin desbloquee
+              sucursal: sucursalActual,
+              createdAt: serverTimestamp()
+            };
 
-        const userDocRef = doc(this.firestore, `usuarios/${credential.user.uid}`);
-        return from(setDoc(userDocRef, nuevoUsuario)).pipe(
-          map(() => nuevoUsuario)
+            const userDocRef = doc(this.firestore, `usuarios/${credential.user.uid}`);
+            return from(setDoc(userDocRef, nuevoUsuario)).pipe(
+              map(() => nuevoUsuario)
+            );
+          })
         );
       })
     );
+  }
+
+  /**
+   * Verificar si una cédula ya existe en el sistema (solo en usuarios)
+   */
+  private async verificarCedulaExistente(cedula: string): Promise<boolean> {
+    const usuariosRef = collection(this.firestore, 'usuarios');
+    const q = query(usuariosRef, where('cedula', '==', cedula));
+    const snapshot = await getDocs(q);
+    return !snapshot.empty;
   }
 
   /**
@@ -255,5 +272,28 @@ export class AuthService {
    */
   getCurrentUserId(): string | null {
     return this.auth.currentUser?.uid || null;
+  }
+
+  /**
+   * Enviar email de recuperación de contraseña
+   */
+  async resetPassword(email: string): Promise<void> {
+    // Verificar conexión a internet
+    if (!navigator.onLine) {
+      throw new Error('OFFLINE: No hay conexión a internet. Verifica tu red e intenta nuevamente.');
+    }
+
+    try {
+      await sendPasswordResetEmail(this.auth, email);
+    } catch (error: any) {
+      // Manejar errores específicos de Firebase
+      if (error.code === 'auth/user-not-found') {
+        throw new Error('No existe una cuenta con este correo electrónico.');
+      } else if (error.code === 'auth/invalid-email') {
+        throw new Error('El correo electrónico no es válido.');
+      } else {
+        throw new Error('Error al enviar el correo de recuperación. Intenta nuevamente.');
+      }
+    }
   }
 }
