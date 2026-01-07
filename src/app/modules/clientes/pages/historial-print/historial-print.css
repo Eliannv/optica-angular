@@ -1,0 +1,23 @@
+.ticket {
+    width: 80mm;
+    font-size: 12px;
+}
+
+@media print {
+    @page {
+        size: 80mm auto;
+        margin: 0;
+    }
+    html,
+    body {
+        width: 80mm;
+        margin: 0;
+    }
+    body * {
+        display: none !important;
+    }
+    .ticket,
+    .ticket * {
+        display: block !important;
+    }
+}

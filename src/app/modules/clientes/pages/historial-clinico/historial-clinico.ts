@@ -77,6 +77,10 @@ export class HistorialClinicoComponent implements OnInit {
     // ✅ NUEVO: cargar deuda por cliente (después de tener clientes listos)
     await this.cargarDeudasClientes(this.clientes);
   }
+  imprimirHistorial(clienteId: string) {
+  this.router.navigate(['/historial-print', clienteId]);
+}
+
 
   // ✅ NUEVO: cargar deuda total por cliente
   private async cargarDeudasClientes(lista: ClienteUI[]): Promise<void> {

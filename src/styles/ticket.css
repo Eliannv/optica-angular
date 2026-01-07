@@ -1,0 +1,68 @@
+/* ===== TICKET UNIVERSAL (VENTA + REIMPRESIÓN) ===== */
+
+.ticket {
+    display: none;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    line-height: 1.25;
+    color: #000;
+    width: 80mm;
+    background: #fff;
+}
+
+.t-center {
+    text-align: center;
+}
+
+.t-bold {
+    font-weight: 700;
+}
+
+.t-small {
+    font-size: 10px;
+}
+
+.t-cut {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.t-hr {
+    border-top: 1px dashed #000;
+    margin: 6px 0;
+}
+
+.t-kv {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.t-table-head,
+.t-table-row {
+    display: grid;
+    grid-template-columns: 12mm 1fr 10mm 14mm 14mm;
+    gap: 2mm;
+}
+
+@media print {
+    @page {
+        size: 80mm auto;
+        margin: 0;
+    }
+    body * {
+        display: none !important;
+    }
+    .ticket,
+    .ticket * {
+        display: block !important;
+    }
+    .ticket {
+        position: fixed;
+        inset: 0;
+        width: 80mm;
+        padding: 6mm 4mm;
+        background: #fff;
+    }
+}

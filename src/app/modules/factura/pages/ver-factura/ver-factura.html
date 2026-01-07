@@ -103,7 +103,7 @@
         </div>
     </div>
 
-    <!-- ================= TICKET / FACTURA (MISMO FORMATO) ================= -->
+    <!-- ================= TICKET / FACTURA ================= -->
     <div class="ticket">
 
         <div class="t-center t-bold">ÓPTICA MACÍAS</div>
@@ -122,37 +122,16 @@
 
         <div class="t-hr"></div>
 
-        <!-- MEDIDAS (si existen) -->
-        <div class="t-bold t-small">MEDIDAS</div>
-        <div class="t-small">
-            OD: Esf {{ factura.historialSnapshot?.odEsfera || '-' }} Cil {{ factura.historialSnapshot?.odCilindro || '-' }} Eje {{ factura.historialSnapshot?.odEje || '-' }}
-        </div>
-        <div class="t-small">
-            OI: Esf {{ factura.historialSnapshot?.oiEsfera || '-' }} Cil {{ factura.historialSnapshot?.oiCilindro || '-' }} Eje {{ factura.historialSnapshot?.oiEje || '-' }}
-        </div>
-
-        <div class="t-hr"></div>
-
-        <!-- TABLA -->
-        <div class="t-table-head t-small">
-            <div>COD</div>
-            <div>DESCRIPCIÓN</div>
-            <div>CANT</div>
-            <div>P.U</div>
-            <div>TOTAL</div>
-        </div>
-
         <div class="t-table-row t-small" *ngFor="let it of factura.items; let i = index">
-            <div>{{ i + 1 }}</div>
-            <div class="t-cut">{{ it.nombre }}</div>
-            <div>{{ it.cantidad }}</div>
-            <div>{{ it.precioUnitario | number:'1.2-2' }}</div>
-            <div>{{ it.total | number:'1.2-2' }}</div>
+            <div class="t-kv"><span>COD</span><span>{{ i + 1 }}</span></div>
+            <div class="t-kv"><span>DESC</span><span class="t-cut">{{ it.nombre }}</span></div>
+            <div class="t-kv"><span>CANT</span><span>{{ it.cantidad }}</span></div>
+            <div class="t-kv"><span>P.U</span><span>{{ it.precioUnitario | number:'1.2-2' }}</span></div>
+            <div class="t-kv"><span>P.T</span><span>{{ it.total | number:'1.2-2' }}</span></div>
         </div>
 
         <div class="t-hr"></div>
 
-        <!-- TOTALES -->
         <div class="t-kv t-small">
             <span>Subtotal</span>
             <span>{{ factura.subtotal | number:'1.2-2' }}</span>
@@ -166,10 +145,19 @@
             <span>{{ factura.total | number:'1.2-2' }}</span>
         </div>
 
+        <div class="t-kv t-small" *ngIf="factura.abonado > 0">
+            <span>Abono</span>
+            <span>{{ factura.abonado | number:'1.2-2' }}</span>
+        </div>
+
+        <div class="t-kv t-small" *ngIf="factura.saldoPendiente > 0">
+            <span>Saldo pendiente</span>
+            <span>{{ factura.saldoPendiente | number:'1.2-2' }}</span>
+        </div>
+
         <div class="t-hr"></div>
 
         <div class="t-center t-small">Gracias por su compra</div>
         <div class="t-center t-small">Conserve su factura</div>
 
     </div>
-</div>

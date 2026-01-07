@@ -21,7 +21,16 @@ export const routes: Routes = [
         .then(m => m.ForgotPasswordComponent)
   },
 
-  // 🔐 Rutas protegidas - OPERADOR y ADMINISTRADOR: Clientes e Historial Clínico
+  // 🟢 IMPRESIÓN DE HISTORIAL CLÍNICO (PROTEGIDA)
+  {
+    path: 'historial-print/:id',
+    loadComponent: () =>
+      import('./modules/clientes/pages/historial-print/historial-print')
+        .then(m => m.HistorialPrintComponent),
+    canActivate: [authGuard, roleGuard([RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR])]
+  },
+
+  // 🔐 Clientes e Historial Clínico
   {
     path: 'clientes',
     loadChildren: () =>
@@ -30,7 +39,7 @@ export const routes: Routes = [
     canActivate: [authGuard, roleGuard([RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR])]
   },
 
-  // 🔐 Rutas protegidas - ADMINISTRADOR: Productos
+  // 🔐 Productos
   {
     path: 'productos',
     loadChildren: () =>
@@ -39,7 +48,7 @@ export const routes: Routes = [
     canActivate: [authGuard, roleGuard([RolUsuario.ADMINISTRADOR])]
   },
 
-  // 🔐 Rutas protegidas - ADMINISTRADOR: Ingresos de Inventario
+  // 🔐 Ingresos de Inventario
   {
     path: 'ingresos',
     loadChildren: () =>
@@ -48,7 +57,7 @@ export const routes: Routes = [
     canActivate: [authGuard, roleGuard([RolUsuario.ADMINISTRADOR])]
   },
 
-  // 🔐 Rutas protegidas - ADMINISTRADOR: Proveedores
+  // 🔐 Proveedores
   {
     path: 'proveedores',
     loadChildren: () =>
@@ -57,7 +66,7 @@ export const routes: Routes = [
     canActivate: [authGuard, roleGuard([RolUsuario.ADMINISTRADOR])]
   },
 
-  // 🔐 Rutas protegidas - OPERADOR y ADMINISTRADOR: Ventas (POS)
+  // 🔐 Ventas (POS)
   {
     path: 'ventas',
     loadChildren: () =>
@@ -66,7 +75,7 @@ export const routes: Routes = [
     canActivate: [authGuard, roleGuard([RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR])]
   },
 
-  // 🔐 Rutas protegidas - OPERADOR y ADMINISTRADOR: Facturas
+  // 🔐 Facturas
   {
     path: 'facturas',
     loadChildren: () =>
@@ -75,7 +84,7 @@ export const routes: Routes = [
     canActivate: [authGuard, roleGuard([RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR])]
   },
 
-  // � Rutas protegidas - ADMINISTRADOR: Gestión de Empleados
+  // 🔐 Empleados
   {
     path: 'empleados',
     loadComponent: () =>
@@ -84,7 +93,7 @@ export const routes: Routes = [
     canActivate: [authGuard, roleGuard([RolUsuario.ADMINISTRADOR])]
   },
 
-  // �🔁 Redirecciones
+  // 🔁 Redirecciones
   { path: '', redirectTo: 'login', pathMatch: 'full' },
   { path: '**', redirectTo: 'login' }
 ];

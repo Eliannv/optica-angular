@@ -12,6 +12,9 @@ export interface HistoriaClinica {
   oiCilindro: number | null;
   oiEje: number | null;
 
+  dp: number;
+  add?: number;
+
   de: string;
   altura: number | null;
   color: string;
@@ -19,4 +22,5 @@ export interface HistoriaClinica {
 
   createdAt?: any;
   updatedAt?: any;
+  doctor?: string;
 }

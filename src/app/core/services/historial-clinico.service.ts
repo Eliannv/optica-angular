@@ -4,8 +4,11 @@ import {
   doc,
   setDoc,
   getDoc,
-  serverTimestamp
+  serverTimestamp,
+  collection,
+  collectionData
 } from '@angular/fire/firestore';
+import { Observable } from 'rxjs';
 import { HistoriaClinica } from '../models/historia-clinica.model';
 
 @Injectable({ providedIn: 'root' })
@@ -37,5 +40,10 @@ export class HistorialClinicoService {
   obtenerHistorial(clienteId: string) {
     const ref = doc(this.fs, `clientes/${clienteId}/historialClinico/main`);
     return getDoc(ref);
+  }
+
+  getHistorialByCliente(clienteId: string): Observable<any> {
+    const historialRef = collection(this.fs, `clientes/${clienteId}/historialClinico`);
+    return collectionData(historialRef, { idField: 'id' });
   }
 }

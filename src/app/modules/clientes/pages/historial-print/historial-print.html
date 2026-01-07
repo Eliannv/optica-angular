@@ -1,0 +1,86 @@
+<div *ngIf="!loading && historial && cliente" class="ticket">
+
+    <div class="t-center t-bold">ÓPTICA MACÍAS</div>
+    <div class="t-center t-small">Historial Clínico</div>
+    <div class="t-center t-small">Machala - Ecuador</div>
+
+    <div class="t-hr"></div>
+
+    <!-- Datos del cliente -->
+    <div class="t-small">
+        <div><b>Cliente:</b> {{ cliente.nombres }} {{ cliente.apellidos }}</div>
+        <div><b>Cédula:</b> {{ cliente.cedula || '-' }}</div>
+        <div><b>Tel:</b> {{ cliente.telefono || '-' }}</div>
+        <div>
+            <b>Fecha:</b> {{ cliente.createdAt?.toDate() | date:'dd/MM/yyyy HH:mm' }}
+        </div>
+    </div>
+
+    <div class="t-hr"></div>
+
+    <!-- Medidas -->
+    <div class="t-bold t-small">MEDIDAS</div>
+
+    <div class="t-small">
+        <b>OD</b><br> Esf {{ historial.odEsfera ?? '-' }} Cil {{ historial.odCilindro ?? '-' }} Eje {{ historial.odEje ?? '-' }}
+    </div>
+
+
+    <div class="t-small" style="margin-top:4px">
+        <b>OI</b><br> Esf {{ historial.oiEsfera ?? '-' }} Cil {{ historial.oiCilindro ?? '-' }} Eje {{ historial.oiEje ?? '-' }}
+    </div>
+
+    <div class="t-hr"></div>
+
+    <!-- Medidas adicionales -->
+    <div class="t-small" *ngIf="historial.add !== null && historial.add !== undefined">
+        <b>ADD:</b> {{ historial.add }}
+    </div>
+
+
+    <div class="t-small" *ngIf="historial.dp !== null && historial.dp !== undefined">
+        <b>DP:</b> {{ historial.dp }}
+    </div>
+
+    <div class="t-small" *ngIf="historial.color">
+        <b>Color:</b> {{ historial.color }}
+    </div>
+
+
+    <div class="t-small" *ngIf="historial.de">
+        <b>DE:</b> {{ historial.de }}
+    </div>
+
+    <div class="t-small" *ngIf="historial.altura !== null && historial.altura !== undefined">
+        <b>Altura:</b> {{ historial.altura }} cm
+    </div>
+
+    <div class="t-small" *ngIf="historial.color">
+        <b>Color:</b> {{ historial.color }}
+    </div>
+
+    <div class="t-hr"></div>
+
+    <!-- Observaciones -->
+    <div class="t-small" *ngIf="historial.observacion">
+        <b>Obs:</b><br> {{ historial.observacion }}
+    </div>
+
+    <div class="t-hr"></div>
+
+    <!-- Información de registro -->
+    <div class="t-small">
+        <div *ngIf="historial.doctor">
+            <b>Doctor:</b> {{ historial.doctor }}
+        </div>
+        <div>
+            <b>Registro:</b> {{ historial.createdAt?.toDate() | date:'dd/MM/yyyy HH:mm' }}
+        </div>
+    </div>
+
+    <div class="t-hr"></div>
+
+    <div class="t-center t-small">Documento informativo</div>
+    <div class="t-center t-small">No válido como factura</div>
+
+</div>

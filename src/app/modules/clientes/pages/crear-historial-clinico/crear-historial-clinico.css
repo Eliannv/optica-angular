@@ -85,8 +85,8 @@ form {
 
 .ojos-grid {
     display: grid;
-    grid-template-columns: 1fr;
-    /* 👈 una sola columna */
+    grid-template-columns: repeat(2, 1fr);
+    /* 👈 OD | OI */
     gap: 1.25rem;
     margin-bottom: 1.5rem;
 }

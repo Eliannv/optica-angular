@@ -23,4 +23,5 @@ export interface HistoriaClinica {
 
   createdAt?: any;
   updatedAt?: any;
+  doctor?: string;
 }

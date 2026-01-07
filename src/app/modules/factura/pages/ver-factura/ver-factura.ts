@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { FacturasService } from '../../../../core/services/facturas';
+import { HistorialClinicoService } from '../../../../core/services/historial-clinico.service';
 
 @Component({
   selector: 'app-ver-factura',

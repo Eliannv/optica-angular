@@ -48,10 +48,14 @@ export class CrearHistorialClinicoComponent implements OnInit {
   ) {}
 
   async ngOnInit() {
-    // 1) Form Historial Clínico
+
+    /* =========================
+       FORM HISTORIAL CLÍNICO
+       ========================= */
     this.form = this.fb.group({
       dp: [null],
       add: [null],
+
       odEsfera: [null],
       odCilindro: [null],
       odEje: [null],
@@ -63,10 +67,15 @@ export class CrearHistorialClinicoComponent implements OnInit {
       de: ['', Validators.required],
       altura: [null],
       color: ['', Validators.required],
-      observacion: ['']
+      observacion: [''],
+
+      // 🔧 IMPORTANTE: valor por defecto
+      doctor: ['']
     });
 
-    // 2) Form Información Personal del Cliente
+    /* =========================
+       FORM CLIENTE
+       ========================= */
     this.clienteForm = this.fb.group({
       nombres: ['', [Validators.required, Validators.minLength(2)]],
       apellidos: ['', [Validators.required, Validators.minLength(2)]],
@@ -87,35 +96,41 @@ export class CrearHistorialClinicoComponent implements OnInit {
       direccion: ['']
     });
 
-    // 3) Id cliente (tu ruta usa /clientes/:id/crear-historial-clinico)
+    /* =========================
+       CARGA DE DATOS
+       ========================= */
     this.clienteId = this.route.snapshot.paramMap.get('id')!;
 
-    // 4) Cargar datos del cliente
-    this.cliente = await firstValueFrom(this.clientesSrv.getClienteById(this.clienteId));
+    this.cliente = await firstValueFrom(
+      this.clientesSrv.getClienteById(this.clienteId)
+    );
+
     if (this.cliente) {
       this.clienteForm.patchValue(this.cliente);
     }
 
-    // 5) mode por query param
     const qpMode = (this.route.snapshot.queryParamMap.get('mode') || '').toLowerCase();
     if (qpMode === 'create' || qpMode === 'edit' || qpMode === 'view') {
       this.mode = qpMode;
     }
 
-    // 6) Cargar historial si existe
     const snap = await this.historialSrv.obtenerHistorial(this.clienteId);
     this.existeHistorial = snap.exists();
 
     if (this.existeHistorial) {
-      this.form.patchValue(snap.data() as any);
-      // si no mandaron mode, por defecto es edit
+      const data = snap.data() as any;
+
+      // 🔧 FIX CLAVE: forzar doctor
+      this.form.patchValue({
+        ...data,
+        doctor: data?.doctor ?? ''
+      });
+
       if (!qpMode) this.mode = 'edit';
     } else {
-      // si no existe y no mandaron mode, por defecto create
       if (!qpMode) this.mode = 'create';
     }
 
-    // 7) Si es view => solo lectura
     if (this.mode === 'view') {
       this.form.disable({ emitEvent: false });
       this.clienteForm.disable({ emitEvent: false });
@@ -124,12 +139,12 @@ export class CrearHistorialClinicoComponent implements OnInit {
     this.loading = false;
   }
 
-  // ✅ Guardar (crea o actualiza historial Y datos del cliente)
+  /* =========================
+     GUARDAR
+     ========================= */
   async guardar() {
-    // Si está en view, no guarda
     if (this.mode === 'view') return;
 
-    // Validar ambos formularios
     if (this.form.invalid || this.clienteForm.invalid) {
       this.form.markAllAsTouched();
       this.clienteForm.markAllAsTouched();
@@ -137,34 +152,32 @@ export class CrearHistorialClinicoComponent implements OnInit {
     }
 
     try {
-      // Guardar historial clínico
-      await this.historialSrv.guardarHistorial(
-        this.clienteId,
-        this.form.getRawValue() as any
-      );
+      // 🔧 doble seguridad
+      const data = this.form.getRawValue();
+      data.doctor = data.doctor ?? '';
 
-      // Guardar datos personales del cliente
+      await this.historialSrv.guardarHistorial(this.clienteId, data);
+
       await this.clientesSrv.updateCliente(
         this.clienteId,
         this.clienteForm.getRawValue() as Partial<Cliente>
       );
 
-      // Mostrar mensaje de éxito
       await Swal.fire({
         icon: 'success',
         title: 'Guardado exitoso',
-        text: 'La información del historial clínico y datos del cliente se han guardado correctamente.',
-        showConfirmButton: false,
-        timer: 2000
+        text: 'El historial clínico fue guardado correctamente.',
+        timer: 2000,
+        showConfirmButton: false
       });
 
-      // volver a la lista de historiales
       this.router.navigate(['/clientes/historial-clinico']);
+
     } catch (error: any) {
       Swal.fire({
         icon: 'error',
-        title: 'Error al guardar',
-        text: error?.message || 'Ocurrió un error al guardar la información. Por favor, intenta nuevamente.',
+        title: 'Error',
+        text: error?.message || 'Error al guardar',
         confirmButtonColor: '#d33'
       });
     }
@@ -174,49 +187,46 @@ export class CrearHistorialClinicoComponent implements OnInit {
     this.router.navigate(['/clientes/historial-clinico']);
   }
 
-  // Helpers para validaciones
-  esInvalidoCliente(campo: string): boolean {
-    const control = this.clienteForm.get(campo);
-    return !!(control && control.invalid && control.touched);
-  }
-
-  getMensajeErrorCliente(campo: string): string {
-    const control = this.clienteForm.get(campo);
-    if (!control || !control.errors) return '';
-
-    if (control.errors['required']) return 'Este campo es requerido';
-    if (control.errors['minlength']) return `Mínimo ${control.errors['minlength'].requiredLength} caracteres`;
-    if (control.errors['pattern']) {
-      if (campo === 'cedula') return 'Debe tener 10 dígitos';
-      if (campo === 'telefono') return 'Debe iniciar con 0 y tener 10 dígitos';
-    }
-    if (control.errors['email']) return 'Correo electrónico inválido';
-    if (control.errors['emailTomado']) return 'Este correo ya está registrado en el sistema';
-    if (control.errors['cedulaTomada']) return 'Esta cédula ya está registrada en el sistema';
-    return 'Campo inválido';
-  }
-
-  // 👇 helpers opcionales para el HTML
+  /* =========================
+     HELPERS
+     ========================= */
   get esView() { return this.mode === 'view'; }
   get esEdit() { return this.mode === 'edit'; }
   get esCreate() { return this.mode === 'create'; }
 
-  // Validador asíncrono para email único, excluyendo el cliente actual
+  esInvalidoCliente(campo: string): boolean {
+    const c = this.clienteForm.get(campo);
+    return !!(c && c.invalid && c.touched);
+  }
+
+  getMensajeErrorCliente(campo: string): string {
+    const c = this.clienteForm.get(campo);
+    if (!c || !c.errors) return '';
+
+    if (c.errors['required']) return 'Campo requerido';
+    if (c.errors['minlength']) return 'Muy corto';
+    if (c.errors['pattern']) return 'Formato inválido';
+    if (c.errors['email']) return 'Email inválido';
+    if (c.errors['emailTomado']) return 'Email ya registrado';
+    if (c.errors['cedulaTomada']) return 'Cédula ya registrada';
+
+    return 'Campo inválido';
+  }
+
   uniqueEmailClienteValidator() {
     return async (control: any) => {
-      const value = (control.value || '').trim().toLowerCase();
-      if (!value) return null;
-      const existe = await this.clientesSrv.existeEmail(value, this.clienteId);
+      const v = (control.value || '').trim().toLowerCase();
+      if (!v) return null;
+      const existe = await this.clientesSrv.existeEmail(v, this.clienteId);
       return existe ? { emailTomado: true } : null;
     };
   }
 
-  // Validador asíncrono para cédula única, excluyendo el cliente actual
   uniqueCedulaClienteValidator() {
     return async (control: any) => {
-      const value = (control.value || '').trim();
-      if (!value) return null;
-      const existe = await this.clientesSrv.existeCedula(value, this.clienteId);
+      const v = (control.value || '').trim();
+      if (!v) return null;
+      const existe = await this.clientesSrv.existeCedula(v, this.clienteId);
       return existe ? { cedulaTomada: true } : null;
     };
   }

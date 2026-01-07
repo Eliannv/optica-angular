@@ -79,6 +79,7 @@
             </div>
         </form>
 
+
         <!-- HISTORIAL CLÍNICO -->
         <form [formGroup]="form" (ngSubmit)="guardar()">
             <div class="section-title">
@@ -86,21 +87,6 @@
                 <h4 style="margin-left: 3px ;">Historial Clínico</h4>
             </div>
 
-            <!-- MEDIDAS PRINCIPALES -->
-            <div class="section-medidas">
-                <div class="input-group">
-                    <label>DP</label>
-                    <input type="number" step="0.5" formControlName="dp" placeholder="62" appEnterNext>
-                </div>
-                <div class="input-group">
-                    <label>ADD</label>
-                    <input type="number" step="0.25" formControlName="add" placeholder="2.00" appEnterNext>
-                </div>
-                <div class="input-group">
-                    <label>Altura</label>
-                    <input type="number" step="0.1" formControlName="altura" placeholder="18.5" appEnterNext>
-                </div>
-            </div>
 
             <!-- OD / OI -->
             <div class="ojos-grid">
@@ -142,6 +128,22 @@
                     </div>
                 </div>
             </div>
+            <!-- MEDIDAS PRINCIPALES -->
+            <div class="section-medidas">
+                <div class="input-group">
+                    <label>ADD</label>
+                    <input type="number" step="0.25" formControlName="add" placeholder="2.00" appEnterNext>
+                </div>
+                <div class="input-group">
+                    <label>DP</label>
+                    <input type="number" step="0.5" formControlName="dp" placeholder="62" appEnterNext>
+                </div>
+                <div class="input-group">
+                    <label>Altura</label>
+                    <input type="number" step="0.1" formControlName="altura" placeholder="18.5" appEnterNext>
+                </div>
+            </div>
+
 
             <!-- EXTRA -->
             <div class="section-extra">
@@ -160,6 +162,17 @@
                 <label>Observación</label>
                 <textarea rows="3" formControlName="observacion" placeholder="Notas adicionales..." appEnterNext></textarea>
             </div>
+            <div class="section-title">
+                <h4>Doctor que atendió</h4>
+            </div>
+
+            <div class="cliente-grid">
+                <div class="input-group full-width">
+                    <label>DR.</label>
+                    <input type="text" formControlName="doctor" placeholder="Ej: Dr. Juan Pérez" appEnterNext />
+                </div>
+            </div>
+
 
             <!-- FOOTER -->
             <div class="historial-footer">

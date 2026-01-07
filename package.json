@@ -17,12 +17,14 @@
     "prettier": {
         "printWidth": 100,
         "singleQuote": true,
-        "overrides": [{
-            "files": "*.html",
-            "options": {
-                "parser": "angular"
+        "overrides": [
+            {
+                "files": "*.html",
+                "options": {
+                    "parser": "angular"
+                }
             }
-        }]
+        ]
     },
     "private": true,
     "dependencies": {
@@ -38,7 +40,7 @@
         "bootstrap": "^5.3.8",
         "firebase-admin": "^13.6.0",
         "rxjs": "~7.8.0",
-        "sweetalert2": "^11.26.10",
+        "sweetalert2": "^11.26.17",
         "tslib": "^2.3.0",
         "xlsx": "^0.18.5",
         "zone.js": "~0.15.0"
@@ -48,6 +50,7 @@
         "@angular/cli": "^20.2.1",
         "@angular/compiler-cli": "^20.2.0",
         "@types/jasmine": "~5.1.0",
+        "@types/xlsx": "^0.0.35",
         "electron": "^39.2.7",
         "electron-builder": "^26.0.12",
         "jasmine-core": "~5.9.0",

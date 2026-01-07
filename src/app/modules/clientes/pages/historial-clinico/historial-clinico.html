@@ -257,6 +257,26 @@
                         <span class="detalle-value">{{ historialClinico.oiEje ?? '-' }}°</span>
                     </div>
                 </div>
+                <!-- Medidas Principales -->
+                <div class="detalle-section" *ngIf="!cargandoHistorial && historialClinico">
+                    <h3>Medidas Principales</h3>
+
+                    <div class="detalle-item">
+                        <span class="detalle-label">DP:</span>
+                        <span class="detalle-value">{{ historialClinico.dp ?? '-' }}</span>
+                    </div>
+
+                    <div class="detalle-item">
+                        <span class="detalle-label">ADD:</span>
+                        <span class="detalle-value">{{ historialClinico.add ?? '-' }}</span>
+                    </div>
+
+                    <div class="detalle-item">
+                        <span class="detalle-label">Altura:</span>
+                        <span class="detalle-value">{{ historialClinico.altura ?? '-' }}</span>
+                    </div>
+                </div>
+
 
                 <!-- Información Adicional -->
                 <div class="detalle-section" *ngIf="!cargandoHistorial && historialClinico">
@@ -279,9 +299,17 @@
                     </div>
                 </div>
 
+
+
                 <!-- Fechas -->
                 <div class="detalle-section" *ngIf="clienteSeleccionado.createdAt">
                     <h3>Información del Registro</h3>
+                    <div class="detalle-item" *ngIf="historialClinico?.doctor">
+                        <span class="detalle-label">Doctor:</span>
+                        <span class="detalle-value">
+      {{ historialClinico?.doctor }}
+    </span>
+                    </div>
                     <div class="detalle-item">
                         <span class="detalle-label">Fecha de Registro:</span>
                         <span class="detalle-value">{{ clienteSeleccionado.createdAt.toDate() | date:'dd/MM/yyyy HH:mm' }}</span>
@@ -298,6 +326,10 @@
             <button class="btn btn-success" *ngIf="historialClinico && clienteSeleccionado" (click)="crearRecibo(clienteSeleccionado.id); cerrarModal()">
         Crear Recibo
       </button>
+            <button class="btn btn-info" *ngIf="historialClinico && clienteSeleccionado" (click)="imprimirHistorial(clienteSeleccionado.id)">
+  🖨️ Imprimir Historial
+</button>
+
         </div>
     </div>
 </div>
