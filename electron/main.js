@@ -38,6 +38,7 @@ function verificarSucursal() {
   const machineId = generarIdMaquina();
   const idsPermitidos = [
     '858744ddedd2fca1', // Esta PC (desarrollo)
+    '0de9527eff37b967',
     // Agrega aquí el Machine ID de la PC de PASAJE cuando lo obtengas
   ];
 
