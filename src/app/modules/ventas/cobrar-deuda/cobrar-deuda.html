@@ -172,6 +172,27 @@
 
     <div class="t-hr"></div>
 
+    <!-- Detalle de productos -->
+    <ng-container *ngIf="ticketPago.items?.length">
+        <div class="t-table-head t-small">
+            <span>COD</span>
+            <span>DESCRIPCIÓN</span>
+            <span>CANT</span>
+            <span>P.U</span>
+            <span>P.T</span>
+        </div>
+
+        <div class="t-table-row t-small" *ngFor="let it of ticketPago.items">
+            <span class="t-cell">{{ it.codigo || it.productoId }}</span>
+            <span class="t-cell t-cut">{{ it.nombre }}</span>
+            <span class="t-cell t-right">{{ it.cantidad }}</span>
+            <span class="t-cell t-right">{{ it.precioUnitario | number:'1.2-2' }}</span>
+            <span class="t-cell t-right">{{ it.total | number:'1.2-2' }}</span>
+        </div>
+
+        <div class="t-hr"></div>
+    </ng-container>
+
     <div class="t-small">
         <div><b>COMPROBANTE:</b> PAGO / ABONO</div>
         <div><b>FACTURA No:</b> {{ ticketPago.facturaId }}</div>

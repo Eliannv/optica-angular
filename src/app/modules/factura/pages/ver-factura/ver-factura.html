@@ -122,12 +122,20 @@
 
         <div class="t-hr"></div>
 
+        <div class="t-table-head t-small">
+            <span>COD</span>
+            <span>DESCRIPCIÓN</span>
+            <span>CANT</span>
+            <span>P.U</span>
+            <span>P.T</span>
+        </div>
+
         <div class="t-table-row t-small" *ngFor="let it of factura.items; let i = index">
-            <div class="t-kv"><span>COD</span><span>{{ i + 1 }}</span></div>
-            <div class="t-kv"><span>DESC</span><span class="t-cut">{{ it.nombre }}</span></div>
-            <div class="t-kv"><span>CANT</span><span>{{ it.cantidad }}</span></div>
-            <div class="t-kv"><span>P.U</span><span>{{ it.precioUnitario | number:'1.2-2' }}</span></div>
-            <div class="t-kv"><span>P.T</span><span>{{ it.total | number:'1.2-2' }}</span></div>
+            <span class="t-cell">{{ it.codigo || it.productoId || i + 1 }}</span>
+            <span class="t-cell t-cut">{{ it.nombre }}</span>
+            <span class="t-cell t-right">{{ it.cantidad }}</span>
+            <span class="t-cell t-right">{{ it.precioUnitario | number:'1.2-2' }}</span>
+            <span class="t-cell t-right">{{ it.total | number:'1.2-2' }}</span>
         </div>
 
         <div class="t-hr"></div>

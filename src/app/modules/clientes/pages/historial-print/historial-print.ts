@@ -55,7 +55,59 @@ export class HistorialPrintComponent implements OnInit {
       this.loading = false;
     }
 
-    // Auto imprimir
-    setTimeout(() => window.print(), 300);
+    // Auto imprimir con ventana dedicada (mismo patrón que factura)
+    setTimeout(() => {
+      const ticket = document.querySelector('.ticket') as HTMLElement | null;
+      if (!ticket) return;
+
+      const w = window.open('', 'PRINT', 'height=600,width=380');
+      if (!w) return;
+
+      const styles = `
+        html, body { margin: 0; padding: 0; width: 80mm; background: #fff; font-family: monospace; }
+        .ticket { padding: 6px 4px; font-size: 12px; line-height: 1.2; width: 80mm; box-sizing: border-box; }
+        .t-center { text-align: center; }
+        .t-right { text-align: right; }
+        .t-bold { font-weight: 700; }
+        .t-hr { border-top: 1px dashed #000; margin: 6px 0; }
+        .t-small { font-size: 11px; }
+        .t-kv { display: flex; justify-content: space-between; gap: 4px; }
+        .t-kv span:first-child { width: 32mm; }
+        .t-kv span:last-child { flex: 1; text-align: right; }
+        @media print { @page { size: 80mm auto; margin: 0; } html, body { width: 80mm; margin: 0; padding: 0; } .ticket { width: 80mm; } }
+      `;
+
+      w.document.write(`
+        <html>
+          <head>
+            <title>Historial Clínico</title>
+            <style>${styles}</style>
+          </head>
+          <body>
+            ${ticket.outerHTML}
+          </body>
+        </html>
+      `);
+      w.document.close();
+
+      const triggerPrint = () => {
+        let closed = false;
+        const safeClose = () => { if (closed) return; closed = true; w.close(); };
+        try {
+          w.focus();
+          w.addEventListener('afterprint', safeClose, { once: true });
+          w.print();
+          setTimeout(safeClose, 2000);
+        } catch {
+          safeClose();
+        }
+      };
+
+      if (w.document.readyState === 'complete') {
+        setTimeout(triggerPrint, 150);
+      } else {
+        w.onload = () => setTimeout(triggerPrint, 150);
+      }
+    }, 300);
   }
 }

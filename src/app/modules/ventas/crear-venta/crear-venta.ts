@@ -156,7 +156,8 @@ agregarProducto(p: any) {
     existing.cantidad++;
     existing.total = existing.cantidad * existing.precioUnitario;
   } else {
-    this.items.push({
+      this.items.push({
+        codigo: p.codigo || '',
       productoId: id,
       nombre: p.nombre,
       tipo: p.tipo || p.categoria || p.grupo,
@@ -248,6 +249,7 @@ const factura: any = {
     cantidad: i.cantidad,
     precioUnitario: i.precioUnitario,
     total: i.total,
+          codigo: i.codigo, // Agregar el código aquí
   })),
 
   subtotal: +this.subtotal.toFixed(2),
@@ -338,15 +340,16 @@ private cleanUndefined(obj: any): any {
 
     const styles = `
       html, body { margin: 0; padding: 0; width: 80mm; background: #fff; font-family: monospace; }
-      .ticket { padding: 8px 6px; font-size: 12px; line-height: 1.2; width: 80mm; box-sizing: border-box; }
+      .ticket { padding: 6px 4px; font-size: 12px; line-height: 1.2; width: 80mm; box-sizing: border-box; }
       .t-center { text-align: center; }
       .t-right { text-align: right; }
       .t-bold { font-weight: 700; }
       .t-hr { border-top: 1px dashed #000; margin: 6px 0; }
       .t-kv { display: flex; justify-content: space-between; gap: 4px; }
-      .t-kv span:first-child { width: 30mm; }
+      .t-kv span:first-child { width: 32mm; }
       .t-kv span:last-child { flex: 1; text-align: right; }
-      .t-table-head, .t-table-row { display: grid; grid-template-columns: 10mm 34mm 10mm 12mm 12mm; column-gap: 2mm; row-gap: 0; align-items: center; }
+      /* columnas compactas: total 70mm + gaps 8mm = 78mm dentro de 80mm con padding */
+      .t-table-head, .t-table-row { display: grid; grid-template-columns: 8mm 30mm 8mm 12mm 12mm; column-gap: 2mm; row-gap: 0; align-items: center; }
       .t-table-head { font-weight: 700; border-bottom: 1px dashed #000; padding-bottom: 2px; margin-bottom: 4px; }
       .t-table-row { margin: 0 0 2px 0; }
       .t-cell { display: block; }
