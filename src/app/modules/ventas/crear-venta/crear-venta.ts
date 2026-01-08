@@ -45,7 +45,6 @@ export class CrearVentaComponent implements OnInit {
 
   // para ticket
   facturaParaImprimir: any = null;
-  mostrandoVistaPrevia = false;
   abono = 0;
   saldoPendiente = 0;
   constructor(
@@ -283,14 +282,14 @@ const ref = await this.facturasSrv.crearFactura(facturaLimpia);
       }
     }
 
-    // Setear datos de la factura para vista previa
+    // Setear datos de la factura y enviar directo a impresión
     this.facturaParaImprimir = {
       id: ref.id,
       ...factura,
     };
 
-    // Mostrar vista previa en lugar de imprimir directamente
-    this.mostrandoVistaPrevia = true;
+    // Imprimir sin mostrar vista previa
+    setTimeout(() => this.imprimirTicket(), 0);
 
   } catch (e) {
     console.error(e);
@@ -301,12 +300,8 @@ const ref = await this.facturasSrv.crearFactura(facturaLimpia);
 }
 
   imprimirAhora() {
-    window.print();
-    this.cerrarVistaPrevia();
-  }
-
-  cerrarVistaPrevia() {
-    this.mostrandoVistaPrevia = false;
+    // Método legado: ya no se usa, pero mantenemos compatibilidad
+    this.imprimirTicket();
   }
 private cleanUndefined(obj: any): any {
   if (obj === null || obj === undefined) return null;
@@ -332,35 +327,43 @@ private cleanUndefined(obj: any): any {
   imprimirTicket() {
     const ticket = document.getElementById('ticket');
     if (!ticket) {
-      window.print();
       return;
     }
 
-    // ✅ abrimos ventana solo con el ticket para imprimir (lo más confiable)
+    // Abrir ventana aislada solo con el ticket para evitar que se oculte por estilos de la app
     const w = window.open('', 'PRINT', 'height=600,width=380');
     if (!w) {
-      window.print();
       return;
     }
+
+    const styles = `
+      html, body { margin: 0; padding: 0; width: 80mm; background: #fff; font-family: monospace; }
+      .ticket { padding: 8px 6px; font-size: 12px; line-height: 1.2; width: 80mm; box-sizing: border-box; }
+      .t-center { text-align: center; }
+      .t-right { text-align: right; }
+      .t-bold { font-weight: 700; }
+      .t-hr { border-top: 1px dashed #000; margin: 6px 0; }
+      .t-kv { display: flex; justify-content: space-between; gap: 4px; }
+      .t-kv span:first-child { width: 30mm; }
+      .t-kv span:last-child { flex: 1; text-align: right; }
+      .t-table-head, .t-table-row { display: grid; grid-template-columns: 10mm 34mm 10mm 12mm 12mm; column-gap: 2mm; row-gap: 0; align-items: center; }
+      .t-table-head { font-weight: 700; border-bottom: 1px dashed #000; padding-bottom: 2px; margin-bottom: 4px; }
+      .t-table-row { margin: 0 0 2px 0; }
+      .t-cell { display: block; }
+      .t-cut { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+      .t-small { font-size: 11px; }
+      @media print {
+        @page { size: 80mm auto; margin: 0; }
+        html, body { width: 80mm; margin: 0; padding: 0; }
+        .ticket { width: 80mm; }
+      }
+    `;
 
     w.document.write(`
       <html>
         <head>
           <title>Ticket</title>
-          <style>
-            body { margin: 0; padding: 0; font-family: monospace; }
-            .ticket { padding: 10px; font-size: 12px; }
-            .t-center { text-align: center; }
-            .t-right { text-align: right; }
-            .t-bold { font-weight: 700; }
-            .t-line { border-top: 1px dashed #000; margin: 8px 0; }
-            .t-row { display: flex; justify-content: space-between; gap: 8px; }
-            .t-cut { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-            .t-space { height: 10px; }
-            @media print {
-              @page { margin: 0; }
-            }
-          </style>
+          <style>${styles}</style>
         </head>
         <body>
           ${ticket.outerHTML}
@@ -369,9 +372,33 @@ private cleanUndefined(obj: any): any {
     `);
 
     w.document.close();
-    w.focus();
-    w.print();
-    w.close();
+
+    // Esperar a que cargue el nuevo documento antes de imprimir.
+    const triggerPrint = () => {
+      let closed = false;
+      const safeClose = () => {
+        if (closed) return;
+        closed = true;
+        w.close();
+      };
+
+      try {
+        w.focus();
+        w.addEventListener('afterprint', safeClose, { once: true });
+        w.print();
+        // Fallback: cerrar si afterprint no se dispara (algunos drivers PDF)
+        setTimeout(safeClose, 2000);
+      } catch (err) {
+        // Si algo falla, no dejamos la ventana abierta indefinidamente
+        safeClose();
+      }
+    };
+
+    if (w.document.readyState === 'complete') {
+      setTimeout(triggerPrint, 150);
+    } else {
+      w.onload = () => setTimeout(triggerPrint, 150);
+    }
   }
 
   volver() {

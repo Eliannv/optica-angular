@@ -151,97 +151,8 @@
     </div>
 </div>
 
-<!-- MODAL DE VISTA PREVIA -->
-<div class="preview-modal" *ngIf="mostrandoVistaPrevia && facturaParaImprimir">
-    <div class="preview-overlay" (click)="cerrarVistaPrevia()"></div>
-    <div class="preview-container">
-        <div class="preview-header">
-            <h3>Vista Previa - Factura de Venta</h3>
-            <button class="btn-close-modal" (click)="cerrarVistaPrevia()">✕</button>
-        </div>
-        <div class="preview-body">
-            <div class="ticket-preview">
-                <div class="t-center t-bold">ÓPTICA MACÍAS</div>
-                <div class="t-center t-small">RUC: 0999999999001</div>
-                <div class="t-center t-small">Machala - Ecuador</div>
-
-                <div class="t-hr"></div>
-
-                <div class="t-small">
-                    <div><b>FACTURA No:</b> {{ facturaParaImprimir.id }}</div>
-                    <div><b>Fecha:</b> {{ facturaParaImprimir.fecha | date:'dd/MM/yyyy HH:mm' }}</div>
-                    <div><b>Cliente:</b> {{ facturaParaImprimir.clienteNombre }}</div>
-                    <div><b>Método pago:</b> {{ facturaParaImprimir.metodoPago }}</div>
-                    <div *ngIf="facturaParaImprimir.tipoVenta"><b>Tipo venta:</b> {{ facturaParaImprimir.tipoVenta }}</div>
-                </div>
-
-                <div class="t-hr"></div>
-
-                <div class="t-table-row t-small" *ngFor="let it of facturaParaImprimir.items; let i = index">
-                    <div class="t-kv t-small">
-                        <span>COD</span>
-                        <span>{{ i + 1 }}</span>
-                    </div>
-                    <div class="t-kv t-small">
-                        <span>DESCRIPCIÓN</span>
-                        <span class="t-cut">{{ it.nombre }}</span>
-                    </div>
-                    <div class="t-kv t-small">
-                        <span>CANT</span>
-                        <span>{{ it.cantidad }}</span>
-                    </div>
-                    <div class="t-kv t-small">
-                        <span>P.U</span>
-                        <span>{{ it.precioUnitario | number:'1.2-2' }}</span>
-                    </div>
-                    <div class="t-kv t-small">
-                        <span>P.T</span>
-                        <span>{{ it.total | number:'1.2-2' }}</span>
-                    </div>
-                </div>
-
-                <div class="t-hr"></div>
-
-                <div class="t-kv t-small">
-                    <span>Subtotal</span>
-                    <span>{{ facturaParaImprimir.subtotal | number:'1.2-2' }}</span>
-                </div>
-                <div class="t-kv t-small">
-                    <span>IVA</span>
-                    <span>{{ facturaParaImprimir.iva | number:'1.2-2' }}</span>
-                </div>
-                <div class="t-kv t-bold">
-                    <span>TOTAL</span>
-                    <span>{{ facturaParaImprimir.total | number:'1.2-2' }}</span>
-                </div>
-                <div class="t-kv t-small" *ngIf="facturaParaImprimir.abonado > 0">
-                    <span>Abono</span>
-                    <span>{{ facturaParaImprimir.abonado | number:'1.2-2' }}</span>
-                </div>
-                <div class="t-kv t-small" *ngIf="facturaParaImprimir.saldoPendiente > 0">
-                    <span>Saldo pendiente</span>
-                    <span class="text-warning">{{ facturaParaImprimir.saldoPendiente | number:'1.2-2' }}</span>
-                </div>
-
-                <div class="t-hr"></div>
-
-                <div class="t-center t-small">Gracias por su compra</div>
-                <div class="t-center t-small">Conserve su factura</div>
-            </div>
-        </div>
-        <div class="preview-footer">
-            <button class="btn btn-secondary" (click)="cerrarVistaPrevia()">
-          Cancelar
-        </button>
-            <button class="btn btn-primary" (click)="imprimirAhora()">
-          🖨️ Imprimir
-        </button>
-        </div>
-    </div>
-</div>
-
 <!-- ================= TICKET / FACTURA (oculto, solo para impresión) ================= -->
-<div class="ticket" *ngIf="facturaParaImprimir">
+<div id="ticket" class="ticket" *ngIf="facturaParaImprimir">
 
     <div class="t-center t-bold">ÓPTICA MACÍAS</div>
     <div class="t-center t-small">RUC: 0999999999001</div>
@@ -260,31 +171,19 @@
 
     <!-- TABLA -->
     <div class="t-table-head t-small">
-
+        <span>COD</span>
+        <span>DESCRIPCIÓN</span>
+        <span>CANT</span>
+        <span>P.U</span>
+        <span>P.T</span>
     </div>
 
     <div class="t-table-row t-small" *ngFor="let it of facturaParaImprimir.items; let i = index">
-        <div class="t-kv t-small">
-            <span>COD</span>
-            <span>{{ i + 1 }}</span>
-        </div>
-        <div class="t-kv t-small">
-            <span>DESCRIPCIÓN</span>
-            <span class="t-cut">{{ it.nombre }}</span>
-        </div>
-        <div class="t-kv t-small">
-            <span>CANT</span>
-            <span>{{ it.cantidad }}</span>
-        </div>
-        <div class="t-kv t-small">
-            <span>P.U</span>
-            <span>{{ it.precioUnitario | number:'1.2-2' }}</span>
-        </div>
-        <div class="t-kv t-small">
-            <span>P.T</span>
-            <span>{{ it.total | number:'1.2-2' }}</span>
-        </div>
-
+        <span class="t-cell">{{ i + 1 }}</span>
+        <span class="t-cell t-cut">{{ it.nombre }}</span>
+        <span class="t-cell t-right">{{ it.cantidad }}</span>
+        <span class="t-cell t-right">{{ it.precioUnitario | number:'1.2-2' }}</span>
+        <span class="t-cell t-right">{{ it.total | number:'1.2-2' }}</span>
     </div>
 
     <div class="t-hr"></div>
