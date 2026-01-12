@@ -137,6 +137,11 @@
                             <strong>${{ saldoNuevo.toFixed(2) }}</strong>
                         </div>
 
+                        <div class="total-row" *ngIf="abono > (facturaSeleccionada?.saldoPendiente || 0)">
+                            <span>Vuelto</span>
+                            <strong style="color: #28a745;">${{ (abono - (facturaSeleccionada?.saldoPendiente || 0)).toFixed(2) }}</strong>
+                        </div>
+
                         <div class="metodo-pago">
                             <label>Método de Pago</label>
                             <select class="select-pago" [(ngModel)]="metodoPago">
@@ -228,6 +233,11 @@
     <div class="t-kv t-bold">
         <span>SALDO</span>
         <span>{{ ticketPago.saldoNuevo | number:'1.2-2' }}</span>
+    </div>
+
+    <div class="t-kv t-small" *ngIf="ticketPago.abonoRealizado > ticketPago.saldoNuevo">
+        <span>Vuelto</span>
+        <span>{{ (ticketPago.abonoRealizado - ticketPago.saldoNuevo) | number:'1.2-2' }}</span>
     </div>
 
     <div class="t-center t-small" style="margin-top: 6px;">

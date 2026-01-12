@@ -34,6 +34,29 @@ export class IngresosService {
   private movimientosRef = collection(this.firestore, 'movimientos_stock');
   private productosRef = collection(this.firestore, 'productos');
 
+  // 🔹 Almacenamiento temporal de ingreso (antes de crear en BD)
+  private ingresoTemporal: Ingreso | null = null;
+  private ingresoTemporalId: string | null = null;
+
+  // 🔹 Guardar ingreso temporalmente (sin crear en BD)
+  guardarIngresoTemporal(ingreso: Ingreso): string {
+    this.ingresoTemporal = ingreso;
+    // Generar un ID temporal para usarlo durante la navegación
+    this.ingresoTemporalId = 'temp_' + Date.now();
+    return this.ingresoTemporalId;
+  }
+
+  // 🔹 Obtener ingreso temporal
+  obtenerIngresoTemporal(): Ingreso | null {
+    return this.ingresoTemporal;
+  }
+
+  // 🔹 Limpiar ingreso temporal
+  limpiarIngresoTemporal(): void {
+    this.ingresoTemporal = null;
+    this.ingresoTemporalId = null;
+  }
+
   // 🔹 Obtener todos los ingresos
   getIngresos(): Observable<Ingreso[]> {
     const q = query(this.ingresosRef, orderBy('createdAt', 'desc'));
@@ -165,6 +188,7 @@ export class IngresosService {
       if (detalle.codigo) detalleData.codigo = detalle.codigo;
       if (detalle.observacion) detalleData.observacion = detalle.observacion;
       if (detalle.pvp1) detalleData.pvp1 = detalle.pvp1;
+      if (detalle.iva) detalleData.iva = detalle.iva; // Agregar IVA del detalle
       if (detalle.stockInicial) detalleData.stockInicial = detalle.stockInicial;
       
       batch.set(detalleRef, detalleData);
@@ -173,7 +197,7 @@ export class IngresosService {
     // 🔸 Actualizar estado del ingreso (reusar la referencia ya obtenida)
     batch.update(ingresoDoc, {
       estado: 'FINALIZADO',
-      total: totalFactura,
+      total: totalFactura + (ingreso.flete || 0) + (ingreso.iva || 0) - (ingreso.descuento || 0),
       updatedAt: new Date(),
     });
 
@@ -212,6 +236,16 @@ export class IngresosService {
     if (esLunas) nuevoProducto.stockIlimitado = true;
     if (detalle.costoUnitario !== undefined) nuevoProducto.costo = detalle.costoUnitario;
     if (detalle.pvp1 !== undefined) nuevoProducto.pvp1 = detalle.pvp1;
+    
+    // Calcular precioConIVA si hay PVP e IVA
+    if (detalle.pvp1 !== undefined && detalle.iva !== undefined && detalle.iva > 0) {
+      nuevoProducto.iva = detalle.iva;
+      // precioConIVA = pvp1 * (1 + iva/100)
+      nuevoProducto.precioConIVA = detalle.pvp1 * (1 + detalle.iva / 100);
+    } else if (detalle.iva !== undefined) {
+      nuevoProducto.iva = detalle.iva;
+    }
+    
     if (detalle.observacion !== undefined && detalle.observacion !== null) nuevoProducto.observacion = detalle.observacion;
 
     const productoRef = await addDoc(this.productosRef, nuevoProducto as Producto);

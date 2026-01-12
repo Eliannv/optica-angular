@@ -97,32 +97,35 @@
                                 <div class="d-flex gap-2">
                                     <!-- Si NO tiene historial => Crear -->
                                     <button *ngIf="!c.tieneHistorial" class="btn btn-sm btn-success" (click)="crearHistorial(c.id); $event.stopPropagation()">
-                    Crear Historial
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-pen-line-icon lucide-file-pen-line"><path d="m18.226 5.226-2.52-2.52A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-.351"/><path d="M21.378 12.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/><path d="M8 18h1"/></svg>
                   </button>
 
                                     <!-- Editar (solo si tiene historial) -->
                                     <button *ngIf="c.tieneHistorial" class="btn btn-sm btn-secondary" (click)="editarHistorial(c.id); $event.stopPropagation()">
-                    Editar
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user-pen-icon lucide-user-pen"><path d="M11.5 15H7a4 4 0 0 0-4 4v2"/><path d="M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/><circle cx="10" cy="7" r="4"/></svg>
                   </button>
 
                                     <!-- ✅ Recibo / POS (sin necesidad de historial) -->
                                     <button class="btn btn-sm btn-success" (click)="crearRecibo(c.id); $event.stopPropagation()">
-                    Recibo
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
+      <path d="M12 18V6"/>
+    </svg>
                   </button>
 
                                     <!-- ✅ NUEVO: Cobrar deuda (no quita nada, solo agrega) -->
                                     <button class="btn btn-sm btn-warning" [disabled]="!((deudas[c.id]?.deudaTotal ?? 0) > 0)" (click)="cobrarDeuda(c.id); $event.stopPropagation()">
-                    Cobrar deuda
-                  </button>
-
-                                    <!-- ✅ Editar Cliente (datos básicos) -->
-                                    <button class="btn btn-sm btn-info" (click)="editarCliente(c.id); $event.stopPropagation()">
-                    ✏️ Editar
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                                    <path d="M16 11h-4"></path>
+                                </svg>
                   </button>
 
                                     <!-- ✅ Eliminar Cliente -->
                                     <button class="btn btn-sm btn-danger" (click)="eliminarCliente(c.id); $event.stopPropagation()">
-                    🗑️ Eliminar
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                   </button>
                                 </div>
                             </td>

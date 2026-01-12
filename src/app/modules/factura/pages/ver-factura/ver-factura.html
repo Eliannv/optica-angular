@@ -163,6 +163,11 @@
             <span>{{ factura.saldoPendiente | number:'1.2-2' }}</span>
         </div>
 
+        <div class="t-kv t-small" *ngIf="factura.abonado > factura.total">
+            <span>Vuelto</span>
+            <span>{{ (factura.abonado - factura.total) | number:'1.2-2' }}</span>
+        </div>
+
         <div class="t-hr"></div>
 
         <div class="t-center t-small">Gracias por su compra</div>

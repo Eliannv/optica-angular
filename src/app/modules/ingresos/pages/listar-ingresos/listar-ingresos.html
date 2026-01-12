@@ -10,17 +10,8 @@
         </button>
             </div>
 
-            <!-- Filtro por estado -->
+            <!-- Filtros -->
             <div class="filters-row">
-                <div class="filter-group">
-                    <label class="filter-label">Estado</label>
-                    <select class="search-input" [(ngModel)]="filtroEstado" (ngModelChange)="filtrar()">
-            <option value="TODOS">📋 Todos</option>
-            <option value="BORRADOR">📝 Borrador</option>
-            <option value="FINALIZADO">✅ Finalizado</option>
-          </select>
-                </div>
-
                 <div class="filter-group">
                     <label class="filter-label">Fecha</label>
                     <select class="search-input" [(ngModel)]="filtroFecha" (ngModelChange)="filtrar()">
@@ -53,6 +44,25 @@
         <!-- BODY -->
         <div class="ingresos-body">
 
+            <!-- RESUMEN ESTADÍSTICO -->
+            <div class="resumen-stats" *ngIf="totalIngresos > 0">
+                <div class="stat-card">
+                    <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package-search-icon lucide-package-search"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/><path d="m7.5 4.27 9 5.15"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/><circle cx="18.5" cy="15.5" r="2.5"/><path d="M20.27 17.27 22 19"/></svg></div>
+                    <div class="stat-content">
+                        <span class="stat-label">Total de Ingresos/Facturas</span>
+                        <span class="stat-value">{{ totalIngresos }}</span>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-card-primary">
+                    <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-dollar-sign-icon lucide-dollar-sign"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+                    <div class="stat-content">
+                        <span class="stat-label">Total deuda sucursal</span>
+                        <span class="stat-value">${{ obtenerTotalDeuda().toFixed(2) }}</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- TABLA DESKTOP -->
             <div class="table-wrapper desktop-only" *ngIf="totalIngresos > 0; else empty">
                 <table class="ingresos-table">
@@ -64,7 +74,6 @@
                             <th class="col-tipo">Tipo</th>
                             <th class="col-total">Total</th>
                             <th class="col-estado">Estado</th>
-                            <th class="col-acciones">Acciones</th>
                         </tr>
                     </thead>
 
@@ -92,19 +101,9 @@
                                 <span class="precio">${{ (Number(ingreso.total) || 0).toFixed(2) }}</span>
                             </td>
 
-                            <td class="col-estado">
-                                <span class="badge" [class.badge-secondary]="ingreso.estado === 'BORRADOR'" [class.badge-primary]="ingreso.estado === 'FINALIZADO'">
-                  {{ ingreso.estado === 'BORRADOR' ? 'Borrador' : 'Finalizado' }}
-                </span>
-                            </td>
-
                             <td class="col-acciones">
                                 <button class="btn-ver" (click)="verIngreso(ingreso)">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eye-icon lucide-eye"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
-                </button>
-
-                                <button class="btn-eliminar" *ngIf="ingreso.estado === 'BORRADOR'" (click)="eliminar(ingreso.id!, $event)">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>
                             </td>
                         </tr>
@@ -117,9 +116,7 @@
                 <div class="ingreso-card-mobile" *ngFor="let ingreso of ingresosPaginados">
                     <div class="card-mobile-header" (click)="verIngreso(ingreso)">
                         <span class="badge-factura">{{ ingreso.numeroFactura }}</span>
-                        <span class="badge" [class.badge-secondary]="ingreso.estado === 'BORRADOR'" [class.badge-primary]="ingreso.estado === 'FINALIZADO'">
-              {{ ingreso.estado }}
-            </span>
+                        <span class="badge badge-primary">Finalizado</span>
                     </div>
 
                     <div class="card-mobile-body" (click)="verIngreso(ingreso)">
@@ -148,10 +145,6 @@
 
                     <div class="card-mobile-footer">
                         <span class="ver-detalle" (click)="verIngreso(ingreso)">Ver detalles →</span>
-
-                        <button class="btn-eliminar-mobile" *ngIf="ingreso.estado === 'BORRADOR'" (click)="eliminar(ingreso.id!, $event)">
-              🗑️ Eliminar
-            </button>
                     </div>
                 </div>
             </div>

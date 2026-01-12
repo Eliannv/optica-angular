@@ -124,6 +124,31 @@
                         </div>
                     </div>
 
+                    <!-- Ajustes de Factura -->
+                    <div style="margin-top: 1.5rem; padding: 1rem; background-color: #f8f9fa; border-radius: 0.5rem; border-left: 4px solid #0d6efd;">
+                        <h6 style="margin-bottom: 1rem; font-weight: 600; color: #333;">Ajustes de Factura</h6>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem;">
+                            <!-- Descuento -->
+                            <div class="form-group" style="margin: 0;">
+                                <label class="form-label" style="margin-bottom: 0.5rem; font-size: 0.875rem;">Descuento ($)</label>
+                                <input type="number" class="form-input" [(ngModel)]="datosImportacion()!.descuento" min="0" step="0.01" placeholder="0.00" style="padding: 0.5rem; font-size: 0.875rem;">
+                                <small class="form-hint" style="font-size: 0.75rem;">Descuento aplicado</small>
+                            </div>
+                            <!-- Flete -->
+                            <div class="form-group" style="margin: 0;">
+                                <label class="form-label" style="margin-bottom: 0.5rem; font-size: 0.875rem;">Flete ($)</label>
+                                <input type="number" class="form-input" [(ngModel)]="datosImportacion()!.flete" min="0" step="0.01" placeholder="0.00" style="padding: 0.5rem; font-size: 0.875rem;">
+                                <small class="form-hint" style="font-size: 0.75rem;">Costo de envío</small>
+                            </div>
+                            <!-- IVA -->
+                            <div class="form-group" style="margin: 0;">
+                                <label class="form-label" style="margin-bottom: 0.5rem; font-size: 0.875rem;">IVA ($)</label>
+                                <input type="number" class="form-input" [(ngModel)]="datosImportacion()!.iva" min="0" step="0.01" placeholder="0.00" style="padding: 0.5rem; font-size: 0.875rem;">
+                                <small class="form-hint" style="font-size: 0.75rem;">Monto de IVA</small>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Alerta si el proveedor no existe -->
                     @if (!proveedorExiste()) {
                     <div class="alert-error" style="margin-top: 1.5rem;">
@@ -282,7 +307,7 @@
                                 <span class="spinner"></span> Guardando...
                             </span>
                             } @else {
-                            <span>✅ Guardar Proveedor</span>
+                            <span>Guardar Proveedor</span>
                             }
                         </button>
                     </div>
@@ -317,8 +342,8 @@
                                     <th class="col-modelo">Modelo</th>
                                     <th class="col-color">Color</th>
                                     <th class="col-grupo">Grupo</th>
-                                    <th class="col-costo">Costo</th>
-                                    <th class="col-pvp">PVP</th>
+                                    <th class="col-costo">Costo ($)</th>
+                                    <th class="col-pvp">PVP ($)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -339,14 +364,14 @@
                                     <td class="text-muted">{{ prod.modelo }}</td>
                                     <td class="text-muted">{{ prod.color }}</td>
                                     <td>
-                                        <select class="form-select-sm" [(ngModel)]="prod.grupo">
+                                        <select class="form-select-sm" [(ngModel)]="prod.grupo" title="Selecciona el grupo del producto">
                           @for (grupo of gruposDisponibles; track grupo) {
                             <option [value]="grupo">{{ grupo }}</option>
                           }
                         </select>
                                     </td>
                                     <td>
-                                        <input type="number" class="form-input-sm" [(ngModel)]="prod.costo" step="0.01" min="0" placeholder="0.00">
+                                        <input type="number" class="form-input-sm" [(ngModel)]="prod.costo" step="0.01" min="0" placeholder="0.00" title="Costo unitario del producto" required>
                                     </td>
                                     <td class="text-end precio">
                                         <strong>${{ prod.pvp1.toFixed(2) }}</strong>

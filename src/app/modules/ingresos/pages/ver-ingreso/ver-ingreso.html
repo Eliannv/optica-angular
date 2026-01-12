@@ -50,6 +50,29 @@
                 </div>
             </div>
 
+            <!-- AJUSTES DE FACTURA -->
+            <div class="info-section" *ngIf="ingreso.descuento || ingreso.flete || ingreso.iva">
+                <h4 class="section-title">Ajustes de Factura</h4>
+                <div class="info-grid">
+                    <div class="info-item" *ngIf="ingreso.descuento">
+                        <span class="info-label">Descuento</span>
+                        <strong class="info-value">${{ (ingreso.descuento || 0).toFixed(2) }}</strong>
+                    </div>
+                    <div class="info-item" *ngIf="ingreso.flete">
+                        <span class="info-label">Flete</span>
+                        <strong class="info-value">${{ (ingreso.flete || 0).toFixed(2) }}</strong>
+                    </div>
+                    <div class="info-item" *ngIf="ingreso.iva">
+                        <span class="info-label">IVA</span>
+                        <strong class="info-value">${{ (ingreso.iva || 0).toFixed(2) }}</strong>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Total Factura</span>
+                        <strong class="info-value" style="color: #007bff;">${{ (ingreso.total || 0).toFixed(2) }}</strong>
+                    </div>
+                </div>
+            </div>
+
             <!-- PRODUCTOS -->
             <div class="productos-section">
                 <h4 class="section-title">Productos Ingresados</h4>

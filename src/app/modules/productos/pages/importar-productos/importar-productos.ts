@@ -306,6 +306,9 @@ export class ImportarProductosComponent {
         numeroFactura: datos.numeroFactura,
         fecha: datos.fecha,
         tipoCompra: 'CONTADO',
+        descuento: datos.descuento || 0,
+        flete: datos.flete || 0,
+        iva: datos.iva || 0,
         observacion: `Importado desde Excel el ${new Date().toLocaleDateString()}`,
         estado: 'BORRADOR'
       };
@@ -326,6 +329,7 @@ export class ImportarProductosComponent {
         cantidad: p.cantidad,
         costoUnitario: p.costo || 0,
         pvp1: p.pvp1 || 0,
+        iva: p.iva || 0, // Agregar IVA del producto
         observacion: p.observacion || ''
       }));
 

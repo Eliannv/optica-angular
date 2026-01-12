@@ -29,7 +29,6 @@ export class ListarIngresosComponent implements OnInit {
   ingresosPaginados: Ingreso[] = [];
 
   // Filtros
-  filtroEstado: FiltroEstado = 'TODOS';
   filtroFecha: FiltroFecha = 'TODAS';
   fechaEspecifica: string = '';
   term: string = '';
@@ -79,19 +78,12 @@ export class ListarIngresosComponent implements OnInit {
     const t = (this.term || '').trim().toLowerCase();
     let base = [...this.ingresos];
 
-    // 1) Filtro por estado
-    if (this.filtroEstado === 'BORRADOR') {
-      base = base.filter(i => i.estado === 'BORRADOR');
-    } else if (this.filtroEstado === 'FINALIZADO') {
-      base = base.filter(i => i.estado === 'FINALIZADO');
-    }
-
-    // 2) Filtro por fecha
+    // 1) Filtro por fecha
     if (this.filtroFecha !== 'TODAS') {
       base = base.filter(i => this.cumpleFiltroFecha(i));
     }
 
-    // 3) Filtro por texto (número de factura o proveedor)
+    // 2) Filtro por texto (número de factura o proveedor)
     if (t) {
       base = base.filter(i =>
         (i.numeroFactura || '').toLowerCase().includes(t) ||
@@ -150,6 +142,15 @@ export class ListarIngresosComponent implements OnInit {
     }
   }
 
+  /**
+   * 💰 Calcular el total de dinero de todos los ingresos filtrados
+   */
+  obtenerTotalDeuda(): number {
+    return this.filtrados.reduce((sum, ingreso) => {
+      return sum + (Number(ingreso.total) || 0);
+    }, 0);
+  }
+
   private getFechaDate(fecha: any): Date | null {
     if (!fecha) return null;
 
@@ -192,42 +193,6 @@ export class ListarIngresosComponent implements OnInit {
     if (ingreso.id) {
       this.router.navigate(['/ingresos/ver', ingreso.id]);
     }
-  }
-
-  eliminar(id: string, event: Event) {
-    event.stopPropagation();
-    
-    Swal.fire({
-      title: '¿Eliminar ingreso?',
-      text: '¿Estás seguro de eliminar este ingreso? Esta acción no se puede deshacer.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#e74c3c',
-      cancelButtonColor: '#6c757d',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        this.ingresosService.eliminarIngreso(id).then(() => {
-          Swal.fire({
-            icon: 'success',
-            title: '¡Eliminado!',
-            text: 'El ingreso ha sido eliminado exitosamente',
-            showConfirmButton: false,
-            timer: 1500
-          });
-          this.cargarIngresos();
-        }).catch(err => {
-          console.error('Error al eliminar:', err);
-          Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'No se pudo eliminar el ingreso. Inténtalo de nuevo.',
-            confirmButtonColor: '#3085d6'
-          });
-        });
-      }
-    });
   }
 
   formatearFecha(fecha: any): string {

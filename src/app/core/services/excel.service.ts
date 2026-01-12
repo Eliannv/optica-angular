@@ -8,6 +8,9 @@ export interface DatosExcelImportacion {
   numeroFactura: string;
   fecha: Date;
   productos: ProductoExcelPreview[];
+  descuento?: number; // Descuento aplicado a la factura
+  flete?: number; // Costo de envío/transporte
+  iva?: number; // Monto total de IVA de la factura
 }
 
 export interface ProductoExcelPreview {
@@ -18,6 +21,7 @@ export interface ProductoExcelPreview {
   modelo: string;
   color: string;
   pvp1: number;
+  iva?: number; // Porcentaje de IVA editable (ej: 15)
   
   // Campos editables por el usuario
   costo?: number;
@@ -111,6 +115,7 @@ export class ExcelService {
               modelo,
               color,
               pvp1,
+              iva: 0,
               estado: 'NUEVO', // Se determinará después al verificar contra BD
               costo: 0,
               grupo: 'GAFAS', // Valor por defecto

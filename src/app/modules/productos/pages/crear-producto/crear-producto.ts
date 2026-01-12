@@ -23,6 +23,7 @@ export class CrearProducto implements OnInit {
     stock: 0,
     costo: 0,
     pvp1: 0,
+    iva: 0, // Porcentaje de IVA (ej: 15)
     proveedor: '',
     observacion: ''
   };
@@ -294,13 +295,18 @@ export class CrearProducto implements OnInit {
       // Obtener el producto recién creado para mostrar su ID interno
       const productoCreado = await this.productosService.getProductoById(docRef.id).toPromise();
       
-      await Swal.fire({
-        icon: 'success',
-        title: 'Producto creado',
-        html: `<strong>ID Interno:</strong> ${productoCreado?.idInterno || 'N/A'}<br><strong>Código:</strong> ${this.producto.codigo}`
-      });
-      
-      this.router.navigate(['/productos']);
+      setTimeout(() => {
+        Swal.fire({
+          icon: 'success',
+          title: '¡Producto Creado!',
+          text: `El producto "${this.producto.nombre}" se ha registrado correctamente.`,
+          confirmButtonText: 'Continuar',
+          allowOutsideClick: false,
+          allowEscapeKey: false
+        }).then(() => {
+          this.router.navigate(['/productos']);
+        });
+      }, 500);
     } catch (error) {
       console.error('Error al crear producto:', error);
       Swal.fire({

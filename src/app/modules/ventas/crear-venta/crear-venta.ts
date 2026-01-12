@@ -37,6 +37,8 @@ export class CrearVentaComponent implements OnInit {
   items: any[] = []; // (tu ItemVenta ya lo usas pero aquí guardas nombre/tipo/total también)
 
   ivaPct = 0.15;
+  descuentoPorcentaje = 0; // Descuento por porcentaje
+  descuentoMonto = 0; // Monto del descuento calculado
   subtotal = 0;
   iva = 0;
   total = 0;
@@ -151,11 +153,41 @@ export class CrearVentaComponent implements OnInit {
     this.abono = Math.min(a, this.total);
     this.saldoPendiente = +(this.total - this.abono).toFixed(2);
   }
+
+  cambiarDescuento() {
+    // Validar que el descuento no sea negativo ni mayor a 100
+    this.descuentoPorcentaje = Math.max(0, Math.min(100, Number(this.descuentoPorcentaje || 0)));
+    this.recalcular();
+    this.recalcularAbono(); // Recalcular saldo pendiente con el nuevo total
+  }
 agregarProducto(p: any) {
   const id = p.id;
 
-  // ✅ PRECIO REAL DESDE FIRESTORE (pvp1 o costo)
-  const precio = Number(p.pvp1 || p.costo || 0);
+  // ✅ CALCULAR PRECIO CON Y SIN IVA
+  let precioSinIva: number;
+  let precioConIva: number;
+  let porcentajeIva: number = 0;
+  
+  if (p.precioConIVA && Number(p.precioConIVA) > 0) {
+    // Si existe precioConIVA, usar ese
+    precioConIva = Number(p.precioConIVA);
+    if (p.iva && Number(p.iva) > 0) {
+      porcentajeIva = Number(p.iva);
+      precioSinIva = precioConIva / (1 + porcentajeIva / 100);
+    } else {
+      precioSinIva = precioConIva;
+    }
+  } else if (p.pvp1 && p.iva && Number(p.iva) > 0) {
+    // Si existe PVP1 e IVA, calcular con IVA
+    porcentajeIva = Number(p.iva);
+    precioSinIva = Number(p.pvp1);
+    precioConIva = precioSinIva * (1 + porcentajeIva / 100);
+  } else {
+    // Sin IVA
+    precioSinIva = Number(p.pvp1 || p.costo || 0);
+    precioConIva = precioSinIva;
+  }
+  
   const stockDisponible = Number(p.stock || 0);
 
   // Si no hay stock, no permitir agregar
@@ -180,6 +212,7 @@ agregarProducto(p: any) {
     }
     existing.cantidad++;
     existing.total = existing.cantidad * existing.precioUnitario;
+    existing.totalSinIva = existing.cantidad * existing.precioUnitarioSinIva;
   } else {
       this.items.push({
         codigo: p.codigo || '',
@@ -187,8 +220,11 @@ agregarProducto(p: any) {
       nombre: p.nombre,
       tipo: p.tipo || p.categoria || p.grupo,
       cantidad: 1,
-      precioUnitario: precio,
-      total: precio,
+      precioUnitarioSinIva: precioSinIva,
+      precioUnitario: precioConIva,
+      total: precioConIva,
+      totalSinIva: precioSinIva,
+      porcentajeIva,
       stockDisponible,
     });
   }
@@ -224,6 +260,7 @@ private toNumber(v: any): number {
     }
     it.cantidad = c;
     it.total = it.cantidad * it.precioUnitario;
+    it.totalSinIva = it.cantidad * it.precioUnitarioSinIva;
     this.recalcular();
   }
 
@@ -233,8 +270,11 @@ private toNumber(v: any): number {
   }
 
   recalcular() {
-    this.subtotal = this.items.reduce((a: number, i: any) => a + (Number(i.total) || 0), 0);
-    this.iva = +(this.subtotal * this.ivaPct).toFixed(2);
+    // Calcular subtotal SIN IVA y el IVA desglosado
+    const subtotalBruto = this.items.reduce((a: number, i: any) => a + (Number(i.totalSinIva) || 0), 0);
+    this.descuentoMonto = +(subtotalBruto * (this.descuentoPorcentaje / 100)).toFixed(2);
+    this.subtotal = +(subtotalBruto - this.descuentoMonto).toFixed(2);
+    this.iva = this.items.reduce((a: number, i: any) => (Number(i.total) || 0) - (Number(i.totalSinIva) || 0) + a, 0);
     this.total = +(this.subtotal + this.iva).toFixed(2);
   }
 
@@ -278,6 +318,8 @@ const factura: any = {
   })),
 
   subtotal: +this.subtotal.toFixed(2),
+  descuentoPorcentaje: this.descuentoPorcentaje,
+  descuentoMonto: +this.descuentoMonto.toFixed(2),
   iva: +this.iva.toFixed(2),
   total: +this.total.toFixed(2),
 
@@ -365,6 +407,20 @@ const ref = await this.facturasSrv.crearFactura(facturaLimpia);
 
     // Imprimir sin mostrar vista previa
     setTimeout(() => this.imprimirTicket(), 0);
+
+    // ✅ Mostrar mensaje de éxito y redirigir
+    setTimeout(() => {
+      Swal.fire({
+        icon: 'success',
+        title: '¡Venta Realizada!',
+        text: `La venta #${ref.id} se ha registrado correctamente.`,
+        confirmButtonText: 'Continuar',
+        allowOutsideClick: false,
+        allowEscapeKey: false
+      }).then(() => {
+        this.router.navigate(['/clientes/historial-clinico']);
+      });
+    }, 1000);
 
   } catch (e) {
     console.error(e);

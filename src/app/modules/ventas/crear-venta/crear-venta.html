@@ -105,11 +105,26 @@
 
                     <div class="carrito-totales">
                         <div class="total-row">
-                            <span>Subtotal</span>
+                            <span>Subtotal (bruto)</span>
+                            <strong>${{ (subtotal + descuentoMonto).toFixed(2) }}</strong>
+                        </div>
+
+                        <!-- DESCUENTO -->
+                        <div class="metodo-pago">
+                            <label>Descuento (%)</label>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input type="number" min="0" max="100" class="search-input" [(ngModel)]="descuentoPorcentaje" (ngModelChange)="cambiarDescuento()" placeholder="0" style="flex: 1;" />
+                                <span style="padding: 0.5rem; background: #f0f0f0; border-radius: 4px; min-width: 80px; text-align: right;"><strong>${{ descuentoMonto.toFixed(2) }}</strong></span>
+                            </div>
+                            <small class="muted">Descuento a aplicar sobre el subtotal</small>
+                        </div>
+
+                        <div class="total-row">
+                            <span>Subtotal (neto)</span>
                             <strong>${{ subtotal.toFixed(2) }}</strong>
                         </div>
-                        <div class="total-row">
-                            <span>IVA (15%)</span>
+                        <div class="total-row" *ngIf="iva > 0">
+                            <span>IVA (incluido en precios)</span>
                             <strong>${{ iva.toFixed(2) }}</strong>
                         </div>
                         <div class="total-row total-final">
@@ -143,6 +158,11 @@
                         <div class="total-row">
                             <span>Saldo pendiente</span>
                             <strong>${{ saldoPendiente.toFixed(2) }}</strong>
+                        </div>
+
+                        <div class="total-row" *ngIf="abono > total">
+                            <span>Vuelto</span>
+                            <strong style="color: #28a745;">${{ (abono - total).toFixed(2) }}</strong>
                         </div>
                     </div>
                 </div>
@@ -198,10 +218,18 @@
 
     <!-- TOTALES -->
     <div class="t-kv t-small">
-        <span>Subtotal</span>
-        <span>{{ facturaParaImprimir.subtotal | number:'1.2-2' }}</span>
+        <span>Subtotal*</span>
+        <span>{{ (facturaParaImprimir.subtotal + (facturaParaImprimir.descuentoMonto || 0)) | number:'1.2-2' }}</span>
+    </div>
+    <div class="t-kv t-small" *ngIf="facturaParaImprimir.descuentoMonto > 0">
+        <span>Descuento ({{ facturaParaImprimir.descuentoPorcentaje }}%)</span>
+        <span>-{{ facturaParaImprimir.descuentoMonto | number:'1.2-2' }}</span>
     </div>
     <div class="t-kv t-small">
+        <span>Subtotal Neto</span>
+        <span>{{ facturaParaImprimir.subtotal | number:'1.2-2' }}</span>
+    </div>
+    <div class="t-kv t-small" *ngIf="facturaParaImprimir.iva > 0">
         <span>IVA</span>
         <span>{{ facturaParaImprimir.iva | number:'1.2-2' }}</span>
     </div>
@@ -209,17 +237,21 @@
         <span>TOTAL</span>
         <span>{{ facturaParaImprimir.total | number:'1.2-2' }}</span>
     </div>
-    <div class="t-kv t-small">
+    <div class="t-kv t-small" *ngIf="facturaParaImprimir.abonado > 0">
         <span>Abono</span>
         <span>{{ facturaParaImprimir.abonado | number:'1.2-2' }}</span>
     </div>
-    <div class="t-kv t-small">
+    <div class="t-kv t-small" *ngIf="facturaParaImprimir.saldoPendiente > 0">
         <span>Saldo pendiente</span>
         <span>{{ facturaParaImprimir.saldoPendiente | number:'1.2-2' }}</span>
     </div>
-
+    <div class="t-kv t-small" *ngIf="facturaParaImprimir.abonado > facturaParaImprimir.total">
+        <span>Vuelto</span>
+        <span>{{ (facturaParaImprimir.abonado - facturaParaImprimir.total) | number:'1.2-2' }}</span>
+    </div>
 
     <div class="t-hr"></div>
+    <div class="t-center t-small">*IVA incluido en los precios</div>
 
     <div class="t-center t-small">Gracias por su compra</div>
     <div class="t-center t-small">Conserve su factura</div>

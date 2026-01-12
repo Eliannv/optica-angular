@@ -75,6 +75,7 @@ export class AgregarProductosIngresoComponent implements OnInit {
       cantidad: [1, [Validators.required, Validators.min(1)]],
       costoUnitario: [0, Validators.min(0)],
       pvp1: [0, Validators.min(0)],
+      iva: [0, [Validators.min(0), Validators.max(100)]], // Agregar campo IVA
       observacion: [''],
     });
 
@@ -99,6 +100,16 @@ export class AgregarProductosIngresoComponent implements OnInit {
   }
 
   async cargarIngreso(id: string) {
+    // Si es un ingreso temporal (creado hace poco), usar el almacenado en memoria
+    if (id.startsWith('temp_')) {
+      const ingresoTemporal = this.ingresosService.obtenerIngresoTemporal();
+      if (ingresoTemporal) {
+        this.ingreso.set(ingresoTemporal);
+        return;
+      }
+    }
+    
+    // Si no es temporal, cargar desde BD
     this.ingresosService.getIngresoById(id).subscribe({
       next: (ingreso) => this.ingreso.set(ingreso),
       error: (err) => {
@@ -258,6 +269,7 @@ export class AgregarProductosIngresoComponent implements OnInit {
     if (valores.color) detalle.color = valores.color;
     if (valores.grupo) detalle.grupo = valores.grupo;
     if (valores.pvp1) detalle.pvp1 = valores.pvp1;
+    if (valores.iva) detalle.iva = valores.iva; // Agregar IVA
     if (valores.observacion) detalle.observacion = valores.observacion;
 
     this.detalles.update((list) => [...list, detalle]);
@@ -293,8 +305,23 @@ export class AgregarProductosIngresoComponent implements OnInit {
     this.error.set(null);
 
     try {
+      let ingresoId = this.ingresoId();
+      
+      // Si es un ingreso temporal, crear en BD AHORA
+      if (ingresoId.startsWith('temp_')) {
+        const ingresoTemporal = this.ingreso();
+        if (!ingresoTemporal) {
+          throw new Error('No hay datos de ingreso');
+        }
+        // Crear el ingreso en BD
+        ingresoId = await this.ingresosService.crearIngresoBorrador(ingresoTemporal);
+        this.ingresoId.set(ingresoId);
+        // Limpiar temporal
+        this.ingresosService.limpiarIngresoTemporal();
+      }
+
       await this.ingresosService.finalizarIngreso(
-        this.ingresoId(),
+        ingresoId,
         this.detalles()
       );
       
@@ -333,6 +360,8 @@ export class AgregarProductosIngresoComponent implements OnInit {
       cancelButtonText: 'Continuar editando'
     }).then((result) => {
       if (result.isConfirmed) {
+        // Limpiar ingreso temporal si existe
+        this.ingresosService.limpiarIngresoTemporal();
         this.router.navigate(['/productos']);
       }
     });

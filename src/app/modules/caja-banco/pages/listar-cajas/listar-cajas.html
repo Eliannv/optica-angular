@@ -2,9 +2,9 @@
     <div class="caja-card">
         <div class="caja-header">
             <div class="header-content">
-                <h1 class="caja-title">🏦 Caja Banco</h1>
+                <h1 class="caja-title">Caja Banco</h1>
                 <button class="btn-primary" (click)="registrarMovimiento()">
-                    ➕ Registrar Movimiento
+                    + Registrar Movimiento
                 </button>
             </div>
         </div>
@@ -13,30 +13,30 @@
             <!-- RESUMEN GENERAL -->
             <div class="resumen-container" *ngIf="!cargando">
                 <div class="resumen-card">
-                    <div class="resumen-label">💰 Total Ganado Cajas</div>
+                    <div class="resumen-label"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-dollar-sign-icon lucide-dollar-sign"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Total Ganado Cajas</div>
                     <div class="resumen-valor">{{ formatoMoneda(getTotalGanado()) }}</div>
                 </div>
                 <div class="resumen-card">
-                    <div class="resumen-label">🔄 Total Transferencias</div>
+                    <div class="resumen-label"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-banknote-icon lucide-banknote"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg> Total Transferencias</div>
                     <div class="resumen-valor">{{ formatoMoneda(getTotalTransferencias()) }}</div>
                 </div>
                 <div class="resumen-card">
-                    <div class="resumen-label">� Total Ingresos</div>
+                    <div class="resumen-label"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-banknote-arrow-up-icon lucide-banknote-arrow-up"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="M18 12h.01"/><path d="M19 22v-6"/><path d="m22 19-3-3-3 3"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg> Total Ingresos</div>
                     <div class="resumen-valor">{{ formatoMoneda(getTotalIngresos()) }}</div>
                 </div>
                 <div class="resumen-card">
-                    <div class="resumen-label">📦 Total Cajas</div>
+                    <div class="resumen-label"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-landmark-icon lucide-landmark"><path d="M10 18v-7"/><path d="M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/></svg> Total Cajas</div>
                     <div class="resumen-valor">{{ cajas.length }}</div>
                 </div>
                 <div class="resumen-card">
-                    <div class="resumen-label">📤 Total Egresos</div>
+                    <div class="resumen-label"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-banknote-arrow-down-icon lucide-banknote-arrow-down"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="m16 19 3 3 3-3"/><path d="M18 12h.01"/><path d="M19 16v6"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg> Total Egresos</div>
                     <div class="resumen-valor">{{ formatoMoneda(getTotalEgresos()) }}</div>
                 </div>
             </div>
 
             <!-- SECCIÓN 1: Cajas específicas -->
             <div class="caja-section">
-                <h2 class="section-title">💰 Cajas Chicas Cerradas</h2>
+                <h2 class="section-title"> Cajas Chicas Cerradas</h2>
 
                 <ng-container *ngIf="!cargando && (cajas.length > 0 || cajasChicas.length > 0)">
                     <div class="tabla-responsive">
@@ -68,7 +68,7 @@
                                     <td class="text-right">
                                         <div class="action-buttons">
                                             <button class="btn-action btn-action-delete" (click)="eliminarCajaChica(cajaChica)" title="Eliminar caja chica">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                                             </button>
                                         </div>
                                     </td>
@@ -92,7 +92,7 @@
 
             <!-- SECCIÓN 2: Movimientos globales (transferencias de clientes) -->
             <div class="caja-section" *ngIf="movimientosGlobales.length > 0">
-                <h2 class="section-title">📥 Transferencias de Clientes</h2>
+                <h2 class="section-title">Ingresos / Egreso </h2>
                 <div class="tabla-responsive">
                     <table class="tabla">
                         <thead>

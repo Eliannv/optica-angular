@@ -44,7 +44,7 @@ export class SidebarComponent implements OnInit {
   ) {
     this.allMenuItems = [
   {
-    label: 'Historial Clínico',
+    label: 'Clientes',
     icon: this.sanitizer.bypassSecurityTrustHtml(`
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -60,6 +60,53 @@ export class SidebarComponent implements OnInit {
     badge: 0,
     roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR] // Operadores y Administradores
   },
+  {
+  label: 'Ventas (POS)',
+  icon: this.sanitizer.bypassSecurityTrustHtml(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
+      <path d="M12 18V6"/>
+    </svg>
+  `),
+  route: '/ventas/crear',
+  active: false,
+  roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR] // Operadores y Administradores
+},
+{
+  label: 'Facturas',
+  icon: this.sanitizer.bypassSecurityTrustHtml(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16l4-2 4 2 4-2 4 2V8z"/>
+      <path d="M14 2v6h6"/>
+      <path d="M8 13h8"/>
+      <path d="M8 17h8"/>
+    </svg>
+  `),
+  route: '/facturas',
+  active: false,
+  roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR] // Operadores y Administradores
+},
+{
+  label: 'Caja Chica',
+  icon: this.sanitizer.bypassSecurityTrustHtml(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-vault-icon lucide-vault"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/><path d="m7.9 7.9 2.7 2.7"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/><path d="m13.4 10.6 2.7-2.7"/><circle cx="7.5" cy="16.5" r=".5" fill="currentColor"/><path d="m7.9 16.1 2.7-2.7"/><circle cx="16.5" cy="16.5" r=".5" fill="currentColor"/><path d="m13.4 13.4 2.7 2.7"/><circle cx="12" cy="12" r="2"/></svg>
+  `),
+  route: '/caja-chica',
+  active: false,
+  roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR] // Operadores y Administradores
+},
+{
+  label: 'Caja Banco',
+  icon: this.sanitizer.bypassSecurityTrustHtml(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-landmark-icon lucide-landmark"><path d="M10 18v-7"/><path d="M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/></svg>
+  `),
+  route: '/caja-banco',
+  active: false,
+  roles: [RolUsuario.ADMINISTRADOR] // Solo administradores
+},
       /*{
 
         label: 'Principal',
@@ -169,16 +216,6 @@ export class SidebarComponent implements OnInit {
       ]
     },
     {
-          label: 'Ingresos',
-          icon: this.sanitizer.bypassSecurityTrustHtml(`
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package-search-icon lucide-package-search"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/><path d="m7.5 4.27 9 5.15"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/><circle cx="18.5" cy="15.5" r="2.5"/><path d="M20.27 17.27 22 19"/></svg>
-        `),
-          route: '/ingresos',
-          active: false,
-          roles: [RolUsuario.ADMINISTRADOR]
-        },
-        
-    {
       label: 'Proveedores',
       icon: this.sanitizer.bypassSecurityTrustHtml(`
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-truck-icon lucide-truck"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>
@@ -188,35 +225,6 @@ export class SidebarComponent implements OnInit {
       roles: [RolUsuario.ADMINISTRADOR] // Solo administradores
     },
     {
-  label: 'Ventas (POS)',
-  icon: this.sanitizer.bypassSecurityTrustHtml(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
-      <path d="M12 18V6"/>
-    </svg>
-  `),
-  route: '/ventas/crear',
-  active: false,
-  roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR] // Operadores y Administradores
-},
-{
-  label: 'Facturas',
-  icon: this.sanitizer.bypassSecurityTrustHtml(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16l4-2 4 2 4-2 4 2V8z"/>
-      <path d="M14 2v6h6"/>
-      <path d="M8 13h8"/>
-      <path d="M8 17h8"/>
-    </svg>
-  `),
-  route: '/facturas',
-  active: false,
-  roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR] // Operadores y Administradores
-},
-{
   label: 'Empleados',
   icon: this.sanitizer.bypassSecurityTrustHtml(`
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-id-card-lanyard-icon lucide-id-card-lanyard"><path d="M13.5 8h-3"/><path d="m15 2-1 2h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3"/><path d="M16.899 22A5 5 0 0 0 7.1 22"/><path d="m9 2 3 6"/><circle cx="12" cy="15" r="3"/></svg>
@@ -225,24 +233,15 @@ export class SidebarComponent implements OnInit {
   active: false,
   roles: [RolUsuario.ADMINISTRADOR] // Solo administradores
 },
-{
-  label: 'Caja Chica',
-  icon: this.sanitizer.bypassSecurityTrustHtml(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-vault-icon lucide-vault"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/><path d="m7.9 7.9 2.7 2.7"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/><path d="m13.4 10.6 2.7-2.7"/><circle cx="7.5" cy="16.5" r=".5" fill="currentColor"/><path d="m7.9 16.1 2.7-2.7"/><circle cx="16.5" cy="16.5" r=".5" fill="currentColor"/><path d="m13.4 13.4 2.7 2.7"/><circle cx="12" cy="12" r="2"/></svg>
-  `),
-  route: '/caja-chica',
-  active: false,
-  roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR] // Operadores y Administradores
-},
-{
-  label: 'Caja Banco',
-  icon: this.sanitizer.bypassSecurityTrustHtml(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-landmark-icon lucide-landmark"><path d="M10 18v-7"/><path d="M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/></svg>
-  `),
-  route: '/caja-banco',
-  active: false,
-  roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR] // Operadores y Administradores
-}/*,
+    {
+          label: 'Ingresos',
+          icon: this.sanitizer.bypassSecurityTrustHtml(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package-search-icon lucide-package-search"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/><path d="m7.5 4.27 9 5.15"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/><circle cx="18.5" cy="15.5" r="2.5"/><path d="M20.27 17.27 22 19"/></svg>
+        `),
+          route: '/ingresos',
+          active: false,
+          roles: [RolUsuario.ADMINISTRADOR]
+        }/*,
 
     {
       label: 'Reportes',

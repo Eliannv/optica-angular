@@ -6,7 +6,10 @@ export interface Ingreso {
   fecha: Date; // Fecha de la factura
   tipoCompra: 'CONTADO' | 'CREDITO'; // Tipo de compra
   observacion?: string; // Observaciones generales
-  total?: number; // Total de la factura (puede calcularse automáticamente)
+  descuento?: number; // Descuento aplicado a la factura
+  flete?: number; // Costo de flete
+  iva?: number; // Monto de IVA de la factura
+  total?: number; // Total de la factura (subtotal + flete + IVA - descuento)
   estado?: 'BORRADOR' | 'FINALIZADO'; // Estado del ingreso
   createdAt?: any; // Timestamp de creación
   updatedAt?: any; // Timestamp de actualización
@@ -31,5 +34,6 @@ export interface DetalleIngreso {
   
   // Datos completos para productos nuevos
   pvp1?: number; // Precio de venta
+  iva?: number; // Porcentaje de IVA del producto (ej: 15 para 15%)
   stockInicial?: number; // Stock inicial (igual a cantidad para nuevos)
 }

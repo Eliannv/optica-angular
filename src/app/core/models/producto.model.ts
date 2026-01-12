@@ -9,6 +9,8 @@ export interface Producto {
   stock?: number;
   costo?: number; // Costo unitario
   pvp1?: number; // Precio de venta público
+  iva?: number; // Porcentaje de IVA (ej: 15 para 15%)
+  precioConIVA?: number; // Precio final con IVA incluido (usado en ventas)
   proveedor?: string; // Proveedor principal
   ingresoId?: string; // ID del ingreso/factura de donde proviene
   observacion?: string | null;
@@ -16,7 +18,6 @@ export interface Producto {
   // Campos opcionales (legacy - mantener para compatibilidad con datos existentes)
   nuevoCodigo?: string;
   genera?: number;
-  iva?: boolean;
   unidad?: string;
   costos?: {
     caja?: string;

@@ -34,6 +34,9 @@ export class CrearIngresoComponent implements OnInit {
     fecha: new Date(),
     tipoCompra: 'CONTADO',
     observacion: '',
+    descuento: 0, // Nuevo campo
+    flete: 0, // Nuevo campo
+    iva: 0, // Nuevo campo - monto de IVA
   };
 
   // Lista de proveedores desde Firebase
@@ -506,15 +509,15 @@ export class CrearIngresoComponent implements OnInit {
     this.error.set(null);
 
     try {
-      // Crear ingreso borrador
-      const ingresoId = await this.ingresosService.crearIngresoBorrador(
+      // Guardar ingreso TEMPORALMENTE (sin crear en BD aún)
+      const ingresoId = this.ingresosService.guardarIngresoTemporal(
         this.ingreso
       );
 
       // Navegar al paso 2 (agregar productos)
       this.router.navigate(['/productos/ingreso', ingresoId, 'agregar-productos']);
     } catch (err: any) {
-      console.error('Error al crear ingreso:', err);
+      console.error('Error al guardar ingreso temporal:', err);
       this.error.set('Error al crear el ingreso. Intenta nuevamente.');
     } finally {
       this.guardando.set(false);
@@ -522,7 +525,7 @@ export class CrearIngresoComponent implements OnInit {
   }
 
   cancelar() {
-    this.router.navigate(['/productos']);
+    this.router.navigate(['/ingresos']);
   }
 
   // Navegar al siguiente campo con Enter

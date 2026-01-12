@@ -256,13 +256,6 @@ export class HistorialClinicoComponent implements OnInit {
     });
   }
 
-  // ✅ Editar Cliente (datos básicos)
-  editarCliente(clienteId: string): void {
-    this.router.navigate(['/clientes/crear'], {
-      queryParams: { clienteId, returnTo: '/clientes/historial-clinico' }
-    });
-  }
-
   // ✅ Eliminar Cliente
   async eliminarCliente(clienteId: string): Promise<void> {
     // Validar si el cliente tiene deuda
