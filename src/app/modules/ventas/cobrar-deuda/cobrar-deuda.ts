@@ -225,13 +225,13 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
       this.saldoNuevo = 0;
 
       // 💰 Registrar automáticamente en Caja Chica si el pago es en efectivo
-      if (this.metodoPago === 'Efectivo') {
+      if (this.metodoPago === 'Efectivo' && abonoReal > 0) {
         try {
-          const cajaAbierta = await this.cajaChicaService.getCajaAbiertaHoy();
-          if (cajaAbierta && cajaAbierta.id) {
+          const cajaAbiertaId = localStorage.getItem('cajaChicaAbierta');
+          if (cajaAbiertaId) {
             const usuario = this.authService.getCurrentUser();
             const movimiento = {
-              caja_chica_id: cajaAbierta.id,
+              caja_chica_id: cajaAbiertaId,
               fecha: new Date(),
               tipo: 'INGRESO' as const,
               descripcion: `Pago de deuda - ${this.clienteNombre} - Factura #${f.id}`,
@@ -242,13 +242,14 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
               (movimiento as any).usuario_id = usuario.id;
               (movimiento as any).usuario_nombre = usuario.nombre || 'Usuario';
             }
-            await this.cajaChicaService.registrarMovimiento(cajaAbierta.id, movimiento);
+            await this.cajaChicaService.registrarMovimiento(cajaAbiertaId, movimiento);
+            console.log('✅ Pago de deuda registrado en Caja Chica:', abonoReal);
           }
         } catch (err) {
           console.warn('No se pudo registrar el pago en Caja Chica:', err);
           // No fallar la operación si hay error en Caja Chica
         }
-      } else if (this.metodoPago === 'Transferencia') {
+      } else if (this.metodoPago === 'Transferencia' && abonoReal > 0) {
         // 🏦 Pago por TRANSFERENCIA → Registrar en Caja Banco
         try {
           const usuario = this.authService.getCurrentUser();

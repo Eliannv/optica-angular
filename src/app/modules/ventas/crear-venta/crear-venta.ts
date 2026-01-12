@@ -64,6 +64,24 @@ export class CrearVentaComponent implements OnInit {
   ) {}
 
   async ngOnInit() {
+    // ✅ Validar que exista una caja chica abierta hoy
+    const cajaChicaAbierta = localStorage.getItem('cajaChicaAbierta');
+    if (!cajaChicaAbierta) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Caja Chica Requerida',
+        text: 'Debe crear primero la caja chica de este día para empezar con una nueva venta',
+        confirmButtonText: 'Ir a Caja Chica',
+        allowOutsideClick: false,
+        allowEscapeKey: false
+      }).then((result) => {
+        if (result.isConfirmed) {
+          this.router.navigate(['/caja-chica']);
+        }
+      });
+      return;
+    }
+
     // ✅ puedes entrar con /ventas/crear?clienteId=xxx
     this.clienteId = this.route.snapshot.queryParamMap.get('clienteId') || '';
 
@@ -281,8 +299,8 @@ const ref = await this.facturasSrv.crearFactura(facturaLimpia);
     // ✅ REGISTRAR AUTOMÁTICAMENTE EN CAJA CHICA O CAJA BANCO
     const usuario = this.authService.getCurrentUser();
     
-    if (this.metodoPago === 'Efectivo') {
-      // 💵 Venta en EFECTIVO → Registrar en Caja Chica
+    if (this.metodoPago === 'Efectivo' && abonado > 0) {
+      // 💵 Venta en EFECTIVO → Registrar en Caja Chica (solo lo que se pagó)
       try {
         // Obtener de localStorage la caja abierta
         const cajaAbiertaId = localStorage.getItem('cajaChicaAbierta');
@@ -292,7 +310,7 @@ const ref = await this.facturasSrv.crearFactura(facturaLimpia);
             fecha: new Date(),
             tipo: 'INGRESO' as const,
             descripcion: `Venta #${ref.id} - ${this.cliente?.nombres || 'Cliente'}`,
-            monto: this.total,
+            monto: abonado,
             comprobante: ref.id || ''
           };
           // Si hay usuario, agrega los datos
@@ -302,28 +320,26 @@ const ref = await this.facturasSrv.crearFactura(facturaLimpia);
           }
           
           await this.cajaChicaService.registrarMovimiento(cajaAbiertaId, movimiento);
-          console.log('✅ Venta registrada en Caja Chica:', cajaAbiertaId);
+          console.log('✅ Venta registrada en Caja Chica:', abonado);
         } else {
           console.warn('⚠️ No hay Caja Chica abierta. Abre una caja primero.');
         }
       } catch (err) {
         console.error('Error registrando venta en Caja Chica:', err);
       }
-    } else if (this.metodoPago === 'Transferencia') {
+    } else if (this.metodoPago === 'Transferencia' && this.codigoTransferencia.trim()) {
       // 🏦 Venta por TRANSFERENCIA → Registrar en Caja Banco
-      if (this.codigoTransferencia.trim()) {
-        try {
-          await this.cajaBancoService.registrarTransferenciaCliente(
-            this.total,
-            this.codigoTransferencia,
-            ref.id,
-            usuario?.id || '',
-            usuario?.nombre || 'Usuario'
-          );
-          console.log('✅ Transferencia registrada en Caja Banco');
-        } catch (err) {
-          console.error('Error registrando transferencia en Caja Banco:', err);
-        }
+      try {
+        await this.cajaBancoService.registrarTransferenciaCliente(
+          this.total,
+          this.codigoTransferencia,
+          ref.id,
+          usuario?.id || '',
+          usuario?.nombre || 'Usuario'
+        );
+        console.log('✅ Transferencia registrada en Caja Banco');
+      } catch (err) {
+        console.error('Error registrando transferencia en Caja Banco:', err);
       }
     }
 

@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { Router } from '@angular/router';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-abrir-caja',
@@ -20,30 +21,99 @@ export class AbrirCajaComponent implements OnInit {
   form!: FormGroup;
   cargando = false;
   error = '';
+  maxFecha = '';
 
   ngOnInit(): void {
     this.inicializarFormulario();
+    this.validarCajaAbiertaHoy();
   }
 
   inicializarFormulario(): void {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
+    this.maxFecha = hoy.toISOString().split('T')[0];
 
     this.form = this.formBuilder.group({
-      fecha: [hoy.toISOString().split('T')[0], Validators.required],
+      fecha: [this.maxFecha, Validators.required],
       monto_inicial: ['', [Validators.required, Validators.min(0)]],
       observacion: ['']
     });
   }
 
+  validarCajaAbiertaHoy(): void {
+    const cajaAbiertaId = localStorage.getItem('cajaChicaAbierta');
+    if (cajaAbiertaId) {
+      this.cajaChicaService.getCajaChicaById(cajaAbiertaId).subscribe({
+        next: (caja) => {
+          if (caja && caja.estado === 'ABIERTA') {
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            const fechaCaja = new Date(caja.fecha);
+            fechaCaja.setHours(0, 0, 0, 0);
+            
+            if (fechaCaja.getTime() === hoy.getTime()) {
+              Swal.fire({
+                icon: 'warning',
+                title: 'Caja ya abierta',
+                text: `Ya existe una caja abierta hoy por ${caja.usuario_nombre}. Ciérrala primero.`,
+                confirmButtonText: 'Ir a la caja',
+                allowOutsideClick: false,
+                allowEscapeKey: false
+              }).then((result) => {
+                if (result.isConfirmed) {
+                  this.router.navigate(['/caja-chica/ver', cajaAbiertaId]);
+                }
+              });
+            }
+          } else {
+            // La caja no existe o está cerrada, limpiar localStorage
+            localStorage.removeItem('cajaChicaAbierta');
+          }
+        },
+        error: () => {
+          // Si hay error al obtener la caja, limpiar localStorage (caja no existe)
+          localStorage.removeItem('cajaChicaAbierta');
+        }
+      });
+    }
+  }
+
   abrirCaja(): void {
     if (this.form.invalid) {
-      this.error = 'Por favor completa todos los campos requeridos';
+      Swal.fire({
+        icon: 'error',
+        title: 'Campos requeridos',
+        text: 'Por favor completa todos los campos requeridos'
+      });
+      return;
+    }
+
+    // Validar que la fecha no sea futura
+    const fechaSel = new Date(this.form.get('fecha')?.value);
+    const hoyCmp = new Date();
+    fechaSel.setHours(0,0,0,0);
+    hoyCmp.setHours(0,0,0,0);
+    if (fechaSel.getTime() > hoyCmp.getTime()) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Fecha inválida',
+        text: 'La fecha de apertura no puede ser posterior a hoy.'
+      });
+      return;
+    }
+
+    // Verificación rápida en localStorage (ayuda UX)
+    const cajaAbiertaId = localStorage.getItem('cajaChicaAbierta');
+    if (cajaAbiertaId) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Caja ya abierta',
+        text: 'Ya existe una caja abierta para hoy'
+      });
       return;
     }
 
     this.cargando = true;
-    this.error = '';
 
     const usuario = this.authService.getCurrentUser();
     const montoParse = parseFloat(this.form.get('monto_inicial')?.value);
@@ -61,15 +131,25 @@ export class AbrirCajaComponent implements OnInit {
     this.cajaChicaService.abrirCajaChica(nuevaCaja).then(
       (cajaId) => {
         this.cargando = false;
-        // 💾 Guardar en localStorage la caja abierta actual
         localStorage.setItem('cajaChicaAbierta', cajaId);
-        console.log('✅ Caja abierta:', cajaId);
-        this.router.navigate(['/caja-chica/ver', cajaId]);
+        Swal.fire({
+          icon: 'success',
+          title: 'Caja abierta',
+          text: `Caja chica abierta con $${montoParse.toFixed(2)}`,
+          timer: 1500,
+          showConfirmButton: false
+        }).then(() => {
+          this.router.navigate(['/caja-chica/ver', cajaId]);
+        });
       },
       (error) => {
         this.cargando = false;
         console.error('Error al abrir caja:', error);
-        this.error = 'Error al abrir la caja chica';
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: (error?.message) || 'No se pudo abrir la caja chica'
+        });
       }
     );
   }

@@ -45,8 +45,8 @@ export class CajaBancoService {
     const nuevaCaja: CajaBanco = {
       fecha: caja.fecha || new Date(),
       saldo_inicial: caja.saldo_inicial || 0,
-      saldo_actual: caja.saldo_inicial || 0,
-      estado: 'ABIERTA',
+      saldo_actual: caja.saldo_actual || caja.saldo_inicial || 0,
+      estado: caja.estado || 'ABIERTA',
       usuario_id: caja.usuario_id,
       usuario_nombre: caja.usuario_nombre,
       observacion: caja.observacion || '',

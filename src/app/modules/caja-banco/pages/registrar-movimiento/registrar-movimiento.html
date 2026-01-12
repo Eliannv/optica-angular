@@ -24,6 +24,35 @@
           </select>
                 </div>
 
+                <!-- BÚSQUEDA DE CLIENTE/TRABAJADOR (con datalist) -->
+                <div class="form-group" *ngIf="mostrarBusquedaCliente()">
+                    <label>
+                        <span *ngIf="formulario.get('tipo')?.value === 'INGRESO'">Cliente (Transferencia)</span>
+                        <span *ngIf="formulario.get('tipo')?.value === 'EGRESO'">Trabajador (Pago)</span>
+                    </label>
+                    <input
+                        type="text"
+                        [(ngModel)]="busquedaCliente"
+                        (ngModelChange)="buscarCliente()"
+                        (blur)="onBlurSeleccionPersona()"
+                        [ngModelOptions]="{standalone: true}"
+                        placeholder="Escribe cédula, nombre o apellido..."
+                        class="form-control"
+                        list="personasList"
+                    />
+                    <datalist id="personasList">
+                        <option
+                            *ngFor="let p of personasBusqueda"
+                            [value]="p.cedula || p.id" q q
+                            [attr.label]="((p.nombres || p.nombre || '') + ' ' + (p.apellidos || p.apellido || ''))"
+                            [title]="((p.nombres || p.nombre || '') + ' ' + (p.apellidos || p.apellido || ''))"
+                        ></option>
+                    </datalist>
+                    <div class="selected-item" *ngIf="clienteSeleccionado">
+                        ✓ {{ clienteSeleccionado.nombres || clienteSeleccionado.nombre }} {{ clienteSeleccionado.apellidos || clienteSeleccionado.apellido || '' }} ({{ clienteSeleccionado.cedula || clienteSeleccionado.id }})
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label for="descripcion">Descripción</label>
                     <input id="descripcion" type="text" formControlName="descripcion" placeholder="Ej: Transferencia cliente Juan" class="form-control" [class.is-invalid]="formulario.get('descripcion')?.touched && formulario.get('descripcion')?.invalid" />
@@ -42,7 +71,7 @@
 
                 <div class="form-group">
                     <label for="referencia">Referencia (Código de transferencia, etc.)</label>
-                    <input id="referencia" type="text" formControlName="referencia" placeholder="Ej: TRF-12345 (opcional)" class="form-control" />
+                    <input id="referencia" type="text" formControlName="referencia" placeholder="Ej: TRF-12345" class="form-control" />
                 </div>
 
                 <div class="form-actions">

@@ -5,6 +5,7 @@ import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { CajaChica, MovimientoCajaChica, ResumenCajaChica } from '../../../../core/models/caja-chica.model';
+import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-ver-caja',
@@ -76,20 +77,27 @@ export class VerCajaComponent implements OnInit {
   }
 
   async cerrarCaja(): Promise<void> {
-    if (!confirm('¿Está seguro de que desea cerrar esta caja?\n\nEl saldo será transferido a Caja Banco.')) {
-      return;
-    }
+    const confirmar = await Swal.fire({
+      icon: 'question',
+      title: 'Cerrar Caja Chica',
+      text: 'El saldo será transferido a Caja Banco. ¿Deseas continuar?',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, cerrar',
+      cancelButtonText: 'Cancelar'
+    });
+    if (!confirmar.isConfirmed) return;
 
     try {
-      const monto = this.caja?.monto_actual || 0;
+      const montoActual = this.caja?.monto_actual || 0;
+      const montoInicial = this.caja?.monto_inicial || 0;
       const usuario = this.authService.getCurrentUser();
 
-      // Paso 1: Crear caja banco y registrar el cierre
+      // Paso 1: Crear caja banco como ABIERTA (para poder registrar movimientos)
       const cajaBancoId = await this.cajaBancoService.abrirCajaBanco({
         fecha: new Date(),
-        saldo_inicial: monto,
-        saldo_actual: monto,
-        estado: 'ABIERTA',
+        saldo_inicial: montoInicial,  // Saldo inicial de Caja Chica
+        saldo_actual: montoActual,    // Saldo final de Caja Chica
+        estado: 'ABIERTA',            // Crear como ABIERTA temporalmente
         usuario_id: usuario?.id,
         usuario_nombre: usuario?.nombre,
         observacion: `Cierre de Caja Chica - ${new Date().toLocaleDateString('es-ES')}`
@@ -99,37 +107,65 @@ export class VerCajaComponent implements OnInit {
       await this.cajaBancoService.registrarCierreCajaChica(
         cajaBancoId,
         this.cajaId,
-        monto,
+        montoActual,
         usuario?.id,
         usuario?.nombre
       );
 
-      // Paso 3: Cerrar Caja Chica
-      await this.cajaChicaService.cerrarCajaChica(this.cajaId, monto);
+      // Paso 3: Cerrar la Caja Banco (cambiar a CERRADA)
+      await this.cajaBancoService.cerrarCajaBanco(cajaBancoId, montoActual);
+
+      // Paso 4: Cerrar Caja Chica
+      await this.cajaChicaService.cerrarCajaChica(this.cajaId, montoActual);
 
       // 🗑️ Limpiar localStorage
       localStorage.removeItem('cajaChicaAbierta');
 
-      alert('✓ Caja cerrada y transferida a Caja Banco exitosamente');
+      await Swal.fire({
+        icon: 'success',
+        title: 'Caja cerrada',
+        text: 'Transferida a Caja Banco exitosamente',
+        timer: 1800,
+        showConfirmButton: false
+      });
       this.router.navigate(['/caja-chica']);
     } catch (error) {
       console.error('Error al cerrar caja:', error);
-      alert('Error al cerrar la caja: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      Swal.fire({
+        icon: 'error',
+        title: 'Error al cerrar',
+        text: error instanceof Error ? error.message : 'Error desconocido'
+      });
     }
   }
 
   async eliminarMovimiento(movimientoId: string): Promise<void> {
-    if (!confirm('¿Está seguro de que desea eliminar este movimiento?')) {
-      return;
-    }
+    const confirmar = await Swal.fire({
+      icon: 'warning',
+      title: 'Eliminar movimiento',
+      text: 'Esta acción no se puede deshacer.',
+      showCancelButton: true,
+      confirmButtonText: 'Eliminar',
+      cancelButtonText: 'Cancelar'
+    });
+    if (!confirmar.isConfirmed) return;
 
     try {
       await this.cajaChicaService.eliminarMovimiento(this.cajaId, movimientoId);
-      alert('Movimiento eliminado exitosamente');
+      await Swal.fire({
+        icon: 'success',
+        title: 'Movimiento eliminado',
+        timer: 1500,
+        showConfirmButton: false
+      });
       this.cargarDetalles();
     } catch (error) {
       console.error('Error al eliminar movimiento:', error);
-      alert('Error al eliminar el movimiento');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al eliminar el movimiento'
+      });
     }
   }
 

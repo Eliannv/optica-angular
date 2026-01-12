@@ -122,12 +122,16 @@ export class ProductosService {
   async createProducto(producto: Producto) {
     // Generar ID interno automáticamente
     const idInterno = await this.getNextIdInterno();
-    
+
+    // Stock ilimitado para grupo LUNAS
+    const esLunas = (producto as any)?.grupo === 'LUNAS';
+
     return addDoc(this.productosRef, {
       ...producto,
       idInterno,
       createdAt: new Date(),
-      stock: producto.stock || 0,
+      stock: esLunas ? 0 : (producto.stock || 0),
+      ...(esLunas ? { stockIlimitado: true } : {}),
     });
   }
 
@@ -168,6 +172,12 @@ export class ProductosService {
         throw new Error('Producto no encontrado');
       }
       const data = snap.data() as any;
+
+      // No descontar stock si es stock ilimitado (grupo LUNAS)
+      if (data?.grupo === 'LUNAS' || data?.stockIlimitado === true) {
+        // No actualizamos stock
+        return;
+      }
       const stockActual = Number(data?.stock || 0);
       if (stockActual < cantidad) {
         throw new Error(`Stock insuficiente. Disponible: ${stockActual}, requerido: ${cantidad}`);

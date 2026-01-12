@@ -192,24 +192,29 @@ export class IngresosService {
     const ingresoSnap = await getDoc(ingresoDoc);
     const ingreso = ingresoSnap.data() as Ingreso;
 
-    const nuevoProducto: Producto = {
+    // Construir objeto sin valores undefined (Firestore no admite undefined)
+    const esLunas = (detalle.grupo === 'LUNAS');
+    const nuevoProducto: any = {
       idInterno: idInterno,
       codigo: detalle.codigo || `PROD-${idInterno}`,
       nombre: detalle.nombre,
-      modelo: detalle.modelo,
-      color: detalle.color,
-      grupo: detalle.grupo,
-      stock: detalle.cantidad,
-      costo: detalle.costoUnitario,
-      pvp1: detalle.pvp1,
+      stock: esLunas ? 0 : detalle.cantidad,
       proveedor: (ingreso as any)?.proveedorId || ingreso?.proveedor || '',
       ingresoId: ingresoId,
-      observacion: detalle.observacion,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
-    const productoRef = await addDoc(this.productosRef, nuevoProducto);
+    // Campos opcionales sólo si tienen valor definido
+    if (detalle.modelo) nuevoProducto.modelo = detalle.modelo;
+    if (detalle.color) nuevoProducto.color = detalle.color;
+    if (detalle.grupo) nuevoProducto.grupo = detalle.grupo;
+    if (esLunas) nuevoProducto.stockIlimitado = true;
+    if (detalle.costoUnitario !== undefined) nuevoProducto.costo = detalle.costoUnitario;
+    if (detalle.pvp1 !== undefined) nuevoProducto.pvp1 = detalle.pvp1;
+    if (detalle.observacion !== undefined && detalle.observacion !== null) nuevoProducto.observacion = detalle.observacion;
+
+    const productoRef = await addDoc(this.productosRef, nuevoProducto as Producto);
     return productoRef.id;
   }
 
@@ -224,14 +229,14 @@ export class IngresosService {
 
     if (productoSnap.exists()) {
       const producto = productoSnap.data() as Producto;
-      const nuevoStock = (producto.stock || 0) + cantidad;
+      const esLunas = (producto as any)?.grupo === 'LUNAS' || (producto as any)?.stockIlimitado === true;
 
-      const updateData: any = {
-        stock: nuevoStock,
-        updatedAt: new Date(),
-      };
-
-      // Actualizar costo si se proporciona
+      // Si es LUNAS, no modificar stock; solo actualizar costo si aplica
+      const updateData: any = { updatedAt: new Date() };
+      if (!esLunas) {
+        const nuevoStock = (producto.stock || 0) + cantidad;
+        updateData.stock = nuevoStock;
+      }
       if (costoUnitario !== undefined) {
         updateData.costo = costoUnitario;
       }
@@ -251,16 +256,29 @@ export class IngresosService {
     if (productoSnap.exists()) {
       const producto = productoSnap.data() as Producto;
       const stockAnterior = producto.stock || 0;
-      const stockNuevo = stockAnterior + movimiento.cantidad;
+      const esLunas = (producto as any)?.grupo === 'LUNAS' || (producto as any)?.stockIlimitado === true;
+      const stockNuevo = esLunas ? stockAnterior : stockAnterior + movimiento.cantidad;
 
-      const nuevoMovimiento: MovimientoStock = {
-        ...movimiento,
+      // Ensamblar movimiento evitando campos undefined
+      const nuevoMovimiento: any = {
+        productoId: movimiento.productoId,
+        ingresoId: movimiento.ingresoId,
+        tipo: movimiento.tipo,
+        cantidad: movimiento.cantidad,
+        costoUnitario: movimiento.costoUnitario,
         stockAnterior,
         stockNuevo,
         createdAt: new Date(),
       };
 
-      await addDoc(this.movimientosRef, nuevoMovimiento);
+      if (movimiento.observacion !== undefined && movimiento.observacion !== null) {
+        nuevoMovimiento.observacion = movimiento.observacion;
+      }
+      if (movimiento.usuarioId !== undefined) {
+        nuevoMovimiento.usuarioId = movimiento.usuarioId;
+      }
+
+      await addDoc(this.movimientosRef, nuevoMovimiento as MovimientoStock);
     }
   }
 

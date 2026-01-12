@@ -24,6 +24,16 @@
           </button>
                 </div>
 
+                <!-- Filtro estado -->
+                <div class="search-wrapper" style="max-width: 260px;">
+                    <select class="search-input" [(ngModel)]="filtroEstado" (ngModelChange)="aplicarFiltro()">
+                        <option value="todos">Todos</option>
+                        <option value="deudores">Clientes deudores</option>
+                        <option value="conHistorial">Con historial</option>
+                        <option value="sinHistorial">Sin historial</option>
+                    </select>
+                </div>
+
                 <button class="btn btn-primary" (click)="crearCliente()">
           + Nuevo Cliente
         </button>

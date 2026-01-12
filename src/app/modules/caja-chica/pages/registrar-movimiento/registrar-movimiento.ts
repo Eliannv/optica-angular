@@ -4,6 +4,8 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ActivatedRoute, Router } from '@angular/router';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { MovimientoCajaChica } from '../../../../core/models/caja-chica.model';
+import { AuthService } from '../../../../core/services/auth.service';
+import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-registrar-movimiento',
@@ -16,6 +18,7 @@ export class RegistrarMovimientoComponent implements OnInit {
   private formBuilder = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private authService = inject(AuthService);
 
   form!: FormGroup;
   cajaId: string = '';
@@ -59,7 +62,11 @@ export class RegistrarMovimientoComponent implements OnInit {
 
   registrarMovimiento(): void {
     if (this.form.invalid) {
-      this.error = 'Por favor completa todos los campos requeridos';
+      Swal.fire({
+        icon: 'error',
+        title: 'Campos requeridos',
+        text: 'Por favor completa todos los campos obligatorios.'
+      });
       return;
     }
 
@@ -68,13 +75,18 @@ export class RegistrarMovimientoComponent implements OnInit {
 
     // Validar saldo suficiente para egresos
     if (tipo === 'EGRESO' && monto > this.saldoActual) {
-      this.error = 'La caja chica no tiene suficiente saldo para este egreso';
+      Swal.fire({
+        icon: 'warning',
+        title: 'Saldo insuficiente',
+        text: 'La caja chica no tiene suficiente saldo para este egreso.'
+      });
       return;
     }
 
     this.cargando = true;
     this.error = '';
 
+    const usuario = this.authService.getCurrentUser();
     const movimiento: MovimientoCajaChica = {
       caja_chica_id: this.cajaId,
       fecha: new Date(),
@@ -83,6 +95,8 @@ export class RegistrarMovimientoComponent implements OnInit {
       monto,
       comprobante: this.form.get('comprobante')?.value,
       observacion: this.form.get('observacion')?.value,
+      ...(usuario?.id ? { usuario_id: usuario.id } : {}),
+      ...(usuario?.nombre ? { usuario_nombre: usuario.nombre } : {}),
     };
 
     this.cajaChicaService.registrarMovimiento(this.cajaId, movimiento).then(
@@ -90,19 +104,24 @@ export class RegistrarMovimientoComponent implements OnInit {
         this.cargando = false;
         this.exito = true;
         this.form.reset({ tipo: 'INGRESO' });
-        
-        // Actualizar saldo
         this.cargarSaldoActual();
-
-        // Redirigir después de 2 segundos
-        setTimeout(() => {
+        Swal.fire({
+          icon: 'success',
+          title: 'Movimiento registrado',
+          timer: 1500,
+          showConfirmButton: false
+        }).then(() => {
           this.router.navigate(['/caja-chica/ver', this.cajaId]);
-        }, 2000);
+        });
       },
       (error) => {
         this.cargando = false;
         console.error('Error al registrar movimiento:', error);
-        this.error = error.message || 'Error al registrar el movimiento';
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error?.message || 'Error al registrar el movimiento'
+        });
       }
     );
   }

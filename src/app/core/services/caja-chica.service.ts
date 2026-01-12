@@ -92,27 +92,27 @@ export class CajaChicaService {
     return null;
   }  // 🔹 Obtener la última caja chica abierta
   // 🔹 Crear una nueva caja chica (apertura)
-  // Solo permite 1 caja abierta por día - elimina automáticamente la anterior si existe
+  // Solo permite 1 caja por día (abierta o cerrada). Si ya existe una caja con la misma fecha, lanza error.
   async abrirCajaChica(caja: CajaChica): Promise<string> {
     try {
       const cajasRef = collection(this.firestore, 'cajas_chicas');
       const fecha = caja.fecha ? new Date(caja.fecha) : new Date();
       fecha.setHours(0, 0, 0, 0);
 
-      // 🔍 Verificar si hay una caja anterior abierta hoy desde localStorage
-      const cajaAntiguaId = localStorage.getItem('cajaChicaAbierta');
-      if (cajaAntiguaId) {
-        try {
-          // Cerrar la caja anterior
-          await updateDoc(doc(this.firestore, `cajas_chicas/${cajaAntiguaId}`), {
-            estado: 'CERRADA',
-            cerrado_en: Timestamp.now(),
-            updatedAt: Timestamp.now(),
-          });
-        } catch (err) {
-          console.warn('No se pudo cerrar caja anterior:', err);
-        }
-        localStorage.removeItem('cajaChicaAbierta');
+      // 🔍 Verificar en Firestore si ya existe cualquier caja (ABIERTA o CERRADA) para la fecha (día) actual
+      const inicioDia = new Date(fecha);
+      const finDia = new Date(fecha);
+      finDia.setDate(finDia.getDate() + 1);
+
+      // Usamos un rango por fecha para evitar traer toda la colección
+      const qMismoDia = query(
+        cajasRef,
+        where('fecha', '>=', inicioDia),
+        where('fecha', '<', finDia)
+      );
+      const snapMismoDia = await getDocs(qMismoDia);
+      if (!snapMismoDia.empty) {
+        throw new Error('Ya existe una caja chica creada para el día seleccionado.');
       }
 
       // Crear la nueva caja
@@ -129,7 +129,7 @@ export class CajaChicaService {
       };
 
       const docRef = await addDoc(cajasRef, nuevaCaja);
-      
+
       // Guardar en localStorage para futuras referencias
       localStorage.setItem('cajaChicaAbierta', docRef.id);
       
@@ -143,23 +143,50 @@ export class CajaChicaService {
   // 🔹 Registrar un movimiento en la caja chica
   async registrarMovimiento(cajaChicaId: string, movimiento: MovimientoCajaChica): Promise<string> {
     try {
+      // 1️⃣ Obtener la caja actual para conocer el saldo
+      const cajaDoc = await getDoc(doc(this.firestore, `cajas_chicas/${cajaChicaId}`));
+      if (!cajaDoc.exists()) {
+        throw new Error('Caja chica no encontrada');
+      }
+
+      const caja = cajaDoc.data() as CajaChica;
+      const saldoAnterior = caja.monto_actual || 0;
+
+      // 2️⃣ Calcular el nuevo saldo según el tipo de movimiento
+      let nuevoSaldo = saldoAnterior;
+      if (movimiento.tipo === 'INGRESO') {
+        nuevoSaldo = saldoAnterior + (movimiento.monto || 0);
+      } else if (movimiento.tipo === 'EGRESO') {
+        nuevoSaldo = saldoAnterior - (movimiento.monto || 0);
+      }
+
+      // 3️⃣ Registrar el movimiento con saldos
       const movimientosRef = collection(this.firestore, 'movimientos_cajas_chicas');
-      
-      // Registrar el movimiento sin validar saldo (asumimos que se valida antes)
-      const nuevoMovimiento: MovimientoCajaChica = {
+      // Construir payload sin campos undefined (Firestore no los admite)
+      const nuevoMovimiento: any = {
         caja_chica_id: cajaChicaId,
         fecha: movimiento.fecha || new Date(),
         tipo: movimiento.tipo,
         descripcion: movimiento.descripcion,
         monto: movimiento.monto,
+        saldo_anterior: saldoAnterior,
+        saldo_nuevo: Math.max(0, nuevoSaldo), // no permitir saldo negativo
         comprobante: movimiento.comprobante || '',
-        usuario_id: movimiento.usuario_id,
-        usuario_nombre: movimiento.usuario_nombre,
         observacion: movimiento.observacion || '',
         createdAt: Timestamp.now(),
-      };
+      } as Partial<MovimientoCajaChica>;
 
-      const docRef = await addDoc(movimientosRef, nuevoMovimiento);
+      if (movimiento.usuario_id) nuevoMovimiento.usuario_id = movimiento.usuario_id;
+      if (movimiento.usuario_nombre) nuevoMovimiento.usuario_nombre = movimiento.usuario_nombre;
+
+      const docRef = await addDoc(movimientosRef, nuevoMovimiento as MovimientoCajaChica);
+
+      // 4️⃣ Actualizar el monto_actual de la caja
+      await updateDoc(doc(this.firestore, `cajas_chicas/${cajaChicaId}`), {
+        monto_actual: Math.max(0, nuevoSaldo),
+        updatedAt: Timestamp.now(),
+      });
+
       return docRef.id;
     } catch (error) {
       console.error('Error registrando movimiento:', error);

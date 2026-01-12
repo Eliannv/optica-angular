@@ -13,7 +13,7 @@
             <!-- FECHA -->
             <div class="form-group">
                 <label for="fecha">Fecha de Apertura *</label>
-                <input id="fecha" type="date" formControlName="fecha" class="form-control" />
+                <input id="fecha" type="date" formControlName="fecha" class="form-control" [attr.max]="maxFecha" />
             </div>
 
             <!-- MONTO INICIAL -->

@@ -14,7 +14,7 @@ export class ListarCajasComponent implements OnInit {
   private router = inject(Router);
 
   cajas: CajaBanco[] = [];
-  movimientosGlobales: MovimientoCajaBanco[] = []; // Movimientos sin caja específica
+  movimientosGlobales: MovimientoCajaBanco[] = [];
   cargando = false;
 
   ngOnInit(): void {
@@ -26,7 +26,8 @@ export class ListarCajasComponent implements OnInit {
     this.cargando = true;
     this.cajaBancoService.getCajasBanco().subscribe({
       next: (cajas) => {
-        this.cajas = cajas;
+        // Filtrar solo cajas CERRADAS
+        this.cajas = (cajas || []).filter(c => c.estado === 'CERRADA');
         this.cargando = false;
       },
       error: (error) => {
@@ -39,7 +40,6 @@ export class ListarCajasComponent implements OnInit {
   cargarMovimientosGlobales(): void {
     this.cajaBancoService.getMovimientosCajaBanco().subscribe({
       next: (movimientos) => {
-        // Filtrar solo los que no tienen caja_banco_id asignada
         this.movimientosGlobales = (movimientos || []).filter(m => !m.caja_banco_id);
       },
       error: (error) => {
@@ -54,6 +54,38 @@ export class ListarCajasComponent implements OnInit {
 
   registrarMovimiento(): void {
     this.router.navigate(['/caja-banco/registrar-movimiento']);
+  }
+
+  getTotalGanado(): number {
+    // Total de cajas cerradas
+    return this.cajas.reduce((acc, c) => acc + (c.saldo_actual || 0), 0);
+  }
+
+  getTotalTransferencias(): number {
+    // Solo transferencias de clientes
+    return this.movimientosGlobales
+      .filter(m => m.categoria === 'TRANSFERENCIA_CLIENTE' && m.tipo === 'INGRESO')
+      .reduce((acc, m) => acc + (m.monto || 0), 0);
+  }
+
+  getTotalIngresos(): number {
+    // Total Ingresos = Total Ganado Cajas + TODOS los ingresos globales
+    const ingresosGlobales = this.movimientosGlobales
+      .filter(m => m.tipo === 'INGRESO')
+      .reduce((acc, m) => acc + (m.monto || 0), 0);
+    return this.getTotalGanado() + ingresosGlobales;
+  }
+
+  getTotalEgresos(): number {
+    return this.movimientosGlobales
+      .filter(m => m.tipo === 'EGRESO')
+      .reduce((acc, m) => acc + (m.monto || 0), 0);
+  }
+
+  getEstadoBadge(estado: string): string {
+    if (estado === 'ABIERTA') return 'badge-success';
+    if (estado === 'CERRADA') return 'badge-danger';
+    return 'badge-secondary';
   }
 
   formatoFecha(fecha: any): string {

@@ -16,10 +16,14 @@
     padding: 1.25rem 1.5rem;
     border-bottom: 1px solid var(--border-color);
     background: var(--bg-secondary);
+}
+
+.header-content {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .caja-title {
@@ -49,6 +53,36 @@
 
 .caja-body {
     padding: 1.5rem;
+}
+
+/* RESUMEN */
+.resumen-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.resumen-card {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-hover) 100%);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+}
+
+.resumen-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.resumen-valor {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
 }
 
 .caja-section {
@@ -147,24 +181,62 @@
     border: 1px solid rgba(231, 76, 60, 0.25);
 }
 
-.btn-icon {
-    background: var(--bg-hover);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-md);
-    padding: 0.5rem 0.75rem;
-    cursor: pointer;
-    font-size: 1rem;
-    transition: all var(--transition-fast);
+.badge-secondary {
+    background: rgba(149, 165, 166, 0.15);
+    color: #95a5a6;
+    border: 1px solid rgba(149, 165, 166, 0.25);
 }
 
-.btn-icon:hover {
-    transform: scale(1.1);
+/* BOTONES DE ACCIÓN */
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: nowrap;
+}
+
+.btn-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.btn-action svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2;
+}
+
+.btn-action-view {
+    color: #3b82f6;
+    background: #dbeafe;
+}
+
+.btn-action-view:hover {
+    background: #bfdbfe;
+    transform: translateY(-2px);
+    color: #1d4ed8;
 }
 
 .empty-state {
     text-align: center;
     padding: 3rem;
     color: var(--text-secondary);
+}
+
+.empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
 }
 
 .loading {

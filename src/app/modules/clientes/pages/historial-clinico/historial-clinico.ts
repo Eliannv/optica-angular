@@ -37,6 +37,9 @@ export class HistorialClinicoComponent implements OnInit {
   // ✅ NUEVO: deuda por cliente
   deudas: Record<string, { deudaTotal: number; pendientes: number }> = {};
 
+  // ✅ NUEVO: filtro de estado
+  filtroEstado: 'todos' | 'deudores' | 'conHistorial' | 'sinHistorial' = 'todos';
+
   // Modal
   clienteSeleccionado: ClienteUI | null = null;
   historialClinico: HistoriaClinica | null = null;
@@ -71,7 +74,19 @@ export class HistorialClinicoComponent implements OnInit {
       })
     );
 
-    this.clientes = withHistorial;
+    // Ordenar por cliente más reciente (createdAt desc)
+    const getCreatedMs = (c: any): number => {
+      const v = c?.createdAt;
+      if (!v) return 0;
+      try {
+        if (typeof v?.toDate === 'function') return v.toDate().getTime();
+        if (v instanceof Date) return v.getTime();
+        if (typeof v === 'number') return v;
+      } catch {}
+      return 0;
+    };
+
+    this.clientes = withHistorial.sort((a, b) => getCreatedMs(b) - getCreatedMs(a));
     this.aplicarFiltro();
 
     // ✅ NUEVO: cargar deuda por cliente (después de tener clientes listos)
@@ -109,19 +124,40 @@ export class HistorialClinicoComponent implements OnInit {
     this.aplicarFiltro();
   }
 
-  private aplicarFiltro(): void {
+  aplicarFiltro(): void {
     const t = (this.terminoBusqueda || '').trim().toLowerCase();
 
-    if (!t) {
-      this.clientesFiltrados = [...this.clientes];
-    } else {
-      this.clientesFiltrados = this.clientes.filter(c => {
-        const nombre = `${c.nombres ?? ''} ${c.apellidos ?? ''}`.toLowerCase();
-        const cedula = (c.cedula ?? '').toLowerCase();
-        const telefono = (c.telefono ?? '').toLowerCase();
-        return nombre.includes(t) || cedula.includes(t) || telefono.includes(t);
-      });
+    // 1) Texto
+    let base = !t
+      ? [...this.clientes]
+      : this.clientes.filter(c => {
+          const nombre = `${c.nombres ?? ''} ${c.apellidos ?? ''}`.toLowerCase();
+          const cedula = (c.cedula ?? '').toLowerCase();
+          const telefono = (c.telefono ?? '').toLowerCase();
+          return nombre.includes(t) || cedula.includes(t) || telefono.includes(t);
+        });
+
+    // 2) Filtro estado
+    if (this.filtroEstado === 'deudores') {
+      base = base.filter(c => (this.deudas[c.id]?.deudaTotal || 0) > 0);
+    } else if (this.filtroEstado === 'conHistorial') {
+      base = base.filter(c => !!c.tieneHistorial);
+    } else if (this.filtroEstado === 'sinHistorial') {
+      base = base.filter(c => !c.tieneHistorial);
     }
+
+    // 3) Ordenar por más reciente (por si cambió por filtrado)
+    const getCreatedMs = (c: any): number => {
+      const v = c?.createdAt;
+      if (!v) return 0;
+      try {
+        if (typeof v?.toDate === 'function') return v.toDate().getTime();
+        if (v instanceof Date) return v.getTime();
+        if (typeof v === 'number') return v;
+      } catch {}
+      return 0;
+    };
+    this.clientesFiltrados = base.sort((a, b) => getCreatedMs(b) - getCreatedMs(a));
 
     this.totalClientes = this.clientesFiltrados.length;
     this.paginaActual = 1; // Resetear a la primera página al filtrar
