@@ -14,6 +14,7 @@ import {
   orderBy
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { Factura } from '../models/factura.model';
 
 @Injectable({ providedIn: 'root' })
@@ -77,18 +78,27 @@ export class FacturasService {
 
   /**
    * Trae facturas pendientes de un cliente (para pantalla cobrar deuda)
-   * OJO: requiere índice compuesto en Firestore si usas orderBy con where.
-   * Si te da error de índice, puedes quitar el orderBy.
+   * Sin orderBy en Firestore para evitar necesidad de índice compuesto
+   * Se ordena en el cliente (Angular)
    */
   getPendientesPorCliente(clienteId: string): Observable<any[]> {
     const q = query(
       this.facturasRef,
       where('clienteId', '==', clienteId),
-      where('estadoPago', '==', 'PENDIENTE'),
-      orderBy('fecha', 'desc')
+      where('estadoPago', '==', 'PENDIENTE')
+      // Sin orderBy para evitar necesidad de índice compuesto
     );
 
-    return collectionData(q, { idField: 'id' }) as Observable<any[]>;
+    return collectionData(q, { idField: 'id' }).pipe(
+      map((facturas: any[]) => {
+        // Ordenar en el cliente en lugar de en Firestore
+        return (facturas || []).sort((a, b) => {
+          const fechaA = a?.fecha?.toDate?.() || new Date(a?.fecha || 0);
+          const fechaB = b?.fecha?.toDate?.() || new Date(b?.fecha || 0);
+          return fechaB.getTime() - fechaA.getTime(); // descendente
+        });
+      })
+    ) as Observable<any[]>;
   }
 
   /**

@@ -1,4 +1,4 @@
-import { Component, output, signal, Inject, PLATFORM_ID, inject } from '@angular/core';
+import { Component, output, signal, Inject, PLATFORM_ID, inject, OnInit } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -25,7 +25,7 @@ interface MenuItem {
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.css'
 })
-export class SidebarComponent {
+export class SidebarComponent implements OnInit {
   closeSidebar = output<void>();
 
   collapsed = false;
@@ -223,6 +223,24 @@ export class SidebarComponent {
   route: '/empleados',
   active: false,
   roles: [RolUsuario.ADMINISTRADOR] // Solo administradores
+},
+{
+  label: 'Caja Chica',
+  icon: this.sanitizer.bypassSecurityTrustHtml(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-wallet-icon lucide-wallet"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h9"/><circle cx="17" cy="15" r="1"/></svg>
+  `),
+  route: '/caja-chica',
+  active: false,
+  roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR] // Operadores y Administradores
+},
+{
+  label: 'Caja Banco',
+  icon: this.sanitizer.bypassSecurityTrustHtml(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-building-icon lucide-building-2"><path d="M6 22V4a1 1 0 0 1 1-1h3V2"/><path d="M13 5h3a1 1 0 0 1 1 1v17"/><path d="M6 22h16"/></svg>
+  `),
+  route: '/caja-banco',
+  active: false,
+  roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR] // Operadores y Administradores
 }/*,
 
     {
@@ -248,8 +266,17 @@ export class SidebarComponent {
       }*/
     ];
     
-    // Filtrar menú según el rol del usuario
+    // NO filtrar aquí en el constructor, esperar a ngOnInit
+  }
+
+  ngOnInit(): void {
+    // Filtrar menú según el rol del usuario cuando el componente se inicializa
     this.filterMenuByRole();
+    
+    // Re-filtrar cuando cambie el usuario (por si acaso)
+    this.authService.authState$.subscribe(() => {
+      this.filterMenuByRole();
+    });
   }
 
   /**

@@ -8,10 +8,13 @@ import { firstValueFrom } from 'rxjs';
 import { ClientesService } from '../../../core/services/clientes';
 import { ProductosService } from '../../../core/services/productos';
 import { HistorialClinicoService } from '../../../core/services/historial-clinico.service';
+import { FacturasService } from '../../../core/services/facturas';
+import { CajaBancoService } from '../../../core/services/caja-banco.service';
+import { CajaChicaService } from '../../../core/services/caja-chica.service';
+import { AuthService } from '../../../core/services/auth.service';
 
 import { ItemVenta } from '../../../core/models/item-venta.model';
 import { Factura } from '../../../core/models/factura.model';
-import { FacturasService } from '../../../core/services/facturas';
 
 @Component({
   selector: 'app-crear-venta',
@@ -39,6 +42,7 @@ export class CrearVentaComponent implements OnInit {
   total = 0;
 
   metodoPago = 'Efectivo';
+  codigoTransferencia = ''; // Código de transferencia bancaria
 
   loading = true;
   guardando = false;
@@ -53,7 +57,10 @@ export class CrearVentaComponent implements OnInit {
     private clientesSrv: ClientesService,
     private productosSrv: ProductosService,
     private historialSrv: HistorialClinicoService,
-    private facturasSrv: FacturasService
+    private facturasSrv: FacturasService,
+    private cajaBancoService: CajaBancoService,
+    private cajaChicaService: CajaChicaService,
+    private authService: AuthService
   ) {}
 
   async ngOnInit() {
@@ -257,6 +264,7 @@ const factura: any = {
   total: +this.total.toFixed(2),
 
   metodoPago: this.metodoPago,
+  codigoTransferencia: this.metodoPago === 'Transferencia' ? this.codigoTransferencia : undefined,
   fecha: new Date(),
   usuarioId: 'admin',
 
@@ -269,6 +277,55 @@ const factura: any = {
 
     const facturaLimpia = this.cleanUndefined(factura);
 const ref = await this.facturasSrv.crearFactura(facturaLimpia);
+
+    // ✅ REGISTRAR AUTOMÁTICAMENTE EN CAJA CHICA O CAJA BANCO
+    const usuario = this.authService.getCurrentUser();
+    
+    if (this.metodoPago === 'Efectivo') {
+      // 💵 Venta en EFECTIVO → Registrar en Caja Chica
+      try {
+        // Obtener de localStorage la caja abierta
+        const cajaAbiertaId = localStorage.getItem('cajaChicaAbierta');
+        if (cajaAbiertaId) {
+          const movimiento: any = {
+            caja_chica_id: cajaAbiertaId,
+            fecha: new Date(),
+            tipo: 'INGRESO' as const,
+            descripcion: `Venta #${ref.id} - ${this.cliente?.nombres || 'Cliente'}`,
+            monto: this.total,
+            comprobante: ref.id || ''
+          };
+          // Si hay usuario, agrega los datos
+          if (usuario?.id) {
+            movimiento.usuario_id = usuario.id;
+            movimiento.usuario_nombre = usuario.nombre || 'Usuario';
+          }
+          
+          await this.cajaChicaService.registrarMovimiento(cajaAbiertaId, movimiento);
+          console.log('✅ Venta registrada en Caja Chica:', cajaAbiertaId);
+        } else {
+          console.warn('⚠️ No hay Caja Chica abierta. Abre una caja primero.');
+        }
+      } catch (err) {
+        console.error('Error registrando venta en Caja Chica:', err);
+      }
+    } else if (this.metodoPago === 'Transferencia') {
+      // 🏦 Venta por TRANSFERENCIA → Registrar en Caja Banco
+      if (this.codigoTransferencia.trim()) {
+        try {
+          await this.cajaBancoService.registrarTransferenciaCliente(
+            this.total,
+            this.codigoTransferencia,
+            ref.id,
+            usuario?.id || '',
+            usuario?.nombre || 'Usuario'
+          );
+          console.log('✅ Transferencia registrada en Caja Banco');
+        } catch (err) {
+          console.error('Error registrando transferencia en Caja Banco:', err);
+        }
+      }
+    }
 
     // ✅ Descontar stock de cada producto de manera segura
     for (const it of this.items) {

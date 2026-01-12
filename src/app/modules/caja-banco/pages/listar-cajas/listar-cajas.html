@@ -1,0 +1,95 @@
+<div class="caja-container">
+    <div class="caja-card">
+        <div class="caja-header">
+            <h1 class="caja-title">🏦 Caja Banco</h1>
+            <button class="btn-primary" (click)="registrarMovimiento()">
+        ➕ Registrar Movimiento
+      </button>
+        </div>
+
+        <div class="caja-body">
+            <!-- SECCIÓN 1: Cajas específicas -->
+            <div class="caja-section">
+                <h2 class="section-title">Cajas Banco Activas</h2>
+
+                <ng-container *ngIf="!cargando && cajas.length > 0">
+                    <div class="tabla-responsive">
+                        <table class="tabla">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th class="text-right">Saldo Inicial</th>
+                                    <th class="text-right">Saldo Actual</th>
+                                    <th>Estado</th>
+                                    <th>Usuario</th>
+                                    <th class="text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr *ngFor="let caja of cajas" class="tabla-row">
+                                    <td>{{ formatoFecha(caja.fecha) }}</td>
+                                    <td class="text-right">{{ formatoMoneda(caja.saldo_inicial ?? 0) }}</td>
+                                    <td class="text-right font-bold">{{ formatoMoneda(caja.saldo_actual) }}</td>
+                                    <td>
+                                        <span class="badge" [ngClass]="caja.estado === 'ABIERTA' ? 'badge-success' : 'badge-danger'">
+                            {{ caja.estado }}
+                          </span>
+                                    </td>
+                                    <td>{{ caja.usuario_nombre || '-' }}</td>
+                                    <td class="text-right">
+                                        <button class="btn-icon" (click)="verDetalles(caja.id!)">👁️</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </ng-container>
+
+                <ng-container *ngIf="!cargando && cajas.length === 0">
+                    <div class="empty-state">
+                        <p>No hay cajas banco registradas</p>
+                    </div>
+                </ng-container>
+
+                <ng-container *ngIf="cargando">
+                    <div class="loading">Cargando...</div>
+                </ng-container>
+            </div>
+
+            <!-- SECCIÓN 2: Movimientos globales (transferencias de clientes) -->
+            <div class="caja-section" *ngIf="movimientosGlobales.length > 0">
+                <h2 class="section-title">📥 Transferencias de Clientes</h2>
+                <div class="tabla-responsive">
+                    <table class="tabla">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Descripción</th>
+                                <th>Referencia</th>
+                                <th class="text-right">Monto</th>
+                                <th>Tipo</th>
+                                <th>Usuario</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let mov of movimientosGlobales" class="tabla-row" [ngClass]="getColorTipo(mov.tipo)">
+                                <td>
+                                    {{ formatoFecha(mov.fecha) }}
+                                </td>
+                                <td>{{ mov.descripcion || '-' }}</td>
+                                <td>{{ mov.referencia || '-' }}</td>
+                                <td class="text-right font-bold">{{ formatoMoneda(mov.monto || 0) }}</td>
+                                <td>
+                                    <span class="badge" [ngClass]="mov.tipo === 'INGRESO' ? 'badge-success' : 'badge-danger'">
+                        {{ mov.tipo }}
+                      </span>
+                                </td>
+                                <td>{{ mov.usuario_nombre || '-' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -125,6 +125,14 @@
                 <option value="Tarjeta">💳 Tarjeta</option>
               </select>
                         </div>
+
+                        <!-- ✅ CÓDIGO DE TRANSFERENCIA (solo si es transferencia) -->
+                        <div class="metodo-pago" *ngIf="metodoPago === 'Transferencia'">
+                            <label>Código de Transferencia</label>
+                            <input type="text" class="search-input" [(ngModel)]="codigoTransferencia" placeholder="Ej: TRF-20260112-001" />
+                            <small class="muted">Número o referencia de la transferencia bancaria</small>
+                        </div>
+
                         <!-- ✅ ABONO -->
                         <div class="metodo-pago">
                             <label>Abono (paga hoy)</label>

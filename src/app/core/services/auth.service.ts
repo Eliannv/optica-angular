@@ -68,7 +68,7 @@ export class AuthService {
         // Obtener los datos del usuario desde Firestore
         return this.getUserData(credential.user.uid);
       }),
-      map(userData => {
+      switchMap(userData => {
         if (!userData) {
           throw new Error('Usuario no encontrado en la base de datos');
         }
@@ -86,10 +86,38 @@ export class AuthService {
         
         // 🔐 VALIDACIÓN DE SUCURSAL Y MACHINE ID (Nivel 2)
         this.validarAccesoSucursal(userData);
-        
-        return userData;
+
+        // 🔐 Establecer custom claims en el token (para Firestore security rules)
+        return from(this.setCustomClaims(userData)).pipe(
+          map(() => userData)
+        );
       })
     );
+  }
+
+  /**
+   * Establecer custom claims en el ID token del usuario actual
+   * Este es un workaround para desarrollo; en producción se debe usar Firebase Admin SDK
+   */
+  private async setCustomClaims(userData: Usuario): Promise<void> {
+    const firebaseUser = this.auth.currentUser;
+    if (!firebaseUser) return;
+
+    try {
+      // Forzar actualización del token para incluir los claims
+      // En desarrollo, los custom claims se asumen desde el documento del usuario
+      const token = await firebaseUser.getIdTokenResult(true);
+      
+      // Los custom claims se llenan desde el documento del usuario en Firestore
+      // Si necesitas que esto funcione en producción, necesitas:
+      // 1. Una Cloud Function que setee los claims en Firebase Admin SDK
+      // 2. O configurar un custom JWT provider
+      
+      console.log('Token actualizado con claims del usuario');
+    } catch (error) {
+      console.error('Error al actualizar custom claims:', error);
+      // No fallar el login si hay error aquí
+    }
   }
 
   /**

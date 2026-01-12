@@ -1,0 +1,53 @@
+<div class="caja-container">
+    <div class="caja-card">
+        <div class="caja-header">
+            <h1 class="caja-title">📊 Detalle Caja Banco</h1>
+            <button class="btn-secondary" (click)="volver()">← Atrás</button>
+        </div>
+
+        <div class="caja-body">
+            <ng-container *ngIf="!cargando && movimientos.length > 0">
+                <div class="tabla-responsive">
+                    <table class="tabla">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Tipo</th>
+                                <th>Categoría</th>
+                                <th>Descripción</th>
+                                <th class="text-right">Monto</th>
+                                <th>Referencia</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let mov of movimientos" class="tabla-row" [ngClass]="getColorTipo(mov.tipo)">
+                                <td>{{ formatoFecha(mov.fecha) }}</td>
+                                <td>
+                                    <span class="badge" [ngClass]="'badge-' + (mov.tipo === 'INGRESO' ? 'success' : 'danger')">
+                    {{ mov.tipo }}
+                  </span>
+                                </td>
+                                <td>{{ mov.categoria }}</td>
+                                <td>{{ mov.descripcion }}</td>
+                                <td class="text-right" [ngClass]="mov.tipo === 'INGRESO' ? 'text-success' : 'text-danger'">
+                                    {{ formatoMoneda(mov.monto) }}
+                                </td>
+                                <td>{{ mov.referencia || '-' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </ng-container>
+
+            <ng-container *ngIf="!cargando && movimientos.length === 0">
+                <div class="empty-state">
+                    <p>No hay movimientos para esta caja</p>
+                </div>
+            </ng-container>
+
+            <ng-container *ngIf="cargando">
+                <div class="loading">Cargando...</div>
+            </ng-container>
+        </div>
+    </div>
+</div>

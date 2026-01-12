@@ -1,0 +1,83 @@
+<div class="caja-container">
+    <!-- HEADER -->
+    <div class="caja-card">
+        <div class="caja-header">
+            <div class="header-content">
+                <h1 class="caja-title">💰 Caja Chica</h1>
+                <div class="header-actions">
+                    <button class="btn-primary" (click)="abrirCaja()">
+            + Abrir Caja
+          </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- FILTROS -->
+        <div class="filtros">
+            <button class="btn-filtro" [class.active]="filtro === 'todas'" (click)="cambiarFiltro('todas')">
+        Todas
+      </button>
+            <button class="btn-filtro" [class.active]="filtro === 'abiertas'" (click)="cambiarFiltro('abiertas')">
+        Abiertas
+      </button>
+            <button class="btn-filtro" [class.active]="filtro === 'cerradas'" (click)="cambiarFiltro('cerradas')">
+        Cerradas
+      </button>
+        </div>
+
+        <!-- TABLA DE CAJAS -->
+        <div class="caja-body">
+            <ng-container *ngIf="!cargando && cajasAbiertas.length > 0">
+                <div class="tabla-responsive">
+                    <table class="tabla">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Monto Inicial</th>
+                                <th>Saldo Actual</th>
+                                <th>Estado</th>
+                                <th>Usuario</th>
+                                <th class="text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let caja of cajasAbiertas" class="tabla-row">
+                                <td>{{ formatoFecha(caja.fecha) }}</td>
+                                <td class="text-right">{{ formatoMoneda(caja.monto_inicial) }}</td>
+                                <td class="text-right font-bold">{{ formatoMoneda(caja.monto_actual) }}</td>
+                                <td>
+                                    <span class="badge" [ngClass]="getEstadoBadgeClass(caja.estado)">
+                    {{ caja.estado }}
+                  </span>
+                                </td>
+                                <td>{{ caja.usuario_nombre || '-' }}</td>
+                                <td class="text-right">
+                                    <button class="btn-icon" title="Ver detalles" (click)="verDetalles(caja.id!)">
+                    👁️
+                  </button>
+                                    <button class="btn-icon" *ngIf="caja.estado === 'ABIERTA'" title="Registrar movimiento" (click)="registrarMovimiento(caja.id!)">
+                    ➕
+                  </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </ng-container>
+
+            <ng-container *ngIf="!cargando && cajasAbiertas.length === 0">
+                <div class="empty-state">
+                    <div class="empty-icon">📭</div>
+                    <p>No hay cajas chicas registradas</p>
+                    <span>Comienza abriendo una nueva caja chica</span>
+                </div>
+            </ng-container>
+
+            <ng-container *ngIf="cargando">
+                <div class="loading">
+                    <p>Cargando cajas...</p>
+                </div>
+            </ng-container>
+        </div>
+    </div>
+</div>

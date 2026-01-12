@@ -26,6 +26,7 @@ export interface Factura {
   descuentoId?: string;
   total: number;
   metodoPago: string;
+  codigoTransferencia?: string; // Código de transferencia bancaria (si aplica)
   fecha: any;
   usuarioId: string;
 }

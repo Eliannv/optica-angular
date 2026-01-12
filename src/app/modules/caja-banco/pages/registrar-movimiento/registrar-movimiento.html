@@ -1,0 +1,60 @@
+<div class="form-container">
+    <div class="form-card">
+        <div class="form-header">
+            <h1 class="form-title">💰 Registrar Movimiento</h1>
+            <button class="btn-secondary" (click)="volver()">← Atrás</button>
+        </div>
+
+        <div class="form-body">
+            <form [formGroup]="formulario" (ngSubmit)="guardarMovimiento()">
+                <div class="form-group">
+                    <label for="tipo">Tipo de Movimiento</label>
+                    <select id="tipo" formControlName="tipo" class="form-control">
+            <option value="INGRESO">Ingreso</option>
+            <option value="EGRESO">Egreso</option>
+          </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="categoria">Categoría</label>
+                    <select id="categoria" formControlName="categoria" class="form-control">
+            <option *ngFor="let cat of categorias_actuales" [value]="cat">
+              {{ cat | lowercase }}
+            </option>
+          </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="descripcion">Descripción</label>
+                    <input id="descripcion" type="text" formControlName="descripcion" placeholder="Ej: Transferencia cliente Juan" class="form-control" [class.is-invalid]="formulario.get('descripcion')?.touched && formulario.get('descripcion')?.invalid" />
+                    <small class="form-error" *ngIf="formulario.get('descripcion')?.touched && formulario.get('descripcion')?.invalid">
+            Mínimo 5 caracteres
+          </small>
+                </div>
+
+                <div class="form-group">
+                    <label for="monto">Monto (USD)</label>
+                    <input id="monto" type="number" formControlName="monto" placeholder="0.00" step="0.01" class="form-control" [class.is-invalid]="formulario.get('monto')?.touched && formulario.get('monto')?.invalid" />
+                    <small class="form-error" *ngIf="formulario.get('monto')?.touched && formulario.get('monto')?.invalid">
+            Ingresa un monto válido
+          </small>
+                </div>
+
+                <div class="form-group">
+                    <label for="referencia">Referencia (Código de transferencia, etc.)</label>
+                    <input id="referencia" type="text" formControlName="referencia" placeholder="Ej: TRF-12345 (opcional)" class="form-control" />
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" [disabled]="!formulario.valid || guardando" class="btn-primary">
+            {{ guardando ? '⏳ Guardando...' : '✓ Guardar Movimiento' }}
+          </button>
+                </div>
+
+                <div *ngIf="mensaje" class="alert" [ngClass]="mensaje.includes('✓') ? 'alert-success' : 'alert-danger'">
+                    {{ mensaje }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

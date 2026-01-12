@@ -1,0 +1,94 @@
+<div class="form-container">
+    <div class="form-card">
+        <!-- HEADER -->
+        <div class="form-header">
+            <div class="header-content">
+                <h1 class="form-title">➕ Registrar Movimiento</h1>
+                <button class="btn-secondary" (click)="volver()">← Atrás</button>
+            </div>
+        </div>
+
+        <!-- SALDO ACTUAL -->
+        <div class="saldo-info">
+            <div class="saldo-item">
+                <span class="label">Saldo Actual:</span>
+                <span class="saldo-value">{{ formatoMoneda(saldoActual) }}</span>
+            </div>
+        </div>
+
+        <!-- FORMULARIO -->
+        <form [formGroup]="form" (ngSubmit)="registrarMovimiento()" class="form-body">
+            <!-- TIPO DE MOVIMIENTO -->
+            <div class="form-group">
+                <label for="tipo">Tipo de Movimiento *</label>
+                <select id="tipo" formControlName="tipo" class="form-control">
+          <option *ngFor="let t of tipos" [value]="t.value">{{ t.label }}</option>
+        </select>
+            </div>
+
+            <!-- DESCRIPCIÓN -->
+            <div class="form-group">
+                <label for="descripcion">Descripción *</label>
+                <input id="descripcion" type="text" formControlName="descripcion" class="form-control" placeholder="Ej: Venta de lentes, Compra de suministros, etc." [class.error]="descriptionControl?.touched && descriptionControl?.invalid" />
+                <ng-container *ngIf="descriptionControl?.touched && descriptionControl?.invalid">
+                    <span class="error-text">
+            <ng-container *ngIf="descriptionControl?.errors?.['required']">
+              La descripción es requerida
+            </ng-container>
+            <ng-container *ngIf="descriptionControl?.errors?.['minlength']">
+              Mínimo 3 caracteres
+            </ng-container>
+          </span>
+                </ng-container>
+            </div>
+
+            <!-- MONTO -->
+            <div class="form-group">
+                <label for="monto">Monto *</label>
+                <input id="monto" type="number" formControlName="monto" class="form-control" placeholder="0.00" step="0.01" min="0" [class.error]="montoControl?.touched && montoControl?.invalid" />
+                <ng-container *ngIf="montoControl?.touched && montoControl?.invalid">
+                    <span class="error-text">
+            <ng-container *ngIf="montoControl?.errors?.['required']">
+              El monto es requerido
+            </ng-container>
+            <ng-container *ngIf="montoControl?.errors?.['min']">
+              El monto debe ser mayor a 0
+            </ng-container>
+          </span>
+                </ng-container>
+            </div>
+
+            <!-- COMPROBANTE -->
+            <div class="form-group">
+                <label for="comprobante">Número de Comprobante (Opcional)</label>
+                <input id="comprobante" type="text" formControlName="comprobante" class="form-control" placeholder="Ej: #001, Fact-2024-001, etc." />
+            </div>
+
+            <!-- OBSERVACIÓN -->
+            <div class="form-group">
+                <label for="observacion">Observación (Opcional)</label>
+                <textarea id="observacion" formControlName="observacion" class="form-control textarea" placeholder="Detalles adicionales..." rows="3"></textarea>
+            </div>
+
+            <!-- MENSAJES DE ERROR Y ÉXITO -->
+            <div *ngIf="error" class="alert alert-error">
+                {{ error }}
+            </div>
+
+            <div *ngIf="exito" class="alert alert-success">
+                ✓ Movimiento registrado exitosamente. Redirigiendo...
+            </div>
+
+            <!-- BOTONES -->
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" (click)="volver()" [disabled]="cargando">
+          Cancelar
+        </button>
+                <button type="submit" class="btn-primary" [disabled]="form.invalid || cargando">
+          <span *ngIf="!cargando">💾 Registrar Movimiento</span>
+          <span *ngIf="cargando">Guardando...</span>
+        </button>
+            </div>
+        </form>
+    </div>
+</div>

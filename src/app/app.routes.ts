@@ -93,7 +93,23 @@ export const routes: Routes = [
     canActivate: [authGuard, roleGuard([RolUsuario.ADMINISTRADOR])]
   },
 
-  // 🔁 Redirecciones
+  // � Caja Chica
+  {
+    path: 'caja-chica',
+    loadChildren: () =>
+      import('./modules/caja-chica/caja-chica-module')
+        .then(m => m.CajaChicaModule),
+    canActivate: [authGuard, roleGuard([RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR])]
+  },
+  // 🔐 Caja Banco
+  {
+    path: 'caja-banco',
+    loadChildren: () =>
+      import('./modules/caja-banco/caja-banco-module')
+        .then(m => m.CajaBancoModule),
+    canActivate: [authGuard, roleGuard([RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR])]
+  },
+  // �🔁 Redirecciones
   { path: '', redirectTo: 'login', pathMatch: 'full' },
   { path: '**', redirectTo: 'login' }
 ];
