@@ -1,6 +1,7 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -80,7 +81,7 @@ export class VerCajaComponent implements OnInit {
     const confirmar = await Swal.fire({
       icon: 'question',
       title: 'Cerrar Caja Chica',
-      text: 'El saldo será transferido a Caja Banco. ¿Deseas continuar?',
+      text: 'El saldo será sumado a Caja Banco. ¿Deseas continuar?',
       showCancelButton: true,
       confirmButtonText: 'Sí, cerrar',
       cancelButtonText: 'Cancelar'
@@ -89,33 +90,43 @@ export class VerCajaComponent implements OnInit {
 
     try {
       const montoActual = this.caja?.monto_actual || 0;
-      const montoInicial = this.caja?.monto_inicial || 0;
       const usuario = this.authService.getCurrentUser();
 
-      // Paso 1: Crear caja banco como ABIERTA (para poder registrar movimientos)
-      const cajaBancoId = await this.cajaBancoService.abrirCajaBanco({
-        fecha: new Date(),
-        saldo_inicial: montoInicial,  // Saldo inicial de Caja Chica
-        saldo_actual: montoActual,    // Saldo final de Caja Chica
-        estado: 'ABIERTA',            // Crear como ABIERTA temporalmente
-        usuario_id: usuario?.id,
-        usuario_nombre: usuario?.nombre,
-        observacion: `Cierre de Caja Chica - ${new Date().toLocaleDateString('es-ES')}`
+      // Crear fecha normalizada a medianoche en zona horaria local
+      const hoy = new Date();
+      const fechaNormalizada = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 0, 0, 0, 0);
+
+      // Buscar si existe Caja Banco para el mismo día
+      const cajasBanco = await firstValueFrom(this.cajaBancoService.getCajasBanco());
+      const cajaBancoHoy = cajasBanco.find(c => {
+        const fechaCaja = c.fecha instanceof Date 
+          ? new Date(c.fecha) 
+          : (c.fecha && typeof c.fecha === 'object' && 'toDate' in c.fecha)
+            ? (c.fecha as any).toDate()
+            : new Date(c.fecha || new Date());
+        fechaCaja.setHours(0, 0, 0, 0);
+        const hoyNormalizado = new Date(fechaNormalizada);
+        return fechaCaja.getTime() === hoyNormalizado.getTime();
       });
 
-      // Paso 2: Registrar el movimiento en Caja Banco
-      await this.cajaBancoService.registrarCierreCajaChica(
-        cajaBancoId,
-        this.cajaId,
-        montoActual,
-        usuario?.id,
-        usuario?.nombre
-      );
+      // Si existe Caja Banco, sumar el monto al saldo actual
+      if (cajaBancoHoy?.id) {
+        const nuevoSaldo = (cajaBancoHoy.saldo_actual || 0) + montoActual;
+        await this.cajaBancoService.actualizarSaldoCajaBanco(cajaBancoHoy.id, nuevoSaldo);
+      } else {
+        // Si no existe, crearla
+        await this.cajaBancoService.abrirCajaBanco({
+          fecha: fechaNormalizada,
+          saldo_inicial: 0,
+          saldo_actual: montoActual,
+          estado: 'ABIERTA',
+          usuario_id: usuario?.id,
+          usuario_nombre: usuario?.nombre,
+          observacion: 'Caja Banco creada automáticamente'
+        });
+      }
 
-      // Paso 3: Cerrar la Caja Banco (cambiar a CERRADA)
-      await this.cajaBancoService.cerrarCajaBanco(cajaBancoId, montoActual);
-
-      // Paso 4: Cerrar Caja Chica
+      // Cerrar la Caja Chica
       await this.cajaChicaService.cerrarCajaChica(this.cajaId, montoActual);
 
       // 🗑️ Limpiar localStorage
@@ -124,7 +135,7 @@ export class VerCajaComponent implements OnInit {
       await Swal.fire({
         icon: 'success',
         title: 'Caja cerrada',
-        text: 'Transferida a Caja Banco exitosamente',
+        text: 'Saldo sumado a Caja Banco exitosamente',
         timer: 1800,
         showConfirmButton: false
       });

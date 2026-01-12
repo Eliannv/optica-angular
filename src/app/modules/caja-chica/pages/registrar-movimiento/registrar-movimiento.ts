@@ -28,7 +28,6 @@ export class RegistrarMovimientoComponent implements OnInit {
   saldoActual = 0;
 
   tipos = [
-    { value: 'INGRESO', label: 'Ingreso (Efectivo de ventas)' },
     { value: 'EGRESO', label: 'Egreso (Gasto pequeño)' }
   ];
 
@@ -40,7 +39,7 @@ export class RegistrarMovimientoComponent implements OnInit {
 
   inicializarFormulario(): void {
     this.form = this.formBuilder.group({
-      tipo: ['INGRESO', Validators.required],
+      tipo: ['EGRESO', Validators.required],
       descripcion: ['', [Validators.required, Validators.minLength(3)]],
       monto: ['', [Validators.required, Validators.min(0.01)]],
       comprobante: [''],

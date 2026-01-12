@@ -118,8 +118,13 @@ export class AbrirCajaComponent implements OnInit {
     const usuario = this.authService.getCurrentUser();
     const montoParse = parseFloat(this.form.get('monto_inicial')?.value);
 
+    // Crear la fecha en zona horaria local (evitar offset timezone)
+    const fechaStr = this.form.get('fecha')?.value;
+    const [year, month, day] = fechaStr.split('-');
+    const fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 0, 0, 0, 0);
+
     const nuevaCaja = {
-      fecha: new Date(this.form.get('fecha')?.value),
+      fecha,
       monto_inicial: montoParse,
       monto_actual: montoParse,
       estado: 'ABIERTA' as const,

@@ -22,24 +22,26 @@
     <div class="t-bold t-small">MEDIDAS</div>
 
     <div class="t-small">
-        <b>OD</b><br> Esf {{ historial.odEsfera ?? '-' }} Cil {{ historial.odCilindro ?? '-' }} Eje {{ historial.odEje ?? '-' }}
+        <b>OD</b><br> Esf {{ historial.odEsfera ? (historial.odEsfera | number:'1.2-2') : '-' }} Cil {{ historial.odCilindro ? (historial.odCilindro | number:'1.2-2') : '-' }} Eje {{ historial.odEje ? (historial.odEje | number:'1.2-2') : '-' }}<br> AVSC
+        {{ historial.odAVSC ? (historial.odAVSC | number:'1.2-2') : '-' }} AVCC {{ historial.odAVCC ? (historial.odAVCC | number:'1.2-2') : '-' }}
     </div>
 
 
     <div class="t-small" style="margin-top:4px">
-        <b>OI</b><br> Esf {{ historial.oiEsfera ?? '-' }} Cil {{ historial.oiCilindro ?? '-' }} Eje {{ historial.oiEje ?? '-' }}
+        <b>OI</b><br> Esf {{ historial.oiEsfera ? (historial.oiEsfera | number:'1.2-2') : '-' }} Cil {{ historial.oiCilindro ? (historial.oiCilindro | number:'1.2-2') : '-' }} Eje {{ historial.oiEje ? (historial.oiEje | number:'1.2-2') : '-' }}<br> AVSC
+        {{ historial.oiAVSC ? (historial.oiAVSC | number:'1.2-2') : '-' }} AVCC {{ historial.oiAVCC ? (historial.oiAVCC | number:'1.2-2') : '-' }}
     </div>
 
     <div class="t-hr"></div>
 
     <!-- Medidas adicionales -->
     <div class="t-small" *ngIf="historial.add !== null && historial.add !== undefined">
-        <b>ADD:</b> {{ historial.add }}
+        <b>ADD:</b> {{ historial.add | number:'1.2-2' }}
     </div>
 
 
     <div class="t-small" *ngIf="historial.dp !== null && historial.dp !== undefined">
-        <b>DP:</b> {{ historial.dp }}
+        <b>DP:</b> {{ historial.dp | number:'1.2-2' }}
     </div>
 
     <div class="t-small" *ngIf="historial.color">
@@ -52,7 +54,7 @@
     </div>
 
     <div class="t-small" *ngIf="historial.altura !== null && historial.altura !== undefined">
-        <b>Altura:</b> {{ historial.altura }} cm
+        <b>Altura:</b> {{ historial.altura | number:'1.2-2' }} cm
     </div>
 
     <div class="t-small" *ngIf="historial.color">

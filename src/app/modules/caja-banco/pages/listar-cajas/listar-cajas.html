@@ -36,14 +36,15 @@
 
             <!-- SECCIÓN 1: Cajas específicas -->
             <div class="caja-section">
-                <h2 class="section-title">🏦 Cajas Banco Activas</h2>
+                <h2 class="section-title">💰 Cajas Chicas Cerradas</h2>
 
-                <ng-container *ngIf="!cargando && cajas.length > 0">
+                <ng-container *ngIf="!cargando && (cajas.length > 0 || cajasChicas.length > 0)">
                     <div class="tabla-responsive">
                         <table class="tabla">
                             <thead>
                                 <tr>
                                     <th>Fecha</th>
+                                    <th>Tipo</th>
                                     <th class="text-right">Saldo Inicial</th>
                                     <th class="text-right">Saldo Diario</th>
                                     <th>Estado</th>
@@ -52,20 +53,22 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr *ngFor="let caja of cajas" class="tabla-row">
-                                    <td>{{ formatoFecha(caja.fecha) }}</td>
-                                    <td class="text-right">{{ formatoMoneda(caja.saldo_inicial ?? 0) }}</td>
-                                    <td class="text-right font-bold">{{ formatoMoneda(caja.saldo_actual) }}</td>
+                                <!-- Cajas Chicas -->
+                                <tr *ngFor="let cajaChica of cajasChicas" class="tabla-row tabla-row-chica">
+                                    <td>{{ formatoFecha(cajaChica.fecha) }}</td>
+                                    <td><span class="badge badge-warning">Caja Chica</span></td>
+                                    <td class="text-right">{{ formatoMoneda(cajaChica.monto_inicial || 0) }}</td>
+                                    <td class="text-right font-bold">{{ formatoMoneda(cajaChica.monto_actual || 0) }}</td>
                                     <td>
-                                        <span class="badge" [ngClass]="getEstadoBadge(caja.estado)">
-                                            {{ caja.estado }}
+                                        <span class="badge" [ngClass]="cajaChica.estado === 'ABIERTA' ? 'badge-success' : 'badge-secondary'">
+                                            {{ cajaChica.estado }}
                                         </span>
                                     </td>
-                                    <td>{{ caja.usuario_nombre || '-' }}</td>
+                                    <td>{{ cajaChica.usuario_nombre || '-' }}</td>
                                     <td class="text-right">
                                         <div class="action-buttons">
-                                            <button class="btn-action btn-action-view" (click)="verDetalles(caja.id!)" title="Ver detalles">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
+                                            <button class="btn-action btn-action-delete" (click)="eliminarCajaChica(cajaChica)" title="Eliminar caja chica">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                                             </button>
                                         </div>
                                     </td>
@@ -75,10 +78,10 @@
                     </div>
                 </ng-container>
 
-                <ng-container *ngIf="!cargando && cajas.length === 0">
+                <ng-container *ngIf="!cargando && cajas.length === 0 && cajasChicas.length === 0">
                     <div class="empty-state">
                         <div class="empty-icon">📭</div>
-                        <p>No hay cajas banco registradas</p>
+                        <p>No hay cajas registradas</p>
                     </div>
                 </ng-container>
 

@@ -59,10 +59,14 @@ export class CrearHistorialClinicoComponent implements OnInit {
       odEsfera: [null],
       odCilindro: [null],
       odEje: [null],
+      odAVSC: [null],
+      odAVCC: [null],
 
       oiEsfera: [null],
       oiCilindro: [null],
       oiEje: [null],
+      oiAVSC: [null],
+      oiAVCC: [null],
 
       de: ['', Validators.required],
       altura: [null],

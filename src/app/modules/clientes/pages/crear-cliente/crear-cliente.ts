@@ -13,6 +13,7 @@ import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 export class CrearCliente implements OnInit {
 
   clienteForm!: FormGroup;
+  clienteIdEdicion: string | null = null; // Para saber si estamos editando
 
   // Datos para los selectores
   provinciasEcuador = [
@@ -31,6 +32,8 @@ export class CrearCliente implements OnInit {
   ) {}
 
   ngOnInit() {
+    this.clienteIdEdicion = this.route.snapshot.queryParamMap.get('clienteId');
+    
     this.clienteForm = this.fb.group({
       nombres: ['', [Validators.required, Validators.minLength(2), Validators.pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)]],
       apellidos: ['', [Validators.required, Validators.minLength(2), Validators.pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)]],
@@ -45,11 +48,58 @@ export class CrearCliente implements OnInit {
         asyncValidators: [this.uniqueEmailValidator()],
         updateOn: 'blur'
       }],
+      fechaNacimiento: [''],
       direccion: ['', [Validators.required, Validators.minLength(5)]],
       pais: ['Ecuador', [Validators.required]],
       provincia: ['', [Validators.required]],
       ciudad: ['', [Validators.required, Validators.minLength(2)]]
     });
+
+    // Si estamos editando, cargar datos del cliente
+    if (this.clienteIdEdicion) {
+      this.cargarClienteParaEditar();
+    }
+  }
+
+  private async cargarClienteParaEditar() {
+    try {
+      const cliente = await this.clientesService.getClienteById(this.clienteIdEdicion!).toPromise();
+      if (cliente) {
+        this.clienteForm.patchValue({
+          nombres: cliente.nombres,
+          apellidos: cliente.apellidos,
+          cedula: cliente.cedula,
+          telefono: cliente.telefono,
+          email: cliente.email,
+          fechaNacimiento: cliente.fechaNacimiento ? this.formatearFechaParaInput(cliente.fechaNacimiento) : '',
+          direccion: cliente.direccion,
+          pais: cliente.pais,
+          provincia: cliente.provincia,
+          ciudad: cliente.ciudad
+        });
+        // Marcar cédula y email como válidos (ya existen)
+        this.clienteForm.get('cedula')?.updateValueAndValidity({ emitEvent: false });
+        this.clienteForm.get('email')?.updateValueAndValidity({ emitEvent: false });
+      }
+    } catch (error) {
+      console.error('Error al cargar cliente:', error);
+    }
+  }
+
+  private formatearFechaParaInput(fecha: any): string {
+    if (!fecha) return '';
+    let date: Date;
+    if (fecha instanceof Date) {
+      date = fecha;
+    } else if (fecha && typeof fecha.toDate === 'function') {
+      date = fecha.toDate();
+    } else {
+      date = new Date(fecha);
+    }
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   async guardar() {
@@ -64,13 +114,21 @@ export class CrearCliente implements OnInit {
       ...this.clienteForm.value
     };
 
-    const ref = await this.clientesService.createCliente(cliente);
+    try {
+      if (this.clienteIdEdicion) {
+        // Editar cliente existente
+        await this.clientesService.updateCliente(this.clienteIdEdicion, cliente);
+      } else {
+        // Crear nuevo cliente
+        await this.clientesService.createCliente(cliente);
+      }
 
-    const returnTo = this.route.snapshot.queryParamMap.get('returnTo') || '/clientes/listar';
-
-    this.router.navigate([returnTo], {
-      queryParams: { selectedId: ref.id }
-    });
+      const returnTo = this.route.snapshot.queryParamMap.get('returnTo') || '/clientes/historial-clinico';
+      this.router.navigate([returnTo]);
+    } catch (error) {
+      console.error('Error al guardar cliente:', error);
+      alert('Error al guardar el cliente');
+    }
   }
 
   // Métodos auxiliares para validación
@@ -139,7 +197,7 @@ export class CrearCliente implements OnInit {
     return async (control: AbstractControl): Promise<ValidationErrors | null> => {
       const value = (control.value || '').trim();
       if (!value) return null;
-      const existe = await this.clientesService.existeCedula(value);
+      const existe = await this.clientesService.existeCedula(value, this.clienteIdEdicion || undefined);
       return existe ? { cedulaTomada: true } : null;
     };
   }
@@ -149,7 +207,7 @@ export class CrearCliente implements OnInit {
     return async (control: AbstractControl): Promise<ValidationErrors | null> => {
       const value = (control.value || '').trim().toLowerCase();
       if (!value) return null;
-      const existe = await this.clientesService.existeEmail(value);
+      const existe = await this.clientesService.existeEmail(value, this.clienteIdEdicion || undefined);
       return existe ? { emailTomado: true } : null;
     };
   }

@@ -88,8 +88,9 @@ export class SidebarComponent implements OnInit {
             <circle cx="9" cy="7" r="4"/>
           </svg>
         `),
-        route: '/clientes/listar',
-        active: true
+        route: '/clientes/historial-clinico',
+        active: true,
+        roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
       },*/
       {
         label: 'Productos',

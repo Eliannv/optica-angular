@@ -105,14 +105,24 @@
                     Editar
                   </button>
 
-                                    <!-- ✅ Recibo / POS (solo si tiene historial) -->
-                                    <button class="btn btn-sm btn-success" [disabled]="!c.tieneHistorial" (click)="crearRecibo(c.id); $event.stopPropagation()">
+                                    <!-- ✅ Recibo / POS (sin necesidad de historial) -->
+                                    <button class="btn btn-sm btn-success" (click)="crearRecibo(c.id); $event.stopPropagation()">
                     Recibo
                   </button>
 
                                     <!-- ✅ NUEVO: Cobrar deuda (no quita nada, solo agrega) -->
                                     <button class="btn btn-sm btn-warning" [disabled]="!((deudas[c.id]?.deudaTotal ?? 0) > 0)" (click)="cobrarDeuda(c.id); $event.stopPropagation()">
                     Cobrar deuda
+                  </button>
+
+                                    <!-- ✅ Editar Cliente (datos básicos) -->
+                                    <button class="btn btn-sm btn-info" (click)="editarCliente(c.id); $event.stopPropagation()">
+                    ✏️ Editar
+                  </button>
+
+                                    <!-- ✅ Eliminar Cliente -->
+                                    <button class="btn btn-sm btn-danger" (click)="eliminarCliente(c.id); $event.stopPropagation()">
+                    🗑️ Eliminar
                   </button>
                                 </div>
                             </td>

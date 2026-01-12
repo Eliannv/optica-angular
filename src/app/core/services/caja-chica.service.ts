@@ -294,4 +294,25 @@ export class CajaChicaService {
       throw error;
     }
   }
+
+  // 🔹 Eliminar una caja chica completa (solo desde caja banco - admin)
+  async eliminarCajaChica(cajaChicaId: string): Promise<void> {
+    try {
+      // Obtener todos los movimientos de la caja
+      const movimientosRef = collection(this.firestore, 'movimientos_cajas_chicas');
+      const q = query(movimientosRef, where('caja_chica_id', '==', cajaChicaId));
+      const snapMovimientos = await getDocs(q);
+
+      // Eliminar todos los movimientos
+      for (const movDoc of snapMovimientos.docs) {
+        await deleteDoc(doc(this.firestore, `movimientos_cajas_chicas/${movDoc.id}`));
+      }
+
+      // Eliminar la caja
+      await deleteDoc(doc(this.firestore, `cajas_chicas/${cajaChicaId}`));
+    } catch (error) {
+      console.error('Error al eliminar caja chica:', error);
+      throw error;
+    }
+  }
 }

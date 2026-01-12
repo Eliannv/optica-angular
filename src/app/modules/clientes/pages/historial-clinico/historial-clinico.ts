@@ -256,6 +256,37 @@ export class HistorialClinicoComponent implements OnInit {
     });
   }
 
+  // ✅ Editar Cliente (datos básicos)
+  editarCliente(clienteId: string): void {
+    this.router.navigate(['/clientes/crear'], {
+      queryParams: { clienteId, returnTo: '/clientes/historial-clinico' }
+    });
+  }
+
+  // ✅ Eliminar Cliente
+  async eliminarCliente(clienteId: string): Promise<void> {
+    // Validar si el cliente tiene deuda
+    const deuda = this.deudas[clienteId];
+    if (deuda && deuda.deudaTotal > 0) {
+      alert('⚠️ No se puede eliminar un cliente con deuda pendiente');
+      return;
+    }
+
+    // Confirmación
+    const confirmed = confirm('¿Estás seguro de que deseas eliminar este cliente?');
+    if (!confirmed) return;
+
+    try {
+      await this.clientesSrv.deleteCliente(clienteId);
+      // Recargar clientes
+      await this.cargarClientes();
+      alert('✓ Cliente eliminado exitosamente');
+    } catch (error) {
+      console.error('Error al eliminar cliente:', error);
+      alert('❌ Error al eliminar el cliente');
+    }
+  }
+
   trackByClienteId(index: number, item: ClienteUI) {
     return item.id;
   }

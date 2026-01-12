@@ -39,23 +39,55 @@ export class CajaBancoService {
     return docData(cajaDoc, { idField: 'id' }) as Observable<CajaBanco>;
   }
 
-  // 🔹 Abrir una nueva caja banco
+  // 🔹 Abrir una nueva caja banco (o actualizar si ya existe para el día)
   async abrirCajaBanco(caja: CajaBanco): Promise<string> {
     const cajasRef = collection(this.firestore, 'cajas_banco');
-    const nuevaCaja: CajaBanco = {
-      fecha: caja.fecha || new Date(),
-      saldo_inicial: caja.saldo_inicial || 0,
-      saldo_actual: caja.saldo_actual || caja.saldo_inicial || 0,
-      estado: caja.estado || 'ABIERTA',
-      usuario_id: caja.usuario_id,
-      usuario_nombre: caja.usuario_nombre,
-      observacion: caja.observacion || '',
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    };
+    
+    // Normalizar la fecha a medianoche
+    const fecha = caja.fecha || new Date();
+    const fechaNormalizada = new Date(fecha);
+    fechaNormalizada.setHours(0, 0, 0, 0);
+    
+    // Buscar si ya existe una caja para este día
+    const inicioDia = new Date(fechaNormalizada);
+    const finDia = new Date(fechaNormalizada);
+    finDia.setDate(finDia.getDate() + 1);
 
-    const docRef = await addDoc(cajasRef, nuevaCaja);
-    return docRef.id;
+    const qMismoDia = query(
+      cajasRef,
+      where('fecha', '>=', inicioDia),
+      where('fecha', '<', finDia)
+    );
+    const snapMismoDia = await getDocs(qMismoDia);
+
+    // Si ya existe, actualizar; si no, crear
+    if (!snapMismoDia.empty) {
+      const cajaExistente = snapMismoDia.docs[0];
+      await updateDoc(doc(this.firestore, `cajas_banco/${cajaExistente.id}`), {
+        saldo_actual: caja.saldo_actual ?? caja.saldo_inicial ?? 0,
+        estado: caja.estado || 'ABIERTA',
+        usuario_nombre: caja.usuario_nombre,
+        observacion: caja.observacion || '',
+        updatedAt: Timestamp.now(),
+      });
+      return cajaExistente.id;
+    } else {
+      // Crear nueva caja
+      const nuevaCaja: CajaBanco = {
+        fecha: fechaNormalizada,
+        saldo_inicial: caja.saldo_inicial || 0,
+        saldo_actual: caja.saldo_actual || caja.saldo_inicial || 0,
+        estado: caja.estado || 'ABIERTA',
+        usuario_id: caja.usuario_id,
+        usuario_nombre: caja.usuario_nombre,
+        observacion: caja.observacion || '',
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      const docRef = await addDoc(cajasRef, nuevaCaja);
+      return docRef.id;
+    }
   }
 
   // 🔹 Registrar un movimiento en caja banco
@@ -308,5 +340,39 @@ export class CajaBancoService {
     };
 
     return this.registrarMovimiento(movimiento);
+  }
+
+  // 🔹 Actualizar saldo de caja banco (para restar monto cuando se elimina caja chica)
+  async actualizarSaldoCajaBanco(cajaBancoId: string, nuevoSaldo: number): Promise<void> {
+    try {
+      await updateDoc(doc(this.firestore, `cajas_banco/${cajaBancoId}`), {
+        saldo_actual: nuevoSaldo,
+        updatedAt: Timestamp.now(),
+      });
+    } catch (error) {
+      console.error('Error al actualizar saldo de caja banco:', error);
+      throw error;
+    }
+  }
+
+  // 🔹 Eliminar una caja banco completa
+  async eliminarCajaBanco(cajaBancoId: string): Promise<void> {
+    try {
+      // Obtener todos los movimientos de la caja
+      const movimientosRef = collection(this.firestore, 'movimientos_cajas_banco');
+      const q = query(movimientosRef, where('caja_banco_id', '==', cajaBancoId));
+      const snapMovimientos = await getDocs(q);
+
+      // Eliminar todos los movimientos
+      for (const movDoc of snapMovimientos.docs) {
+        await deleteDoc(doc(this.firestore, `movimientos_cajas_banco/${movDoc.id}`));
+      }
+
+      // Eliminar la caja
+      await deleteDoc(doc(this.firestore, `cajas_banco/${cajaBancoId}`));
+    } catch (error) {
+      console.error('Error al eliminar caja banco:', error);
+      throw error;
+    }
   }
 }
