@@ -1,5 +1,6 @@
 export interface Ingreso {
   id?: string; // ID de Firestore (auto-generado)
+  idPersonalizado?: string; // ID secuencial de 10 dígitos (0000000001, etc)
   proveedor: string; // Nombre del proveedor
   proveedorId?: string; // ID del proveedor (opcional, si existe en la BD)
   numeroFactura: string; // Número de factura del proveedor
