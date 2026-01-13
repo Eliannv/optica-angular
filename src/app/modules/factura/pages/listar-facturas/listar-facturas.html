@@ -55,7 +55,7 @@
                     <tbody>
                         <tr *ngFor="let f of facturasPaginadas" class="factura-row">
                             <td class="col-id">
-                                <span class="badge-id">{{ f.id }}</span>
+                                <span class="badge-id">{{ f.idPersonalizado || f.id }}</span>
                             </td>
 
                             <td class="col-cliente">

@@ -38,7 +38,8 @@ function verificarSucursal() {
   const machineId = generarIdMaquina();
   const idsPermitidos = [
     '858744ddedd2fca1', // Esta PC (desarrollo)
-    '0de9527eff37b967',
+    '0de9527eff37b967', //Pasaje
+    'd87cced3d5d6611b' //Machala
     // Agrega aquí el Machine ID de la PC de PASAJE cuando lo obtengas
   ];
 
