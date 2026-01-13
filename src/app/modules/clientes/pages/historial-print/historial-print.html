@@ -39,22 +39,16 @@
         <b>ADD:</b> {{ historial.add | number:'1.2-2' }}
     </div>
 
-
     <div class="t-small" *ngIf="historial.dp !== null && historial.dp !== undefined">
         <b>DP:</b> {{ historial.dp | number:'1.2-2' }}
     </div>
 
-    <div class="t-small" *ngIf="historial.color">
-        <b>Color:</b> {{ historial.color }}
+    <div class="t-small" *ngIf="historial.altura !== null && historial.altura !== undefined">
+        <b>Altura:</b> {{ historial.altura | number:'1.2-2' }} cm
     </div>
-
 
     <div class="t-small" *ngIf="historial.de">
         <b>DE:</b> {{ historial.de }}
-    </div>
-
-    <div class="t-small" *ngIf="historial.altura !== null && historial.altura !== undefined">
-        <b>Altura:</b> {{ historial.altura | number:'1.2-2' }} cm
     </div>
 
     <div class="t-small" *ngIf="historial.color">
@@ -77,6 +71,26 @@
         </div>
         <div>
             <b>Registro:</b> {{ historial.createdAt?.toDate() | date:'dd/MM/yyyy HH:mm' }}
+        </div>
+    </div>
+
+    <div class="t-hr"></div>
+
+    <!-- INFORMACIÓN DE FACTURAS -->
+    <div *ngIf="facturas && facturas.length > 0">
+        <div class="t-bold t-small">FACTURAS PENDIENTES</div>
+
+        <div *ngFor="let factura of facturas" class="t-small" style="margin-bottom: 12px;">
+            <div><b>Fac:</b> {{ factura.id || '-' }}</div>
+            <div><b>Total:</b> ${{ factura.total | number:'1.2-2' }}</div>
+            <div><b>Abono:</b> ${{ factura.abonado | number:'1.2-2' }}</div>
+            <div><b>Restante:</b> ${{ calcularTotalRestante(factura) | number:'1.2-2' }}</div>
+            <div *ngIf="tieneArmazon(factura)" style="color: #333; margin-top: 4px;">
+                ✓ Armazón Incluido
+            </div>
+            <div *ngIf="!tieneArmazon(factura)" style="color: #666; margin-top: 4px;">
+                - Armazón Propio
+            </div>
         </div>
     </div>
 

@@ -108,11 +108,11 @@
                         </div>
                         <div class="input-group">
                             <label>AVSC</label>
-                            <input type="number" step="0.05" formControlName="odAVSC" placeholder="0.00" appEnterNext>
+                            <input type="text" formControlName="odAVSC" placeholder="20/29" appEnterNext>
                         </div>
                         <div class="input-group">
                             <label>AVCC</label>
-                            <input type="number" step="0.05" formControlName="odAVCC" placeholder="0.00" appEnterNext>
+                            <input type="text" formControlName="odAVCC" placeholder="20/40" appEnterNext>
                         </div>
                     </div>
                 </div>
@@ -135,11 +135,11 @@
                         </div>
                         <div class="input-group">
                             <label>AVSC</label>
-                            <input type="number" step="0.05" formControlName="oiAVSC" placeholder="0.00" appEnterNext>
+                            <input type="text" formControlName="oiAVSC" placeholder="20/29" appEnterNext>
                         </div>
                         <div class="input-group">
                             <label>AVCC</label>
-                            <input type="number" step="0.05" formControlName="oiAVCC" placeholder="0.00" appEnterNext>
+                            <input type="text" formControlName="oiAVCC" placeholder="20/40" appEnterNext>
                         </div>
                     </div>
                 </div>
@@ -149,14 +149,23 @@
                 <div class="input-group">
                     <label>ADD</label>
                     <input type="number" step="0.25" formControlName="add" placeholder="2.00" appEnterNext>
+                    <span class="error-msg" *ngIf="esInvalido('add')">
+                        {{ getMensajeError('add') }}
+                    </span>
                 </div>
                 <div class="input-group">
                     <label>DP</label>
                     <input type="number" step="0.5" formControlName="dp" placeholder="62" appEnterNext>
+                    <span class="error-msg" *ngIf="esInvalido('dp')">
+                        {{ getMensajeError('dp') }}
+                    </span>
                 </div>
                 <div class="input-group">
                     <label>Altura</label>
                     <input type="number" step="0.1" formControlName="altura" placeholder="18.5" appEnterNext>
+                    <span class="error-msg" *ngIf="esInvalido('altura')">
+                        {{ getMensajeError('altura') }}
+                    </span>
                 </div>
             </div>
 
@@ -164,12 +173,18 @@
             <!-- EXTRA -->
             <div class="section-extra">
                 <div class="input-group">
-                    <label>De</label>
+                    <label>De *</label>
                     <input type="text" formControlName="de" placeholder="Cerca / Lejos / DP" appEnterNext>
+                    <span class="error-msg" *ngIf="esInvalido('de')">
+                        {{ getMensajeError('de') }}
+                    </span>
                 </div>
                 <div class="input-group">
-                    <label>Color</label>
+                    <label>Color *</label>
                     <input type="text" formControlName="color" placeholder="Negro / Transparente" appEnterNext>
+                    <span class="error-msg" *ngIf="esInvalido('color')">
+                        {{ getMensajeError('color') }}
+                    </span>
                 </div>
             </div>
 
@@ -177,15 +192,21 @@
             <div class="section-observacion">
                 <label>Observación</label>
                 <textarea rows="3" formControlName="observacion" placeholder="Notas adicionales..." appEnterNext></textarea>
+                <span class="error-msg" *ngIf="esInvalido('observacion')">
+                    {{ getMensajeError('observacion') }}
+                </span>
             </div>
             <div class="section-title">
-                <h4>Doctor que atendió</h4>
+                <h4>Doctor que atendió *</h4>
             </div>
 
             <div class="cliente-grid">
                 <div class="input-group full-width">
-                    <label>DR.</label>
+                    <label>DR. *</label>
                     <input type="text" formControlName="doctor" placeholder="Ej: Dr. Juan Pérez" appEnterNext />
+                    <span class="error-msg" *ngIf="esInvalido('doctor')">
+                        {{ getMensajeError('doctor') }}
+                    </span>
                 </div>
             </div>
 
@@ -195,7 +216,7 @@
                 <button type="button" class="btn-cancel" (click)="cancelar()">
           Cancelar
         </button>
-                <button type="submit" class="btn-save" [disabled]="form.invalid || clienteForm.invalid">
+                <button type="submit" class="btn-save">
           Guardar Todo
         </button>
             </div>

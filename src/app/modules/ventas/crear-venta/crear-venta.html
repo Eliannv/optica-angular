@@ -7,14 +7,6 @@
         <div class="venta-header">
             <div class="header-content">
                 <h3 class="venta-title"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-piggy-bank-icon lucide-piggy-bank"><path d="M11 17h3v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-3a3.16 3.16 0 0 0 2-2h1a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-1a5 5 0 0 0-2-4V3a4 4 0 0 0-3.2 1.6l-.3.4H11a6 6 0 0 0-6 6v1a5 5 0 0 0 2 4v3a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1z"/><path d="M16 10h.01"/><path d="M2 8v1a2 2 0 0 0 2 2h1"/></svg>                    Punto de Venta (POS)</h3>
-                <div class="header-actions">
-                    <button class="btn-secondary" type="button" (click)="volver()">
-            <span>← Volver</span>
-          </button>
-                    <button class="btn-primary" type="button" [disabled]="guardando || !items.length" (click)="guardarEImprimir()">
-            <span>{{ guardando ? 'Guardando...' : 'Guardar + Imprimir' }}</span>
-          </button>
-                </div>
             </div>
 
             <div class="cliente-info">
@@ -44,10 +36,20 @@
             <circle cx="11" cy="11" r="8"></circle>
             <path d="m21 21-4.35-4.35"></path>
           </svg>
-                    <input class="search-input" placeholder="Buscar por nombre, modelo, color, código... (usa ↑↓ y Enter)" [(ngModel)]="filtro" (input)="filtrarProductos()" (keydown)="onSearchKeydown($event)" />
+                    <input class="search-input" placeholder="Buscar por nombre, modelo, color, código, ID interno... (usa ↑↓ y Enter)" [(ngModel)]="filtro" (input)="filtrarProductos()" (keydown)="onSearchKeydown($event)" />
                     <button class="clear-btn" *ngIf="filtro" (click)="filtro = ''; filtrarProductos()">
             ✕
           </button>
+                </div>
+
+                <!-- Botones de ordenamiento -->
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+                    <button class="btn btn-sm btn-outline-secondary" (click)="cambiarOrdenamientoProductos('reciente')" [class.active]="ordenamientoProductos === 'reciente'" title="Ordenar por más reciente" style="padding: 0.375rem 0.75rem; font-size: 0.875rem;">
+                        📅 Reciente
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" (click)="cambiarOrdenamientoProductos('codigo')" [class.active]="ordenamientoProductos === 'codigo'" title="Ordenar por código (ID Interno)" style="padding: 0.375rem 0.75rem; font-size: 0.875rem;">
+                        🔢 Código
+                    </button>
                 </div>
 
                 <!-- Lista de productos -->
@@ -56,6 +58,7 @@
             <div class="producto-info">
               <div class="producto-nombre">{{ p.nombre }}</div>
               <div class="producto-detalles">
+                <span class="detalle-badge">🆔 {{ p.idInterno }}</span>
                 <span *ngIf="p.modelo" class="detalle-badge">📦 {{ p.modelo }}</span>
                 <span *ngIf="p.color" class="detalle-badge">🎨 {{ p.color }}</span>
                 <span *ngIf="p.codigo" class="detalle-badge">🔖 {{ p.codigo }}</span>
@@ -163,6 +166,16 @@
                         <div class="total-row" *ngIf="abono > total">
                             <span>Vuelto</span>
                             <strong style="color: #28a745;">${{ (abono - total).toFixed(2) }}</strong>
+                        </div>
+
+                        <!-- BOTONES DE ACCIÓN -->
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button class="btn-secondary" type="button" (click)="volver()" style="flex: 1;">
+                                <span>← Volver</span>
+                            </button>
+                            <button class="btn-primary" type="button" [disabled]="guardando || !items.length" (click)="guardarEImprimir()" style="flex: 1;">
+                                <span>{{ guardando ? 'Guardando...' : 'Guardar + Imprimir' }}</span>
+                            </button>
                         </div>
                     </div>
                 </div>
