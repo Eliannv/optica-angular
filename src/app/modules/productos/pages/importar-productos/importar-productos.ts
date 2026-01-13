@@ -325,7 +325,8 @@ export class ImportarProductosComponent {
         modelo: p.modelo || '',
         color: p.color || '',
         grupo: p.grupo || 'GAFAS',
-        codigo: p.codigo,
+        codigo: p.codigo, // CODIGO SIST (será idInterno en producto nuevo)
+        idInterno: Number(p.codigo) || undefined, // Convertir a número para idInterno
         cantidad: p.cantidad,
         costoUnitario: p.costo || 0,
         pvp1: p.pvp1 || 0,

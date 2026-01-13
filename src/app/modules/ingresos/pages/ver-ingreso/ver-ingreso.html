@@ -101,11 +101,11 @@
                         </thead>
                         <tbody>
                             <tr *ngFor="let prod of productos">
-                                <td><span class="badge-codigo">{{ prod.codigo || 'N/A' }}</span></td>
+                                <td><span class="badge-codigo">{{ prod.idInterno || 'N/A' }}</span></td>
                                 <td>
                                     <strong>{{ prod.nombre }}</strong>
                                     <span *ngIf="prod.tipo" class="badge-tipo-detalle" [ngClass]="prod.tipo === 'NUEVO' ? 'badge-nuevo' : 'badge-existente'">
-                                        {{ prod.tipo === 'NUEVO' ? '🆕 Nuevo' : '📦 Existente' }}
+                                        {{ prod.tipo === 'NUEVO' ? 'Nuevo' : 'Existente' }}
                                     </span>
                                 </td>
                                 <td><span class="badge-tipo-producto">{{ prod.modelo || '-' }}</span></td>

@@ -26,7 +26,8 @@ export interface DetalleIngreso {
   modelo?: string;
   color?: string;
   grupo?: string;
-  codigo?: string; // Código de armazón
+  codigo?: string; // Código de armazón / ID interno del sistema
+  idInterno?: number; // ID interno incremental (para nuevos productos)
   
   // Datos del ingreso
   cantidad: number; // Cantidad comprada

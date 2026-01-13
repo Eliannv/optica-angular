@@ -219,6 +219,7 @@ export class IngresosService {
       if (detalle.color) detalleData.color = detalle.color;
       if (detalle.grupo) detalleData.grupo = detalle.grupo;
       if (detalle.codigo) detalleData.codigo = detalle.codigo;
+      if (detalle.idInterno) detalleData.idInterno = detalle.idInterno;
       if (detalle.observacion) detalleData.observacion = detalle.observacion;
       if (detalle.pvp1) detalleData.pvp1 = detalle.pvp1;
       if (detalle.iva) detalleData.iva = detalle.iva; // Agregar IVA del detalle
@@ -251,9 +252,13 @@ export class IngresosService {
 
     // Construir objeto sin valores undefined (Firestore no admite undefined)
     const esLunas = (detalle.grupo === 'LUNAS');
+    
+    // Usar idInterno del detalle si viene del Excel, sino generar automáticamente
+    const productoIdInterno = detalle.idInterno || idInterno;
+    
     const nuevoProducto: any = {
-      idInterno: idInterno,
-      codigo: detalle.codigo || `PROD-${idInterno}`,
+      idInterno: productoIdInterno,
+      codigo: detalle.codigo || `PROD-${productoIdInterno}`,
       nombre: detalle.nombre,
       stock: esLunas ? 0 : detalle.cantidad,
       proveedor: (ingreso as any)?.proveedorId || ingreso?.proveedor || '',

@@ -16,7 +16,7 @@ export interface DatosExcelImportacion {
 export interface ProductoExcelPreview {
   // Datos del Excel
   cantidad: number;
-  codigo: string;
+  codigo: string; // CODIGO SIST (idInterno)
   nombre: string;
   modelo: string;
   color: string;
@@ -147,7 +147,7 @@ export class ExcelService {
     // Preparar datos para exportar (sin GRUPO ni COSTO)
     const datosExport = productos.map(p => ({
       'CANTIDAD': p.stock || 0, // Stock del producto
-      'CÓDIGO': p.codigo || '',
+      'CÓDIGO SIST': p.idInterno || '', // ID interno (código sistema)
       'PRODUCTO': p.nombre || '',
       'DETALLE VARILLA': p.modelo || '',
       'MATERIA / COLOR': p.color || '',
@@ -160,7 +160,7 @@ export class ExcelService {
     // Ajustar ancho de columnas
     const columnWidths = [
       { wch: 10 }, // CANTIDAD
-      { wch: 12 }, // CÓDIGO
+      { wch: 12 }, // CÓDIGO SIST
       { wch: 25 }, // PRODUCTO
       { wch: 30 }, // DETALLE VARILLA
       { wch: 30 }, // MATERIA / COLOR

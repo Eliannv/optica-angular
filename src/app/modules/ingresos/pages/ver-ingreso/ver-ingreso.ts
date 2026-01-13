@@ -78,7 +78,7 @@ export class VerIngresoComponent implements OnDestroy {
                   tipo: 'EXISTENTE',
                   nombre: prod?.nombre || 'Producto',
                   modelo: prod?.modelo,
-                  codigo: prod?.codigo,
+                  idInterno: prod?.idInterno,
                   cantidad: m.cantidad,
                   costoUnitario: m.costoUnitario,
                   productoId: m.productoId,
@@ -334,7 +334,7 @@ export class VerIngresoComponent implements OnDestroy {
               <tbody>
                 ${this.productos.map(p => `
                   <tr>
-                    <td>${p.codigo || p.productoId || '-'}</td>
+                    <td>${p.idInterno || '-'}</td>
                     <td>${p.nombre || '-'}</td>
                     <td>${p.modelo || '-'}</td>
                     <td>${p.color || '-'}</td>
