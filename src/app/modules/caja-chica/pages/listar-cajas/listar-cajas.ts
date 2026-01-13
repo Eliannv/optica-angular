@@ -1,6 +1,7 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
+import Swal from 'sweetalert2';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { CajaChica } from '../../../../core/models/caja-chica.model';
 
@@ -63,6 +64,39 @@ export class ListarCajasComponent implements OnInit {
 
   registrarMovimiento(cajaId: string): void {
     this.router.navigate(['/caja-chica/registrar', cajaId]);
+  }
+
+  async cerrarCaja(cajaId: string): Promise<void> {
+    const confirmar = await Swal.fire({
+      icon: 'question',
+      title: '¿Cerrar Caja Chica?',
+      text: 'Esta acción no se puede deshacer.',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, cerrar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#dc3545'
+    });
+
+    if (!confirmar.isConfirmed) return;
+
+    try {
+      await this.cajaChicaService.cerrarCajaChica(cajaId);
+      await Swal.fire({
+        icon: 'success',
+        title: '¡Caja cerrada!',
+        text: 'La caja chica se cerró exitosamente',
+        timer: 2000,
+        showConfirmButton: false
+      });
+      this.cargarCajas();
+    } catch (error: any) {
+      console.error('Error al cerrar caja:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo cerrar la caja chica'
+      });
+    }
   }
 
   getEstadoBadgeClass(estado: string): string {

@@ -33,6 +33,7 @@ export class CrearVentaComponent implements OnInit {
   productosFiltrados: any[] = [];
   selectedIndex = -1; // Para navegación con flechas
   productoSeleccionado: any = null; // Producto actualmente seleccionado
+  ordenamientoProductos: string = 'reciente'; // 'reciente' o 'codigo'
 
   items: any[] = []; // (tu ItemVenta ya lo usas pero aquí guardas nombre/tipo/total también)
 
@@ -110,6 +111,7 @@ export class CrearVentaComponent implements OnInit {
     if (!t) {
       this.productosFiltrados = [...this.productos];
       this.selectedIndex = -1;
+      this.aplicarOrdenamiento();
       return;
     }
     this.productosFiltrados = this.productos.filter(p => {
@@ -118,9 +120,32 @@ export class CrearVentaComponent implements OnInit {
       const modelo = (p.modelo || '').toLowerCase();
       const color = (p.color || '').toLowerCase();
       const codigo = (p.codigo || '').toLowerCase();
-      return n.includes(t) || tipo.includes(t) || modelo.includes(t) || color.includes(t) || codigo.includes(t);
+      const idInterno = (p.idInterno || '').toString().toLowerCase();
+      return n.includes(t) || tipo.includes(t) || modelo.includes(t) || color.includes(t) || codigo.includes(t) || idInterno.includes(t);
     });
     this.selectedIndex = -1;
+    this.aplicarOrdenamiento();
+  }
+
+  aplicarOrdenamiento() {
+    if (this.ordenamientoProductos === 'codigo') {
+      this.productosFiltrados.sort((a, b) => {
+        const codigoA = (a.idInterno || 0) as number;
+        const codigoB = (b.idInterno || 0) as number;
+        return codigoA - codigoB;
+      });
+    } else if (this.ordenamientoProductos === 'reciente') {
+      this.productosFiltrados.sort((a, b) => {
+        const fechaA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const fechaB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return fechaB - fechaA; // Descendente (más reciente primero)
+      });
+    }
+  }
+
+  cambiarOrdenamientoProductos(nuevoOrdenamiento: string) {
+    this.ordenamientoProductos = nuevoOrdenamiento;
+    this.filtrarProductos();
   }
 
 

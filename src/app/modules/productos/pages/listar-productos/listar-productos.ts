@@ -26,6 +26,7 @@ export class ListarProductos implements OnInit {
   mostrarModal: boolean = false;
   terminoBusqueda: string = '';
   grupoSeleccionado: string = ''; // Para almacenar el grupo activo desde la URL
+  ordenamiento: string = 'reciente'; // 'reciente' o 'codigo'
 
   constructor(
     private productosService: ProductosService,
@@ -154,6 +155,21 @@ export class ListarProductos implements OnInit {
       });
     }
 
+    // Aplicar ordenamiento
+    if (this.ordenamiento === 'codigo') {
+      productosFiltrados.sort((a, b) => {
+        const codigoA = (a.idInterno || 0) as number;
+        const codigoB = (b.idInterno || 0) as number;
+        return codigoA - codigoB;
+      });
+    } else if (this.ordenamiento === 'reciente') {
+      productosFiltrados.sort((a, b) => {
+        const fechaA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const fechaB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return fechaB - fechaA; // Descendente (más reciente primero)
+      });
+    }
+
     this.productosFiltrados = productosFiltrados;
     this.totalProductos = this.productosFiltrados.length;
     this.paginaActual = 1; // Resetear a la primera página
@@ -166,6 +182,11 @@ export class ListarProductos implements OnInit {
 
   limpiarBusqueda() {
     this.terminoBusqueda = '';
+    this.aplicarFiltros();
+  }
+
+  cambiarOrdenamiento(nuevoOrdenamiento: string) {
+    this.ordenamiento = nuevoOrdenamiento;
     this.aplicarFiltros();
   }
 
