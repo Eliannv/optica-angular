@@ -43,13 +43,15 @@
 
                 <div class="montos-card">
                     <h3>Movimientos Financieros</h3>
+                    <ng-container *ngIf="resumen">
+                        <div class="monto-item">
+                            <span class="label">Movimientos:</span>
+                            <span class="value">{{ resumen.cantidad_movimientos }}</span>
+                        </div>
+                    </ng-container>
                     <div class="monto-item">
                         <span class="label">Monto Inicial:</span>
                         <span class="value monto-inicial">{{ formatoMoneda(caja.monto_inicial) }}</span>
-                    </div>
-                    <div class="monto-item">
-                        <span class="label">Saldo Actual:</span>
-                        <span class="value monto-actual">{{ formatoMoneda(caja.monto_actual) }}</span>
                     </div>
                     <ng-container *ngIf="resumen">
                         <div class="monto-item">
@@ -60,11 +62,11 @@
                             <span class="label">Total Egresos:</span>
                             <span class="value egreso">{{ formatoMoneda(resumen.total_egresos) }}</span>
                         </div>
-                        <div class="monto-item">
-                            <span class="label">Movimientos:</span>
-                            <span class="value">{{ resumen.cantidad_movimientos }}</span>
-                        </div>
                     </ng-container>
+                    <div class="monto-item">
+                        <span class="label">Saldo Total:</span>
+                        <span class="value monto-actual">{{ formatoMoneda(caja.monto_actual) }}</span>
+                    </div>
                 </div>
             </div>
         </ng-container>

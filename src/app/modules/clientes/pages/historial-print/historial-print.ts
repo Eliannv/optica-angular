@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { ClientesService } from '../../../../core/services/clientes';
 import { HistorialClinicoService } from '../../../../core/services/historial-clinico.service';
+import { FacturasService } from '../../../../core/services/facturas';
 import { Cliente } from '../../../../core/models/cliente.model';
 import { HistoriaClinica } from '../../../../core/models/historia-clinica.model';
 
@@ -21,13 +22,15 @@ export class HistorialPrintComponent implements OnInit {
 
   cliente!: Cliente;
   historial!: HistoriaClinica;
+  facturas: any[] = [];
 
   loading = true;
 
   constructor(
     private route: ActivatedRoute,
     private clientesSrv: ClientesService,
-    private historialSrv: HistorialClinicoService
+    private historialSrv: HistorialClinicoService,
+    private facturasSrv: FacturasService
   ) {}
 
   async ngOnInit() {
@@ -48,7 +51,13 @@ export class HistorialPrintComponent implements OnInit {
 
       this.historial = snap.data() as HistoriaClinica;
 
+      // Obtener facturas del cliente
+      this.facturas = await firstValueFrom(
+        this.facturasSrv.getPendientesPorCliente(this.clienteId)
+      );
+
       console.log('HISTORIAL CARGADO:', this.historial); // 🔥 CLAVE
+      console.log('FACTURAS:', this.facturas); // 🔥 FACTURAS
     } catch (e) {
       console.error(e);
     } finally {
@@ -110,4 +119,15 @@ export class HistorialPrintComponent implements OnInit {
       }
     }, 300);
   }
-}
+
+  // Método helper para saber si hay armazón en la factura
+  tieneArmazon(factura: any): boolean {
+    return factura?.items?.some((item: any) => item?.tipo === 'armazon' || item?.armazon);
+  }
+
+  // Método para calcular total con descuento
+  calcularTotalRestante(factura: any): number {
+    const total = factura?.total || 0;
+    const abonado = factura?.abonado || 0;
+    return total - abonado;
+  }}

@@ -52,6 +52,11 @@ export class CrearHistorialClinicoComponent implements OnInit {
     /* =========================
        FORM HISTORIAL CLÍNICO
        ========================= */
+    // Patrón: permite solo letras, números, espacios, guiones, puntos y comas
+    const patternTexto = /^[a-zA-Z0-9\s\-.,\/ñáéíóúü]+$/i;
+    // Patrón para AVSC/AVCC: permite números y diagonal (ej: 20/29, 20/40)
+    const patternAV = /^[\d/\s]*$/;
+
     this.form = this.fb.group({
       dp: [null],
       add: [null],
@@ -68,12 +73,11 @@ export class CrearHistorialClinicoComponent implements OnInit {
       oiAVSC: [null],
       oiAVCC: [null],
 
-      de: ['', Validators.required],
+      de: [''],
       altura: [null],
-      color: ['', Validators.required],
+      color: [''],
       observacion: [''],
 
-      // 🔧 IMPORTANTE: valor por defecto
       doctor: ['']
     });
 
@@ -149,16 +153,23 @@ export class CrearHistorialClinicoComponent implements OnInit {
   async guardar() {
     if (this.mode === 'view') return;
 
-    if (this.form.invalid || this.clienteForm.invalid) {
-      this.form.markAllAsTouched();
-      this.clienteForm.markAllAsTouched();
-      return;
-    }
-
     try {
-      // 🔧 doble seguridad
+      // 🔧 Obtener valores del formulario
       const data = this.form.getRawValue();
-      data.doctor = data.doctor ?? '';
+      
+      // 🔧 Llenar campos vacíos con 0 automáticamente
+      const fieldsToDefault = ['dp', 'add', 'altura', 'odEsfera', 'odCilindro', 'odEje', 'odAVSC', 'odAVCC', 'oiEsfera', 'oiCilindro', 'oiEje', 'oiAVSC', 'oiAVCC'];
+      fieldsToDefault.forEach(field => {
+        if (data[field] === null || data[field] === undefined || data[field] === '') {
+          data[field] = 0;
+        }
+      });
+
+      // 🔧 Llenar campos de texto vacíos con valores por defecto
+      data.de = data.de || 'N/A';
+      data.color = data.color || 'N/A';
+      data.doctor = data.doctor || 'N/A';
+      data.observacion = data.observacion || '';
 
       await this.historialSrv.guardarHistorial(this.clienteId, data);
 
@@ -198,8 +209,22 @@ export class CrearHistorialClinicoComponent implements OnInit {
   get esEdit() { return this.mode === 'edit'; }
   get esCreate() { return this.mode === 'create'; }
 
+  canGuardar(): boolean {
+    // Solo valida los campos requeridos: de, color, doctor
+    const de = this.form.get('de');
+    const color = this.form.get('color');
+    const doctor = this.form.get('doctor');
+    
+    return !!(de?.valid && color?.valid && doctor?.valid);
+  }
+
   esInvalidoCliente(campo: string): boolean {
     const c = this.clienteForm.get(campo);
+    return !!(c && c.invalid && c.touched);
+  }
+
+  esInvalido(campo: string): boolean {
+    const c = this.form.get(campo);
     return !!(c && c.invalid && c.touched);
   }
 
@@ -213,6 +238,19 @@ export class CrearHistorialClinicoComponent implements OnInit {
     if (c.errors['email']) return 'Email inválido';
     if (c.errors['emailTomado']) return 'Email ya registrado';
     if (c.errors['cedulaTomada']) return 'Cédula ya registrada';
+
+    return 'Campo inválido';
+  }
+
+  getMensajeError(campo: string): string {
+    const c = this.form.get(campo);
+    if (!c || !c.errors) return '';
+
+    if (c.errors['required']) return 'Campo requerido';
+    if (c.errors['minlength']) return 'Mínimo 2 caracteres';
+    if (c.errors['maxlength']) return 'Máximo 500 caracteres';
+    if (c.errors['pattern']) return 'Caracteres especiales no permitidos';
+    if (c.errors['min']) return 'Valor debe ser positivo';
 
     return 'Campo inválido';
   }
