@@ -108,6 +108,43 @@ export class ListarProductos implements OnInit {
     });
   }
 
+  /**
+   * ✏️ Editar observación de un producto
+   */
+  async editarObservacion(producto: Producto): Promise<void> {
+    const { value: nuevaObservacion } = await Swal.fire({
+      title: `Editar observación - ${producto.nombre}`,
+      input: 'textarea',
+      inputValue: producto.observacion || '',
+      inputPlaceholder: 'Escribe las observaciones del producto...',
+      inputAttributes: {
+        rows: '5'
+      },
+      showCancelButton: true,
+      confirmButtonText: 'Guardar',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (nuevaObservacion !== undefined) {
+      try {
+        await this.productosService.updateProducto(producto.id!, {
+          observacion: nuevaObservacion || ''
+        });
+        
+        // Actualizar en la lista local
+        const index = this.productos.findIndex(p => p.id === producto.id);
+        if (index !== -1) {
+          this.productos[index].observacion = nuevaObservacion || '';
+        }
+        
+        Swal.fire('Guardado', 'Observación actualizada exitosamente', 'success');
+      } catch (error) {
+        console.error('Error al actualizar observación:', error);
+        Swal.fire('Error', 'No se pudo actualizar la observación', 'error');
+      }
+    }
+  }
+
   verDetalle(producto: Producto) {
     this.productoSeleccionado = producto;
     this.mostrarModal = true;

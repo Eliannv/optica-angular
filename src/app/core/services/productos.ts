@@ -71,29 +71,30 @@ export class ProductosService {
   async getNextIdInterno(): Promise<number> {
     const counterDoc = doc(this.firestore, 'counters/productos');
     
-    // Verificar si existen productos ANTES de la transacción
+    // 1. Obtener todos los productos para encontrar el máximo idInterno real
     const productosSnapshot = await getDocs(this.productosRef);
-    const hayProductos = !productosSnapshot.empty;
+    let maxIdInterno = 0;
     
-    return runTransaction(this.firestore, async (transaction) => {
-      const counterSnapshot = await transaction.get(counterDoc);
-      
-      let nextId = 1; // Valor inicial si no hay productos
-      
-      if (counterSnapshot.exists() && hayProductos) {
-        // Si hay productos, continuar con el contador existente
-        const currentId = counterSnapshot.data()['lastId'] || 0;
-        nextId = currentId + 1;
-      } else if (!hayProductos) {
-        // Si NO hay productos, reiniciar el contador a 1
-        nextId = 1;
+    productosSnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      if (data['idInterno'] && typeof data['idInterno'] === 'number') {
+        if (data['idInterno'] > maxIdInterno) {
+          maxIdInterno = data['idInterno'];
+        }
       }
-      
-      // Actualizar el contador
-      transaction.set(counterDoc, { lastId: nextId }, { merge: true });
-      
-      return nextId;
     });
+    
+    // 2. El siguiente ID será el máximo + 1, o 1 si no hay productos
+    const nextId = maxIdInterno > 0 ? maxIdInterno + 1 : 1;
+    
+    // 3. Actualizar el contador para futuras referencias
+    try {
+      await setDoc(counterDoc, { lastId: nextId }, { merge: true });
+    } catch (error) {
+      console.warn('⚠️ No se pudo actualizar el contador, pero se usará el ID:', nextId);
+    }
+    
+    return nextId;
   }
 
   // 🔹 Verificar si un código de armazón ya existe

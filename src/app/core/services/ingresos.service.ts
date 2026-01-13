@@ -218,7 +218,6 @@ export class IngresosService {
       if (detalle.modelo) detalleData.modelo = detalle.modelo;
       if (detalle.color) detalleData.color = detalle.color;
       if (detalle.grupo) detalleData.grupo = detalle.grupo;
-      if (detalle.codigo) detalleData.codigo = detalle.codigo;
       if (detalle.idInterno) detalleData.idInterno = detalle.idInterno;
       if (detalle.observacion) detalleData.observacion = detalle.observacion;
       if (detalle.pvp1) detalleData.pvp1 = detalle.pvp1;
@@ -258,7 +257,6 @@ export class IngresosService {
     
     const nuevoProducto: any = {
       idInterno: productoIdInterno,
-      codigo: detalle.codigo || `PROD-${productoIdInterno}`,
       nombre: detalle.nombre,
       stock: esLunas ? 0 : detalle.cantidad,
       proveedor: (ingreso as any)?.proveedorId || ingreso?.proveedor || '',
@@ -274,15 +272,6 @@ export class IngresosService {
     if (esLunas) nuevoProducto.stockIlimitado = true;
     if (detalle.costoUnitario !== undefined) nuevoProducto.costo = detalle.costoUnitario;
     if (detalle.pvp1 !== undefined) nuevoProducto.pvp1 = detalle.pvp1;
-    
-    // Calcular precioConIVA si hay PVP e IVA
-    if (detalle.pvp1 !== undefined && detalle.iva !== undefined && detalle.iva > 0) {
-      nuevoProducto.iva = detalle.iva;
-      // precioConIVA = pvp1 * (1 + iva/100)
-      nuevoProducto.precioConIVA = detalle.pvp1 * (1 + detalle.iva / 100);
-    } else if (detalle.iva !== undefined) {
-      nuevoProducto.iva = detalle.iva;
-    }
     
     if (detalle.observacion !== undefined && detalle.observacion !== null) nuevoProducto.observacion = detalle.observacion;
 
