@@ -71,6 +71,7 @@
                             <th class="col-fecha">Fecha</th>
                             <th class="col-proveedor">Proveedor</th>
                             <th class="col-factura">N° Factura</th>
+                            <th class="col-factura">ID Ingreso</th>
                             <th class="col-tipo">Tipo</th>
                             <th class="col-total">Total</th>
                             <th class="col-estado">Estado</th>
@@ -89,6 +90,10 @@
 
                             <td class="col-factura">
                                 <span class="badge-factura">{{ ingreso.numeroFactura }}</span>
+                            </td>
+
+                            <td class="col-factura">
+                                <span class="badge-factura">{{ ingreso.idPersonalizado || ingreso.id }}</span>
                             </td>
 
                             <td class="col-tipo">

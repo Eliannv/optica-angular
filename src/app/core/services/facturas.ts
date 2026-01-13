@@ -11,7 +11,8 @@ import {
   where,
   getDocs,
   updateDoc,
-  orderBy
+  orderBy,
+  setDoc
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -22,12 +23,46 @@ export class FacturasService {
   private fs = inject(Firestore);
   private facturasRef = collection(this.fs, 'facturas');
 
-  // ✅ EXISTENTE
-  crearFactura(factura: Omit<Factura, 'id'>) {
-    return addDoc(this.facturasRef, {
+  /**
+   * Genera un ID secuencial de 10 dígitos (0000000001, 0000000002, etc.)
+   * Obtiene el número más alto actual y suma 1
+   */
+  private async generarIdSecuencial(): Promise<string> {
+    // Obtener todas las facturas
+    const snap = await getDocs(this.facturasRef);
+    let maxNumero = 0;
+
+    // Recorrer y buscar el número más alto
+    snap.forEach(doc => {
+      const data: any = doc.data();
+      const idPersonalizado = data?.idPersonalizado;
+      if (idPersonalizado) {
+        const num = parseInt(idPersonalizado, 10);
+        if (!isNaN(num) && num > maxNumero) {
+          maxNumero = num;
+        }
+      }
+    });
+
+    // El siguiente ID es maxNumero + 1, con padding a 10 dígitos
+    const nuevoNumero = maxNumero + 1;
+    return nuevoNumero.toString().padStart(10, '0');
+  }
+
+  // ✅ EXISTENTE - MODIFICADO
+  async crearFactura(factura: Omit<Factura, 'id'>) {
+    // Generar ID secuencial personalizado
+    const idPersonalizado = await this.generarIdSecuencial();
+
+    // Usar setDoc con el ID personalizado en lugar de addDoc
+    const docRef = doc(this.facturasRef, idPersonalizado);
+    await setDoc(docRef, {
       ...factura,
+      idPersonalizado,
       fecha: serverTimestamp()
     });
+
+    return docRef;
   }
 
   // ✅ EXISTENTE

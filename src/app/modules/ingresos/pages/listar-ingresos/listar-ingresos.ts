@@ -88,6 +88,7 @@ export class ListarIngresosComponent implements OnInit {
       base = base.filter(i =>
         (i.numeroFactura || '').toLowerCase().includes(t) ||
         (i.proveedor || '').toLowerCase().includes(t) ||
+        (i.idPersonalizado || '').toLowerCase().includes(t) ||
         (i.id || '').toLowerCase().includes(t)
       );
     }

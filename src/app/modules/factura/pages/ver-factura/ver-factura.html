@@ -7,7 +7,7 @@
             <!-- HEADER -->
             <div class="ver-factura-header">
                 <div class="header-content">
-                    <h3 class="factura-title">Factura #{{ factura.id }}</h3>
+                    <h3 class="factura-title">Factura #{{ factura.idPersonalizado || factura.id }}</h3>
                     <div class="header-actions">
                         <button class="btn-volver" type="button" (click)="volver()">
               ← Volver
@@ -113,7 +113,7 @@
         <div class="t-hr"></div>
 
         <div class="t-small">
-            <div><b>FACTURA No:</b> {{ factura.id }}</div>
+            <div><b>FACTURA No:</b> {{ factura.idPersonalizado || factura.id }}</div>
             <div><b>Fecha:</b> {{ factura.fecha?.toDate ? (factura.fecha.toDate() | date:'dd/MM/yyyy HH:mm') : (factura.fecha | date:'dd/MM/yyyy HH:mm') }}
             </div>
             <div><b>Cliente:</b> {{ factura.clienteNombre }}</div>

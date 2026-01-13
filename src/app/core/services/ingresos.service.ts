@@ -16,6 +16,7 @@ import {
   runTransaction,
   orderBy,
   writeBatch,
+  serverTimestamp
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
 import { Ingreso, DetalleIngreso } from '../models/ingreso.model';
@@ -57,6 +58,32 @@ export class IngresosService {
     this.ingresoTemporalId = null;
   }
 
+  /**
+   * Genera un ID secuencial de 10 dígitos para ingresos (0000000001, 0000000002, etc.)
+   * Obtiene el número más alto actual y suma 1
+   */
+  private async generarIdSecuencial(): Promise<string> {
+    // Obtener todos los ingresos
+    const snap = await getDocs(this.ingresosRef);
+    let maxNumero = 0;
+
+    // Recorrer y buscar el número más alto
+    snap.forEach(docSnap => {
+      const data: any = docSnap.data();
+      const idPersonalizado = data?.idPersonalizado;
+      if (idPersonalizado) {
+        const num = parseInt(idPersonalizado, 10);
+        if (!isNaN(num) && num > maxNumero) {
+          maxNumero = num;
+        }
+      }
+    });
+
+    // El siguiente ID es maxNumero + 1, con padding a 10 dígitos
+    const nuevoNumero = maxNumero + 1;
+    return nuevoNumero.toString().padStart(10, '0');
+  }
+
   // 🔹 Obtener todos los ingresos
   getIngresos(): Observable<Ingreso[]> {
     const q = query(this.ingresosRef, orderBy('createdAt', 'desc'));
@@ -80,8 +107,12 @@ export class IngresosService {
     const fechaSolo = ingreso.fecha ? new Date(ingreso.fecha) : new Date();
     fechaSolo.setHours(0, 0, 0, 0);
 
+    // Generar ID secuencial personalizado
+    const idPersonalizado = await this.generarIdSecuencial();
+
     const nuevoIngreso = {
       ...ingreso,
+      idPersonalizado,
       fecha: fechaSolo,
       estado: 'BORRADOR',
       total: 0,
@@ -89,7 +120,9 @@ export class IngresosService {
       updatedAt: new Date(),
     };
 
-    const docRef = await addDoc(this.ingresosRef, nuevoIngreso);
+    // Usar setDoc con el ID personalizado en lugar de addDoc
+    const docRef = doc(this.ingresosRef, idPersonalizado);
+    await setDoc(docRef, nuevoIngreso);
     return docRef.id;
   }
 
