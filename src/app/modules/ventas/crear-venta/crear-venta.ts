@@ -340,6 +340,7 @@ const ref = await this.facturasSrv.crearFactura(facturaLimpia);
 
     // ✅ REGISTRAR AUTOMÁTICAMENTE EN CAJA CHICA O CAJA BANCO
     const usuario = this.authService.getCurrentUser();
+    const facturaId = ref.id; // ID personalizado de 10 dígitos
     
     if (this.metodoPago === 'Efectivo' && abonado > 0) {
       // 💵 Venta en EFECTIVO → Registrar en Caja Chica (solo lo que se pagó)
@@ -351,9 +352,9 @@ const ref = await this.facturasSrv.crearFactura(facturaLimpia);
             caja_chica_id: cajaAbiertaId,
             fecha: new Date(),
             tipo: 'INGRESO' as const,
-            descripcion: `Venta #${ref.id} - ${this.cliente?.nombres || 'Cliente'}`,
+            descripcion: `Venta #${facturaId} - ${this.cliente?.nombres || 'Cliente'}`,
             monto: abonado,
-            comprobante: ref.id || ''
+            comprobante: facturaId || ''
           };
           // Si hay usuario, agrega los datos
           if (usuario?.id) {
@@ -375,7 +376,7 @@ const ref = await this.facturasSrv.crearFactura(facturaLimpia);
         await this.cajaBancoService.registrarTransferenciaCliente(
           this.total,
           this.codigoTransferencia,
-          ref.id,
+          facturaId,
           usuario?.id || '',
           usuario?.nombre || 'Usuario'
         );
@@ -401,7 +402,8 @@ const ref = await this.facturasSrv.crearFactura(facturaLimpia);
 
     // Setear datos de la factura y enviar directo a impresión
     this.facturaParaImprimir = {
-      id: ref.id,
+      idPersonalizado: facturaId,
+      id: facturaId,
       ...factura,
     };
 
@@ -413,7 +415,7 @@ const ref = await this.facturasSrv.crearFactura(facturaLimpia);
       Swal.fire({
         icon: 'success',
         title: '¡Venta Realizada!',
-        text: `La venta #${ref.id} se ha registrado correctamente.`,
+        text: `La venta #${facturaId} se ha registrado correctamente.`,
         confirmButtonText: 'Continuar',
         allowOutsideClick: false,
         allowEscapeKey: false

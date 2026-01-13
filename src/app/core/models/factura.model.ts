@@ -17,6 +17,7 @@ export interface HistorialSnapshot {
 
 export interface Factura {
   id?: string;
+  idPersonalizado?: string; // ID secuencial de 10 dígitos (0000000001, etc)
   clienteId: string;
   clienteNombre?: string;
   historialSnapshot?: any;

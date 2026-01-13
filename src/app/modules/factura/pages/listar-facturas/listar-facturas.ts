@@ -79,6 +79,7 @@ export class ListarFacturasComponent {
       this.filtradas = base.filter(f =>
         (f.clienteNombre || '').toLowerCase().includes(t) ||
         (f.metodoPago || '').toLowerCase().includes(t) ||
+        (f.idPersonalizado || '').toLowerCase().includes(t) ||
         (f.id || '').toLowerCase().includes(t)
       );
     }
