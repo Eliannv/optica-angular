@@ -230,7 +230,7 @@
                         <tr *ngFor="let ingreso of ingresosPorProveedor">
                             <td><small>{{ ingreso.idPersonalizado }}</small></td>
                             <td><strong>{{ ingreso.numeroFactura }}</strong></td>
-                            <td>{{ ingreso.fecha | date:'dd/MM/yyyy' }}</td>
+                            <td>{{ convertirFecha(ingreso.fecha) | date:'dd/MM/yyyy' }}</td>
                             <td>
                                 <span class="badge" [class.badge-success]="ingreso.tipoCompra === 'CONTADO'" [class.badge-warning]="ingreso.tipoCompra === 'CREDITO'">
                                     {{ ingreso.tipoCompra }}

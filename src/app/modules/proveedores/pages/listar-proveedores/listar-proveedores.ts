@@ -6,6 +6,7 @@ import { ProveedoresService } from '../../../../core/services/proveedores';
 import { IngresosService } from '../../../../core/services/ingresos.service';
 import { Router } from '@angular/router';
 import Swal from 'sweetalert2';
+import { Timestamp } from '@angular/fire/firestore';
 
 @Component({
   selector: 'app-listar-proveedores',
@@ -214,5 +215,22 @@ export class ListarProveedores implements OnInit {
   limpiarBusqueda() {
     this.terminoBusqueda = '';
     this.buscarProveedores();
+  }
+
+  convertirFecha(fecha: any): Date | null {
+    if (!fecha) return null;
+    // Si es un Timestamp de Firestore, convertir a Date
+    if (fecha.toDate && typeof fecha.toDate === 'function') {
+      return fecha.toDate();
+    }
+    // Si ya es un Date, retornarlo como está
+    if (fecha instanceof Date) {
+      return fecha;
+    }
+    // Si es un string, intentar convertirlo
+    if (typeof fecha === 'string') {
+      return new Date(fecha);
+    }
+    return null;
   }
 }
