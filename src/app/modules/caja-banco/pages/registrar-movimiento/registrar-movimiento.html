@@ -24,11 +24,12 @@
           </select>
                 </div>
 
-                <!-- BÚSQUEDA DE CLIENTE/TRABAJADOR (con datalist) -->
+                <!-- BÚSQUEDA DE CLIENTE/TRABAJADOR/PROVEEDOR (con datalist) -->
                 <div class="form-group" *ngIf="mostrarBusquedaCliente()">
                     <label>
                         <span *ngIf="formulario.get('tipo')?.value === 'INGRESO'">Cliente (Transferencia)</span>
-                        <span *ngIf="formulario.get('tipo')?.value === 'EGRESO'">Trabajador (Pago)</span>
+                        <span *ngIf="formulario.get('tipo')?.value === 'EGRESO' && formulario.get('categoria')?.value === 'PAGO_TRABAJADOR'">Trabajador (Pago)</span>
+                        <span *ngIf="formulario.get('tipo')?.value === 'EGRESO' && formulario.get('categoria')?.value === 'PAGO_PROVEEDORES'">Proveedor (Pago)</span>
                     </label>
                     <input
                         type="text"
@@ -36,20 +37,41 @@
                         (ngModelChange)="buscarCliente()"
                         (blur)="onBlurSeleccionPersona()"
                         [ngModelOptions]="{standalone: true}"
-                        placeholder="Escribe cédula, nombre o apellido..."
+                        placeholder="Escribe cédula, nombre, RUC o código..."
                         class="form-control"
                         list="personasList"
                     />
                     <datalist id="personasList">
                         <option
                             *ngFor="let p of personasBusqueda"
-                            [value]="p.cedula || p.id" q q
+                            [value]="p.codigo || p.cedula || p.ruc || p.id" 
                             [attr.label]="((p.nombres || p.nombre || '') + ' ' + (p.apellidos || p.apellido || ''))"
                             [title]="((p.nombres || p.nombre || '') + ' ' + (p.apellidos || p.apellido || ''))"
                         ></option>
                     </datalist>
-                    <div class="selected-item" *ngIf="clienteSeleccionado">
+                    <div class="selected-item" *ngIf="formulario.get('categoria')?.value === 'PAGO_PROVEEDORES' && proveedorSeleccionado">
+                        ✓ {{ proveedorSeleccionado.nombre }} (Código: {{ proveedorSeleccionado.codigo || 'N/A' }} | RUC: {{ proveedorSeleccionado.ruc || 'N/A' }})
+                    </div>
+                    <div class="selected-item" *ngIf="formulario.get('categoria')?.value !== 'PAGO_PROVEEDORES' && clienteSeleccionado">
                         ✓ {{ clienteSeleccionado.nombres || clienteSeleccionado.nombre }} {{ clienteSeleccionado.apellidos || clienteSeleccionado.apellido || '' }} ({{ clienteSeleccionado.cedula || clienteSeleccionado.id }})
+                    </div>
+                </div>
+
+                <!-- INFORMACIÓN DE DEUDA PARA PAGO DE PROVEEDORES -->
+                <div class="carrito-totales" *ngIf="formulario.get('tipo')?.value === 'EGRESO' && formulario.get('categoria')?.value === 'PAGO_PROVEEDORES' && proveedorSeleccionado">
+                    <div class="total-row">
+                        <span>Deuda Actual</span>
+                        <strong>${{ deudaActual | number:'1.2-2' }}</strong>
+                    </div>
+
+                    <div class="total-row">
+                        <span>Monto a Pagar</span>
+                        <strong>${{ formulario.get('monto')?.value | number:'1.2-2' }}</strong>
+                    </div>
+
+                    <div class="total-row total-final">
+                        <span>Deuda Restante</span>
+                        <strong>${{ deudaRestante | number:'1.2-2' }}</strong>
                     </div>
                 </div>
 

@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { ClientesService } from '../../../../core/services/clientes';
 import { EmpleadosService } from '../../../../core/services/empleados.service';
+import { ProveedoresService } from '../../../../core/services/proveedores';
 import { AuthService } from '../../../../core/services/auth.service';
 import Swal from 'sweetalert2';
 
@@ -19,6 +20,7 @@ export class RegistrarMovimientoComponent implements OnInit {
   private cajaBancoService = inject(CajaBancoService);
   private clientesService = inject(ClientesService);
   private empleadosService = inject(EmpleadosService);
+  private proveedoresService = inject(ProveedoresService);
   private authService = inject(AuthService);
 
   formulario!: FormGroup;
@@ -28,18 +30,23 @@ export class RegistrarMovimientoComponent implements OnInit {
   // Para búsqueda de clientes
   clientes: any[] = [];
   empleados: any[] = [];
-  personasBusqueda: any[] = []; // clientes o empleados según el caso
+  proveedores: any[] = [];
+  personasBusqueda: any[] = []; // clientes, empleados o proveedores según el caso
   busquedaCliente = '';
   clienteSeleccionado: any = null;
+  proveedorSeleccionado: any = null;
+  deudaActual = 0;
+  deudaRestante = 0;
 
   categorias_ingresos = ['CIERRE_CAJA_CHICA', 'TRANSFERENCIA_CLIENTE', 'OTRO_INGRESO'];
-  categorias_egresos = ['PAGO_TRABAJADOR', 'OTRO_EGRESO'];
+  categorias_egresos = ['PAGO_TRABAJADOR', 'PAGO_PROVEEDORES', 'OTRO_EGRESO'];
   categorias_actuales: string[] = this.categorias_ingresos;
 
   ngOnInit(): void {
     this.inicializarFormulario();
     this.cargarClientes();
     this.cargarEmpleados();
+    this.cargarProveedores();
   }
 
   inicializarFormulario(): void {
@@ -57,6 +64,10 @@ export class RegistrarMovimientoComponent implements OnInit {
 
     this.formulario.get('categoria')!.valueChanges.subscribe((categoria) => {
       this.onCategoriaChange(categoria);
+    });
+
+    this.formulario.get('monto')!.valueChanges.subscribe((monto) => {
+      this.actualizarDeudaRestante(monto);
     });
   }
 
@@ -84,10 +95,34 @@ export class RegistrarMovimientoComponent implements OnInit {
     });
   }
 
+  cargarProveedores(): void {
+    this.proveedoresService.getProveedores().subscribe({
+      next: (proveedores) => {
+        this.proveedores = proveedores || [];
+        this.actualizarOpcionesBusqueda();
+      },
+      error: (error) => {
+        console.error('Error al cargar proveedores:', error);
+      }
+    });
+  }
+
   buscarCliente(): void {
     const termino = (this.busquedaCliente || '').toLowerCase();
-    const esEgresoPagoTrabajador = this.formulario.get('tipo')?.value === 'EGRESO' && this.formulario.get('categoria')?.value === 'PAGO_TRABAJADOR';
-    const fuente = esEgresoPagoTrabajador ? this.empleados : this.clientes;
+    const tipo = this.formulario.get('tipo')?.value;
+    const categoria = this.formulario.get('categoria')?.value;
+    
+    const esEgresoPagoTrabajador = tipo === 'EGRESO' && categoria === 'PAGO_TRABAJADOR';
+    const esEgresoPagoProveedor = tipo === 'EGRESO' && categoria === 'PAGO_PROVEEDORES';
+    
+    let fuente: any[] = [];
+    if (esEgresoPagoTrabajador) {
+      fuente = this.empleados;
+    } else if (esEgresoPagoProveedor) {
+      fuente = this.proveedores;
+    } else {
+      fuente = this.clientes;
+    }
 
     if (!termino) {
       this.personasBusqueda = fuente;
@@ -97,14 +132,21 @@ export class RegistrarMovimientoComponent implements OnInit {
     this.personasBusqueda = (fuente || []).filter((p: any) => {
       const nombre = (p.nombres || p.nombre || '').toLowerCase();
       const apellido = (p.apellidos || p.apellido || '').toLowerCase();
+      const representante = (p.representante || '').toLowerCase();
       const full = `${nombre} ${apellido}`.trim();
       const cedula = (p.cedula || '').toLowerCase();
+      const ruc = (p.ruc || '').toLowerCase();
+      const codigo = (p.codigo || '').toLowerCase();
       const id = (p.id ? String(p.id).toLowerCase() : '');
+      
       return (
         (nombre && nombre.includes(termino)) ||
         (apellido && apellido.includes(termino)) ||
+        (representante && representante.includes(termino)) ||
         (full && full.includes(termino)) ||
         (cedula && cedula.includes(termino)) ||
+        (ruc && ruc.includes(termino)) ||
+        (codigo && codigo.includes(termino)) ||
         (id && id.includes(termino))
       );
     });
@@ -112,12 +154,24 @@ export class RegistrarMovimientoComponent implements OnInit {
 
   seleccionarCliente(cliente: any): void {
     this.clienteSeleccionado = cliente;
-    const nombre = (cliente.nombres || cliente.nombre || '').trim();
-    const apellido = (cliente.apellidos || cliente.apellido || '').trim();
-    const cedula = cliente.cedula || cliente.id || '';
-    // Mostrar en el input un valor estable (cedula si existe)
-    this.busquedaCliente = cedula || `${nombre} ${apellido}`.trim();
-    // No forzar referencia; permitir que el usuario escriba el código de transferencia
+    this.proveedorSeleccionado = null;
+    
+    // Para proveedores, guardar la deuda actual y mostrar código
+    if (this.formulario.get('categoria')?.value === 'PAGO_PROVEEDORES') {
+      this.proveedorSeleccionado = cliente;
+      this.deudaActual = cliente.saldo || 0;
+      this.actualizarDeudaRestante(this.formulario.get('monto')?.value || 0);
+      // Mostrar código del proveedor en lugar del ID de Firebase
+      this.busquedaCliente = cliente.codigo || cliente.ruc || cliente.nombre;
+    } else {
+      // Para trabajadores y clientes, mantener comportamiento original
+      const nombre = (cliente.nombres || cliente.nombre || '').trim();
+      const apellido = (cliente.apellidos || cliente.apellido || '').trim();
+      const cedula = cliente.cedula || '';
+      this.busquedaCliente = cedula || `${nombre} ${apellido}`.trim();
+    }
+    
+    // Limpiar opciones de búsqueda
     this.actualizarOpcionesBusqueda();
   }
 
@@ -137,7 +191,10 @@ export class RegistrarMovimientoComponent implements OnInit {
 
   onCategoriaChange(categoria: string): void {
     this.clienteSeleccionado = null;
+    this.proveedorSeleccionado = null;
     this.busquedaCliente = '';
+    this.deudaActual = 0;
+    this.deudaRestante = 0;
     this.actualizarOpcionesBusqueda();
   }
 
@@ -145,12 +202,27 @@ export class RegistrarMovimientoComponent implements OnInit {
     const tipo = this.formulario.get('tipo')?.value;
     const categoria = this.formulario.get('categoria')?.value;
     return (tipo === 'INGRESO' && categoria === 'TRANSFERENCIA_CLIENTE') ||
-           (tipo === 'EGRESO' && categoria === 'PAGO_TRABAJADOR');
+           (tipo === 'EGRESO' && categoria === 'PAGO_TRABAJADOR') ||
+           (tipo === 'EGRESO' && categoria === 'PAGO_PROVEEDORES');
+  }
+
+  actualizarDeudaRestante(monto: number): void {
+    if (this.formulario.get('categoria')?.value === 'PAGO_PROVEEDORES' && this.proveedorSeleccionado) {
+      this.deudaRestante = Math.max(0, this.deudaActual - (monto || 0));
+    }
   }
 
   private actualizarOpcionesBusqueda(): void {
-    const esEgresoPagoTrabajador = this.formulario?.get('tipo')?.value === 'EGRESO' && this.formulario?.get('categoria')?.value === 'PAGO_TRABAJADOR';
-    this.personasBusqueda = esEgresoPagoTrabajador ? (this.empleados || []) : (this.clientes || []);
+    const tipo = this.formulario?.get('tipo')?.value;
+    const categoria = this.formulario?.get('categoria')?.value;
+    
+    if (tipo === 'EGRESO' && categoria === 'PAGO_TRABAJADOR') {
+      this.personasBusqueda = this.empleados || [];
+    } else if (tipo === 'EGRESO' && categoria === 'PAGO_PROVEEDORES') {
+      this.personasBusqueda = this.proveedores || [];
+    } else {
+      this.personasBusqueda = this.clientes || [];
+    }
   }
 
   // Al cambiar manualmente el valor del input con datalist, seleccionar la persona
@@ -158,14 +230,27 @@ export class RegistrarMovimientoComponent implements OnInit {
     const valor = (this.busquedaCliente || '').trim();
     if (!valor) {
       this.clienteSeleccionado = null;
+      this.proveedorSeleccionado = null;
       return;
     }
-    const lista = this.personasBusqueda && this.personasBusqueda.length ? this.personasBusqueda : (this.formulario.get('tipo')?.value === 'EGRESO' ? this.empleados : this.clientes);
+    
+    const tipo = this.formulario.get('tipo')?.value;
+    const categoria = this.formulario.get('categoria')?.value;
+    
+    let lista: any[] = [];
+    if (tipo === 'EGRESO' && categoria === 'PAGO_TRABAJADOR') {
+      lista = this.empleados;
+    } else if (tipo === 'EGRESO' && categoria === 'PAGO_PROVEEDORES') {
+      lista = this.proveedores;
+    } else {
+      lista = this.clientes;
+    }
+    
     const encontrada = (lista || []).find((p: any) => {
       const nombre = (p.nombres || p.nombre || '').trim();
       const apellido = (p.apellidos || p.apellido || '').trim();
       const full = `${nombre} ${apellido}`.trim();
-      return p.cedula === valor || p.id === valor || full === valor;
+      return p.cedula === valor || p.id === valor || p.ruc === valor || p.codigo === valor || full === valor;
     });
     if (encontrada) {
       this.seleccionarCliente(encontrada);
@@ -178,14 +263,30 @@ export class RegistrarMovimientoComponent implements OnInit {
       return;
     }
 
-    // Validar si se requiere cliente y está seleccionado
-    if (this.mostrarBusquedaCliente() && !this.clienteSeleccionado) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Cliente Requerido',
-        text: 'Por favor selecciona un cliente de la lista'
-      });
-      return;
+    // Validar si se requiere cliente/trabajador/proveedor y está seleccionado
+    if (this.mostrarBusquedaCliente()) {
+      if (this.formulario.get('categoria')?.value === 'PAGO_PROVEEDORES' && !this.proveedorSeleccionado) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Proveedor Requerido',
+          text: 'Por favor selecciona un proveedor de la lista'
+        });
+        return;
+      } else if (this.formulario.get('categoria')?.value === 'PAGO_TRABAJADOR' && !this.clienteSeleccionado) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Trabajador Requerido',
+          text: 'Por favor selecciona un trabajador de la lista'
+        });
+        return;
+      } else if (this.formulario.get('categoria')?.value === 'TRANSFERENCIA_CLIENTE' && !this.clienteSeleccionado) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Cliente Requerido',
+          text: 'Por favor selecciona un cliente de la lista'
+        });
+        return;
+      }
     }
 
     this.guardando = true;
@@ -204,8 +305,14 @@ export class RegistrarMovimientoComponent implements OnInit {
         usuario_nombre: usuario?.nombre || null,
       };
 
-      // Solo agregar datos de persona si aplica y existe selección
-      if (this.mostrarBusquedaCliente() && this.clienteSeleccionado) {
+      // Procesar según categoría
+      const categoria = this.formulario.value.categoria;
+      if (categoria === 'PAGO_PROVEEDORES' && this.proveedorSeleccionado) {
+        movimientoBase.proveedor_id = this.proveedorSeleccionado.id;
+        movimientoBase.proveedor_nombre = this.proveedorSeleccionado.nombre;
+        movimientoBase.deuda_anterior = this.deudaActual;
+        movimientoBase.deuda_nueva = this.deudaRestante;
+      } else if ((categoria === 'TRANSFERENCIA_CLIENTE' || categoria === 'PAGO_TRABAJADOR') && this.clienteSeleccionado) {
         const nombre = (this.clienteSeleccionado.nombres || this.clienteSeleccionado.nombre || '').trim();
         const apellido = (this.clienteSeleccionado.apellidos || this.clienteSeleccionado.apellido || '').trim();
         const cedula = this.clienteSeleccionado.cedula || '';
@@ -218,7 +325,17 @@ export class RegistrarMovimientoComponent implements OnInit {
         if (movimientoBase[k] === undefined) delete movimientoBase[k];
       });
 
+      // Guardar el movimiento
       await this.cajaBancoService.registrarMovimiento(movimientoBase);
+
+      // Si es pago a proveedor, recalcular y actualizar el saldo del proveedor
+      if (categoria === 'PAGO_PROVEEDORES' && this.proveedorSeleccionado) {
+        await this.proveedoresService.actualizarSaldoProveedor(
+          this.proveedorSeleccionado.nombre,
+          this.proveedorSeleccionado.id
+        );
+      }
+
       Swal.fire({
         icon: 'success',
         title: 'Éxito',

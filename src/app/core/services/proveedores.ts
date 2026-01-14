@@ -181,8 +181,9 @@ export class ProveedoresService {
     return deleteDoc(proveedorDoc);
   }
 
-  // 🔹 Calcular saldo automático del proveedor (suma de todos sus ingresos)
-  async calcularSaldoProveedor(proveedorNombre: string): Promise<number> {
+  // 🔹 Calcular saldo automático del proveedor (ingresos - pagos en caja banco)
+  async calcularSaldoProveedor(proveedorNombre: string, proveedorId?: string): Promise<number> {
+    // 1. Sumar todos los ingresos finalizados del proveedor
     const ingresosRef = collection(this.firestore, 'ingresos');
     const q = query(
       ingresosRef,
@@ -191,19 +192,38 @@ export class ProveedoresService {
     );
     const snap = await getDocs(q);
     
-    let totalSaldo = 0;
+    let totalIngresos = 0;
     snap.forEach(docSnap => {
       const ingreso: any = docSnap.data();
-      totalSaldo += ingreso.total || 0;
+      totalIngresos += ingreso.total || 0;
     });
+
+    // 2. Restar todos los pagos realizados en caja-banco
+    let totalPagos = 0;
+    if (proveedorId) {
+      const movimientosRef = collection(this.firestore, 'movimientos_cajas_banco');
+      const qPagos = query(
+        movimientosRef,
+        where('proveedor_id', '==', proveedorId),
+        where('tipo', '==', 'EGRESO'),
+        where('categoria', '==', 'PAGO_PROVEEDORES')
+      );
+      const snapPagos = await getDocs(qPagos);
+      
+      snapPagos.forEach(docSnap => {
+        const pago: any = docSnap.data();
+        totalPagos += pago.monto || 0;
+      });
+    }
     
-    return totalSaldo;
+    // Saldo = Ingresos - Pagos
+    return totalIngresos - totalPagos;
   }
 
-  // 🔹 Actualizar saldo del proveedor en Firestore (suma total de ingresos finalizados)
-  async actualizarSaldoProveedor(proveedorNombre: string): Promise<void> {
+  // 🔹 Actualizar saldo del proveedor en Firestore (ingresos - pagos)
+  async actualizarSaldoProveedor(proveedorNombre: string, proveedorId?: string): Promise<void> {
     try {
-      const saldo = await this.calcularSaldoProveedor(proveedorNombre);
+      const saldo = await this.calcularSaldoProveedor(proveedorNombre, proveedorId);
       const proveedoresRef = collection(this.firestore, 'proveedores');
       const q = query(proveedoresRef, where('nombre', '==', proveedorNombre));
       const snap = await getDocs(q);

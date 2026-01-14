@@ -43,25 +43,14 @@ export class ListarProveedores implements OnInit {
       this.totalProveedores = proveedores.length;
       this.actualizarPaginacion();
       
-      // Calcular saldos para todos los proveedores (por nombre)
+      // Usar el saldo directamente del documento del proveedor en Firestore
       this.proveedores.forEach(proveedor => {
-        this.calcularSaldoProveedor(proveedor.nombre);
+        this.saldosCalculados[proveedor.nombre] = proveedor.saldo || 0;
       });
     });
   }
 
-  // Calcular saldo automático del proveedor (por nombre)
-  async calcularSaldoProveedor(proveedorNombre: string) {
-    try {
-      const saldo = await this.proveedoresService.calcularSaldoProveedor(proveedorNombre);
-      this.saldosCalculados[proveedorNombre] = saldo;
-    } catch (error) {
-      console.error('Error al calcular saldo:', error);
-      this.saldosCalculados[proveedorNombre] = 0;
-    }
-  }
-
-  // Obtener saldo para mostrar en tabla
+  // Obtener saldo para mostrar en tabla (usa el saldo guardado en Firestore)
   getSaldoProveedor(proveedorNombre: string | undefined): number {
     if (!proveedorNombre) return 0;
     return this.saldosCalculados[proveedorNombre] || 0;
@@ -135,9 +124,9 @@ export class ListarProveedores implements OnInit {
     this.proveedorSeleccionado = proveedor;
     this.mostrarModal = true;
     
-    // Recalcular saldo para asegurar que se muestra el correcto en el modal
+    // Actualizar saldo en el caché desde el documento del proveedor
     if (proveedor.nombre) {
-      this.calcularSaldoProveedor(proveedor.nombre);
+      this.saldosCalculados[proveedor.nombre] = proveedor.saldo || 0;
     }
   }
 

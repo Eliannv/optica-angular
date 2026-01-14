@@ -28,6 +28,12 @@ export class ListarIngresosComponent implements OnInit {
   filtrados: Ingreso[] = [];
   ingresosPaginados: Ingreso[] = [];
 
+  // Análisis financiero
+  totalFacturas = 0;
+  totalPagado = 0;
+  deudaSucursal = 0;
+  countFacturas = 0;
+
   // Filtros
   filtroFecha: FiltroFecha = 'TODAS';
   fechaEspecifica: string = '';
@@ -54,8 +60,32 @@ export class ListarIngresosComponent implements OnInit {
         this.ingresos.sort((a, b) => this.getFechaMs(b) - this.getFechaMs(a));
         
         this.filtrar();
+        
+        // Calcular análisis financiero
+        this.calcularAnalisisFinanciero();
       },
       error: (err) => console.error('Error al cargar ingresos:', err),
+    });
+  }
+
+  // Calcular análisis financiero completo
+  private calcularAnalisisFinanciero() {
+    // Contar facturas finalizadas
+    const ingresosFinalizados = this.ingresos.filter((ing: any) => ing.estado === 'FINALIZADO');
+    this.countFacturas = ingresosFinalizados.length;
+    
+    // Sumar total de facturas finalizadas
+    this.totalFacturas = ingresosFinalizados.reduce((sum: number, ing: any) => {
+      return sum + (ing.total || 0);
+    }, 0);
+    
+    // Cargar deuda actual de la sucursal
+    this.ingresosService.calcularDeudaSucursal().then(deuda => {
+      this.deudaSucursal = deuda;
+      // Total pagado = Total facturas - Deuda actual
+      this.totalPagado = this.totalFacturas - this.deudaSucursal;
+    }).catch(error => {
+      console.error('Error al calcular deuda de sucursal:', error);
     });
   }
 

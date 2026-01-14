@@ -44,21 +44,30 @@
         <!-- BODY -->
         <div class="ingresos-body">
 
-            <!-- RESUMEN ESTADÍSTICO -->
-            <div class="resumen-stats" *ngIf="totalIngresos > 0">
-                <div class="stat-card">
+            <!-- ANÁLISIS FINANCIERO - ESTADO DE DEUDA -->
+            <div class="resumen-stats" *ngIf="ingresos.length > 0">
+                <div class="stat-card stat-card-primary">
                     <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package-search-icon lucide-package-search"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/><path d="m7.5 4.27 9 5.15"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/><circle cx="18.5" cy="15.5" r="2.5"/><path d="M20.27 17.27 22 19"/></svg></div>
                     <div class="stat-content">
-                        <span class="stat-label">Total de Ingresos/Facturas</span>
-                        <span class="stat-value">{{ totalIngresos }}</span>
+                        <span class="stat-label">Total de Facturas / Ingresos</span>
+                        <span class="stat-value">${{ totalFacturas.toFixed(2) }}</span>
+                        <span class="stat-sublabel">({{ countFacturas }} factura(s))</span>
                     </div>
                 </div>
 
                 <div class="stat-card stat-card-primary">
-                    <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-dollar-sign-icon lucide-dollar-sign"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+                    <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle-icon lucide-check-circle"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
                     <div class="stat-content">
-                        <span class="stat-label">Total deuda sucursal</span>
-                        <span class="stat-value">${{ obtenerTotalDeuda().toFixed(2) }}</span>
+                        <span class="stat-label">Total Pagado a Proveedores</span>
+                        <span class="stat-value">${{ totalPagado.toFixed(2) }}</span>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-card-primary">
+                    <div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-alert-circle-icon lucide-alert-circle"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg></div>
+                    <div class="stat-content">
+                        <span class="stat-label">Deuda Actual Sucursal</span>
+                        <span class="stat-value">${{ deudaSucursal.toFixed(2) }}</span>
                     </div>
                 </div>
             </div>

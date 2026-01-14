@@ -199,3 +199,41 @@ form {
     color: #2ecc71;
     font-size: 0.9rem;
 }
+
+/* ============================================
+   TOTALES (Estilo estándar de la aplicación)
+============================================ */
+
+.carrito-totales {
+    margin-top: 1.5rem;
+    padding: 1.25rem;
+    border-radius: var(--radius-lg);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+}
+
+.total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.total-row strong {
+    font-size: 1.05rem;
+}
+
+.total-final {
+    margin-top: 0.5rem;
+    padding-top: 1rem;
+    border-top: 2px solid var(--border-color);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.total-final strong {
+    font-size: 1.4rem;
+}

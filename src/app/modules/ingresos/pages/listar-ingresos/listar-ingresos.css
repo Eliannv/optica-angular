@@ -627,3 +627,15 @@
         flex: 1;
     }
 }
+
+/* ============================================
+   ANÁLISIS FINANCIERO - SUBLABEL
+============================================ */
+
+.stat-sublabel {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+    font-weight: 400;
+}

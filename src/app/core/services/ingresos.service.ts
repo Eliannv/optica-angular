@@ -240,8 +240,21 @@ export class IngresosService {
 
     // 🔸 Actualizar saldo del proveedor en Firestore (después de finalizar ingreso)
     const proveedorNombre = ingreso?.proveedor || '';
+    const proveedorIdCampo = (ingreso as any)?.proveedorId || '';
     if (proveedorNombre) {
-      await this.proveedoresService.actualizarSaldoProveedor(proveedorNombre);
+      // Si tenemos proveedorId directo, usarlo; sino buscar por nombre
+      if (proveedorIdCampo) {
+        await this.proveedoresService.actualizarSaldoProveedor(proveedorNombre, proveedorIdCampo);
+      } else {
+        // Buscar el ID del proveedor por nombre
+        const proveedoresRef = collection(this.firestore, 'proveedores');
+        const qProv = query(proveedoresRef, where('nombre', '==', proveedorNombre));
+        const snapProv = await getDocs(qProv);
+        if (!snapProv.empty) {
+          const provId = snapProv.docs[0].id;
+          await this.proveedoresService.actualizarSaldoProveedor(proveedorNombre, provId);
+        }
+      }
     }
   }
 
@@ -398,14 +411,46 @@ export class IngresosService {
     if (ingresoSnap.exists()) {
       const ingreso = ingresoSnap.data() as Ingreso;
       const proveedorNombre = ingreso?.proveedor || '';
+      const proveedorIdCampo = (ingreso as any)?.proveedorId || '';
       
       // Eliminar el ingreso
       await deleteDoc(ingresoDoc);
       
       // 🔸 Recalcular y actualizar saldo del proveedor
       if (proveedorNombre) {
-        await this.proveedoresService.actualizarSaldoProveedor(proveedorNombre);
+        // Si tenemos proveedorId directo, usarlo; sino buscar por nombre
+        if (proveedorIdCampo) {
+          await this.proveedoresService.actualizarSaldoProveedor(proveedorNombre, proveedorIdCampo);
+        } else {
+          // Buscar el ID del proveedor por nombre
+          const proveedoresRef = collection(this.firestore, 'proveedores');
+          const qProv = query(proveedoresRef, where('nombre', '==', proveedorNombre));
+          const snapProv = await getDocs(qProv);
+          if (!snapProv.empty) {
+            const provId = snapProv.docs[0].id;
+            await this.proveedoresService.actualizarSaldoProveedor(proveedorNombre, provId);
+          }
+        }
       }
+    }
+  }
+
+  // 🔹 Calcular deuda total de la sucursal (suma de todos los saldos de proveedores)
+  async calcularDeudaSucursal(): Promise<number> {
+    try {
+      const proveedoresRef = collection(this.firestore, 'proveedores');
+      const snap = await getDocs(proveedoresRef);
+      
+      let totalDeuda = 0;
+      snap.forEach(docSnap => {
+        const proveedor: any = docSnap.data();
+        totalDeuda += proveedor.saldo || 0;
+      });
+      
+      return totalDeuda;
+    } catch (error) {
+      console.error('Error al calcular deuda de sucursal:', error);
+      return 0;
     }
   }
 }

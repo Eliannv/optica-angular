@@ -127,7 +127,6 @@ export class VerIngresoComponent implements OnDestroy {
       <html>
       <head>
         <meta charset="UTF-8">
-        <title>Impresión</title>
         <style>
           @page {
             size: A4;
@@ -328,7 +327,7 @@ export class VerIngresoComponent implements OnDestroy {
                   <th style="width: 30%;">Nombre</th>
                   <th style="width: 15%;">Modelo</th>
                   <th style="width: 15%;">Color</th>
-                  <th style="width: 15%; text-align: right;">Stock</th>
+                  <th style="width: 15%; text-align: right;">Cantidad</th>
                 </tr>
               </thead>
               <tbody>
