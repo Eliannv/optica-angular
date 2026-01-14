@@ -147,27 +147,6 @@
                     <label class="form-label">Dirección</label>
                     <input type="text" class="form-control" [(ngModel)]="proveedor.direccion!.direccion" name="direccion" placeholder="Dirección completa del proveedor" appEnterNext>
                 </div>
-
-                <!-- Saldo -->
-                <div class="form-group">
-                    <label class="form-label">Saldo Inicial</label>
-                    <div class="input-with-validation">
-                        <input type="number" class="form-control" [class.is-invalid]="!validaciones.saldo.valido" [class.is-valid]="validaciones.saldo.valido && proveedor.saldo !== 0" [(ngModel)]="proveedor.saldo" (input)="validarSaldo()" name="saldo" step="0.01" placeholder="0.00"
-                            appEnterNext>
-                        <div class="validation-feedback">
-                            <span *ngIf="!validaciones.saldo.valido" class="text-danger">
-                                <i class="bi bi-x-circle"></i> {{ validaciones.saldo.mensaje }}
-                            </span>
-                            <span *ngIf="validaciones.saldo.valido && proveedor.saldo && proveedor.saldo > 0" class="text-info">
-                                <i class="bi bi-info-circle"></i> {{ validaciones.saldo.mensaje }}
-                            </span>
-                            <span *ngIf="validaciones.saldo.valido && proveedor.saldo && proveedor.saldo < 0" class="text-warning">
-                                <i class="bi bi-exclamation-triangle"></i> {{ validaciones.saldo.mensaje }}
-                            </span>
-                        </div>
-                    </div>
-                    <small class="form-text text-muted">Positivo = a favor del proveedor | Negativo = deuda con el proveedor</small>
-                </div>
             </form>
         </div>
         <div class="card-footer d-flex justify-between">

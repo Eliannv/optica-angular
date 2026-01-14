@@ -359,8 +359,7 @@ export class CrearIngresoComponent implements OnInit {
         telefonoPrincipal: '',
         telefonoSecundario: '',
         codigoLugar: '',
-        direccion: '',
-        saldo: 0
+        direccion: ''
       });
       // Resetear validaciones
       Object.keys(this.validaciones).forEach(key => {
@@ -422,8 +421,7 @@ export class CrearIngresoComponent implements OnInit {
         direccion: {
           codigoLugar: valores.codigoLugar || '',
           direccion: valores.direccion || ''
-        },
-        saldo: valores.saldo || 0
+        }
       };
 
       const docRef = await this.proveedoresService.createProveedor(nuevoProveedor);
@@ -477,8 +475,7 @@ export class CrearIngresoComponent implements OnInit {
       telefonoPrincipal: '',
       telefonoSecundario: '',
       codigoLugar: '',
-      direccion: '',
-      saldo: 0
+      direccion: ''
     });
   }
 

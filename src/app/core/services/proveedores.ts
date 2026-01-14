@@ -180,4 +180,44 @@ export class ProveedoresService {
     const proveedorDoc = doc(this.firestore, `proveedores/${id}`);
     return deleteDoc(proveedorDoc);
   }
+
+  // 🔹 Calcular saldo automático del proveedor (suma de todos sus ingresos)
+  async calcularSaldoProveedor(proveedorNombre: string): Promise<number> {
+    const ingresosRef = collection(this.firestore, 'ingresos');
+    const q = query(
+      ingresosRef,
+      where('proveedor', '==', proveedorNombre),
+      where('estado', '==', 'FINALIZADO')
+    );
+    const snap = await getDocs(q);
+    
+    let totalSaldo = 0;
+    snap.forEach(docSnap => {
+      const ingreso: any = docSnap.data();
+      totalSaldo += ingreso.total || 0;
+    });
+    
+    return totalSaldo;
+  }
+
+  // 🔹 Actualizar saldo del proveedor en Firestore (suma total de ingresos finalizados)
+  async actualizarSaldoProveedor(proveedorNombre: string): Promise<void> {
+    try {
+      const saldo = await this.calcularSaldoProveedor(proveedorNombre);
+      const proveedoresRef = collection(this.firestore, 'proveedores');
+      const q = query(proveedoresRef, where('nombre', '==', proveedorNombre));
+      const snap = await getDocs(q);
+      
+      if (!snap.empty) {
+        snap.forEach(docSnap => {
+          updateDoc(docSnap.ref, { 
+            saldo: saldo, 
+            updatedAt: new Date() 
+          });
+        });
+      }
+    } catch (error) {
+      console.error('Error al actualizar saldo del proveedor:', error);
+    }
+  }
 }

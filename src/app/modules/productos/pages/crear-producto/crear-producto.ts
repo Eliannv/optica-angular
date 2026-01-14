@@ -120,8 +120,7 @@ export class CrearProducto implements OnInit {
       direccion: {
         codigoLugar: '',
         direccion: ''
-      },
-      saldo: 0
+      }
     };
   }
 

@@ -608,8 +608,7 @@ export class ImportarProductosComponent {
         direccion: {
           codigoLugar: formValue.codigoLugar,
           direccion: formValue.direccion
-        },
-        saldo: formValue.saldo || 0
+        }
       };
 
       await this.proveedoresService.createProveedor(nuevoProveedor);

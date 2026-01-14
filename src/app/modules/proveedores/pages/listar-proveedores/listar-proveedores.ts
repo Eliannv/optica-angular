@@ -1,7 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { Proveedor } from '../../../../core/models/proveedor.model';
+import { Ingreso } from '../../../../core/models/ingreso.model';
 import { Observable } from 'rxjs';
 import { ProveedoresService } from '../../../../core/services/proveedores';
+import { IngresosService } from '../../../../core/services/ingresos.service';
 import { Router } from '@angular/router';
 import Swal from 'sweetalert2';
 
@@ -21,10 +23,16 @@ export class ListarProveedores implements OnInit {
   Math = Math; // Para usar Math.min en el template
   proveedorSeleccionado: Proveedor | null = null;
   mostrarModal: boolean = false;
+  mostrarModalFacturas: boolean = false;
   terminoBusqueda: string = '';
+  ingresosPorProveedor: Ingreso[] = [];
+  ingresosCargando: boolean = false;
+  proveedorFacturasId: string = '';
+  saldosCalculados: { [proveedorId: string]: number } = {};
 
   constructor(
     private proveedoresService: ProveedoresService,
+    private ingresosService: IngresosService,
     private router: Router
   ) {}
 
@@ -34,7 +42,29 @@ export class ListarProveedores implements OnInit {
       this.proveedoresFiltrados = proveedores;
       this.totalProveedores = proveedores.length;
       this.actualizarPaginacion();
+      
+      // Calcular saldos para todos los proveedores (por nombre)
+      this.proveedores.forEach(proveedor => {
+        this.calcularSaldoProveedor(proveedor.nombre);
+      });
     });
+  }
+
+  // Calcular saldo automático del proveedor (por nombre)
+  async calcularSaldoProveedor(proveedorNombre: string) {
+    try {
+      const saldo = await this.proveedoresService.calcularSaldoProveedor(proveedorNombre);
+      this.saldosCalculados[proveedorNombre] = saldo;
+    } catch (error) {
+      console.error('Error al calcular saldo:', error);
+      this.saldosCalculados[proveedorNombre] = 0;
+    }
+  }
+
+  // Obtener saldo para mostrar en tabla
+  getSaldoProveedor(proveedorNombre: string | undefined): number {
+    if (!proveedorNombre) return 0;
+    return this.saldosCalculados[proveedorNombre] || 0;
   }
 
   actualizarPaginacion() {
@@ -70,24 +100,91 @@ export class ListarProveedores implements OnInit {
   }
 
   eliminarProveedor(id: string) {
-    if (confirm('¿Está seguro de eliminar este proveedor?')) {
-      this.proveedoresService.deleteProveedor(id).then(() => {
-        alert('Proveedor eliminado exitosamente');
-      }).catch(error => {
-        console.error('Error al eliminar proveedor:', error);
-        alert('Error al eliminar el proveedor');
-      });
-    }
+    Swal.fire({
+      title: '¿Eliminar proveedor?',
+      text: '¿Está seguro de eliminar este proveedor?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.proveedoresService.deleteProveedor(id).then(() => {
+          Swal.fire({
+            icon: 'success',
+            title: 'Eliminado',
+            text: 'Proveedor eliminado exitosamente',
+            timer: 2000,
+            showConfirmButton: false
+          });
+        }).catch(error => {
+          console.error('Error al eliminar proveedor:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Error al eliminar el proveedor'
+          });
+        });
+      }
+    });
   }
 
   verDetalle(proveedor: Proveedor) {
     this.proveedorSeleccionado = proveedor;
     this.mostrarModal = true;
+    
+    // Recalcular saldo para asegurar que se muestra el correcto en el modal
+    if (proveedor.nombre) {
+      this.calcularSaldoProveedor(proveedor.nombre);
+    }
   }
 
   cerrarModal() {
     this.mostrarModal = false;
     this.proveedorSeleccionado = null;
+  }
+
+  // Abrir modal para ver facturas del proveedor
+  async verFacturasProveedor(proveedor: Proveedor, event: any) {
+    event.stopPropagation();
+    
+    if (!proveedor.nombre) return;
+    
+    this.proveedorSeleccionado = proveedor;
+    this.ingresosCargando = true;
+    this.mostrarModalFacturas = true;
+
+    try {
+      this.ingresosService.getIngresosPorProveedor(proveedor.nombre).subscribe(
+        ingresos => {
+          this.ingresosPorProveedor = ingresos;
+          this.ingresosCargando = false;
+        },
+        error => {
+          console.error('Error al obtener ingresos:', error);
+          this.ingresosCargando = false;
+        }
+      );
+    } catch (error) {
+      console.error('Error:', error);
+      this.ingresosCargando = false;
+    }
+  }
+
+  // Cerrar modal de facturas
+  cerrarModalFacturas() {
+    this.mostrarModalFacturas = false;
+    this.proveedorSeleccionado = null;
+    this.ingresosPorProveedor = [];
+  }
+
+  // Ver detalle de un ingreso
+  verDetalleIngreso(ingreso: Ingreso) {
+    this.cerrarModalFacturas();
+    // Navegar a ver-ingreso con el ID del ingreso
+    this.router.navigate(['/ingresos/ver', ingreso.id]);
   }
 
   trackByProveedorId(index: number, proveedor: Proveedor): string {

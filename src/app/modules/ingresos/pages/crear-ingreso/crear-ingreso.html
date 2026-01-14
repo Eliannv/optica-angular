@@ -166,14 +166,7 @@
                                 <!-- Dirección -->
                                 <div class="form-group">
                                     <label class="form-label">Dirección</label>
-                                    <input type="text" id="proveedorDireccion" class="form-input" formControlName="direccion" placeholder="Dirección completa del proveedor" (keydown.enter)="focusNext($event, 'proveedorSaldo')" />
-                                </div>
-
-                                <!-- Saldo -->
-                                <div class="form-group">
-                                    <label class="form-label">Saldo Inicial</label>
-                                    <input type="number" id="proveedorSaldo" class="form-input" formControlName="saldo" step="0.01" placeholder="0.00" (keydown.enter)="focusNext($event, 'btnGuardarProveedor')" />
-                                    <small class="form-hint">Opcional: Saldo inicial con el proveedor</small>
+                                    <input type="text" id="proveedorDireccion" class="form-input" formControlName="direccion" placeholder="Dirección completa del proveedor" (keydown.enter)="focusNext($event, 'btnGuardarProveedor')" />
                                 </div>
 
                             </form>

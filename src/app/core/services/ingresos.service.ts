@@ -23,6 +23,7 @@ import { Ingreso, DetalleIngreso } from '../models/ingreso.model';
 import { MovimientoStock } from '../models/movimiento-stock.model';
 import { Producto } from '../models/producto.model';
 import { ProductosService } from './productos';
+import { ProveedoresService } from './proveedores';
 
 @Injectable({
   providedIn: 'root',
@@ -30,6 +31,7 @@ import { ProductosService } from './productos';
 export class IngresosService {
   private firestore = inject(Firestore);
   private productosService = inject(ProductosService);
+  private proveedoresService = inject(ProveedoresService);
   
   private ingresosRef = collection(this.firestore, 'ingresos');
   private movimientosRef = collection(this.firestore, 'movimientos_stock');
@@ -235,6 +237,12 @@ export class IngresosService {
     });
 
     await batch.commit();
+
+    // 🔸 Actualizar saldo del proveedor en Firestore (después de finalizar ingreso)
+    const proveedorNombre = ingreso?.proveedor || '';
+    if (proveedorNombre) {
+      await this.proveedoresService.actualizarSaldoProveedor(proveedorNombre);
+    }
   }
 
   // 🔹 Crear producto desde ingreso
@@ -372,15 +380,32 @@ export class IngresosService {
     return collectionData(q, { idField: 'id' }) as Observable<MovimientoStock[]>;
   }
 
-  // 🔹 Buscar productos existentes
-  buscarProductos(termino: string): Observable<Producto[]> {
-    return this.productosService.getProductos();
-    // TODO: Implementar búsqueda más específica si es necesario
+  // 🔹 Obtener ingresos por nombre de proveedor
+  getIngresosPorProveedor(proveedorNombre: string): Observable<Ingreso[]> {
+    const q = query(
+      this.ingresosRef,
+      where('proveedor', '==', proveedorNombre),
+      orderBy('createdAt', 'desc')
+    );
+    return collectionData(q, { idField: 'id' }) as Observable<Ingreso[]>;
   }
 
   // 🔹 Eliminar ingreso borrador
   async eliminarIngreso(id: string): Promise<void> {
     const ingresoDoc = doc(this.firestore, `ingresos/${id}`);
-    await deleteDoc(ingresoDoc);
+    const ingresoSnap = await getDoc(ingresoDoc);
+    
+    if (ingresoSnap.exists()) {
+      const ingreso = ingresoSnap.data() as Ingreso;
+      const proveedorNombre = ingreso?.proveedor || '';
+      
+      // Eliminar el ingreso
+      await deleteDoc(ingresoDoc);
+      
+      // 🔸 Recalcular y actualizar saldo del proveedor
+      if (proveedorNombre) {
+        await this.proveedoresService.actualizarSaldoProveedor(proveedorNombre);
+      }
+    }
   }
 }

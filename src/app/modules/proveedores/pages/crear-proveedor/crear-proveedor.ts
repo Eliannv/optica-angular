@@ -24,8 +24,7 @@ export class CrearProveedor implements OnInit {
     direccion: {
       codigoLugar: '',
       direccion: ''
-    },
-    saldo: 0
+    }
   };
 
   // Validaciones
@@ -35,8 +34,7 @@ export class CrearProveedor implements OnInit {
     ruc: { valido: false, mensaje: '' },
     telefonoPrincipal: { valido: false, mensaje: '' },
     telefonoSecundario: { valido: false, mensaje: '' },
-    codigoLugar: { valido: false, mensaje: '' },
-    saldo: { valido: true, mensaje: '' }
+    codigoLugar: { valido: false, mensaje: '' }
   };
 
   validandoCodigo = false;
@@ -50,8 +48,7 @@ export class CrearProveedor implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    // Inicializar con saldo válido
-    this.validaciones.saldo.valido = true;
+    // Inicialización vacía - saldo se calculará automáticamente
   }
 
   // Verificar si el formulario es válido para guardar
@@ -92,11 +89,6 @@ export class CrearProveedor implements OnInit {
 
     // Validar código de lugar (si está lleno y tiene mensaje, debe ser válido)
     if (this.proveedor.direccion?.codigoLugar && this.validaciones.codigoLugar.mensaje && !this.validaciones.codigoLugar.valido) {
-      return false;
-    }
-
-    // Validar saldo
-    if (!this.validaciones.saldo.valido) {
       return false;
     }
 
@@ -276,27 +268,6 @@ export class CrearProveedor implements OnInit {
     }
   }
 
-  // Validar saldo
-  validarSaldo(): void {
-    const saldo = this.proveedor.saldo || 0;
-    
-    // El saldo puede ser positivo (a favor del proveedor) o negativo (deuda)
-    // pero debe ser un número válido
-    if (isNaN(saldo)) {
-      this.validaciones.saldo.valido = false;
-      this.validaciones.saldo.mensaje = 'El saldo debe ser un número válido';
-    } else {
-      this.validaciones.saldo.valido = true;
-      if (saldo > 0) {
-        this.validaciones.saldo.mensaje = 'Saldo a favor del proveedor';
-      } else if (saldo < 0) {
-        this.validaciones.saldo.mensaje = 'Deuda con el proveedor';
-      } else {
-        this.validaciones.saldo.mensaje = 'Sin saldo pendiente';
-      }
-    }
-  }
-
   async guardar() {
     // Validar campos obligatorios
     if (!this.proveedor.nombre || !this.proveedor.ruc) {
@@ -350,13 +321,6 @@ export class CrearProveedor implements OnInit {
         await Swal.fire({ icon: 'error', title: 'Código de provincia', text: this.validaciones.codigoLugar.mensaje });
         return;
       }
-    }
-
-    // Validar saldo
-    this.validarSaldo();
-    if (!this.validaciones.saldo.valido) {
-      await Swal.fire({ icon: 'error', title: 'Saldo inválido', text: this.validaciones.saldo.mensaje });
-      return;
     }
 
     try {
