@@ -316,10 +316,12 @@
                         <span class="detalle-label">Color:</span>
                         <span class="detalle-value">{{ historialClinico.color }}</span>
                     </div>
-                    <div class="detalle-item observaciones-item" *ngIf="historialClinico.observacion">
-                        <span class="detalle-label">Observaciones:</span>
-                        <div class="observaciones-value">{{ historialClinico.observacion }}</div>
-                    </div>
+                </div>
+
+                <!-- Observaciones -->
+                <div class="detalle-section detalle-observaciones" *ngIf="!cargandoHistorial && historialClinico && historialClinico.observacion">
+                    <h3>Observaciones</h3>
+                    <div class="observacion-text">{{ historialClinico.observacion }}</div>
                 </div>
 
 

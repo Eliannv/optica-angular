@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import Swal from 'sweetalert2';
 
 import { ClientesService } from '../../../../core/services/clientes';
 import { HistorialClinicoService } from '../../../../core/services/historial-clinico.service';
@@ -74,24 +75,22 @@ export class HistorialClinicoComponent implements OnInit {
       })
     );
 
-    // Ordenar por cliente más reciente (createdAt desc)
-    const getCreatedMs = (c: any): number => {
-      const v = c?.createdAt;
-      if (!v) return 0;
-      try {
-        if (typeof v?.toDate === 'function') return v.toDate().getTime();
-        if (v instanceof Date) return v.getTime();
-        if (typeof v === 'number') return v;
-      } catch {}
-      return 0;
-    };
-
-    this.clientes = withHistorial.sort((a, b) => getCreatedMs(b) - getCreatedMs(a));
+    this.clientes = withHistorial.sort((a, b) => this.getCreatedMs(b) - this.getCreatedMs(a));
     this.aplicarFiltro();
-
-    // ✅ NUEVO: cargar deuda por cliente (después de tener clientes listos)
     await this.cargarDeudasClientes(this.clientes);
   }
+
+  private getCreatedMs(c: any): number {
+    const v = c?.createdAt;
+    if (!v) return 0;
+    try {
+      if (typeof v?.toDate === 'function') return v.toDate().getTime();
+      if (v instanceof Date) return v.getTime();
+      if (typeof v === 'number') return v;
+    } catch {}
+    return 0;
+  }
+
   imprimirHistorial(clienteId: string) {
   this.router.navigate(['/historial-print', clienteId]);
 }
@@ -244,6 +243,24 @@ export class HistorialClinicoComponent implements OnInit {
 
   // ✅ Crear Recibo (POS)
   crearRecibo(clienteId: string): void {
+    // Validar que exista una caja chica abierta
+    const cajaChicaAbierta = localStorage.getItem('cajaChicaAbierta');
+    if (!cajaChicaAbierta) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Caja Chica Requerida',
+        text: 'Debe crear primero la caja chica de este día para empezar con una nueva venta',
+        confirmButtonText: 'Ir a Caja Chica',
+        allowOutsideClick: false,
+        allowEscapeKey: false
+      }).then((result) => {
+        if (result.isConfirmed) {
+          this.router.navigate(['/caja-chica']);
+        }
+      });
+      return;
+    }
+
     this.router.navigate(['/ventas/crear'], {
       queryParams: { clienteId }
     });

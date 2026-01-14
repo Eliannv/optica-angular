@@ -315,49 +315,5 @@ form {
 }
 
 
-/* Variables de tema claro (por defecto) */
-
-:root {
-    --bg-card: #ffffff;
-    --bg-secondary: #f9fafb;
-    --border-color: #e5e7eb;
-    --text-primary: #1f2937;
-    --text-secondary: #6b7280;
-    --primary-color: #3b82f6;
-    --primary-color-hover: #2563eb;
-    --input-bg: #ffffff;
-    --input-border: #d1d5db;
-    --input-hover-border: #9ca3af;
-    --input-text: #1f2937;
-    --input-placeholder: #9ca3af;
-    --input-focus-bg: #ffffff;
-    --input-filled-bg: #eff6ff;
-    --input-disabled-bg: #f3f4f6;
-    --btn-cancel-bg: #f3f4f6;
-    --btn-cancel-text: #374151;
-    --btn-cancel-hover-bg: #e5e7eb;
-}
-
-
-/* Variables de tema oscuro */
-
-[data-theme="dark"] {
-    --bg-card: #1f2937;
-    --bg-secondary: #111827;
-    --border-color: #374151;
-    --text-primary: #f9fafb;
-    --text-secondary: #d1d5db;
-    --primary-color: #3b82f6;
-    --primary-color-hover: #2563eb;
-    --input-bg: #111827;
-    --input-border: #374151;
-    --input-hover-border: #4b5563;
-    --input-text: #f9fafb;
-    --input-placeholder: #6b7280;
-    --input-focus-bg: #1f2937;
-    --input-filled-bg: #1e3a5f;
-    --input-disabled-bg: #374151;
-    --btn-cancel-bg: #374151;
-    --btn-cancel-text: #d1d5db;
-    --btn-cancel-hover-bg: #4b5563;
-}
+/* Usar variables globales del tema */
+/* Los estilos heredan automáticamente de :root y [data-theme="dark"] en styles.css */

@@ -526,6 +526,16 @@
     box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
 }
 
+.descuento-display {
+    padding: 0.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    min-width: 80px;
+    text-align: right;
+    color: var(--text-primary);
+}
+
 .carrito-empty {
     text-align: center;
     padding: 4rem 2rem;

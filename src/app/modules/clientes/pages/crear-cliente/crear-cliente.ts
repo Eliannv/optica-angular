@@ -1,19 +1,23 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, AbstractControl, AsyncValidatorFn, ValidationErrors } from '@angular/forms';
+import { CommonModule } from '@angular/common';
+import { ReactiveFormsModule } from '@angular/forms';
 import { Cliente } from '../../../../core/models/cliente.model';
 import { ClientesService } from '../../../../core/services/clientes';
-import { Router, RouterModule, ActivatedRoute } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
+import { EnterNextDirective } from '../../../../shared/directives/enter-next.directive';
 
 @Component({
   selector: 'app-crear-cliente',
-  standalone: false,
+  standalone: true,
+  imports: [CommonModule, ReactiveFormsModule, EnterNextDirective],
   templateUrl: './crear-cliente.html',
   styleUrls: ['./crear-cliente.css'],
 })
 export class CrearCliente implements OnInit {
 
   clienteForm!: FormGroup;
-  clienteIdEdicion: string | null = null; // Para saber si estamos editando
+  clienteIdEdicion: string | null = null;
 
   // Datos para los selectores
   provinciasEcuador = [
@@ -129,6 +133,11 @@ export class CrearCliente implements OnInit {
       console.error('Error al guardar cliente:', error);
       alert('Error al guardar el cliente');
     }
+  }
+
+  cancelar() {
+    const returnTo = this.route.snapshot.queryParamMap.get('returnTo') || '/clientes/historial-clinico';
+    this.router.navigate([returnTo]);
   }
 
   // Métodos auxiliares para validación

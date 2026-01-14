@@ -83,7 +83,7 @@ export class ListarCajasComponent implements OnInit {
           <p><strong>Usuario:</strong> ${cajaChica.usuario_nombre || '-'}</p>
           <p><strong>Monto Inicial:</strong> ${this.formatoMoneda(cajaChica.monto_inicial || 0)}</p>
           <p><strong>Monto Actual:</strong> ${this.formatoMoneda(cajaChica.monto_actual || 0)}</p>
-          <p style="color: red; margin-top: 1rem;"><strong>⚠️ Se restará ${this.formatoMoneda(cajaChica.monto_actual || 0)} de la caja banco</strong></p>
+          <p style="color: red; margin-top: 1rem;"><strong>Se restará ${this.formatoMoneda(cajaChica.monto_actual || 0)} de la caja banco</strong></p>
         </div>
       `,
       icon: 'warning',

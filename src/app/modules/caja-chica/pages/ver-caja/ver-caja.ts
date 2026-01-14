@@ -27,9 +27,11 @@ export class VerCajaComponent implements OnInit {
   resumen: ResumenCajaChica | null = null;
   cargando = false;
   error = '';
+  esAdmin = false;
 
   ngOnInit(): void {
     this.cajaId = this.route.snapshot.paramMap.get('id') || '';
+    this.esAdmin = this.authService.isAdmin();
     this.cargarDetalles();
   }
 

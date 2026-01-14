@@ -116,7 +116,7 @@
                             <label>Descuento (%)</label>
                             <div style="display: flex; gap: 0.5rem;">
                                 <input type="number" min="0" max="100" class="search-input" [(ngModel)]="descuentoPorcentaje" (ngModelChange)="cambiarDescuento()" placeholder="0" style="flex: 1;" />
-                                <span style="padding: 0.5rem; background: #f0f0f0; border-radius: 4px; min-width: 80px; text-align: right;"><strong>${{ descuentoMonto.toFixed(2) }}</strong></span>
+                                <span class="descuento-display"><strong>${{ descuentoMonto.toFixed(2) }}</strong></span>
                             </div>
                             <small class="muted">Descuento a aplicar sobre el subtotal</small>
                         </div>

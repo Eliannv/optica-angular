@@ -260,6 +260,26 @@
     text-align: right;
 }
 
+/* Estilos para observaciones */
+.detalle-observaciones {
+    grid-column: 1 / -1;
+}
+
+.observacion-text {
+    background-color: var(--bg-primary, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 4px;
+    padding: 0.75rem;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    line-height: 1.5;
+    color: var(--text-primary, #1f2937);
+    font-size: 0.95rem;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
 @media (max-width: 768px) {
     .header-content {
         flex-direction: column;

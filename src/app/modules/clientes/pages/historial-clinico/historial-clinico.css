@@ -304,23 +304,23 @@
 }
 
 .badge-success {
-    background-color: #dcfce7;
-    color: #166534;
+    background-color: rgba(16, 185, 129, 0.2);
+    color: #10b981;
 }
 
 .badge-danger {
-    background-color: #fee2e2;
-    color: #991b1b;
+    background-color: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
 }
 
 .badge-warning {
-    background-color: #fef3c7;
-    color: #92400e;
+    background-color: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
 }
 
 .badge-secondary {
-    background-color: #f3f4f6;
-    color: #4b5563;
+    background-color: rgba(107, 114, 128, 0.2);
+    color: #6b7280;
 }
 
 
@@ -527,6 +527,26 @@
     font-weight: 600;
     color: var(--text-primary);
     text-align: right;
+}
+
+/* Estilos para observaciones */
+.detalle-observaciones {
+    grid-column: 1 / -1;
+}
+
+.observacion-text {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.75rem;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    line-height: 1.5;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    max-height: 200px;
+    overflow-y: auto;
 }
 
 
@@ -777,21 +797,6 @@
     }
 }
 
-@media (prefers-color-scheme: light) {
-    .card,
-    .historial-card,
-    .modal-content {
-        --bg-card: #fff;
-        --border-color: #e5e7eb;
-        --text-primary: #1f2937;
-        --item-bg: #f9fafb;
-        --input-bg: #f9fafb;
-        --input-bg-focus: #fff;
-        --table-header-bg: #f3f4f6;
-        --row-hover-bg: #f9fafb;
-    }
-}
-
 
 /* Paginación responsive */
 
@@ -868,105 +873,94 @@
    MODO OSCURO - MEJORAS PARA MÓVILES
    ======================================== */
 
-[data-theme="dark"] .card,
-[data-theme="dark"] .historial-card,
+/* El modal y los componentes ahora responden automáticamente a las variables de tema en styles.css */
+
+/* ========================================
+   MODO OSCURO (alineado con listar-productos)
+   ======================================== */
 [data-theme="dark"] .modal-content {
     background: var(--bg-card) !important;
-    border-color: var(--border-color) !important;
+    border: 1px solid var(--border-color) !important;
 }
 
-[data-theme="dark"] .card-header,
-[data-theme="dark"] .historial-header {
-    background: rgba(255, 255, 255, 0.03) !important;
-    border-bottom-color: var(--border-color) !important;
+[data-theme="dark"] .modal-header {
+    border-bottom-color: var(--border-color);
+    background: transparent;
 }
 
-[data-theme="dark"] .card-title,
-[data-theme="dark"] .historial-title,
 [data-theme="dark"] .modal-header h2 {
-    color: var(--text-primary) !important;
+    color: var(--text-primary);
 }
 
-[data-theme="dark"] .search-input {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border-color: var(--border-color) !important;
-    color: var(--text-primary) !important;
+[data-theme="dark"] .btn-close:hover {
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
-[data-theme="dark"] .search-input::placeholder {
-    color: var(--text-muted) !important;
+[data-theme="dark"] .btn-close svg {
+    color: var(--text-secondary);
 }
 
-[data-theme="dark"] .table thead {
-    background: rgba(255, 255, 255, 0.03) !important;
-}
-
-[data-theme="dark"] .table th {
-    color: var(--text-primary) !important;
-    border-bottom-color: var(--border-color) !important;
-}
-
-[data-theme="dark"] .table td {
-    color: var(--text-primary) !important;
-}
-
-[data-theme="dark"] .table tbody tr {
-    border-bottom-color: var(--border-color) !important;
-}
-
-[data-theme="dark"] .table tbody tr:hover {
-    background: rgba(255, 255, 255, 0.05) !important;
-}
-
-[data-theme="dark"] .badge-success {
-    background-color: rgba(34, 197, 94, 0.2) !important;
-    color: #6ee7b7 !important;
-}
-
-[data-theme="dark"] .badge-danger {
-    background-color: rgba(239, 68, 68, 0.2) !important;
-    color: #fca5a5 !important;
-}
-
-[data-theme="dark"] .badge-warning {
-    background-color: rgba(245, 158, 11, 0.2) !important;
-    color: #fcd34d !important;
-}
-
-[data-theme="dark"] .badge-secondary {
-    background-color: rgba(107, 114, 128, 0.2) !important;
-    color: #d1d5db !important;
+[data-theme="dark"] .modal-footer {
+    border-top-color: var(--border-color);
 }
 
 [data-theme="dark"] .detalle-section {
-    background: rgba(255, 255, 255, 0.03) !important;
-    border-color: var(--border-color) !important;
+    background-color: rgba(255, 255, 255, 0.03);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .detalle-section h3 {
+    color: var(--text-primary);
+    border-bottom-color: var(--primary-color);
 }
 
 [data-theme="dark"] .detalle-item {
-    border-bottom-color: var(--border-color) !important;
+    border-bottom-color: var(--border-color);
 }
 
-[data-theme="dark"] .table-wrapper {
-    border-color: var(--border-color) !important;
+[data-theme="dark"] .detalle-label {
+    color: var(--text-secondary);
 }
 
+[data-theme="dark"] .detalle-value {
+    color: var(--text-primary);
+}
 
-/* Modo oscuro específico para móviles */
+/* Observaciones en modo oscuro (igual a productos) */
+[data-theme="dark"] .observacion-text {
+    background-color: var(--bg-primary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
 
-@media (max-width: 768px) {
-    [data-theme="dark"] .card,
-    [data-theme="dark"] .historial-card {
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
-    }
-    [data-theme="dark"] .search-input:focus {
-        background: rgba(255, 255, 255, 0.08) !important;
-        border-color: var(--input-focus-border) !important;
-    }
-    [data-theme="dark"] .btn {
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
-    }
-    [data-theme="dark"] .table {
-        background: var(--bg-card) !important;
-    }
+/* Tabla y búsqueda en modo oscuro (alineado con productos) */
+[data-theme="dark"] .table thead {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"] .table th {
+    color: var(--text-primary);
+    border-bottom-color: var(--border-color);
+}
+
+[data-theme="dark"] .table td {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .table tbody tr {
+    border-bottom-color: var(--border-color);
+}
+
+[data-theme="dark"] .table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .search-input {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .search-input::placeholder {
+    color: var(--text-muted);
 }

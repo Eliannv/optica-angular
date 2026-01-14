@@ -1,9 +1,11 @@
 import { CrearVentaComponent } from './crear-venta/crear-venta';
 import { Routes } from '@angular/router';
+import { cajaChicaGuard } from '../../core/guards/caja-chica.guard';
 
 export const VentasRoutingModule: Routes = [
   {
     path: 'crear',
+    canActivate: [cajaChicaGuard],
     loadComponent: () =>
       import('./crear-venta/crear-venta')
         .then(m => m.CrearVentaComponent),

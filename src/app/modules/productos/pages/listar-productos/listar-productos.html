@@ -171,10 +171,6 @@
                             {{ productoSeleccionado.stock || 0 }}
                         </span>
                     </div>
-                    <div class="detalle-item" *ngIf="productoSeleccionado.observacion">
-                        <span class="detalle-label">Observaciones:</span>
-                        <span class="detalle-value">{{ productoSeleccionado.observacion }}</span>
-                    </div>
                 </div>
 
                 <!-- Precios -->
@@ -188,6 +184,12 @@
                         <span class="detalle-label">PVP1 (Precio Venta):</span>
                         <span class="detalle-value">${{ productoSeleccionado.pvp1 || '0.00' }}</span>
                     </div>
+                </div>
+
+                <!-- Observaciones -->
+                <div class="detalle-section detalle-observaciones" *ngIf="productoSeleccionado.observacion">
+                    <h3>Observaciones</h3>
+                    <div class="observacion-text">{{ productoSeleccionado.observacion }}</div>
                 </div>
 
                 <!-- Proveedor -->
