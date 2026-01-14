@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { Proveedor } from '../../../../core/models/proveedor.model';
 import { ProveedoresService } from '../../../../core/services/proveedores';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import Swal from 'sweetalert2';
 
 @Component({
@@ -41,14 +41,54 @@ export class CrearProveedor implements OnInit {
   codigoExiste = false;
   validandoNombre = false;
   validandoRuc = false;
+  esEdicion = false;
+  proveedorIdOriginal: string | null = null;
+  nombreOriginal: string = '';
+  rucOriginal: string = '';
 
   constructor(
     private proveedoresService: ProveedoresService,
-    private router: Router
+    private router: Router,
+    private activatedRoute: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
-    // Inicialización vacía - saldo se calculará automáticamente
+    // Detectar si es edición
+    this.activatedRoute.params.subscribe(params => {
+      if (params['id']) {
+        this.esEdicion = true;
+        this.proveedorIdOriginal = params['id'];
+        this.cargarProveedor(params['id']);
+      }
+    });
+  }
+
+  // Cargar datos del proveedor para edición
+  async cargarProveedor(id: string): Promise<void> {
+    try {
+      const proveedor$ = this.proveedoresService.getProveedorById(id);
+      proveedor$.subscribe({
+        next: (proveedor) => {
+          if (proveedor) {
+            this.proveedor = { ...proveedor };
+            this.nombreOriginal = proveedor.nombre || '';
+            this.rucOriginal = proveedor.ruc || '';
+          } else {
+            Swal.fire({ icon: 'error', title: 'No encontrado', text: 'No se pudo cargar el proveedor' });
+            this.router.navigate(['/proveedores']);
+          }
+        },
+        error: (error) => {
+          console.error('Error al cargar proveedor:', error);
+          Swal.fire({ icon: 'error', title: 'Error', text: 'Error al cargar el proveedor' });
+          this.router.navigate(['/proveedores']);
+        }
+      });
+    } catch (error) {
+      console.error('Error al cargar proveedor:', error);
+      await Swal.fire({ icon: 'error', title: 'Error', text: 'Error al cargar el proveedor' });
+      this.router.navigate(['/proveedores']);
+    }
   }
 
   // Verificar si el formulario es válido para guardar
@@ -275,25 +315,29 @@ export class CrearProveedor implements OnInit {
       return;
     }
 
-    // Validar nombre duplicado
-    await this.validarNombre();
-    if (!this.validaciones.nombre.valido && this.validaciones.nombre.mensaje) {
-      return;
+    // Validar nombre duplicado (solo si cambió o es nuevo)
+    if (this.proveedor.nombre !== this.nombreOriginal) {
+      await this.validarNombre();
+      if (!this.validaciones.nombre.valido && this.validaciones.nombre.mensaje) {
+        return;
+      }
     }
 
-    // Validar código si está presente
-    if (this.proveedor.codigo) {
+    // Validar código si está presente (solo en creación)
+    if (!this.esEdicion && this.proveedor.codigo) {
       await this.validarCodigo();
       if (!this.validaciones.codigo.valido) {
         return;
       }
     }
 
-    // Validar RUC
-    this.validarRUC();
-    if (!this.validaciones.ruc.valido) {
-      await Swal.fire({ icon: 'error', title: 'RUC inválido', text: this.validaciones.ruc.mensaje || 'Verifique el RUC' });
-      return;
+    // Validar RUC (solo si cambió o es nuevo)
+    if (this.proveedor.ruc !== this.rucOriginal) {
+      this.validarRUC();
+      if (!this.validaciones.ruc.valido) {
+        await Swal.fire({ icon: 'error', title: 'RUC inválido', text: this.validaciones.ruc.mensaje || 'Verifique el RUC' });
+        return;
+      }
     }
 
     // Validar teléfono principal si está presente
@@ -324,13 +368,21 @@ export class CrearProveedor implements OnInit {
     }
 
     try {
-      this.proveedor.fechaIngreso = new Date();
-      await this.proveedoresService.createProveedor(this.proveedor);
-      await Swal.fire({ icon: 'success', title: 'Proveedor creado', timer: 1500, showConfirmButton: false });
+      if (this.esEdicion && this.proveedorIdOriginal) {
+        // Actualizar proveedor existente
+        await this.proveedoresService.updateProveedor(this.proveedorIdOriginal, this.proveedor);
+        await Swal.fire({ icon: 'success', title: 'Proveedor actualizado', timer: 1500, showConfirmButton: false });
+      } else {
+        // Crear nuevo proveedor
+        this.proveedor.fechaIngreso = new Date();
+        await this.proveedoresService.createProveedor(this.proveedor);
+        await Swal.fire({ icon: 'success', title: 'Proveedor creado', timer: 1500, showConfirmButton: false });
+      }
       this.router.navigate(['/proveedores']);
     } catch (error: any) {
-      console.error('Error al crear proveedor:', error);
-      await Swal.fire({ icon: 'error', title: 'No se pudo crear', text: error?.message || 'Error al crear el proveedor' });
+      console.error('Error al guardar proveedor:', error);
+      const titulo = this.esEdicion ? 'No se pudo actualizar' : 'No se pudo crear';
+      await Swal.fire({ icon: 'error', title: titulo, text: error?.message || 'Error al guardar el proveedor' });
     }
   }
 

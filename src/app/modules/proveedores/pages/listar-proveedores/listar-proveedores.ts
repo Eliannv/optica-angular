@@ -88,6 +88,11 @@ export class ListarProveedores implements OnInit {
     this.router.navigate(['/proveedores/crear']);
   }
 
+  editarProveedor(proveedor: Proveedor, event: any) {
+    event.stopPropagation();
+    this.router.navigate(['/proveedores/editar', proveedor.id]);
+  }
+
   eliminarProveedor(id: string) {
     Swal.fire({
       title: '¿Eliminar proveedor?',

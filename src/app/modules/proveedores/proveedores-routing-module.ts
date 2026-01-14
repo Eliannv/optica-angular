@@ -6,6 +6,7 @@ import { ListarProveedores } from './pages/listar-proveedores/listar-proveedores
 const routes: Routes = [
   { path: '', component: ListarProveedores },
   { path: 'crear', component: CrearProveedor },
+  { path: 'editar/:id', component: CrearProveedor },
 ];
 
 @NgModule({
