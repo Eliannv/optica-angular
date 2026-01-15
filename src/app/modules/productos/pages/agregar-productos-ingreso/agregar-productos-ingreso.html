@@ -109,7 +109,14 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Costo Unitario</label>
-                        <input type="number" id="existenteCosto" class="form-input" formControlName="costoUnitario" min="0" step="0.01" (keydown.enter)="focusNext($event, 'existenteObs')" />
+                        <input type="number" id="existenteCosto" class="form-input" formControlName="costoUnitario" min="0" step="0.01" (keydown.enter)="focusNext($event, 'existentePvp1')" />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">V/Público (PVP1) - Opcional</label>
+                        <input type="number" id="existentePvp1" class="form-input" formControlName="pvp1" min="0" step="0.01" placeholder="Dejar vacío para no cambiar" (keydown.enter)="focusNext($event, 'existenteObs')" />
+                        <small class="form-hint">Si se ingresa un valor, reemplazará el precio de venta actual del producto</small>
                     </div>
                 </div>
                 <div class="form-group">

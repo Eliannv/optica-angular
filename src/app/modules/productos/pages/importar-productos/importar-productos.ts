@@ -236,26 +236,63 @@ export class ImportarProductosComponent {
   }
 
   /**
-   * 🔍 Verificar si los productos ya existen en la BD
+   * 🔍 Verificar si los productos ya existen en la BD (por CÓDIGO primero, luego MODELO + COLOR + NOMBRE)
+   * Si existen: sumar stock, reemplazar proveedor y PVP1
+   * 
+   * IMPORTANTE: El CÓDIGO es el identificador principal
    */
   private async verificarProductosExistentes(productos: ProductoExcelPreview[]): Promise<void> {
     try {
       // Usar firstValueFrom en lugar de toPromise()
       const productosSnapshot = await firstValueFrom(this.productosService.getProductos());
-      const productosMap = new Map(
-        (productosSnapshot || []).map(p => [p.codigo, p])
-      );
 
       for (const prod of productos) {
-        if (prod.codigo && productosMap.has(prod.codigo)) {
-          const existente = productosMap.get(prod.codigo)!;
+        let productoExistente: any = null;
+
+        // 1. PRIORIDAD: Buscar por CÓDIGO (es el identificador único en el sistema)
+        if (prod.codigo && prod.codigo.trim()) {
+          productoExistente = (productosSnapshot || []).find(p => 
+            p.codigo?.toLowerCase().trim() === prod.codigo?.toLowerCase().trim()
+          );
+        }
+
+        // 2. Si no encuentra por código, buscar por Nombre + Modelo + Color
+        // (por si acaso el código no coincide pero los datos descriptivos sí)
+        if (!productoExistente) {
+          productoExistente = (productosSnapshot || []).find(p => 
+            p.nombre?.toLowerCase().trim() === prod.nombre?.toLowerCase().trim() &&
+            (p.modelo?.toLowerCase().trim() === prod.modelo?.toLowerCase().trim() || (!p.modelo && !prod.modelo)) &&
+            (p.color?.toLowerCase().trim() === prod.color?.toLowerCase().trim() || (!p.color && !prod.color))
+          );
+        }
+
+        if (productoExistente && productoExistente.id) {
           prod.estado = 'EXISTENTE';
-          prod.productoId = existente.id;
+          prod.productoId = productoExistente.id;
           
-          // Pre-cargar datos existentes
-          prod.costo = existente.costo || 0;
-          prod.grupo = existente.grupo || 'GAFAS';
-          prod.observacion = existente.observacion || '';
+          // La cantidad del Excel es lo que se va a AGREGAR al stock
+          // No modificamos prod.cantidad, se mantiene la del Excel
+          const stockExistente = productoExistente.stock || 0;
+          const cantidadAAgregar = prod.cantidad || 0; // Cantidad del Excel a agregar
+          prod.stockAnterior = stockExistente;
+          // El nuevo stock final será: stockExistente + cantidadAAgregar
+          // Se calcula en la creación del detalle del ingreso
+          
+          // Pre-cargar datos existentes pero permitir que se reemplacen
+          prod.costo = productoExistente.costo || 0;
+          prod.grupo = productoExistente.grupo || 'GAFAS';
+          
+          // IMPORTANTE: Reemplazar proveedor si es diferente
+          prod.proveedorAnterior = productoExistente.proveedor || '';
+          
+          // Reemplazar PVP1 si viene en la importación
+          if (prod.pvp1) {
+            prod.pvp1Anterior = productoExistente.pvp1 || 0;
+          } else {
+            prod.pvp1 = productoExistente.pvp1 || 0;
+          }
+          
+          prod.observacion = productoExistente.observacion || '';
         }
       }
     } catch (error) {

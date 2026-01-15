@@ -62,6 +62,7 @@ export class AgregarProductosIngresoComponent implements OnInit {
       productoId: ['', Validators.required],
       cantidad: [1, [Validators.required, Validators.min(1)]],
       costoUnitario: [0, Validators.min(0)],
+      pvp1: [0, Validators.min(0)], // Nuevo: PVP1 para actualizar precio de venta
       observacion: [''],
     });
 
@@ -210,7 +211,7 @@ export class AgregarProductosIngresoComponent implements OnInit {
 
   cancelarSeleccion() {
     this.productoSeleccionado.set(null);
-    this.formProductoExistente.reset({ cantidad: 1, costoUnitario: 0 });
+    this.formProductoExistente.reset({ cantidad: 1, costoUnitario: 0, pvp1: 0 });
     this.busqueda.set('');
   }
 
@@ -236,10 +237,16 @@ export class AgregarProductosIngresoComponent implements OnInit {
     if (producto.color) detalle.color = producto.color;
     if (producto.grupo) detalle.grupo = producto.grupo;
     if (producto.codigo) detalle.codigo = producto.codigo;
+    
+    // NUEVO: Agregar PVP1 si se especifica para actualizar precio de venta
+    if (valores.pvp1 && valores.pvp1 > 0) {
+      detalle.pvp1 = valores.pvp1;
+    }
+    
     if (valores.observacion) detalle.observacion = valores.observacion;
 
     this.detalles.update((list) => [...list, detalle]);
-    this.formProductoExistente.reset({ cantidad: 1, costoUnitario: 0 });
+    this.formProductoExistente.reset({ cantidad: 1, costoUnitario: 0, pvp1: 0 });
     this.productoSeleccionado.set(null);
     this.busqueda.set('');
     

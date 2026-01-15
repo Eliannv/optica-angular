@@ -160,19 +160,27 @@ export class IngresosService {
         );
         detalle.productoId = productoId;
       } else if (detalle.tipo === 'EXISTENTE' && detalle.productoId) {
-        // 🔸 Verificar y actualizar proveedor si es diferente
+        // 🔸 Actualizar datos del producto existente si es necesario
         const productoDoc = doc(this.firestore, `productos/${detalle.productoId}`);
         const productoSnap = await getDoc(productoDoc);
         
         if (productoSnap.exists()) {
           const productoData = productoSnap.data() as Producto;
+          const actualizaciones: any = { updatedAt: new Date() };
           
-          // Si el proveedor del producto es diferente al del ingreso, actualizar
+          // Actualizar proveedor si es diferente
           if (productoData.proveedor !== proveedorIngreso) {
-            batch.update(productoDoc, {
-              proveedor: proveedorIngreso,
-              updatedAt: new Date()
-            });
+            actualizaciones.proveedor = proveedorIngreso;
+          }
+          
+          // NUEVO: Actualizar PVP1 si viene en el detalle
+          if (detalle.pvp1 !== undefined && detalle.pvp1 > 0) {
+            actualizaciones.pvp1 = detalle.pvp1;
+          }
+          
+          // Solo hacer update si hay cambios
+          if (Object.keys(actualizaciones).length > 1) { // > 1 porque siempre tiene updatedAt
+            batch.update(productoDoc, actualizaciones);
           }
         }
 
@@ -331,15 +339,19 @@ export class IngresosService {
   private async registrarMovimiento(
     movimiento: MovimientoStock
   ): Promise<void> {
-    // Obtener stock actual del producto
+    // Obtener stock ACTUAL del producto (después de haber sido actualizado)
     const productoDoc = doc(this.firestore, `productos/${movimiento.productoId}`);
     const productoSnap = await getDoc(productoDoc);
     
     if (productoSnap.exists()) {
       const producto = productoSnap.data() as Producto;
-      const stockAnterior = producto.stock || 0;
-      const esLunas = (producto as any)?.grupo === 'LUNAS' || (producto as any)?.stockIlimitado === true;
-      const stockNuevo = esLunas ? stockAnterior : stockAnterior + movimiento.cantidad;
+      // El stock ya fue actualizado en actualizarStockProducto
+      // Solo registramos el estado actual, no volvemos a sumar
+      const stockNuevo = producto.stock || 0;
+      // stockAnterior = stockNuevo - cantidad (para casos INGRESO)
+      const stockAnterior = movimiento.tipo === 'INGRESO' 
+        ? (stockNuevo - movimiento.cantidad) 
+        : (movimiento.stockAnterior || 0);
 
       // Ensamblar movimiento evitando campos undefined
       const nuevoMovimiento: any = {

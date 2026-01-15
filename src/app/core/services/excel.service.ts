@@ -30,7 +30,12 @@ export interface ProductoExcelPreview {
   
   // Estado
   estado: 'EXISTENTE' | 'NUEVO';
-  productoId?: string; // Si existe
+  productoId?: string; // Si existe  
+  // Campos para productos existentes (cuando se reemplaza)
+  stockAnterior?: number; // Stock anterior del producto
+  proveedorAnterior?: string; // Proveedor anterior del producto
+  pvp1Anterior?: number; // PVP1 anterior del producto
+  idInterno?: number; // ID interno del producto existente
 }
 
 @Injectable({
