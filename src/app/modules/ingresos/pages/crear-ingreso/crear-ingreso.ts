@@ -33,7 +33,6 @@ export class CrearIngresoComponent implements OnInit {
     numeroFactura: '',
     fecha: new Date(),
     tipoCompra: 'CONTADO',
-    observacion: '',
     descuento: 0, // Nuevo campo
     flete: 0, // Nuevo campo
     iva: 0, // Nuevo campo - monto de IVA
@@ -431,9 +430,8 @@ export class CrearIngresoComponent implements OnInit {
         await Swal.fire({ icon: 'success', title: 'Proveedor creado', timer: 1500, showConfirmButton: false });
       }
       
-      // Asignar el nombre del nuevo proveedor al ingreso y guardar id/código como referencia
+      // Asignar el nombre del nuevo proveedor al ingreso (no guardar proveedorId para evitar confusión)
       this.ingreso.proveedor = nuevoProveedor.nombre;
-      (this.ingreso as any).proveedorId = nuevoProveedor.codigo || docRef.id;
       
       // Recargar proveedores
       this.cargarProveedores();
@@ -499,7 +497,7 @@ export class CrearIngresoComponent implements OnInit {
     );
     if (prov) {
       this.ingreso.proveedor = prov.nombre;
-      (this.ingreso as any).proveedorId = prov.id || prov.codigo;
+      // NO guardar proveedorId para evitar confusión - usar solo el nombre en proveedor
     }
 
     this.guardando.set(true);

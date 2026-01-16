@@ -26,10 +26,14 @@ import { CajaBanco, MovimientoCajaBanco, ResumenCajaBanco } from '../models/caja
 export class CajaBancoService {
   private firestore = inject(Firestore);
 
-  // 🔹 Obtener todas las cajas banco
+  // 🔹 Obtener todas las cajas banco (SOLO ACTIVAS)
   getCajasBanco(): Observable<CajaBanco[]> {
     const cajasRef = collection(this.firestore, 'cajas_banco');
-    const q = query(cajasRef, orderBy('createdAt', 'desc'));
+    const q = query(
+      cajasRef,
+      where('activo', '!=', false),
+      orderBy('createdAt', 'desc')
+    );
     return collectionData(q, { idField: 'id' }) as Observable<CajaBanco[]>;
   }
 
@@ -81,6 +85,7 @@ export class CajaBancoService {
         usuario_id: caja.usuario_id,
         usuario_nombre: caja.usuario_nombre,
         observacion: caja.observacion || '',
+        activo: true, // 🔹 Nueva caja siempre activa
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
@@ -355,7 +360,33 @@ export class CajaBancoService {
     }
   }
 
-  // 🔹 Eliminar una caja banco completa
+  // 🔹 Desactivar una caja banco (SOFT DELETE)
+  async desactivarCajaBanco(cajaBancoId: string): Promise<void> {
+    try {
+      await updateDoc(doc(this.firestore, `cajas_banco/${cajaBancoId}`), {
+        activo: false,
+        updatedAt: Timestamp.now(),
+      });
+    } catch (error) {
+      console.error('Error al desactivar caja banco:', error);
+      throw error;
+    }
+  }
+
+  // 🔹 Reactivar una caja banco (reversible)
+  async activarCajaBanco(cajaBancoId: string): Promise<void> {
+    try {
+      await updateDoc(doc(this.firestore, `cajas_banco/${cajaBancoId}`), {
+        activo: true,
+        updatedAt: Timestamp.now(),
+      });
+    } catch (error) {
+      console.error('Error al activar caja banco:', error);
+      throw error;
+    }
+  }
+
+  // 🔹 Eliminar una caja banco completa (HARD DELETE: para desarrollo/test)
   async eliminarCajaBanco(cajaBancoId: string): Promise<void> {
     try {
       // Obtener todos los movimientos de la caja

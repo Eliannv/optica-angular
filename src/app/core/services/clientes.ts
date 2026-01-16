@@ -22,9 +22,10 @@ export class ClientesService {
   private firestore = inject(Firestore);
   private clientesRef = collection(this.firestore, 'clientes');
 
-  // 🔹 Obtener todos los clientes
+  // 🔹 Obtener todos los clientes (SOLO ACTIVOS)
   getClientes(): Observable<Cliente[]> {
-    return collectionData(this.clientesRef, {
+    const q = query(this.clientesRef, where('activo', '!=', false));
+    return collectionData(q, {
       idField: 'id',
     }) as Observable<Cliente[]>;
   }
@@ -41,7 +42,9 @@ export class ClientesService {
   createCliente(cliente: Cliente) {
     return addDoc(this.clientesRef, {
       ...cliente,
+      activo: true, // 🔹 Nuevo cliente siempre activo
       createdAt: new Date(),
+      updatedAt: new Date(),
     });
   }
 
@@ -50,19 +53,42 @@ export class ClientesService {
     const clienteDoc = doc(this.firestore, `clientes/${id}`);
     return updateDoc(clienteDoc, {
       ...cliente,
+      updatedAt: new Date(),
     });
   }
 
-  // 🔹 Eliminar cliente
+  // 🔹 Eliminar cliente (SOFT DELETE: desactivar)
+  desactivarCliente(id: string) {
+    const clienteDoc = doc(this.firestore, `clientes/${id}`);
+    return updateDoc(clienteDoc, {
+      activo: false,
+      updatedAt: new Date(),
+    });
+  }
+
+  // 🔹 Reactivar cliente (reversible)
+  activarCliente(id: string) {
+    const clienteDoc = doc(this.firestore, `clientes/${id}`);
+    return updateDoc(clienteDoc, {
+      activo: true,
+      updatedAt: new Date(),
+    });
+  }
+
+  // 🔹 Eliminar cliente (HARD DELETE: para desarrollo/test)
   deleteCliente(id: string) {
     const clienteDoc = doc(this.firestore, `clientes/${id}`);
     return deleteDoc(clienteDoc);
   }
 
-  // 🔹 Verificar unicidad global de cédula (clientes y usuarios)
+  // 🔹 Verificar unicidad global de cédula (clientes ACTIVOS y usuarios)
   async existeCedula(cedula: string, excluirClienteId?: string): Promise<boolean> {
-    // Buscar en clientes
-    const qClientes = query(this.clientesRef, where('cedula', '==', cedula));
+    // Buscar en clientes ACTIVOS
+    const qClientes = query(
+      this.clientesRef,
+      where('cedula', '==', cedula),
+      where('activo', '!=', false)
+    );
     const snapClientes = await getDocs(qClientes);
     const existeEnClientes = snapClientes.docs.some(d => d.id !== excluirClienteId);
     if (existeEnClientes) return true;
@@ -74,16 +100,31 @@ export class ClientesService {
     return !snapUsuarios.empty;
   }
 
-  // 🔹 Verificar unicidad global de email (clientes y usuarios)
+  // 🔹 Verificar unicidad global de email (clientes ACTIVOS y usuarios)
   async existeEmail(email: string, excluirClienteId?: string): Promise<boolean> {
     const emailLower = email.toLowerCase();
     
-    // Buscar en clientes (compatibilidad: algunos documentos antiguos usan 'correo')
-    // Buscar tanto con el email original como en minúsculas
-    const qClientesEmail = query(this.clientesRef, where('email', '==', email));
-    const qClientesEmailLower = query(this.clientesRef, where('email', '==', emailLower));
-    const qClientesCorreo = query(this.clientesRef, where('correo', '==', email));
-    const qClientesCorreoLower = query(this.clientesRef, where('correo', '==', emailLower));
+    // Buscar en clientes ACTIVOS (compatibilidad: algunos documentos antiguos usan 'correo')
+    const qClientesEmail = query(
+      this.clientesRef,
+      where('email', '==', email),
+      where('activo', '!=', false)
+    );
+    const qClientesEmailLower = query(
+      this.clientesRef,
+      where('email', '==', emailLower),
+      where('activo', '!=', false)
+    );
+    const qClientesCorreo = query(
+      this.clientesRef,
+      where('correo', '==', email),
+      where('activo', '!=', false)
+    );
+    const qClientesCorreoLower = query(
+      this.clientesRef,
+      where('correo', '==', emailLower),
+      where('activo', '!=', false)
+    );
     
     const [snapClientesEmail, snapClientesEmailLower, snapClientesCorreo, snapClientesCorreoLower] = await Promise.all([
       getDocs(qClientesEmail),

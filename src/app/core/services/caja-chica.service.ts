@@ -27,17 +27,25 @@ import { CajaChica, MovimientoCajaChica, ResumenCajaChica } from '../models/caja
 export class CajaChicaService {
   private firestore = inject(Firestore);
 
-  // 🔹 Obtener todas las cajas chicas
+  // 🔹 Obtener todas las cajas chicas (SOLO ACTIVAS)
   getCajasChicas(): Observable<CajaChica[]> {
     const cajasRef = collection(this.firestore, 'cajas_chicas');
-    const q = query(cajasRef, orderBy('createdAt', 'desc'));
+    const q = query(
+      cajasRef,
+      where('activo', '!=', false),
+      orderBy('createdAt', 'desc')
+    );
     return collectionData(q, { idField: 'id' }) as Observable<CajaChica[]>;
   }
 
-  // 🔹 Obtener cajas chicas abiertas
+  // 🔹 Obtener cajas chicas abiertas (SOLO ACTIVAS)
   getCajasChicasAbiertas(): Observable<CajaChica[]> {
     const cajasRef = collection(this.firestore, 'cajas_chicas');
-    const q = query(cajasRef, where('estado', '==', 'ABIERTA'));
+    const q = query(
+      cajasRef,
+      where('estado', '==', 'ABIERTA'),
+      where('activo', '!=', false)
+    );
     return collectionData(q, { idField: 'id' }).pipe(
       map((cajas: any[]) => {
         return (cajas || []).sort((a, b) => {
@@ -124,6 +132,7 @@ export class CajaChicaService {
         usuario_id: caja.usuario_id,
         usuario_nombre: caja.usuario_nombre,
         observacion: caja.observacion || '',
+        activo: true, // 🔹 Nueva caja siempre activa
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
@@ -295,7 +304,33 @@ export class CajaChicaService {
     }
   }
 
-  // 🔹 Eliminar una caja chica completa (solo desde caja banco - admin)
+  // 🔹 Desactivar una caja chica (SOFT DELETE)
+  async desactivarCajaChica(cajaChicaId: string): Promise<void> {
+    try {
+      await updateDoc(doc(this.firestore, `cajas_chicas/${cajaChicaId}`), {
+        activo: false,
+        updatedAt: Timestamp.now(),
+      });
+    } catch (error) {
+      console.error('Error al desactivar caja chica:', error);
+      throw error;
+    }
+  }
+
+  // 🔹 Reactivar una caja chica (reversible)
+  async activarCajaChica(cajaChicaId: string): Promise<void> {
+    try {
+      await updateDoc(doc(this.firestore, `cajas_chicas/${cajaChicaId}`), {
+        activo: true,
+        updatedAt: Timestamp.now(),
+      });
+    } catch (error) {
+      console.error('Error al activar caja chica:', error);
+      throw error;
+    }
+  }
+
+  // 🔹 Eliminar una caja chica completa (HARD DELETE: para desarrollo/test)
   async eliminarCajaChica(cajaChicaId: string): Promise<void> {
     try {
       // Obtener todos los movimientos de la caja

@@ -243,10 +243,11 @@ export class AgregarProductosIngresoComponent implements OnInit {
       detalle.pvp1 = valores.pvp1;
     }
     
-    if (valores.observacion) detalle.observacion = valores.observacion;
+    // IMPORTANTE: Agregar observación SIEMPRE, incluso si está vacía
+    detalle.observacion = valores.observacion || '';
 
     this.detalles.update((list) => [...list, detalle]);
-    this.formProductoExistente.reset({ cantidad: 1, costoUnitario: 0, pvp1: 0 });
+    this.formProductoExistente.reset({ cantidad: 1, costoUnitario: 0, pvp1: 0, observacion: '' });
     this.productoSeleccionado.set(null);
     this.busqueda.set('');
     
@@ -277,10 +278,11 @@ export class AgregarProductosIngresoComponent implements OnInit {
     if (valores.grupo) detalle.grupo = valores.grupo;
     if (valores.pvp1) detalle.pvp1 = valores.pvp1;
     if (valores.iva) detalle.iva = valores.iva; // Agregar IVA
-    if (valores.observacion) detalle.observacion = valores.observacion;
+    // IMPORTANTE: Agregar observación SIEMPRE, incluso si está vacía
+    detalle.observacion = valores.observacion || '';
 
     this.detalles.update((list) => [...list, detalle]);
-    this.formProductoNuevo.reset({ cantidad: 1, stock: 1, costoUnitario: 0, pvp1: 0 });
+    this.formProductoNuevo.reset({ cantidad: 1, stock: 1, costoUnitario: 0, pvp1: 0, observacion: '' });
     this.modoAgregar.set(null);
     
     // Actualizar el próximo ID y enfocar en el primer campo
@@ -327,6 +329,8 @@ export class AgregarProductosIngresoComponent implements OnInit {
         this.ingresosService.limpiarIngresoTemporal();
       }
 
+      console.log('📋 Detalles enviados a finalizar:', this.detalles());
+      
       await this.ingresosService.finalizarIngreso(
         ingresoId,
         this.detalles()

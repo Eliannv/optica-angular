@@ -6,7 +6,6 @@ import {
   getDoc,
   getDocs,
   updateDoc,
-  deleteDoc,
   deleteField,
   collectionData,
   query,
@@ -131,15 +130,6 @@ export class EmpleadosService {
       sucursal: null,
       updatedAt: new Date()
     });
-  }
-
-  /**
-   * Eliminar empleado de Firestore
-   * NOTA: Esto NO elimina el usuario de Firebase Auth
-   */
-  eliminarEmpleado(id: string): Promise<void> {
-    const empleadoRef = doc(this.firestore, `usuarios/${id}`);
-    return deleteDoc(empleadoRef);
   }
 
   /**

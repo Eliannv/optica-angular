@@ -23,9 +23,10 @@ export class ProveedoresService {
   private firestore = inject(Firestore);
   private proveedoresRef = collection(this.firestore, 'proveedores');
 
-  // 🔹 Obtener todos los proveedores
+  // 🔹 Obtener todos los proveedores (SOLO ACTIVOS)
   getProveedores(): Observable<Proveedor[]> {
-    return collectionData(this.proveedoresRef, {
+    const q = query(this.proveedoresRef, where('activo', '!=', false));
+    return collectionData(q, {
       idField: 'id',
     }) as Observable<Proveedor[]>;
   }
@@ -127,7 +128,9 @@ export class ProveedoresService {
       nombre: nombreNorm,
       nombreLower,
       ruc: rucNorm,
+      activo: true, // 🔹 Nuevo proveedor siempre activo
       createdAt: new Date(),
+      updatedAt: new Date(),
       saldo: proveedor.saldo || 0,
     });
   }
@@ -175,7 +178,25 @@ export class ProveedoresService {
     return updateDoc(proveedorDoc, updates);
   }
 
-  // 🔹 Eliminar proveedor
+  // 🔹 Eliminar proveedor (SOFT DELETE: desactivar)
+  desactivarProveedor(id: string) {
+    const proveedorDoc = doc(this.firestore, `proveedores/${id}`);
+    return updateDoc(proveedorDoc, {
+      activo: false,
+      updatedAt: new Date(),
+    });
+  }
+
+  // 🔹 Reactivar proveedor (reversible)
+  activarProveedor(id: string) {
+    const proveedorDoc = doc(this.firestore, `proveedores/${id}`);
+    return updateDoc(proveedorDoc, {
+      activo: true,
+      updatedAt: new Date(),
+    });
+  }
+
+  // 🔹 Eliminar proveedor (HARD DELETE: para desarrollo/test)
   deleteProveedor(id: string) {
     const proveedorDoc = doc(this.firestore, `proveedores/${id}`);
     return deleteDoc(proveedorDoc);

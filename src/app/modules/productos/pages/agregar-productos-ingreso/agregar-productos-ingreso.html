@@ -75,6 +75,7 @@
                     <div class="product-meta">
                         <span class="meta-item">📦 Stock: <strong>{{ productoSeleccionado()!.stock || 0 }}</strong></span>
                         <span class="meta-item">💵 Costo: <strong>${{ productoSeleccionado()!.costo || 0 }}</strong></span>
+                        <span class="meta-item">🏷️ PVP1: <strong>${{ productoSeleccionado()!.pvp1 || 0 }}</strong></span>
                     </div>
                 </div>
                 <button type="button" class="btn-cancel-small" (click)="cancelarSeleccion()">
@@ -95,6 +96,7 @@
                             <span class="badge-grupo">{{ producto.grupo }}</span>
                             <span class="dato">📦 {{ producto.stock || 0 }}</span>
                             <span class="dato">💵 ${{ producto.costo || 0 }}</span>
+                            <span class="dato">🏷️ ${{ producto.pvp1 || 0 }}</span>
                         </div>
                     </div>
                 </div>
@@ -115,8 +117,8 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">V/Público (PVP1) - Opcional</label>
-                        <input type="number" id="existentePvp1" class="form-input" formControlName="pvp1" min="0" step="0.01" placeholder="Dejar vacío para no cambiar" (keydown.enter)="focusNext($event, 'existenteObs')" />
-                        <small class="form-hint">Si se ingresa un valor, reemplazará el precio de venta actual del producto</small>
+                        <input type="number" id="existentePvp1" class="form-input" formControlName="pvp1" min="0" step="0.01" [attr.placeholder]="'Actual: $' + (productoSeleccionado()?.pvp1 || 0)" (keydown.enter)="focusNext($event, 'existenteObs')" />
+                        <small class="form-hint">Ingresa nuevo valor o deja vacío para no cambiar</small>
                     </div>
                 </div>
                 <div class="form-group">

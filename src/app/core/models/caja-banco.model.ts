@@ -7,6 +7,7 @@ export interface CajaBanco {
   usuario_id?: string; // ID del usuario que abrió
   usuario_nombre?: string; // Nombre del usuario
   observacion?: string; // Observaciones
+  activo?: boolean; // 🔹 Soft delete: true = activo, false = desactivado
   createdAt?: any; // Timestamp de creación
   updatedAt?: any; // Timestamp de actualización
   cerrado_en?: any; // Timestamp de cierre

@@ -14,6 +14,7 @@ export interface Producto {
   proveedor?: string; // Proveedor principal
   ingresoId?: string; // ID del ingreso/factura de donde proviene
   observacion?: string | null;
+  activo?: boolean; // 🔹 Soft delete: true = activo, false = desactivado
   
   // Campos opcionales (legacy - mantener para compatibilidad con datos existentes)
   nuevoCodigo?: string;

@@ -25,9 +25,10 @@ export class ProductosService {
   private firestore = inject(Firestore);
   private productosRef = collection(this.firestore, 'productos');
 
-  // 🔹 Obtener todos los productos
+  // 🔹 Obtener todos los productos (SOLO ACTIVOS)
   getProductos(): Observable<Producto[]> {
-    return collectionData(this.productosRef, {
+    const q = query(this.productosRef, where('activo', '!=', false));
+    return collectionData(q, {
       idField: 'id',
     }) as Observable<Producto[]>;
   }
@@ -130,7 +131,9 @@ export class ProductosService {
     return addDoc(this.productosRef, {
       ...producto,
       idInterno,
+      activo: true, // 🔹 Nuevo producto siempre activo
       createdAt: new Date(),
+      updatedAt: new Date(),
       stock: esLunas ? 0 : (producto.stock || 0),
       ...(esLunas ? { stockIlimitado: true } : {}),
     });
@@ -190,7 +193,25 @@ export class ProductosService {
     });
   }
 
-  // 🔹 Eliminar producto
+  // 🔹 Eliminar producto (SOFT DELETE: desactivar)
+  desactivarProducto(id: string) {
+    const productoDoc = doc(this.firestore, `productos/${id}`);
+    return updateDoc(productoDoc, {
+      activo: false,
+      updatedAt: new Date(),
+    });
+  }
+
+  // 🔹 Reactivar producto (reversible)
+  activarProducto(id: string) {
+    const productoDoc = doc(this.firestore, `productos/${id}`);
+    return updateDoc(productoDoc, {
+      activo: true,
+      updatedAt: new Date(),
+    });
+  }
+
+  // 🔹 Eliminar producto (HARD DELETE: para desarrollo/test)
   deleteProducto(id: string) {
     const productoDoc = doc(this.firestore, `productos/${id}`);
     return deleteDoc(productoDoc);

@@ -10,5 +10,7 @@ export interface Cliente {
   pais?: string;
   provincia?: string;
   ciudad?: string;
+  activo?: boolean; // 🔹 Soft delete: true = activo, false = desactivado
   createdAt?: any;
+  updatedAt?: any;
 }

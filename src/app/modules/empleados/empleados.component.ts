@@ -170,24 +170,36 @@ export class EmpleadosComponent implements OnInit {
   }
 
   eliminarEmpleado(empleado: Usuario) {
+    // 🔹 En lugar de eliminar, bloqueamos al usuario
+    const texto = `¿Estás seguro de bloquear a ${empleado.nombre}?\n\nSe quitarán Machine ID y Sucursal.\n\nNOTA: El empleado puede ser desbloqueado en cualquier momento.`;
+
     Swal.fire({
       icon: 'warning',
-      title: 'Eliminar empleado',
-      text: `Esta acción NO se puede deshacer. Escribe el nombre completo para confirmar:`,
-      input: 'text',
-      inputPlaceholder: empleado.nombre,
-      showCancelButton: true
+      title: 'Bloquear empleado',
+      text: texto,
+      showCancelButton: true,
+      confirmButtonText: 'Sí, bloquear',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#dc3545'
     }).then(res => {
-      const confirmacion = res.value as string;
-      if (res.isConfirmed && confirmacion === empleado.nombre) {
-        this.empleadosService.eliminarEmpleado(empleado.id!)
+      if (res.isConfirmed) {
+        // Usar el método de toggle para bloquear (activo: false)
+        const datosActualizacion = { 
+          activo: false,  // 🔹 Bloquear
+          machineId: undefined, 
+          sucursal: undefined 
+        };
+
+        this.empleadosService.toggleEstadoEmpleado(empleado.id!, datosActualizacion)
           .then(() => {
-            Swal.fire({ icon: 'success', title: 'Eliminado', text: 'Empleado eliminado exitosamente' });
+            Swal.fire({ 
+              icon: 'success', 
+              title: 'Bloqueado', 
+              text: 'Empleado bloqueado exitosamente. Puede ser desbloqueado en cualquier momento.' 
+            });
             this.cargarEmpleados();
           })
           .catch(err => Swal.fire({ icon: 'error', title: 'Error', text: err.message }));
-      } else if (res.isConfirmed) {
-        Swal.fire({ icon: 'info', title: 'Cancelado', text: 'El nombre no coincide. Eliminación cancelada.' });
       }
     });
   }

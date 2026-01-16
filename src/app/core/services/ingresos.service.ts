@@ -149,7 +149,8 @@ export class IngresosService {
     const ingresoDoc = doc(this.firestore, `ingresos/${ingresoId}`);
     const ingresoSnap = await getDoc(ingresoDoc);
     const ingreso = ingresoSnap.data() as Ingreso;
-    const proveedorIngreso = (ingreso as any)?.proveedorId || ingreso?.proveedor || '';
+    // 🔹 IMPORTANTE: Siempre usar ingreso.proveedor (el nombre), NO el proveedorId
+    const proveedorIngreso = ingreso?.proveedor || '';
 
     for (const detalle of detalles) {
       if (detalle.tipo === 'NUEVO') {
@@ -188,7 +189,8 @@ export class IngresosService {
         await this.actualizarStockProducto(
           detalle.productoId,
           detalle.cantidad,
-          detalle.costoUnitario
+          detalle.costoUnitario,
+          detalle.observacion
         );
       }
 
@@ -229,11 +231,15 @@ export class IngresosService {
       if (detalle.color) detalleData.color = detalle.color;
       if (detalle.grupo) detalleData.grupo = detalle.grupo;
       if (detalle.idInterno) detalleData.idInterno = detalle.idInterno;
-      if (detalle.observacion) detalleData.observacion = detalle.observacion;
+      // IMPORTANTE: SIEMPRE guardar observación
+      if (detalle.observacion !== undefined && detalle.observacion !== null) {
+        detalleData.observacion = detalle.observacion;
+      }
       if (detalle.pvp1) detalleData.pvp1 = detalle.pvp1;
       if (detalle.iva) detalleData.iva = detalle.iva; // Agregar IVA del detalle
       if (detalle.stockInicial) detalleData.stockInicial = detalle.stockInicial;
       
+      console.log('💾 Guardando detalle:', { nombre: detalle.nombre, observacion: detalle.observacion, detalleData });
       batch.set(detalleRef, detalleData);
     }
 
@@ -288,7 +294,7 @@ export class IngresosService {
       idInterno: productoIdInterno,
       nombre: detalle.nombre,
       stock: esLunas ? 0 : detalle.cantidad,
-      proveedor: (ingreso as any)?.proveedorId || ingreso?.proveedor || '',
+      proveedor: ingreso?.proveedor || '', // 🔹 Usar proveedor (nombre), NO proveedorId
       ingresoId: ingresoId,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -312,7 +318,8 @@ export class IngresosService {
   private async actualizarStockProducto(
     productoId: string,
     cantidad: number,
-    costoUnitario?: number
+    costoUnitario?: number,
+    observacion?: string
   ): Promise<void> {
     const productoDoc = doc(this.firestore, `productos/${productoId}`);
     const productoSnap = await getDoc(productoDoc);
@@ -329,6 +336,10 @@ export class IngresosService {
       }
       if (costoUnitario !== undefined) {
         updateData.costo = costoUnitario;
+      }
+      // IMPORTANTE: Guardar observación si viene en el detalle
+      if (observacion !== undefined && observacion !== null && observacion !== '') {
+        updateData.observacion = observacion;
       }
 
       await updateDoc(productoDoc, updateData);

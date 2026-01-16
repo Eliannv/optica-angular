@@ -287,16 +287,6 @@
                     </div>
                 </div>
 
-                <!-- 6. OBSERVACIÓN -->
-                <div class="form-section">
-                    <label class="section-label">
-                        <span class="label-number">6</span>
-                        <span>Observación</span>
-                    </label>
-                    <textarea id="ingresoObservacion" class="form-input textarea" [(ngModel)]="ingreso.observacion" name="observacion" rows="3" placeholder="Ej: Compra especial con descuento del 10%" (keydown)="onTextareaKeydown($event, 'btnContinuar')"></textarea>
-                    <small class="form-hint">Opcional: Notas adicionales sobre esta compra (Ctrl+Enter para continuar)</small>
-                </div>
-
                 <!-- BOTONES -->
                 <div class="form-actions">
                     <button type="button" class="btn-cancel" (click)="cancelar()" [disabled]="guardando()">

@@ -14,6 +14,7 @@ export interface Proveedor {
   };
   fechaIngreso?: Date;
   saldo?: number;
+  activo?: boolean; // 🔹 Soft delete: true = activo, false = desactivado
   createdAt?: any;
   updatedAt?: any;
 }
