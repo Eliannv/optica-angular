@@ -121,7 +121,8 @@ export class AgregarProductosIngresoComponent implements OnInit {
   }
 
   cargarProductos() {
-    this.productosService.getProductos().subscribe({
+    // 🔹 Cargar TODOS los productos (activos e inactivos)
+    this.productosService.getProductosTodosInclusoInactivos().subscribe({
       next: (productos) => {
         this.productos.set(productos);
         this.productosFiltrados.set(productos);
@@ -223,6 +224,9 @@ export class AgregarProductosIngresoComponent implements OnInit {
 
     if (!producto) return;
 
+    // 🔹 Detectar si el producto está desactivado
+    const estaDesactivado = producto.activo === false;
+
     const detalle: DetalleIngreso = {
       id: Date.now().toString(),
       productoId: producto.id,
@@ -230,6 +234,7 @@ export class AgregarProductosIngresoComponent implements OnInit {
       nombre: producto.nombre,
       cantidad: valores.cantidad,
       costoUnitario: valores.costoUnitario,
+      estaDesactivado: estaDesactivado, // 🔹 Pasar flag de desactivación
     };
 
     // Agregar campos opcionales solo si existen
@@ -241,6 +246,11 @@ export class AgregarProductosIngresoComponent implements OnInit {
     // NUEVO: Agregar PVP1 si se especifica para actualizar precio de venta
     if (valores.pvp1 && valores.pvp1 > 0) {
       detalle.pvp1 = valores.pvp1;
+    }
+    
+    // 🔹 Si está desactivado, guardar stock anterior para suma posterior
+    if (estaDesactivado) {
+      detalle.stockActivoAnterior = producto.stock || 0;
     }
     
     // IMPORTANTE: Agregar observación SIEMPRE, incluso si está vacía

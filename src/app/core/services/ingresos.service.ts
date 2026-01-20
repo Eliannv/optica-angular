@@ -208,9 +208,13 @@ export class IngresosService {
             actualizaciones.stock = nuevoStock;
           }
           
-          // Actualizar observación si viene
+          // 🔹 Actualizar observación: CONCATENAR con el anterior, NO reemplazar
           if (detalle.observacion !== undefined && detalle.observacion !== null && detalle.observacion !== '') {
-            actualizaciones.observacion = detalle.observacion;
+            const observacionAnterior = productoData.observacion || '';
+            // Concatenar si hay observación anterior, sino solo usar la nueva
+            actualizaciones.observacion = observacionAnterior 
+              ? `${observacionAnterior} | ${detalle.observacion}`
+              : detalle.observacion;
           }
           
           // Hacer el update con todos los cambios en batch
