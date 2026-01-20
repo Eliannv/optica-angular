@@ -1,13 +1,17 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { ListarCajasComponent } from './pages/listar-cajas/listar-cajas';
-import { VerCajaComponent } from './pages/ver-caja/ver-caja';
+import { DetalleCajaBancoComponent } from './pages/detalle-caja-banco/detalle-caja-banco';
 import { RegistrarMovimientoComponent } from './pages/registrar-movimiento/registrar-movimiento';
+import { ImprimirCajaBancoComponent } from './pages/imprimir-caja-banco/imprimir-caja-banco';
+import { ImprimirCajaBancoMensualComponent } from './pages/imprimir-caja-banco-mensual/imprimir-caja-banco-mensual';
 
 const routes: Routes = [
   { path: '', component: ListarCajasComponent },
-  { path: 'ver/:id', component: VerCajaComponent },
+  { path: ':id/detalle', component: DetalleCajaBancoComponent },
   { path: 'registrar-movimiento', component: RegistrarMovimientoComponent },
+  { path: 'imprimir/:id', component: ImprimirCajaBancoComponent },
+  { path: 'imprimir-mensual/:year/:month', component: ImprimirCajaBancoMensualComponent },
 ];
 
 @NgModule({

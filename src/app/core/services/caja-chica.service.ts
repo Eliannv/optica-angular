@@ -64,6 +64,22 @@ export class CajaChicaService {
     return docData(cajaDoc, { idField: 'id' }) as Observable<CajaChica>;
   }
 
+  // 🔹 Obtener cajas chicas por mes (rango)
+  getCajasChicasPorMes(year: number, monthIndex0: number): Observable<CajaChica[]> {
+    const cajasRef = collection(this.firestore, 'cajas_chicas');
+    const inicioMes = new Date(year, monthIndex0, 1);
+    const inicioSiguienteMes = new Date(year, monthIndex0 + 1, 1);
+    const q = query(
+      cajasRef,
+      where('fecha', '>=', inicioMes),
+      where('fecha', '<', inicioSiguienteMes),
+      orderBy('fecha', 'desc')
+    );
+    return collectionData(q, { idField: 'id' }).pipe(
+      map((cajas: any[]) => (cajas || []).filter(c => c.activo !== false))
+    ) as Observable<CajaChica[]>;
+  }
+
   // 🔹 Obtener la caja abierta para el día actual (desde localStorage)
   async getCajaAbiertaHoy(): Promise<CajaChica | null> {
     // Usar localStorage para evitar query con índice

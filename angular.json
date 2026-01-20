@@ -24,8 +24,7 @@
                         }],
                         "styles": [
                             "src/styles.css",
-                            "src/styles/ticket.css",
-
+                            "src/styles/ticket.css"
                         ]
                     },
                     "configurations": {

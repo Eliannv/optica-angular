@@ -36,6 +36,40 @@ export class CajaBancoService {
     );
     return collectionData(q, { idField: 'id' }) as Observable<CajaBanco[]>;
   }
+  // 🔹 Obtener cajas banco por mes (rango)
+  getCajasBancoPorMes(year: number, monthIndex0: number): Observable<CajaBanco[]> {
+    const cajasRef = collection(this.firestore, 'cajas_banco');
+    const inicioMes = new Date(year, monthIndex0, 1);
+    const inicioSiguienteMes = new Date(year, monthIndex0 + 1, 1);
+    const q = query(
+      cajasRef,
+      where('fecha', '>=', inicioMes),
+      where('fecha', '<', inicioSiguienteMes),
+      orderBy('fecha', 'desc')
+    );
+    return collectionData(q, { idField: 'id' }) as Observable<CajaBanco[]>;
+  }
+
+  // 🔹 Obtener movimientos de caja banco por mes (global + por caja)
+  getMovimientosCajaBancoPorMes(year: number, monthIndex0: number): Observable<MovimientoCajaBanco[]> {
+    const movimientosRef = collection(this.firestore, 'movimientos_cajas_banco');
+    const inicioMes = new Date(year, monthIndex0, 1);
+    const inicioSiguienteMes = new Date(year, monthIndex0 + 1, 1);
+    const q = query(
+      movimientosRef,
+      where('fecha', '>=', inicioMes),
+      where('fecha', '<', inicioSiguienteMes)
+    );
+    return collectionData(q, { idField: 'id' }).pipe(
+      map((movimientos: any[]) => {
+        return (movimientos || []).sort((a, b) => {
+          const timeA = a?.createdAt?.toMillis?.() || 0;
+          const timeB = b?.createdAt?.toMillis?.() || 0;
+          return timeB - timeA;
+        });
+      })
+    ) as Observable<MovimientoCajaBanco[]>;
+  }
 
   // 🔹 Obtener una caja banco por ID
   getCajaBancoById(id: string): Observable<CajaBanco> {

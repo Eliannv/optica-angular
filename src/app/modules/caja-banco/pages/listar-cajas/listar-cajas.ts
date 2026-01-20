@@ -66,11 +66,18 @@ export class ListarCajasComponent implements OnInit {
   }
 
   verDetalles(cajaId: string): void {
-    this.router.navigate(['/caja-banco/ver', cajaId]);
+    this.router.navigate(['/caja-banco', cajaId, 'detalle']);
   }
 
   registrarMovimiento(): void {
     this.router.navigate(['/caja-banco/registrar-movimiento']);
+  }
+
+  imprimirMensualActual(): void {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1; // 1-12
+    this.router.navigate(['/caja-banco/imprimir-mensual', String(year), String(month)]);
   }
 
   // 🔹 Eliminar una caja chica y restar el dinero de la caja banco

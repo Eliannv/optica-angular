@@ -1,0 +1,101 @@
+<!-- Botones de acción (ocultos al imprimir) -->
+<div class="acciones-imprimir">
+    <button class="btn btn-primary" (click)="imprimir()">🖨️ Imprimir</button>
+    <button class="btn btn-secondary" (click)="volver()">← Volver</button>
+</div>
+
+<div class="reporte-container" *ngIf="caja">
+    <div class="reporte-header">
+        <h1>ÓPTICA MACÍAS</h1>
+        <h2>REPORTE DE CAJA BANCO</h2>
+        <div class="fecha-reporte">Fecha de impresión: {{ dateFrom(caja?.updatedAt) | date:'dd/MM/yyyy HH:mm' }}</div>
+    </div>
+
+    <div class="reporte-info">
+        <div class="reporte-info-item">
+            <span class="label">Fecha:</span>
+            <span class="value">{{ dateFrom(caja?.fecha) | date:'dd/MM/yyyy' }}</span>
+        </div>
+        <div class="reporte-info-item">
+            <span class="label">Estado:</span>
+            <span class="value">{{ caja?.estado }}</span>
+        </div>
+        <div class="reporte-info-item">
+            <span class="label">Usuario:</span>
+            <span class="value">{{ caja?.usuario_nombre || '-' }}</span>
+        </div>
+    </div>
+
+    <div class="reporte-resumen">
+        <h3>RESUMEN FINANCIERO</h3>
+        <div class="reporte-resumen-item">
+            <span>Saldo Inicial:</span>
+            <span>{{ caja?.saldo_inicial | currency:'USD':'symbol':'1.2-2' }}</span>
+        </div>
+        <div class="reporte-resumen-item">
+            <span>Total Ingresos ({{ resumen.cantidad_movimientos }} movs):</span>
+            <span style="color:#28a745; font-weight:bold;">+{{ resumen.total_ingresos | currency:'USD':'symbol':'1.2-2' }}</span>
+        </div>
+        <div class="reporte-resumen-item">
+            <span>Total Egresos:</span>
+            <span style="color:#dc3545; font-weight:bold;">-{{ resumen.total_egresos | currency:'USD':'symbol':'1.2-2' }}</span>
+        </div>
+        <div class="reporte-resumen-item total-final">
+            <span>SALDO FINAL:</span>
+            <span>{{ resumen.saldo_final | currency:'USD':'symbol':'1.2-2' }}</span>
+        </div>
+    </div>
+
+    <div class="reporte-section">
+        <h3>DETALLE DE MOVIMIENTOS</h3>
+        <ng-container *ngIf="movimientos.length > 0; else sinMovimientos">
+            <table class="reporte-table">
+                <thead>
+                    <tr>
+                        <th style="width:18%;">Fecha/Hora</th>
+                        <th style="width:12%;" class="text-center">Tipo</th>
+                        <th style="width:20%;">Categoría</th>
+                        <th style="width:30%;">Descripción</th>
+                        <th style="width:10%;" class="text-right">Monto</th>
+                        <th style="width:10%;" class="text-center">Ref.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let mov of movimientos">
+                        <td>
+                            {{ dateFrom(mov.fecha) | date:'dd/MM/yyyy' }}<br/>
+                            <small>{{ dateFrom(mov.createdAt) | date:'HH:mm' }}</small>
+                        </td>
+                        <td class="text-center" [ngClass]="mov.tipo === 'INGRESO' ? 'tipo-ingreso' : 'tipo-egreso'">{{ mov.tipo }}</td>
+                        <td>{{ mov.categoria }}</td>
+                        <td>{{ mov.descripcion }}</td>
+                        <td class="text-right" [ngClass]="mov.tipo === 'INGRESO' ? 'tipo-ingreso' : 'tipo-egreso'">
+                            {{ mov.tipo === 'INGRESO' ? '+' : '-' }}{{ mov.monto | currency:'USD':'symbol':'1.2-2' }}
+                        </td>
+                        <td class="text-center">{{ mov.referencia || '-' }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </ng-container>
+        <ng-template #sinMovimientos>
+            <div class="reporte-empty">No hay movimientos registrados</div>
+        </ng-template>
+    </div>
+
+    <div class="reporte-firma">
+        <div class="reporte-firma-item">
+            <div class="linea"></div>
+            <div>Responsable</div>
+            <div><small>{{ caja?.usuario_nombre }}</small></div>
+        </div>
+        <div class="reporte-firma-item">
+            <div class="linea"></div>
+            <div>Supervisor/Gerente</div>
+        </div>
+    </div>
+
+    <div class="reporte-footer">
+        <p>Reporte interno de Caja Banco</p>
+        <p>Óptica Macías</p>
+    </div>
+</div>

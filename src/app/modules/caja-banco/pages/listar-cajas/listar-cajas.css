@@ -55,7 +55,9 @@
     padding: 1.5rem;
 }
 
+
 /* RESUMEN */
+
 .resumen-container {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -152,6 +154,22 @@
     background: rgba(231, 76, 60, 0.1);
 }
 
+.tabla-row-banco {
+    background: rgba(52, 152, 219, 0.05);
+}
+
+.tabla-row-banco:hover {
+    background: rgba(52, 152, 219, 0.1);
+}
+
+.tabla-row-chica {
+    background: rgba(241, 196, 15, 0.05);
+}
+
+.tabla-row-chica:hover {
+    background: rgba(241, 196, 15, 0.1);
+}
+
 .text-right {
     text-align: right !important;
 }
@@ -187,7 +205,9 @@
     border: 1px solid rgba(149, 165, 166, 0.25);
 }
 
+
 /* BOTONES DE ACCIÓN */
+
 .action-buttons {
     display: flex;
     gap: 0.5rem;
@@ -226,6 +246,28 @@
     background: #bfdbfe;
     transform: translateY(-2px);
     color: #1d4ed8;
+}
+
+.btn-action-primary {
+    color: #10b981;
+    background: #d1fae5;
+}
+
+.btn-action-primary:hover {
+    background: #a7f3d0;
+    transform: translateY(-2px);
+    color: #059669;
+}
+
+.btn-action-delete {
+    color: #ef4444;
+    background: #fee2e2;
+}
+
+.btn-action-delete:hover {
+    background: #fecaca;
+    transform: translateY(-2px);
+    color: #dc2626;
 }
 
 .empty-state {

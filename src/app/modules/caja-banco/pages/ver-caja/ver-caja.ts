@@ -46,6 +46,11 @@ export class VerCajaComponent implements OnInit {
     this.router.navigate(['/caja-banco']);
   }
 
+  imprimir(): void {
+    if (!this.cajaId) return;
+    this.router.navigate(['/caja-banco/imprimir', this.cajaId]);
+  }
+
   formatoFecha(fecha: any): string {
     if (!fecha) return '-';
     const date = fecha.toDate ? fecha.toDate() : new Date(fecha);

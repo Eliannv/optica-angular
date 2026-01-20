@@ -3,9 +3,10 @@
         <div class="caja-header">
             <div class="header-content">
                 <h1 class="caja-title">Caja Banco</h1>
-                <button class="btn-primary" (click)="registrarMovimiento()">
-                    + Registrar Movimiento
-                </button>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn-primary" (click)="registrarMovimiento()">+ Registrar Movimiento</button>
+                    <button class="btn-secondary" (click)="imprimirMensualActual()">🖨️ Imprimir Mes Actual</button>
+                </div>
             </div>
         </div>
 
@@ -13,30 +14,82 @@
             <!-- RESUMEN GENERAL -->
             <div class="resumen-container" *ngIf="!cargando">
                 <div class="resumen-card">
-                    <div class="resumen-label"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-dollar-sign-icon lucide-dollar-sign"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Total Ganado Cajas</div>
+                    <div class="resumen-label"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-dollar-sign-icon lucide-dollar-sign"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>                        Total Ganado Cajas</div>
                     <div class="resumen-valor">{{ formatoMoneda(getTotalGanado()) }}</div>
                 </div>
                 <div class="resumen-card">
-                    <div class="resumen-label"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-banknote-icon lucide-banknote"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg> Total Transferencias</div>
+                    <div class="resumen-label"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-banknote-icon lucide-banknote"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>                        Total Transferencias</div>
                     <div class="resumen-valor">{{ formatoMoneda(getTotalTransferencias()) }}</div>
                 </div>
                 <div class="resumen-card">
-                    <div class="resumen-label"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-banknote-arrow-up-icon lucide-banknote-arrow-up"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="M18 12h.01"/><path d="M19 22v-6"/><path d="m22 19-3-3-3 3"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg> Total Ingresos</div>
+                    <div class="resumen-label"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-banknote-arrow-up-icon lucide-banknote-arrow-up"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="M18 12h.01"/><path d="M19 22v-6"/><path d="m22 19-3-3-3 3"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>                        Total Ingresos</div>
                     <div class="resumen-valor">{{ formatoMoneda(getTotalIngresos()) }}</div>
                 </div>
                 <div class="resumen-card">
-                    <div class="resumen-label"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-landmark-icon lucide-landmark"><path d="M10 18v-7"/><path d="M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/></svg> Total Cajas</div>
+                    <div class="resumen-label"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-landmark-icon lucide-landmark"><path d="M10 18v-7"/><path d="M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/></svg>                        Total Cajas</div>
                     <div class="resumen-valor">{{ cajas.length }}</div>
                 </div>
                 <div class="resumen-card">
-                    <div class="resumen-label"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-banknote-arrow-down-icon lucide-banknote-arrow-down"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="m16 19 3 3 3-3"/><path d="M18 12h.01"/><path d="M19 16v6"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg> Total Egresos</div>
+                    <div class="resumen-label"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-banknote-arrow-down-icon lucide-banknote-arrow-down"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="m16 19 3 3 3-3"/><path d="M18 12h.01"/><path d="M19 16v6"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>                        Total Egresos</div>
                     <div class="resumen-valor">{{ formatoMoneda(getTotalEgresos()) }}</div>
                 </div>
             </div>
 
-            <!-- SECCIÓN 1: Cajas específicas -->
+            <!-- SECCIÓN 1: CAJAS BANCO PRINCIPALES -->
             <div class="caja-section">
-                <h2 class="section-title"> Cajas Chicas Cerradas</h2>
+                <h2 class="section-title">📊 Cajas Banco del Mes</h2>
+
+                <ng-container *ngIf="!cargando && cajas.length > 0">
+                    <div class="tabla-responsive">
+                        <table class="tabla">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th class="text-right">Saldo Inicial</th>
+                                    <th class="text-right">Saldo Actual</th>
+                                    <th>Estado</th>
+                                    <th>Usuario</th>
+                                    <th class="text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr *ngFor="let caja of cajas" class="tabla-row tabla-row-banco">
+                                    <td>{{ formatoFecha(caja.fecha) }}</td>
+                                    <td class="text-right">{{ formatoMoneda(caja.saldo_inicial || 0) }}</td>
+                                    <td class="text-right font-bold">{{ formatoMoneda(caja.saldo_actual || 0) }}</td>
+                                    <td>
+                                        <span class="badge" [class.badge-success]="caja.estado === 'ABIERTA'" [class.badge-secondary]="caja.estado !== 'ABIERTA'">
+                                            {{ caja.estado }}
+                                        </span>
+                                    </td>
+                                    <td>{{ caja.usuario_nombre || '-' }}</td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button *ngIf="caja.id" class="btn-action btn-action-primary" (click)="verDetalles(caja.id)" title="Ver detalle">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eye-icon lucide-eye"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            </button>
+                                            <button *ngIf="caja.id" class="btn-action btn-action-delete" (click)="eliminarCajaBanco(caja)" title="Eliminar caja">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </ng-container>
+
+                <ng-container *ngIf="!cargando && cajas.length === 0">
+                    <div class="empty-state">
+                        <div class="empty-icon">🏦</div>
+                        <p>No hay cajas banco registradas para este mes</p>
+                    </div>
+                </ng-container>
+            </div>
+
+            <!-- SECCIÓN 2: Cajas Chicas Cerradas -->
+            <div class="caja-section">
+                <h2 class="section-title">🔑 Cajas Chicas Cerradas</h2>
 
                 <ng-container *ngIf="!cargando && (cajas.length > 0 || cajasChicas.length > 0)">
                     <div class="tabla-responsive">
@@ -90,7 +143,7 @@
                 </ng-container>
             </div>
 
-            <!-- SECCIÓN 2: Movimientos globales (transferencias de clientes) -->
+            <!-- SECCIÓN 3: Movimientos globales (transferencias de clientes) -->
             <div class="caja-section" *ngIf="movimientosGlobales.length > 0">
                 <h2 class="section-title">Ingresos / Egreso </h2>
                 <div class="tabla-responsive">
