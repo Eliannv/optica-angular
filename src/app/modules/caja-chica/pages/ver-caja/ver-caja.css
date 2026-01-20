@@ -396,3 +396,16 @@
         font-size: 2rem;
     }
 }
+
+
+/* ============================================
+   ESTILOS PARA IMPRESIÓN
+============================================ */
+
+@media print {
+    /* Ocultar todo el contenido de la interfaz */
+    .caja-container {
+        display: none !important;
+    }
+    /* El reporte se renderiza con sus propios estilos en reporte-caja-chica.css */
+}

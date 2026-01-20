@@ -1,4 +1,4 @@
-<div class="caja-container">
+<div class="caja-container no-print">
     <!-- HEADER CON BOTONES -->
     <div class="caja-card">
         <div class="caja-header">
@@ -6,6 +6,10 @@
                 <h1 class="caja-title">Detalles de Caja Chica</h1>
                 <div class="header-actions">
                     <button class="btn-secondary" (click)="volver()">← Volver</button>
+                    <button class="btn-primary" *ngIf="caja?.estado === 'CERRADA'" (click)="imprimirReporteCierre()" title="Imprimir reporte de cierre">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+            Imprimir
+          </button>
                     <button class="btn-primary" *ngIf="caja?.estado === 'ABIERTA'" (click)="registrarMovimiento()">
             + Registrar Movimiento
           </button>
