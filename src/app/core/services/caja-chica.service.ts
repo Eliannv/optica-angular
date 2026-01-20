@@ -32,10 +32,11 @@ export class CajaChicaService {
     const cajasRef = collection(this.firestore, 'cajas_chicas');
     const q = query(
       cajasRef,
-      where('activo', '!=', false),
       orderBy('createdAt', 'desc')
     );
-    return collectionData(q, { idField: 'id' }) as Observable<CajaChica[]>;
+    return collectionData(q, { idField: 'id' }).pipe(
+      map((cajas: any[]) => cajas.filter(c => c.activo !== false))
+    ) as Observable<CajaChica[]>;
   }
 
   // 🔹 Obtener cajas chicas abiertas (SOLO ACTIVAS)

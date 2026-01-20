@@ -46,19 +46,27 @@
     gap: 2mm;
 }
 
+
+/*
+   Scoped print rules: only activate when body has class "print-ticket".
+   This prevents blank pages when printing other documents (A4 reports, etc.).
+*/
+
 @media print {
     @page {
         size: 80mm auto;
         margin: 0;
     }
-    body * {
+    body.print-ticket * {
         display: none !important;
+        visibility: hidden !important;
     }
-    .ticket,
-    .ticket * {
+    body.print-ticket .ticket,
+    body.print-ticket .ticket * {
         display: block !important;
+        visibility: visible !important;
     }
-    .ticket {
+    body.print-ticket .ticket {
         position: fixed;
         inset: 0;
         width: 80mm;

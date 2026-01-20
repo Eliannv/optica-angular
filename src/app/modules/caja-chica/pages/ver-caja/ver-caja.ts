@@ -134,13 +134,20 @@ export class VerCajaComponent implements OnInit {
       // 🗑️ Limpiar localStorage
       localStorage.removeItem('cajaChicaAbierta');
 
-      await Swal.fire({
+      // Preguntar si desea imprimir el reporte
+      const imprimirResult = await Swal.fire({
         icon: 'success',
-        title: 'Caja cerrada',
-        text: 'Saldo sumado a Caja Banco exitosamente',
-        timer: 1800,
-        showConfirmButton: false
+        title: 'Caja cerrada correctamente',
+        text: 'Saldo sumado a Caja Banco exitosamente. ¿Deseas imprimir el reporte de cierre?',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, imprimir',
+        cancelButtonText: 'No, solo cerrar'
       });
+
+      if (imprimirResult.isConfirmed) {
+        await this.imprimirReporteCierre();
+      }
+
       this.router.navigate(['/caja-chica']);
     } catch (error) {
       console.error('Error al cerrar caja:', error);
@@ -204,5 +211,49 @@ export class VerCajaComponent implements OnInit {
 
   volver(): void {
     this.router.navigate(['/caja-chica']);
+  }
+
+  async imprimirReporteCierre(): Promise<void> {
+    try {
+      // Convertir Timestamps a Date para evitar errores NG02100
+      const convertirTimestamp = (fecha: any): Date => {
+        if (!fecha) return new Date();
+        if (fecha instanceof Date) return fecha;
+        if (fecha.toDate && typeof fecha.toDate === 'function') return fecha.toDate();
+        return new Date(fecha);
+      };
+
+      // Preparar datos para el reporte con conversión de Timestamps
+      const reporteData = {
+        caja: {
+          ...this.caja,
+          fecha: convertirTimestamp(this.caja?.fecha),
+          cerrado_en: this.caja?.cerrado_en ? convertirTimestamp(this.caja.cerrado_en) : null,
+          createdAt: this.caja?.createdAt ? convertirTimestamp(this.caja.createdAt) : new Date()
+        },
+        movimientos: this.movimientos.map(m => ({
+          ...m,
+          fecha: convertirTimestamp(m.fecha),
+          createdAt: m.createdAt ? convertirTimestamp(m.createdAt) : new Date()
+        })),
+        resumen: { ...this.resumen },
+        fechaReporte: new Date(),
+        usuarioCierre: this.authService.getCurrentUser()?.nombre || 'N/A'
+      };
+
+      console.log('📄 Datos del reporte preparados:', reporteData);
+
+      // Navegar al componente de impresión con los datos
+      this.router.navigate(['/caja-chica/imprimir'], {
+        state: { reporteData }
+      });
+    } catch (error) {
+      console.error('❌ Error al preparar reporte:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo generar el reporte para impresión'
+      });
+    }
   }
 }

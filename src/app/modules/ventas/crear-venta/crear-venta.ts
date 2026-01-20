@@ -425,11 +425,20 @@ const ref = await this.facturasSrv.crearFactura(facturaLimpia);
       }
     }
 
+    // Convertir Timestamps a Date para evitar errores NG02100
+    const convertirTimestamp = (fecha: any): Date => {
+      if (!fecha) return new Date();
+      if (fecha instanceof Date) return fecha;
+      if (fecha.toDate && typeof fecha.toDate === 'function') return fecha.toDate();
+      return new Date(fecha);
+    };
+
     // Setear datos de la factura y enviar directo a impresión
     this.facturaParaImprimir = {
       idPersonalizado: facturaId,
       id: facturaId,
       ...factura,
+      fecha: convertirTimestamp(factura.fecha)
     };
 
     // Imprimir sin mostrar vista previa
