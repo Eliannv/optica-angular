@@ -14,6 +14,7 @@ import {
   limit,
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { Proveedor } from '../models/proveedor.model';
 
 @Injectable({
@@ -25,8 +26,18 @@ export class ProveedoresService {
 
   // 🔹 Obtener todos los proveedores (SOLO ACTIVOS)
   getProveedores(): Observable<Proveedor[]> {
-    const q = query(this.proveedoresRef, where('activo', '!=', false));
-    return collectionData(q, {
+    return collectionData(this.proveedoresRef, {
+      idField: 'id',
+    }).pipe(
+      map((proveedores: any[]) => 
+        proveedores.filter(p => p.activo !== false)
+      )
+    ) as Observable<Proveedor[]>;
+  }
+
+  // 🔹 Obtener TODOS los proveedores (incluyendo desactivados)
+  getProveedoresTodosInclusoInactivos(): Observable<Proveedor[]> {
+    return collectionData(this.proveedoresRef, {
       idField: 'id',
     }) as Observable<Proveedor[]>;
   }

@@ -63,12 +63,16 @@
                                     <button class="btn btn-sm btn-info" (click)="verFacturasProveedor(proveedor, $event)" title="Ver Facturas/Ingresos">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package-search-icon lucide-package-search"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/><path d="m7.5 4.27 9 5.15"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/><circle cx="18.5" cy="15.5" r="2.5"/><path d="M20.27 17.27 22 19"/></svg>
                                     </button>
-                                    <button class="btn btn-sm btn-danger" (click)="eliminarProveedor(proveedor.id!); $event.stopPropagation()">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash">
-                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
-                                            <path d="M3 6h18"/>
-                                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                        </svg>
+                                    <!-- Toggle Activo/Desactivado -->
+                                    <button class="btn btn-sm" 
+                                            [class.btn-success]="proveedor.activo !== false" 
+                                            [class.btn-secondary]="proveedor.activo === false"
+                                            (click)="toggleEstadoProveedor(proveedor); $event.stopPropagation()"
+                                            [title]="(proveedor.activo !== false) ? 'Desactivar proveedor' : 'Activar proveedor'">
+                                        <!-- Ícono Activo (Toggle Right) -->
+                                        <svg *ngIf="proveedor.activo !== false" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-toggle-right-icon lucide-toggle-right"><circle cx="15" cy="12" r="3"/><rect width="20" height="14" x="2" y="5" rx="7"/></svg>
+                                        <!-- Ícono Desactivado (Toggle Left) -->
+                                        <svg *ngIf="proveedor.activo === false" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-toggle-left-icon lucide-toggle-left"><circle cx="9" cy="12" r="3"/><rect width="20" height="14" x="2" y="5" rx="7"/></svg>
                                     </button>
                                 </div>
                             </td>

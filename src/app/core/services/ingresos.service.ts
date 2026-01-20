@@ -169,29 +169,53 @@ export class IngresosService {
           const productoData = productoSnap.data() as Producto;
           const actualizaciones: any = { updatedAt: new Date() };
           
-          // Actualizar proveedor si es diferente
-          if (productoData.proveedor !== proveedorIngreso) {
-            actualizaciones.proveedor = proveedorIngreso;
+          // 🔹 SI el producto estaba desactivado, reactivarlo
+          if (detalle.estaDesactivado) {
+            actualizaciones.activo = true;
+            console.log('🔄 Reactivando producto desactivado:', detalle.nombre);
           }
           
-          // NUEVO: Actualizar PVP1 si viene en el detalle
+          // 🔹 SIEMPRE actualizar el proveedor al del Excel (se reemplaza)
+          actualizaciones.proveedor = proveedorIngreso;
+          
+          // Actualizar PVP1 si viene en el detalle y es diferente
           if (detalle.pvp1 !== undefined && detalle.pvp1 > 0) {
             actualizaciones.pvp1 = detalle.pvp1;
           }
           
-          // Solo hacer update si hay cambios
-          if (Object.keys(actualizaciones).length > 1) { // > 1 porque siempre tiene updatedAt
-            batch.update(productoDoc, actualizaciones);
+          // Actualizar costo si viene en el detalle y es diferente
+          if (detalle.costoUnitario !== undefined && detalle.costoUnitario > 0) {
+            actualizaciones.costo = detalle.costoUnitario;
           }
+          
+          // Actualizar otros datos del producto desde la importación
+          if (detalle.modelo && detalle.modelo !== productoData.modelo) {
+            actualizaciones.modelo = detalle.modelo;
+          }
+          if (detalle.color && detalle.color !== productoData.color) {
+            actualizaciones.color = detalle.color;
+          }
+          if (detalle.grupo && detalle.grupo !== productoData.grupo) {
+            actualizaciones.grupo = detalle.grupo;
+          }
+          
+          // Actualizar stock del producto existente
+          // 🔹 IMPORTANTE: Si estaba desactivado, ya tiene el stock guardado, solo suma la nueva cantidad
+          const esLunas = detalle.grupo === 'LUNAS' || (productoData as any)?.stockIlimitado === true;
+          if (!esLunas) {
+            const stockActual = productoData.stock || 0;
+            const nuevoStock = stockActual + detalle.cantidad;
+            actualizaciones.stock = nuevoStock;
+          }
+          
+          // Actualizar observación si viene
+          if (detalle.observacion !== undefined && detalle.observacion !== null && detalle.observacion !== '') {
+            actualizaciones.observacion = detalle.observacion;
+          }
+          
+          // Hacer el update con todos los cambios en batch
+          batch.update(productoDoc, actualizaciones);
         }
-
-        // 🔸 Actualizar stock de producto existente
-        await this.actualizarStockProducto(
-          detalle.productoId,
-          detalle.cantidad,
-          detalle.costoUnitario,
-          detalle.observacion
-        );
       }
 
       // 🔸 Registrar movimiento de stock
@@ -296,6 +320,7 @@ export class IngresosService {
       stock: esLunas ? 0 : detalle.cantidad,
       proveedor: ingreso?.proveedor || '', // 🔹 Usar proveedor (nombre), NO proveedorId
       ingresoId: ingresoId,
+      activo: true, // 🔹 Producto siempre activo al crearse desde ingreso
       createdAt: new Date(),
       updatedAt: new Date(),
     };

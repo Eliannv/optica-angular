@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, firstValueFrom } from 'rxjs';
+import Swal from 'sweetalert2';
 
 import { ClientesService } from '../../../core/services/clientes';
 import { FacturasService } from '../../../core/services/facturas';
@@ -269,7 +270,12 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
 
     } catch (e) {
       console.error(e);
-      alert('No se pudo registrar el abono');
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo registrar el abono',
+        confirmButtonText: 'Entendido'
+      });
     } finally {
       this.pagando = false;
     }

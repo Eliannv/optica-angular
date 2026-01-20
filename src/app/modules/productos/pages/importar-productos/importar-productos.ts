@@ -243,8 +243,8 @@ export class ImportarProductosComponent {
    */
   private async verificarProductosExistentes(productos: ProductoExcelPreview[]): Promise<void> {
     try {
-      // Usar firstValueFrom en lugar de toPromise()
-      const productosSnapshot = await firstValueFrom(this.productosService.getProductos());
+      // 🔹 IMPORTANTE: Obtener TODOS los productos (activos e inactivos) para verificar si están desactivados
+      const productosSnapshot = await firstValueFrom(this.productosService.getProductosTodosInclusoInactivos());
 
       for (const prod of productos) {
         let productoExistente: any = null;
@@ -270,17 +270,22 @@ export class ImportarProductosComponent {
           prod.estado = 'EXISTENTE';
           prod.productoId = productoExistente.id;
           
+          // 🔹 Verificar si el producto está desactivado
+          prod.estaDesactivado = productoExistente.activo === false;
+          
           // La cantidad del Excel es lo que se va a AGREGAR al stock
           // No modificamos prod.cantidad, se mantiene la del Excel
           const stockExistente = productoExistente.stock || 0;
           const cantidadAAgregar = prod.cantidad || 0; // Cantidad del Excel a agregar
           prod.stockAnterior = stockExistente;
+          prod.stockActivoAnterior = stockExistente; // 🔹 Stock a sumar si se reactiva
           // El nuevo stock final será: stockExistente + cantidadAAgregar
           // Se calcula en la creación del detalle del ingreso
           
           // Pre-cargar datos existentes pero permitir que se reemplacen
           prod.costo = productoExistente.costo || 0;
           prod.grupo = productoExistente.grupo || 'GAFAS';
+          prod.idInterno = productoExistente.idInterno || undefined; // 🔹 Guardar idInterno del sistema
           
           // IMPORTANTE: Reemplazar proveedor si es diferente
           prod.proveedorAnterior = productoExistente.proveedor || '';
@@ -368,7 +373,10 @@ export class ImportarProductosComponent {
         costoUnitario: p.costo || 0,
         pvp1: p.pvp1 || 0,
         iva: p.iva || 0, // Agregar IVA del producto
-        observacion: p.observacion || ''
+        observacion: p.observacion || '',
+        // 🔹 NUEVO: Información de productos desactivados
+        estaDesactivado: p.estaDesactivado || false,
+        stockActivoAnterior: p.stockActivoAnterior || 0
       }));
 
       console.log('💾 Finalizando ingreso con', detalles.length, 'productos...');

@@ -38,4 +38,8 @@ export interface DetalleIngreso {
   pvp1?: number; // Precio de venta
   iva?: number; // Porcentaje de IVA del producto (ej: 15 para 15%)
   stockInicial?: number; // Stock inicial (igual a cantidad para nuevos)
+  
+  // 🔹 NUEVO: Para productos desactivados que se reactivan
+  estaDesactivado?: boolean; // Si el producto estaba desactivado
+  stockActivoAnterior?: number; // Stock anterior que debe sumarse
 }

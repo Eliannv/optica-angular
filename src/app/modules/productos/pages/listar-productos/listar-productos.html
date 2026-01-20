@@ -86,9 +86,17 @@
                                     <button class="btn btn-sm btn-warning" (click)="editarObservacion(producto); $event.stopPropagation()" title="Editar observación">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil-icon lucide-pencil"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
                                     </button>
-                                    <button class="btn btn-sm btn-danger" (click)="eliminarProducto(producto.id!); $event.stopPropagation()">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                  </button>
+                                    <!-- Toggle Activo/Desactivado -->
+                                    <button class="btn btn-sm" 
+                                            [class.btn-success]="producto.activo !== false" 
+                                            [class.btn-secondary]="producto.activo === false"
+                                            (click)="toggleEstadoProducto(producto); $event.stopPropagation()"
+                                            [title]="(producto.activo !== false) ? 'Desactivar producto' : 'Activar producto'">
+                                        <!-- Ícono Activo (Toggle Right) -->
+                                        <svg *ngIf="producto.activo !== false" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-toggle-right-icon lucide-toggle-right"><circle cx="15" cy="12" r="3"/><rect width="20" height="14" x="2" y="5" rx="7"/></svg>
+                                        <!-- Ícono Desactivado (Toggle Left) -->
+                                        <svg *ngIf="producto.activo === false" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-toggle-left-icon lucide-toggle-left"><circle cx="9" cy="12" r="3"/><rect width="20" height="14" x="2" y="5" rx="7"/></svg>
+                                    </button>
                                 </div>
                             </td>
                         </tr>

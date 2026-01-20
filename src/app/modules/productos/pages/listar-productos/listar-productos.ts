@@ -42,8 +42,8 @@ export class ListarProductos implements OnInit {
     this.route.queryParams.subscribe(params => {
       this.grupoSeleccionado = params['grupo'] || '';
       
-      // Cargar productos después de obtener el parámetro de grupo
-      this.productosService.getProductos().subscribe(productos => {
+      // 🔹 Cargar TODOS los productos (activos e inactivos)
+      this.productosService.getProductosTodosInclusoInactivos().subscribe(productos => {
         this.productos = productos;
         this.aplicarFiltros();
       });
@@ -88,21 +88,66 @@ export class ListarProductos implements OnInit {
 
   eliminarProducto(id: string) {
     Swal.fire({
-      title: '¿Eliminar producto?',
-      text: 'Esta acción no se puede deshacer',
+      title: '¿Desactivar producto?',
+      text: 'El producto se desactivará pero podrá reactivarlo después',
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Sí, eliminar',
+      confirmButtonText: 'Sí, desactivar',
       cancelButtonText: 'Cancelar'
     }).then(result => {
       if (result.isConfirmed) {
-        this.productosService.deleteProducto(id)
+        this.productosService.desactivarProducto(id)
           .then(() => {
-            Swal.fire('Eliminado', 'Producto eliminado exitosamente', 'success');
+            Swal.fire('Desactivado', 'Producto desactivado exitosamente', 'success');
           })
           .catch(error => {
-            console.error('Error al eliminar producto:', error);
-            Swal.fire('Error', 'No se pudo eliminar el producto', 'error');
+            console.error('Error al desactivar producto:', error);
+            Swal.fire('Error', 'No se pudo desactivar el producto', 'error');
+          });
+      }
+    });
+  }
+
+  /**
+   * 🔄 Toggle de estado Activo/Desactivado
+   */
+  toggleEstadoProducto(producto: Producto) {
+    const esActivo = producto.activo !== false;
+    const accion = esActivo ? 'desactivar' : 'activar';
+    const metodo = esActivo ? this.productosService.desactivarProducto(producto.id!) : this.productosService.activarProducto(producto.id!);
+
+    Swal.fire({
+      title: `¿${accion.charAt(0).toUpperCase() + accion.slice(1)} producto?`,
+      text: esActivo 
+        ? 'El producto se desactivará pero podrá reactivarlo después'
+        : 'El producto será reactivado y aparecerá en las listas',
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonText: `Sí, ${accion}`,
+      cancelButtonText: 'Cancelar'
+    }).then(result => {
+      if (result.isConfirmed) {
+        metodo
+          .then(() => {
+            const mensaje = esActivo ? 'Producto desactivado exitosamente' : 'Producto activado exitosamente';
+            Swal.fire(
+              esActivo ? 'Desactivado' : 'Activado', 
+              mensaje, 
+              'success'
+            );
+            // Recargar la lista para actualizar el estado
+            this.route.queryParams.subscribe(params => {
+              this.grupoSeleccionado = params['grupo'] || '';
+              // 🔹 Cargar TODOS los productos (activos e inactivos)
+              this.productosService.getProductosTodosInclusoInactivos().subscribe(productos => {
+                this.productos = productos;
+                this.aplicarFiltros();
+              });
+            });
+          })
+          .catch(error => {
+            console.error('Error al cambiar estado del producto:', error);
+            Swal.fire('Error', `No se pudo ${accion} el producto`, 'error');
           });
       }
     });

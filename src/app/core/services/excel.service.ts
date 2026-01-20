@@ -36,6 +36,8 @@ export interface ProductoExcelPreview {
   proveedorAnterior?: string; // Proveedor anterior del producto
   pvp1Anterior?: number; // PVP1 anterior del producto
   idInterno?: number; // ID interno del producto existente
+  estaDesactivado?: boolean; // 🔹 Si el producto estaba desactivado, se debe reactivar
+  stockActivoAnterior?: number; // 🔹 Stock del producto desactivado que se va a sumar
 }
 
 @Injectable({

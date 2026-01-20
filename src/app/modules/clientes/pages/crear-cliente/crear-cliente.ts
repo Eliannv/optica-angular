@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, AbstractControl, AsyncValidatorFn, ValidationErrors } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule } from '@angular/forms';
+import Swal from 'sweetalert2';
 import { Cliente } from '../../../../core/models/cliente.model';
 import { ClientesService } from '../../../../core/services/clientes';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -131,7 +132,12 @@ export class CrearCliente implements OnInit {
       this.router.navigate([returnTo]);
     } catch (error) {
       console.error('Error al guardar cliente:', error);
-      alert('Error al guardar el cliente');
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al guardar el cliente',
+        confirmButtonText: 'Entendido'
+      });
     }
   }
 

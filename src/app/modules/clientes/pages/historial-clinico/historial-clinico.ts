@@ -278,22 +278,46 @@ export class HistorialClinicoComponent implements OnInit {
     // Validar si el cliente tiene deuda
     const deuda = this.deudas[clienteId];
     if (deuda && deuda.deudaTotal > 0) {
-      alert('⚠️ No se puede eliminar un cliente con deuda pendiente');
+      Swal.fire({
+        icon: 'warning',
+        title: 'No se puede desactivar',
+        text: 'Este cliente tiene deuda pendiente. Cancele la deuda antes de desactivar.',
+        confirmButtonText: 'Entendido'
+      });
       return;
     }
 
-    // Confirmación
-    const confirmed = confirm('¿Estás seguro de que deseas eliminar este cliente?');
-    if (!confirmed) return;
+    // Confirmación con Swal
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: '¿Desactivar cliente?',
+      text: 'El cliente se desactivará pero podrá reactivarlo después',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, desactivar',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (!result.isConfirmed) return;
 
     try {
-      await this.clientesSrv.deleteCliente(clienteId);
+      await this.clientesSrv.desactivarCliente(clienteId);
       // Recargar clientes
       await this.cargarClientes();
-      alert('✓ Cliente eliminado exitosamente');
+      await Swal.fire({
+        icon: 'success',
+        title: 'Desactivado',
+        text: 'Cliente desactivado exitosamente',
+        timer: 1500,
+        showConfirmButton: false
+      });
     } catch (error) {
-      console.error('Error al eliminar cliente:', error);
-      alert('❌ Error al eliminar el cliente');
+      console.error('Error al desactivar cliente:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo desactivar el cliente',
+        confirmButtonText: 'Entendido'
+      });
     }
   }
 

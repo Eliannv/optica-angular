@@ -38,7 +38,8 @@ export class ListarProveedores implements OnInit {
   ) {}
 
   ngOnInit() {
-    this.proveedoresService.getProveedores().subscribe(proveedores => {
+    // 🔹 Cargar TODOS los proveedores (activos e inactivos)
+    this.proveedoresService.getProveedoresTodosInclusoInactivos().subscribe(proveedores => {
       this.proveedores = proveedores;
       this.proveedoresFiltrados = proveedores;
       this.totalProveedores = proveedores.length;
@@ -96,32 +97,86 @@ export class ListarProveedores implements OnInit {
 
   eliminarProveedor(id: string) {
     Swal.fire({
-      title: '¿Eliminar proveedor?',
-      text: '¿Está seguro de eliminar este proveedor?',
+      title: '¿Desactivar proveedor?',
+      text: 'El proveedor se desactivará pero podrá reactivarlo después',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
       cancelButtonColor: '#6c757d',
-      confirmButtonText: 'Sí, eliminar',
+      confirmButtonText: 'Sí, desactivar',
       cancelButtonText: 'Cancelar'
     }).then((result) => {
       if (result.isConfirmed) {
-        this.proveedoresService.deleteProveedor(id).then(() => {
+        this.proveedoresService.desactivarProveedor(id).then(() => {
           Swal.fire({
             icon: 'success',
-            title: 'Eliminado',
-            text: 'Proveedor eliminado exitosamente',
+            title: 'Desactivado',
+            text: 'Proveedor desactivado exitosamente',
             timer: 2000,
             showConfirmButton: false
           });
+          // Recargar proveedores
+          this.proveedoresService.getProveedoresTodosInclusoInactivos().subscribe(proveedores => {
+            this.proveedores = proveedores;
+            this.proveedoresFiltrados = proveedores;
+            this.totalProveedores = proveedores.length;
+            this.paginaActual = 1;
+            this.actualizarPaginacion();
+          });
         }).catch(error => {
-          console.error('Error al eliminar proveedor:', error);
+          console.error('Error al desactivar proveedor:', error);
           Swal.fire({
             icon: 'error',
             title: 'Error',
-            text: 'Error al eliminar el proveedor'
+            text: 'Error al desactivar el proveedor'
           });
         });
+      }
+    });
+  }
+
+  /**
+   * 🔄 Toggle de estado Activo/Desactivado para proveedores
+   */
+  toggleEstadoProveedor(proveedor: Proveedor) {
+    const esActivo = proveedor.activo !== false;
+    const accion = esActivo ? 'desactivar' : 'activar';
+    const metodo = esActivo 
+      ? this.proveedoresService.desactivarProveedor(proveedor.id!)
+      : this.proveedoresService.activarProveedor(proveedor.id!);
+
+    Swal.fire({
+      title: `¿${accion.charAt(0).toUpperCase() + accion.slice(1)} proveedor?`,
+      text: esActivo 
+        ? 'El proveedor se desactivará pero podrá reactivarlo después'
+        : 'El proveedor será reactivado',
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonText: `Sí, ${accion}`,
+      cancelButtonText: 'Cancelar'
+    }).then(result => {
+      if (result.isConfirmed) {
+        metodo
+          .then(() => {
+            const mensaje = esActivo ? 'Proveedor desactivado exitosamente' : 'Proveedor activado exitosamente';
+            Swal.fire(
+              esActivo ? 'Desactivado' : 'Activado',
+              mensaje,
+              'success'
+            );
+            // Recargar la lista
+            this.proveedoresService.getProveedoresTodosInclusoInactivos().subscribe(proveedores => {
+              this.proveedores = proveedores;
+              this.proveedoresFiltrados = proveedores;
+              this.totalProveedores = proveedores.length;
+              this.paginaActual = 1;
+              this.actualizarPaginacion();
+            });
+          })
+          .catch(error => {
+            console.error('Error al cambiar estado del proveedor:', error);
+            Swal.fire('Error', `No se pudo ${accion} el proveedor`, 'error');
+          });
       }
     });
   }

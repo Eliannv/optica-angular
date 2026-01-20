@@ -22,6 +22,7 @@ interface Cliente {
 }
 ```
 
+
 **Métodos en `ClientesService`:**
 - `getClientes()` - Retorna SOLO clientes activos
 - `createCliente()` - Nuevos clientes con `activo: true`

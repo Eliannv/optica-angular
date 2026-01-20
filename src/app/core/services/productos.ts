@@ -16,6 +16,7 @@ import {
   runTransaction,
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { Producto } from '../models/producto.model';
 
 @Injectable({
@@ -26,9 +27,21 @@ export class ProductosService {
   private productosRef = collection(this.firestore, 'productos');
 
   // 🔹 Obtener todos los productos (SOLO ACTIVOS)
+  // Incluye productos con activo:true O sin el campo (para compatibilidad con datos anteriores)
   getProductos(): Observable<Producto[]> {
-    const q = query(this.productosRef, where('activo', '!=', false));
-    return collectionData(q, {
+    return collectionData(this.productosRef, {
+      idField: 'id',
+    }).pipe(
+      // Filtrar en cliente: incluir si activo es true o no está definido (legacy), excluir si es false
+      map((productos: any[]) =>
+        productos.filter((p) => p.activo !== false)
+      )
+    ) as Observable<Producto[]>;
+  }
+
+  // 🔹 Obtener TODOS los productos (incluyendo inactivos) - para importación
+  getProductosTodosInclusoInactivos(): Observable<Producto[]> {
+    return collectionData(this.productosRef, {
       idField: 'id',
     }) as Observable<Producto[]>;
   }
