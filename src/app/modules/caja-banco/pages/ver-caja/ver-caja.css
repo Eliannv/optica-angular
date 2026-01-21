@@ -5,16 +5,16 @@
 }
 
 .caja-card {
-    background: white;
+    background: var(--bg-card);
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-md);
     overflow: hidden;
 }
 
 .caja-header {
-    background: #f8f9fa;
+    background: var(--bg-secondary);
     padding: 20px;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .header-content {
@@ -26,7 +26,7 @@
 .caja-title {
     margin: 0;
     font-size: 1.5em;
-    color: #333;
+    color: var(--text-primary);
 }
 
 .header-actions {
@@ -47,17 +47,17 @@
 }
 
 .info-card {
-    background: #f9f9f9;
+    background: var(--bg-tertiary);
     padding: 15px;
     border-radius: 6px;
-    border-left: 4px solid #007bff;
+    border-left: 4px solid var(--info-color);
 }
 
 .info-card h3 {
     margin: 0 0 15px 0;
     font-size: 1.1em;
-    color: #333;
-    border-bottom: 2px solid #007bff;
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--info-color);
     padding-bottom: 8px;
 }
 
@@ -70,25 +70,25 @@
 
 .info-row .label {
     font-weight: 600;
-    color: #666;
+    color: var(--text-secondary);
 }
 
 .info-row .value {
-    color: #333;
+    color: var(--text-primary);
 }
 
 .montos-card {
-    background: #f0f0f0;
+    background: var(--bg-tertiary);
     padding: 15px;
     border-radius: 6px;
-    border-left: 4px solid #28a745;
+    border-left: 4px solid var(--success-color);
 }
 
 .montos-card h3 {
     margin: 0 0 15px 0;
     font-size: 1.1em;
-    color: #333;
-    border-bottom: 2px solid #28a745;
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--success-color);
     padding-bottom: 8px;
 }
 
@@ -100,21 +100,21 @@
 }
 
 .monto-row.total {
-    background: white;
+    background: var(--bg-card);
     padding: 12px;
-    border-top: 2px solid #333;
+    border-top: 2px solid var(--text-primary);
     font-weight: bold;
     font-size: 1.1em;
     margin-top: 10px;
 }
 
 .text-ingreso {
-    color: #28a745;
+    color: var(--success-color);
     font-weight: bold;
 }
 
 .text-egreso {
-    color: #dc3545;
+    color: var(--danger-color);
     font-weight: bold;
 }
 
@@ -124,10 +124,10 @@
 
 .section h2 {
     font-size: 1.2em;
-    color: #333;
+    color: var(--text-primary);
     margin: 0 0 15px 0;
     padding-bottom: 8px;
-    border-bottom: 2px solid #007bff;
+    border-bottom: 2px solid var(--info-color);
 }
 
 .tabla-responsive {
@@ -141,27 +141,29 @@
 }
 
 .tabla thead {
-    background-color: #f0f0f0;
+    background-color: var(--table-header-bg);
 }
 
 .tabla th {
     padding: 12px;
     text-align: left;
     font-weight: 600;
-    border-bottom: 2px solid #ddd;
+    border-bottom: 2px solid var(--border-color);
+    color: var(--text-primary);
 }
 
 .tabla td {
     padding: 10px 12px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-primary);
 }
 
 .tabla-row-ingreso {
-    background-color: #f0fff4;
+    background-color: rgba(46, 204, 113, 0.1);
 }
 
 .tabla-row-egreso {
-    background-color: #fff5f5;
+    background-color: rgba(236, 112, 99, 0.1);
 }
 
 .text-right {
@@ -169,15 +171,15 @@
 }
 
 .text-success {
-    color: #28a745;
+    color: var(--success-color);
 }
 
 .text-danger {
-    color: #dc3545;
+    color: var(--danger-color);
 }
 
 .text-muted {
-    color: #999;
+    color: var(--text-tertiary);
     font-style: italic;
     padding: 15px 0;
 }
@@ -195,23 +197,23 @@
 }
 
 .badge-success {
-    background-color: #d4edda;
-    color: #155724;
+    background-color: rgba(46, 204, 113, 0.2);
+    color: var(--success-color);
 }
 
 .badge-warning {
-    background-color: #fff3cd;
-    color: #856404;
+    background-color: rgba(241, 196, 15, 0.2);
+    color: var(--warning-color);
 }
 
 .badge-info {
-    background-color: #d1ecf1;
-    color: #0c5460;
+    background-color: rgba(52, 152, 219, 0.2);
+    color: var(--info-color);
 }
 
 .badge-danger {
-    background-color: #f8d7da;
-    color: #721c24;
+    background-color: rgba(236, 112, 99, 0.2);
+    color: var(--danger-color);
 }
 
 .btn-primary,
@@ -225,42 +227,42 @@
 }
 
 .btn-primary {
-    background-color: #3498db;
-    color: white;
+    background-color: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
 }
 
 .btn-primary:hover {
-    background-color: #2980b9;
+    background-color: var(--btn-primary-hover);
 }
 
 .btn-secondary {
-    background-color: #6c757d;
-    color: white;
+    background-color: var(--btn-secondary-bg);
+    color: var(--btn-secondary-text);
 }
 
 .btn-secondary:hover {
-    background-color: #5a6268;
+    background-color: var(--btn-secondary-hover);
 }
 
 .btn-warning {
-    background-color: #ffc107;
-    color: #333;
+    background-color: var(--warning-color);
+    color: var(--text-inverse);
 }
 
 .btn-warning:hover {
-    background-color: #e0a800;
+    background-color: rgba(241, 196, 15, 0.8);
 }
 
 .loading {
     text-align: center;
     padding: 40px;
-    color: #999;
+    color: var(--text-tertiary);
 }
 
 .empty-state {
     text-align: center;
     padding: 40px;
-    color: #999;
+    color: var(--text-tertiary);
 }
 
 /* ACTION BUTTONS - Matching caja-chica design */
@@ -294,12 +296,12 @@
 }
 
 .btn-action-view {
-    color: #3b82f6;
-    background: #dbeafe;
+    color: var(--info-color);
+    background: rgba(52, 152, 219, 0.1);
 }
 
 .btn-action-view:hover {
-    background: #bfdbfe;
+    background: rgba(52, 152, 219, 0.2);
     transform: translateY(-2px);
-    color: #1d4ed8;
+    color: var(--primary-dark);
 }

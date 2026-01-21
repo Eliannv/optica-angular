@@ -177,7 +177,12 @@ export class VerCajaComponent implements OnInit {
     const mesIndex = fechaCaja.getMonth();
     const year = fechaCaja.getFullYear();
 
-    const totalIngresos = movimientos.filter(m => m.tipo === 'INGRESO').reduce((sum, m) => sum + (m.monto || 0), 0);
+    // Calcular ingresos de cajas chicas
+    const ingresosCajasChicas = cajasChicas.reduce((sum, cc) => sum + (cc.monto_actual || 0), 0);
+    // Calcular otros ingresos (movimientos de tipo INGRESO)
+    const ingresosOtros = movimientos.filter(m => m.tipo === 'INGRESO').reduce((sum, m) => sum + (m.monto || 0), 0);
+    // Total de ingresos
+    const totalIngresos = ingresosCajasChicas + ingresosOtros;
     const totalEgresos = movimientos.filter(m => m.tipo === 'EGRESO').reduce((sum, m) => sum + (m.monto || 0), 0);
     const saldoFinal = caja.saldo_inicial! + totalIngresos - totalEgresos;
 
@@ -256,6 +261,14 @@ export class VerCajaComponent implements OnInit {
             <div class="reporte-resumen-item">
               <span>Saldo Inicial:</span>
               <span>${this.formatoMoneda(caja.saldo_inicial || 0)}</span>
+            </div>
+            <div class="reporte-resumen-item">
+              <span>Ingresos Cajas Chicas:</span>
+              <span class="tipo-ingreso">+${this.formatoMoneda(ingresosCajasChicas)}</span>
+            </div>
+            <div class="reporte-resumen-item">
+              <span>Otros Ingresos:</span>
+              <span class="tipo-ingreso">+${this.formatoMoneda(ingresosOtros)}</span>
             </div>
             <div class="reporte-resumen-item">
               <span>Total Ingresos:</span>

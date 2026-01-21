@@ -884,3 +884,47 @@
     align-items: center;
     gap: 0.5rem;
 }
+
+/* ============================================
+   AJUSTES DE FACTURA
+============================================ */
+
+.ajustes-factura {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background-color: var(--bg-tertiary);
+    border-radius: 0.5rem;
+    border-left: 4px solid var(--info-color);
+}
+
+.ajustes-factura h6 {
+    margin-bottom: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.ajustes-factura-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+}
+
+.ajustes-factura-grid .form-group {
+    margin: 0;
+}
+
+.ajustes-factura-grid .form-label {
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.ajustes-factura-grid .form-input {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.ajustes-factura-grid .form-hint {
+    font-size: 0.75rem;
+}

@@ -511,11 +511,7 @@ export class ListarCajasComponent implements OnInit {
             </div>
           `,
           icon: 'success',
-          confirmButtonText: 'Ver Reporte Mensual'
-        }).then((res) => {
-          if (res.isConfirmed) {
-            this.router.navigate(['/caja-banco/imprimir-mensual', String(yearAnterior), String(monthAnterior)]);
-          }
+          confirmButtonText: 'OK'
         });
 
         // Recargar datos
