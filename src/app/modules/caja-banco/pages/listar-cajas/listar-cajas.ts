@@ -30,7 +30,8 @@ export class ListarCajasComponent implements OnInit {
 
   cargarCajas(): void {
     this.cargando = true;
-    this.cajaBancoService.getCajasBanco().subscribe({
+    // 🔹 Cargar TODAS las cajas banco (activas e inactivas) para cálculos correctos
+    this.cajaBancoService.getCajasBancoTodas().subscribe({
       next: (cajas) => {
         // Mostrar todas las cajas (ABIERTA y CERRADA)
         this.cajas = (cajas || []);
@@ -44,7 +45,8 @@ export class ListarCajasComponent implements OnInit {
   }
 
   cargarCajasChicas(): void {
-    this.cajaChicaService.getCajasChicas().subscribe({
+    // 🔹 Cargar TODAS las cajas chicas (activas e inactivas)
+    this.cajaChicaService.getCajasChicasTodas().subscribe({
       next: (cajas) => {
         this.cajasChicas = cajas || [];
       },
@@ -83,21 +85,22 @@ export class ListarCajasComponent implements OnInit {
   // 🔹 Eliminar una caja chica y restar el dinero de la caja banco
   async eliminarCajaChica(cajaChica: CajaChica): Promise<void> {
     const resultado = await Swal.fire({
-      title: '¿Eliminar Caja Chica?',
+      title: '¿Desactivar Caja Chica?',
       html: `
         <div style="text-align: left;">
           <p><strong>Fecha:</strong> ${this.formatoFecha(cajaChica.fecha)}</p>
           <p><strong>Usuario:</strong> ${cajaChica.usuario_nombre || '-'}</p>
           <p><strong>Monto Inicial:</strong> ${this.formatoMoneda(cajaChica.monto_inicial || 0)}</p>
           <p><strong>Monto Actual:</strong> ${this.formatoMoneda(cajaChica.monto_actual || 0)}</p>
-          <p style="color: red; margin-top: 1rem;"><strong>Se restará ${this.formatoMoneda(cajaChica.monto_actual || 0)} de la caja banco</strong></p>
+          <p style="color: orange; margin-top: 1rem;"><strong>ℹ️ La caja se desactivará pero podrá ser reactivada</strong></p>
+          <p style="color: red;"><strong>Se restará ${this.formatoMoneda(cajaChica.monto_actual || 0)} de la caja banco</strong></p>
         </div>
       `,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
       cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Sí, eliminar',
+      confirmButtonText: 'Sí, desactivar',
       cancelButtonText: 'Cancelar'
     });
 
@@ -124,7 +127,7 @@ export class ListarCajasComponent implements OnInit {
           await this.cajaBancoService.actualizarSaldoCajaBanco(cajaBancoHoy.id!, nuevoSaldo);
         }
 
-        // Eliminar la caja chica
+        // Desactivar la caja chica (soft delete)
         await this.cajaChicaService.eliminarCajaChica(cajaChica.id!);
         
         // Recargar listas
@@ -132,16 +135,93 @@ export class ListarCajasComponent implements OnInit {
         this.cargarCajasChicas();
 
         Swal.fire({
-          title: '✅ Eliminado',
-          text: 'Caja chica eliminada y dinero restado de caja banco',
+          title: '✅ Desactivada',
+          text: 'Caja chica desactivada y dinero restado de caja banco',
           icon: 'success',
           timer: 2000
         });
       } catch (error) {
-        console.error('Error al eliminar:', error);
+        console.error('Error al desactivar:', error);
         Swal.fire({
           title: '❌ Error',
-          text: 'No se pudo eliminar la caja chica',
+          text: 'No se pudo desactivar la caja chica',
+          icon: 'error'
+        });
+      }
+    }
+  }
+
+  // 🔹 Reactivar una caja chica desactivada
+  async reactivarCajaChica(cajaChica: CajaChica): Promise<void> {
+    if (cajaChica.activo !== false) {
+      Swal.fire({
+        title: '⚠️ Aviso',
+        text: 'Esta caja chica ya está activa',
+        icon: 'info'
+      });
+      return;
+    }
+
+    const resultado = await Swal.fire({
+      title: '¿Reactivar Caja Chica?',
+      html: `
+        <div style="text-align: left;">
+          <p><strong>Fecha:</strong> ${this.formatoFecha(cajaChica.fecha)}</p>
+          <p><strong>Usuario:</strong> ${cajaChica.usuario_nombre || '-'}</p>
+          <p><strong>Monto Inicial:</strong> ${this.formatoMoneda(cajaChica.monto_inicial || 0)}</p>
+          <p><strong>Monto Actual:</strong> ${this.formatoMoneda(cajaChica.monto_actual || 0)}</p>
+          <p style="color: green; margin-top: 1rem;"><strong>✓ Se sumará ${this.formatoMoneda(cajaChica.monto_actual || 0)} a la caja banco</strong></p>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#28a745',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Sí, reactivar',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (resultado.isConfirmed) {
+      try {
+        // Obtener la caja banco abierta del mismo día
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        
+        const cajaBancoHoy = this.cajas.find(c => {
+          const fechaCaja = c.fecha instanceof Date 
+            ? new Date(c.fecha) 
+            : (c.fecha && typeof c.fecha === 'object' && 'toDate' in c.fecha)
+              ? (c.fecha as any).toDate()
+              : new Date(c.fecha || new Date());
+          fechaCaja.setHours(0, 0, 0, 0);
+          return fechaCaja.getTime() === hoy.getTime() && c.estado === 'ABIERTA';
+        });
+
+        if (cajaBancoHoy) {
+          // 🔹 Sumar el monto de la caja chica al saldo de la caja banco (se restó cuando se desactivó)
+          const nuevoSaldo = (cajaBancoHoy.saldo_actual || 0) + (cajaChica.monto_actual || 0);
+          
+          await this.cajaBancoService.actualizarSaldoCajaBanco(cajaBancoHoy.id!, nuevoSaldo);
+        }
+
+        // Reactivar la caja chica
+        await this.cajaChicaService.activarCajaChica(cajaChica.id!);
+        
+        // Recargar listas
+        this.cargarCajas();
+        this.cargarCajasChicas();
+
+        Swal.fire({
+          title: '✅ Reactivada',
+          text: 'Caja chica reactivada y dinero sumado a caja banco',
+          icon: 'success',
+          timer: 2000
+        });
+      } catch (error) {
+        console.error('Error al reactivar:', error);
+        Swal.fire({
+          title: '❌ Error',
+          text: 'No se pudo reactivar la caja chica',
           icon: 'error'
         });
       }
@@ -154,14 +234,14 @@ export class ListarCajasComponent implements OnInit {
     if (cajaBanco.estado !== 'CERRADA') {
       Swal.fire({
         title: '❌ No permitido',
-        text: 'Solo puedes eliminar cajas que estén CERRADAS',
+        text: 'Solo puedes desactivar cajas que estén CERRADAS',
         icon: 'error'
       });
       return;
     }
 
     const resultado = await Swal.fire({
-      title: '¿Eliminar Caja Banco?',
+      title: '¿Desactivar Caja Banco?',
       html: `
         <div style="text-align: left;">
           <p><strong>Fecha:</strong> ${this.formatoFecha(cajaBanco.fecha)}</p>
@@ -169,14 +249,14 @@ export class ListarCajasComponent implements OnInit {
           <p><strong>Saldo Inicial:</strong> ${this.formatoMoneda(cajaBanco.saldo_inicial || 0)}</p>
           <p><strong>Saldo Actual:</strong> ${this.formatoMoneda(cajaBanco.saldo_actual || 0)}</p>
           <p><strong>Estado:</strong> ${cajaBanco.estado}</p>
-          <p style="color: red; margin-top: 1rem;"><strong>⚠️ Esta acción eliminará el registro completamente</strong></p>
+          <p style="color: orange; margin-top: 1rem;"><strong>ℹ️ La caja se desactivará pero podrá ser reactivada</strong></p>
         </div>
       `,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
       cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Sí, eliminar',
+      confirmButtonText: 'Sí, desactivar',
       cancelButtonText: 'Cancelar'
     });
 
@@ -188,16 +268,16 @@ export class ListarCajasComponent implements OnInit {
         this.cargarCajas();
 
         Swal.fire({
-          title: '✅ Eliminado',
-          text: 'Caja banco eliminada correctamente',
+          title: '✅ Desactivada',
+          text: 'Caja banco desactivada correctamente',
           icon: 'success',
           timer: 2000
         });
       } catch (error) {
-        console.error('Error al eliminar:', error);
+        console.error('Error al desactivar:', error);
         Swal.fire({
           title: '❌ Error',
-          text: 'No se pudo eliminar la caja banco',
+          text: 'No se pudo desactivar la caja banco',
           icon: 'error'
         });
       }
@@ -205,8 +285,11 @@ export class ListarCajasComponent implements OnInit {
   }
 
   getTotalGanado(): number {
-    // Total de cajas cerradas
-    return this.cajas.reduce((acc, c) => acc + (c.saldo_actual || 0), 0);
+    // Total de cajas chicas cerradas (solo las activas)
+    // Esto suma el saldo_actual de cada caja chica
+    return this.cajasChicas
+      .filter(c => c.activo !== false) // 🔹 Filtrar solo cajas activas
+      .reduce((acc, c) => acc + (c.monto_actual || 0), 0);
   }
 
   getTotalTransferencias(): number {

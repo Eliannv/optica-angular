@@ -71,6 +71,16 @@ export class CajaBancoService {
     ) as Observable<MovimientoCajaBanco[]>;
   }
 
+  // 🔹 Obtener TODAS las cajas banco (incluyendo desactivadas) - para cálculos totales
+  getCajasBancoTodas(): Observable<CajaBanco[]> {
+    const cajasRef = collection(this.firestore, 'cajas_banco');
+    const q = query(
+      cajasRef,
+      orderBy('createdAt', 'desc')
+    );
+    return collectionData(q, { idField: 'id' }) as Observable<CajaBanco[]>;
+  }
+
   // 🔹 Obtener una caja banco por ID
   getCajaBancoById(id: string): Observable<CajaBanco> {
     const cajaDoc = doc(this.firestore, `cajas_banco/${id}`);
@@ -420,23 +430,17 @@ export class CajaBancoService {
     }
   }
 
-  // 🔹 Eliminar una caja banco completa (HARD DELETE: para desarrollo/test)
+  // 🔹 Eliminar una caja banco completa (SOFT DELETE)
   async eliminarCajaBanco(cajaBancoId: string): Promise<void> {
     try {
-      // Obtener todos los movimientos de la caja
-      const movimientosRef = collection(this.firestore, 'movimientos_cajas_banco');
-      const q = query(movimientosRef, where('caja_banco_id', '==', cajaBancoId));
-      const snapMovimientos = await getDocs(q);
-
-      // Eliminar todos los movimientos
-      for (const movDoc of snapMovimientos.docs) {
-        await deleteDoc(doc(this.firestore, `movimientos_cajas_banco/${movDoc.id}`));
-      }
-
-      // Eliminar la caja
-      await deleteDoc(doc(this.firestore, `cajas_banco/${cajaBancoId}`));
+      // 🔹 SOFT DELETE: Solo marcar como inactivo
+      await updateDoc(doc(this.firestore, `cajas_banco/${cajaBancoId}`), {
+        activo: false,
+        updatedAt: Timestamp.now(),
+      });
+      console.log('✅ Caja banco desactivada (soft delete):', cajaBancoId);
     } catch (error) {
-      console.error('Error al eliminar caja banco:', error);
+      console.error('Error al desactivar caja banco:', error);
       throw error;
     }
   }

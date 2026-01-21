@@ -107,9 +107,12 @@
                             </thead>
                             <tbody>
                                 <!-- Cajas Chicas -->
-                                <tr *ngFor="let cajaChica of cajasChicas" class="tabla-row tabla-row-chica">
+                                <tr *ngFor="let cajaChica of cajasChicas" class="tabla-row tabla-row-chica" [style.opacity]="cajaChica.activo === false ? '0.6' : '1'">
                                     <td>{{ formatoFecha(cajaChica.fecha) }}</td>
-                                    <td><span class="badge badge-warning">Caja Chica</span></td>
+                                    <td>
+                                        <span class="badge badge-warning">Caja Chica</span>
+                                        <span *ngIf="cajaChica.activo === false" class="badge badge-secondary" style="margin-left: 5px;">INACTIVA</span>
+                                    </td>
                                     <td class="text-right">{{ formatoMoneda(cajaChica.monto_inicial || 0) }}</td>
                                     <td class="text-right font-bold">{{ formatoMoneda(cajaChica.monto_actual || 0) }}</td>
                                     <td>
@@ -120,8 +123,13 @@
                                     <td>{{ cajaChica.usuario_nombre || '-' }}</td>
                                     <td class="text-right">
                                         <div class="action-buttons">
-                                            <button class="btn-action btn-action-delete" (click)="eliminarCajaChica(cajaChica)" title="Eliminar caja chica">
+                                            <!-- Botón para desactivar (si está activa) -->
+                                            <button *ngIf="cajaChica.activo !== false" class="btn-action btn-action-delete" (click)="eliminarCajaChica(cajaChica)" title="Desactivar caja chica">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                            </button>
+                                            <!-- Botón para reactivar (si está desactivada) -->
+                                            <button *ngIf="cajaChica.activo === false" class="btn-action btn-action-reactivate" (click)="reactivarCajaChica(cajaChica)" title="Reactivar caja chica" style="color: #28a745;">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-undo-icon lucide-undo"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
                                             </button>
                                         </div>
                                     </td>
