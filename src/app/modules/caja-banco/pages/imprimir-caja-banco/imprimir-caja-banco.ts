@@ -2,6 +2,7 @@ import { Component, inject, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { CajaBanco, MovimientoCajaBanco } from '../../../../core/models/caja-banco.model';
+import { combineLatest } from 'rxjs';
 
 @Component({
   selector: 'app-imprimir-caja-banco',
@@ -16,6 +17,7 @@ export class ImprimirCajaBancoComponent implements OnInit {
 
   caja: CajaBanco | null = null;
   movimientos: MovimientoCajaBanco[] = [];
+  datoCargado = false;
   resumen = {
     total_ingresos: 0,
     total_egresos: 0,
@@ -24,18 +26,22 @@ export class ImprimirCajaBancoComponent implements OnInit {
   };
 
   ngOnInit(): void {
-    this.route.params.subscribe(async (params) => {
+    this.route.params.subscribe((params) => {
       const id = params['id'];
       if (!id) return;
-      this.cajaBancoService.getCajaBancoById(id).subscribe((c) => {
+      
+      // Usar combineLatest para esperar ambos observables
+      combineLatest([
+        this.cajaBancoService.getCajaBancoById(id),
+        this.cajaBancoService.getMovimientosCajaBanco(id)
+      ]).subscribe(([c, movs]) => {
         this.caja = c;
-        this.resumen.saldo_final = c?.saldo_actual || 0;
-      });
-      this.cajaBancoService.getMovimientosCajaBanco(id).subscribe((movs) => {
         this.movimientos = movs || [];
+        this.resumen.saldo_final = c?.saldo_actual || 0;
         this.calcularResumen();
-        // auto-abrir diálogo de impresión
-        setTimeout(() => this.imprimir(), 0);
+        this.datoCargado = true;
+        // Esperar 500ms para que Angular renderice todo antes de imprimir
+        setTimeout(() => this.imprimir(), 500);
       });
     });
   }

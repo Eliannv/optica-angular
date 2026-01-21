@@ -1,9 +1,8 @@
-<div class="acciones-imprimir">
-    <button class="btn btn-primary" (click)="imprimir()">🖨️ Imprimir</button>
+<div class="acciones-imprimir" *ngIf="!datoCargado">
     <button class="btn btn-secondary" (click)="volver()">← Volver</button>
 </div>
 
-<div class="reporte-container">
+<div class="reporte-container" *ngIf="datoCargado">
     <div class="reporte-header">
         <h1>ÓPTICA MACÍAS</h1>
         <h2>REPORTE MENSUAL CAJA BANCO</h2>

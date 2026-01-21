@@ -4,6 +4,7 @@ import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { CajaBanco, MovimientoCajaBanco } from '../../../../core/models/caja-banco.model';
 import { CajaChica } from '../../../../core/models/caja-chica.model';
+import { combineLatest } from 'rxjs';
 
 @Component({
   selector: 'app-imprimir-caja-banco-mensual',
@@ -23,6 +24,7 @@ export class ImprimirCajaBancoMensualComponent implements OnInit {
   cajasBanco: CajaBanco[] = [];
   movimientos: MovimientoCajaBanco[] = [];
   cajasChicas: CajaChica[] = [];
+  datoCargado = false;
 
   resumen = {
     total_ingresos: 0,
@@ -37,13 +39,21 @@ export class ImprimirCajaBancoMensualComponent implements OnInit {
       this.month = Number(params['month']);
       const m0 = this.month - 1;
       if (isNaN(this.year) || isNaN(m0)) return;
-      this.cajaBancoService.getCajasBancoPorMes(this.year, m0).subscribe((cajas) => this.cajasBanco = cajas || []);
-      this.cajaBancoService.getMovimientosCajaBancoPorMes(this.year, m0).subscribe((movs) => {
+      
+      // Usar combineLatest para esperar a que TODOS los observables completen
+      combineLatest([
+        this.cajaBancoService.getCajasBancoPorMes(this.year, m0),
+        this.cajaBancoService.getMovimientosCajaBancoPorMes(this.year, m0),
+        this.cajaChicaService.getCajasChicasPorMes(this.year, m0)
+      ]).subscribe(([cajas, movs, cc]) => {
+        this.cajasBanco = cajas || [];
         this.movimientos = movs || [];
+        this.cajasChicas = cc || [];
         this.calcularResumen();
+        this.datoCargado = true;
+        // Ahora que tenemos todos los datos, esperamos 500ms para que Angular renderice el DOM y luego imprimimos
+        setTimeout(() => this.imprimir(), 500);
       });
-      this.cajaChicaService.getCajasChicasPorMes(this.year, m0).subscribe((cc) => this.cajasChicas = cc || []);
-      setTimeout(() => this.imprimir(), 0);
     });
   }
 
