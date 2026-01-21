@@ -107,10 +107,14 @@ export class ListarCajasComponent implements OnInit {
   async crearCajaBanco(): Promise<void> {
     const { value: formValues } = await Swal.fire({
       title: 'Crear Nueva Caja Banco',
+      iconHtml: '🏦',
       html: `
         <div style="text-align: left;">
-          <div class="form-group" style="margin-bottom: 15px;">
-            <label for="saldo_inicial" style="display: block; margin-bottom: 5px; font-weight: 600;">Saldo Inicial (USD):</label>
+          <!-- Saldo Inicial -->
+          <div style="margin-bottom: 1rem;">
+            <label for="saldo_inicial" style="display: block; margin-bottom: 0.4rem; font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">
+              Saldo Inicial (USD)
+            </label>
             <input 
               id="saldo_inicial" 
               type="number" 
@@ -119,25 +123,40 @@ export class ListarCajasComponent implements OnInit {
               value="0"
               step="0.01"
               min="0"
-              style="width: 100%;"
+              style="width: 100%; padding: 0.6rem; border: 2px solid var(--border-color); border-radius: 6px; font-size: 0.95rem; box-sizing: border-box; margin: 0;"
             />
+            <small style="display: block; margin-top: 0.2rem; color: var(--text-tertiary); font-size: 0.8rem;">Monto de apertura</small>
           </div>
-          <div class="form-group">
-            <label for="observacion" style="display: block; margin-bottom: 5px; font-weight: 600;">Observación (opcional):</label>
+
+          <!-- Observación -->
+          <div style="margin-bottom: 1rem;">
+            <label for="observacion" style="display: block; margin-bottom: 0.4rem; font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">
+              Observación (opcional)
+            </label>
             <textarea 
               id="observacion" 
-              class="swal2-input" 
-              placeholder="Detalles sobre la apertura de caja..."
-              rows="3"
-              style="width: 100%; resize: vertical;"
+              class="swal2-textarea" 
+              placeholder="Detalles sobre la apertura..."
+              rows="2"
+              style="width: 100%; padding: 0.6rem; border: 2px solid var(--border-color); border-radius: 6px; font-size: 0.9rem; box-sizing: border-box; resize: vertical; font-family: inherit; margin: 0;"
             ></textarea>
+            <small style="display: block; margin-top: 0.2rem; color: var(--text-tertiary); font-size: 0.8rem;">Información adicional</small>
+          </div>
+
+          <!-- Info adicional -->
+          <div style="padding: 0.75rem; background: var(--bg-tertiary); border-radius: 6px; border-left: 4px solid var(--info-color);">
+            <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">
+              ℹ️ <strong>Primera caja del mes.</strong> Verifica el saldo inicial.
+            </p>
           </div>
         </div>
       `,
       focusConfirm: false,
       showCancelButton: true,
-      confirmButtonText: 'Crear',
-      cancelButtonText: 'Cancelar',
+      confirmButtonText: '✓ Crear Caja',
+      cancelButtonText: '✕ Cancelar',
+      confirmButtonColor: 'var(--btn-primary-bg)',
+      cancelButtonColor: 'var(--btn-secondary-bg)',
       preConfirm: () => {
         const saldoInput = (document.getElementById('saldo_inicial') as HTMLInputElement)?.value;
         const observacion = (document.getElementById('observacion') as HTMLTextAreaElement)?.value;
@@ -169,8 +188,16 @@ export class ListarCajasComponent implements OnInit {
       
       Swal.fire({
         icon: 'success',
-        title: '¡Caja creada!',
-        text: `Caja banco creada con saldo inicial: $${formValues.saldo_inicial.toFixed(2)}`,
+        title: '¡Caja Banco Creada!',
+        html: `
+          <div style="text-align: center;">
+            <p style="margin: 0 0 0.75rem 0; color: var(--text-secondary); font-size: 0.95rem;">Creada exitosamente</p>
+            <div style="background: var(--bg-tertiary); padding: 0.75rem; border-radius: 8px;">
+              <p style="margin: 0; font-size: 1.4rem; font-weight: bold; color: var(--success-color);">$${formValues.saldo_inicial.toFixed(2)}</p>
+              <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">Saldo Inicial</p>
+            </div>
+          </div>
+        `,
         timer: 2000,
         showConfirmButton: false
       });
@@ -180,7 +207,7 @@ export class ListarCajasComponent implements OnInit {
       console.error('Error al crear caja banco:', error);
       Swal.fire({
         icon: 'error',
-        title: 'Error',
+        title: 'Error al crear caja',
         text: 'No se pudo crear la caja banco. Intenta de nuevo.'
       });
     }

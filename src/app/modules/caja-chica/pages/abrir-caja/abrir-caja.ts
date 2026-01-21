@@ -27,44 +27,7 @@ export class AbrirCajaComponent implements OnInit {
 
   ngOnInit(): void {
     this.inicializarFormulario();
-    this.validarExistenciaCajaBanco();
     this.validarCajaAbiertaHoy();
-  }
-
-  validarExistenciaCajaBanco(): void {
-    this.cajaBancoService.existeAlMenosUnaCajaBanco().subscribe({
-      next: (existe) => {
-        if (!existe) {
-          Swal.fire({
-            icon: 'warning',
-            title: 'Caja Banco requerida',
-            text: 'Debe crear primero una Caja Banco antes de registrar una Caja Chica.',
-            confirmButtonText: 'Ir a Caja Banco',
-            showCancelButton: true,
-            cancelButtonText: 'Volver',
-            allowOutsideClick: false,
-            allowEscapeKey: false
-          }).then((result) => {
-            if (result.isConfirmed) {
-              this.router.navigate(['/caja-banco']);
-            } else {
-              this.router.navigate(['/caja-chica']);
-            }
-          });
-        }
-      },
-      error: (err) => {
-        console.error('Error al verificar existencia de Caja Banco:', err);
-        Swal.fire({
-          icon: 'error',
-          title: 'Error de validación',
-          text: 'No se pudo verificar la existencia de una Caja Banco. Inténtelo nuevamente.',
-          confirmButtonText: 'Volver'
-        }).then(() => {
-          this.router.navigate(['/caja-chica']);
-        });
-      }
-    });
   }
 
   inicializarFormulario(): void {
@@ -118,6 +81,60 @@ export class AbrirCajaComponent implements OnInit {
   }
 
   abrirCaja(): void {
+    // Validar existencia de Caja Banco primero
+    this.cajaBancoService.existeAlMenosUnaCajaBanco().subscribe({
+      next: (existe) => {
+        if (!existe) {
+          // Obtener el rol del usuario actual
+          const usuario = this.authService.getCurrentUser();
+          const esAdmin = this.authService.isAdmin(); // rol id 1
+          
+          if (esAdmin) {
+            // Para admin: mostrar opción de crear caja banco
+            Swal.fire({
+              icon: 'warning',
+              title: 'Caja Banco requerida',
+              text: 'Debe crear primero una Caja Banco antes de registrar una Caja Chica.',
+              confirmButtonText: 'Ir a Caja Banco',
+              showCancelButton: true,
+              cancelButtonText: 'Volver',
+              allowOutsideClick: false,
+              allowEscapeKey: false
+            }).then((result) => {
+              if (result.isConfirmed) {
+                this.router.navigate(['/caja-banco']);
+              }
+            });
+          } else {
+            // Para operador: mensaje de contactar al administrador
+            Swal.fire({
+              icon: 'warning',
+              title: 'Caja Banco no disponible',
+              text: 'No existe una Caja Banco abierta. Contacte con el administrador para que la cree.',
+              confirmButtonText: 'Aceptar',
+              allowOutsideClick: false,
+              allowEscapeKey: false
+            });
+          }
+          return;
+        }
+
+        // Si existe Caja Banco, continuar con la validación del formulario
+        this.procederAbrirCaja();
+      },
+      error: (err) => {
+        console.error('Error al verificar existencia de Caja Banco:', err);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error de validación',
+          text: 'No se pudo verificar la existencia de una Caja Banco. Inténtelo nuevamente.',
+          confirmButtonText: 'Aceptar'
+        });
+      }
+    });
+  }
+
+  private procederAbrirCaja(): void {
     if (this.form.invalid) {
       Swal.fire({
         icon: 'error',
