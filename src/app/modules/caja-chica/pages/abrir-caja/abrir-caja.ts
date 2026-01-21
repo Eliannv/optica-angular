@@ -81,10 +81,18 @@ export class AbrirCajaComponent implements OnInit {
   }
 
   abrirCaja(): void {
-    // Validar existencia de Caja Banco primero
+    // Bloquear si ya está cargando
+    if (this.cargando) return;
+    
+    // Establecer cargando para bloquear el botón
+    this.cargando = true;
+
+    // Validar existencia de Caja Banco primero (async)
     this.cajaBancoService.existeAlMenosUnaCajaBanco().subscribe({
       next: (existe) => {
         if (!existe) {
+          this.cargando = false; // Desbloquear botón
+          
           // Obtener el rol del usuario actual
           const usuario = this.authService.getCurrentUser();
           const esAdmin = this.authService.isAdmin(); // rol id 1
@@ -108,9 +116,9 @@ export class AbrirCajaComponent implements OnInit {
           } else {
             // Para operador: mensaje de contactar al administrador
             Swal.fire({
-              icon: 'warning',
+              icon: 'error',
               title: 'Caja Banco no disponible',
-              text: 'No existe una Caja Banco abierta. Contacte con el administrador para que la cree.',
+              text: 'No existe una Caja Banco creada. Contacte con el administrador para que la cree.',
               confirmButtonText: 'Aceptar',
               allowOutsideClick: false,
               allowEscapeKey: false
@@ -121,8 +129,10 @@ export class AbrirCajaComponent implements OnInit {
 
         // Si existe Caja Banco, continuar con la validación del formulario
         this.procederAbrirCaja();
+        this.cargando = false; // Desbloquear después de procesar
       },
       error: (err) => {
+        this.cargando = false; // Desbloquear en caso de error
         console.error('Error al verificar existencia de Caja Banco:', err);
         Swal.fire({
           icon: 'error',

@@ -1,9 +1,114 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // MODO DESARROLLO: Permitir lectura/escritura solo si está autenticado
+    // ===== FUNCIONES AUXILIARES =====
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return isSignedIn() && userDoc().data.rol == 1; // ADMINISTRADOR
+    }
+
+    // Validar que el usuario pertenezca a sucursal PASAJE
+    function hasSucursalPasaje() {
+      return isSignedIn() && userDoc().data.sucursal == "PASAJE";
+    }
+
+    // Validar que el usuario esté activo (autorizado)
+    function isActive() {
+      return isSignedIn() && userDoc().data.activo == true;
+    }
+
+    // Operador autorizado: sucursal PASAJE + activo
+    function isAuthorizedOperator() {
+      return hasSucursalPasaje() && isActive();
+    }
+
+    // ===== USUARIOS =====
+    match /usuarios/{uid} {
+      // Leer: el propio documento, usuarios de PASAJE, admin, o durante registro
+      allow read: if (isSignedIn() && request.auth.uid == uid) || hasSucursalPasaje() || isAdmin() || true;
+      
+      // Crear su propio documento durante registro (usuario recién creado en Auth)
+      allow create: if isSignedIn() && request.auth.uid == uid;
+      
+      // Actualizar/Eliminar: el propio usuario o un administrador
+      allow update, delete: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+    }
+
+    // ===== CLIENTES =====
+    match /clientes/{clienteId} {
+      allow read, write: if isAdmin() || isAuthorizedOperator();
+      
+      // Subcolección: Historial Clínico
+      match /historialClinico/{documento} {
+        allow read, write: if isAdmin() || isAuthorizedOperator();
+      }
+    }
+
+    // ===== PRODUCTOS =====
+    match /productos/{productoId} {
+      allow read, write: if isAdmin() || isAuthorizedOperator();
+    }
+
+    // ===== PROVEEDORES =====
+    match /proveedores/{proveedorId} {
+      allow read, write: if isAdmin() || isAuthorizedOperator();
+    }
+
+    // ===== INGRESOS =====
+    match /ingresos/{ingresoId} {
+      allow read, write: if isAdmin() || isAuthorizedOperator();
+      
+      // Subcolección: Detalles del Ingreso
+      match /detalles/{detalleId} {
+        allow read, write: if isAdmin() || isAuthorizedOperator();
+      }
+    }
+
+    // ===== FACTURAS =====
+    match /facturas/{facturaId} {
+      allow read, write: if isAdmin() || isAuthorizedOperator();
+    }
+
+    // ===== MOVIMIENTOS DE STOCK =====
+    match /movimientos_stock/{movId} {
+      allow read, write: if isAdmin() || isAuthorizedOperator();
+    }
+
+    // ===== CAJAS BANCO =====
+    match /cajas_banco/{cajaId} {
+      allow read, write: if isAdmin() || isAuthorizedOperator();
+    }
+
+    // ===== MOVIMIENTOS CAJAS BANCO =====
+    match /movimientos_cajas_banco/{movId} {
+      allow read, write: if isAdmin() || isAuthorizedOperator();
+    }
+
+    // ===== CAJAS CHICAS =====
+    match /cajas_chicas/{cajaId} {
+      allow read, write: if isAdmin() || isAuthorizedOperator();
+    }
+
+    // ===== MOVIMIENTOS CAJAS CHICAS =====
+    match /movimientos_cajas_chicas/{movId} {
+      allow read, write: if isAdmin() || isAuthorizedOperator();
+    }
+
+    // ===== COUNTERS / AUXILIARES =====
+    match /counters/{counterId} {
+      allow read, write: if isAdmin() || isAuthorizedOperator();
+    }
+
+    // ===== DENEGAR TODO LO DEMÁS POR DEFECTO =====
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
   }
 }

@@ -67,22 +67,27 @@ export class CrearVentaComponent implements OnInit {
   ) {}
 
   async ngOnInit() {
-    // ✅ Validar que exista una caja chica abierta hoy
-    const cajaChicaAbierta = localStorage.getItem('cajaChicaAbierta');
+    // ✅ Validar que exista una caja chica abierta hoy (PRIMERO verificar localStorage, luego Firestore)
+    let cajaChicaAbierta = localStorage.getItem('cajaChicaAbierta');
+    
+    // Si localStorage no tiene ID, buscar en Firestore
     if (!cajaChicaAbierta) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Caja Chica Requerida',
-        text: 'Debe crear primero la caja chica de este día para empezar con una nueva venta',
-        confirmButtonText: 'Ir a Caja Chica',
-        allowOutsideClick: false,
-        allowEscapeKey: false
-      }).then((result) => {
-        if (result.isConfirmed) {
-          this.router.navigate(['/caja-chica']);
-        }
-      });
-      return;
+      const existeEnFirestore = await this.cajaChicaService.existeCajaAbiertaHoy();
+      if (!existeEnFirestore) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Caja Chica Requerida',
+          text: 'Debe crear primero la caja chica de este día para empezar con una nueva venta',
+          confirmButtonText: 'Ir a Caja Chica',
+          allowOutsideClick: false,
+          allowEscapeKey: false
+        }).then((result) => {
+          if (result.isConfirmed) {
+            this.router.navigate(['/caja-chica']);
+          }
+        });
+        return;
+      }
     }
 
     // ✅ puedes entrar con /ventas/crear?clienteId=xxx

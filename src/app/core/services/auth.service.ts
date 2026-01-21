@@ -178,10 +178,9 @@ export class AuthService {
   /**
    * Registrar un nuevo usuario (siempre como empleado)
    *
-   * Importante: evitamos lecturas a Firestore antes de estar autenticado.
+   * Importante: Primero creamos el usuario en Firebase Auth (para tener autenticación),
+   * y luego verificamos la cédula y creamos el documento en Firestore.
    * Firebase Auth ya garantiza la unicidad del email.
-   * La unicidad de "cedula" se puede validar luego de crear la cuenta,
-   * ya autenticados, o con lógica de servidor si se desea 100% estricta.
    */
   register(userData: {
     cedula: string;
@@ -191,16 +190,22 @@ export class AuthService {
     email: string;
     password: string;
   }): Observable<Usuario> {
-    // Primero verificar si la cédula ya existe
-    return from(this.verificarCedulaExistente(userData.cedula)).pipe(
-      switchMap(cedulaExiste => {
-        if (cedulaExiste) {
-          throw new Error('La cédula ya está registrada en el sistema');
-        }
-        
-        // Continuar con el registro normal
-        return from(createUserWithEmailAndPassword(this.auth, userData.email, userData.password)).pipe(
-          switchMap(credential => {
+    // Crear usuario en Firebase Auth PRIMERO (para estar autenticado)
+    return from(createUserWithEmailAndPassword(this.auth, userData.email, userData.password)).pipe(
+      switchMap(credential => {
+        // Ahora que estamos autenticados, verificar si la cédula ya existe
+        return from(this.verificarCedulaExistente(userData.cedula)).pipe(
+          switchMap(cedulaExiste => {
+            if (cedulaExiste) {
+              // Eliminar el usuario de Auth que recién creamos
+              return from(credential.user.delete()).pipe(
+                switchMap(() => {
+                  throw new Error('La cédula ya está registrada en el sistema');
+                })
+              );
+            }
+            
+            // Cédula no existe, proceder a crear el documento en Firestore
             // Datos provenientes de Electron (solo app de escritorio)
             const electronApi = (window as any).electron;
             const sucursalActual = electronApi?.sucursal || 'PASAJE';

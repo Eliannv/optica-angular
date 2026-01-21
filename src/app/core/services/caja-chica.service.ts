@@ -130,6 +130,31 @@ export class CajaChicaService {
     }
     
     return null;
+  }
+
+  // 🔹 NUEVO: Obtener caja abierta directamente de Firestore (busca por fecha de hoy)
+  async existeCajaAbiertaHoy(): Promise<boolean> {
+    try {
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      
+      const mañana = new Date(hoy);
+      mañana.setDate(mañana.getDate() + 1);
+
+      const cajasRef = collection(this.firestore, 'cajas_chicas');
+      const q = query(
+        cajasRef,
+        where('fecha', '>=', hoy),
+        where('fecha', '<', mañana),
+        where('estado', '==', 'ABIERTA')
+      );
+
+      const snapshot = await getDocs(q);
+      return !snapshot.empty;
+    } catch (err) {
+      console.error('Error al verificar caja abierta hoy:', err);
+      return false;
+    }
   }  // 🔹 Obtener la última caja chica abierta
   // 🔹 Crear una nueva caja chica (apertura)
   // Solo permite 1 caja por día (abierta o cerrada). Si ya existe una caja con la misma fecha, lanza error.

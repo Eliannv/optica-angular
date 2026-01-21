@@ -8,6 +8,7 @@ import Swal from 'sweetalert2';
 import { ClientesService } from '../../../../core/services/clientes';
 import { HistorialClinicoService } from '../../../../core/services/historial-clinico.service';
 import { FacturasService } from '../../../../core/services/facturas'; // ✅ NUEVO
+import { CajaChicaService } from '../../../../core/services/caja-chica.service'; // ✅ PARA VALIDAR CAJA ABIERTA
 
 import { Cliente } from '../../../../core/models/cliente.model';
 import { HistoriaClinica } from '../../../../core/models/historia-clinica.model';
@@ -51,7 +52,8 @@ export class HistorialClinicoComponent implements OnInit {
     private router: Router,
     private clientesSrv: ClientesService,
     private historialSrv: HistorialClinicoService,
-    private facturasSrv: FacturasService // ✅ NUEVO
+    private facturasSrv: FacturasService, // ✅ NUEVO
+    private cajasChicaService: CajaChicaService // ✅ PARA VALIDAR CAJA ABIERTA
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -242,10 +244,17 @@ export class HistorialClinicoComponent implements OnInit {
   }
 
   // ✅ Crear Recibo (POS)
-  crearRecibo(clienteId: string): void {
-    // Validar que exista una caja chica abierta
+  async crearRecibo(clienteId: string): Promise<void> {
+    // Validar que exista una caja chica abierta (PRIMERO verificar en Firestore)
     const cajaChicaAbierta = localStorage.getItem('cajaChicaAbierta');
-    if (!cajaChicaAbierta) {
+    let cajaValida = !!cajaChicaAbierta;
+    
+    // Si localStorage no tiene ID, buscar en Firestore
+    if (!cajaValida) {
+      cajaValida = await this.cajasChicaService.existeCajaAbiertaHoy();
+    }
+
+    if (!cajaValida) {
       Swal.fire({
         icon: 'error',
         title: 'Caja Chica Requerida',
