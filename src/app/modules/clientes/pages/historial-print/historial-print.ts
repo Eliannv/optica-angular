@@ -130,4 +130,17 @@ export class HistorialPrintComponent implements OnInit {
     const total = factura?.total || 0;
     const abonado = factura?.abonado || 0;
     return total - abonado;
+  }
+
+  // Método para obtener SOLO la última factura (más reciente)
+  obtenerUltimaFactura(): any {
+    if (!this.facturas || this.facturas.length === 0) return null;
+    // Asumir que las facturas están ordenadas por fecha descendente (más reciente primero)
+    // Si no, ordenar por createdAt
+    const sorted = [...this.facturas].sort((a, b) => {
+      const fechaA = a.createdAt?.toMillis?.() || new Date(a.createdAt).getTime() || 0;
+      const fechaB = b.createdAt?.toMillis?.() || new Date(b.createdAt).getTime() || 0;
+      return fechaB - fechaA; // descendente (más reciente primero)
+    });
+    return sorted[0] || null;
   }}

@@ -7,21 +7,21 @@
     <div class="reporte-header">
         <h1>ÓPTICA MACÍAS</h1>
         <h2>REPORTE DE CAJA BANCO</h2>
-        <div class="fecha-reporte">Fecha de impresión: {{ dateFrom(caja?.updatedAt) | date:'dd/MM/yyyy HH:mm' }}</div>
+        <div class="fecha-reporte">Fecha de impresión: {{ dateFrom(caja.updatedAt) | date:'dd/MM/yyyy HH:mm' }}</div>
     </div>
 
     <div class="reporte-info">
         <div class="reporte-info-item">
             <span class="label">Fecha:</span>
-            <span class="value">{{ dateFrom(caja?.fecha) | date:'dd/MM/yyyy' }}</span>
+            <span class="value">{{ dateFrom(caja.fecha) | date:'dd/MM/yyyy' }}</span>
         </div>
         <div class="reporte-info-item">
             <span class="label">Estado:</span>
-            <span class="value">{{ caja?.estado }}</span>
+            <span class="value">{{ caja.estado }}</span>
         </div>
         <div class="reporte-info-item">
             <span class="label">Usuario:</span>
-            <span class="value">{{ caja?.usuario_nombre || '-' }}</span>
+            <span class="value">{{ caja.usuario_nombre || '-' }}</span>
         </div>
     </div>
 
@@ -29,10 +29,18 @@
         <h3>RESUMEN FINANCIERO</h3>
         <div class="reporte-resumen-item">
             <span>Saldo Inicial:</span>
-            <span>{{ caja?.saldo_inicial | currency:'USD':'symbol':'1.2-2' }}</span>
+            <span>{{ caja.saldo_inicial | currency:'USD':'symbol':'1.2-2' }}</span>
         </div>
         <div class="reporte-resumen-item">
-            <span>Total Ingresos ({{ resumen.cantidad_movimientos }} movs):</span>
+            <span>Ingresos Cajas Chicas:</span>
+            <span style="color:#28a745; font-weight:bold;">+{{ resumen.ingresos_cajas_chicas | currency:'USD':'symbol':'1.2-2' }}</span>
+        </div>
+        <div class="reporte-resumen-item">
+            <span>Otros Ingresos ({{ resumen.cantidad_movimientos }} movs):</span>
+            <span style="color:#28a745; font-weight:bold;">+{{ resumen.ingresos_otros | currency:'USD':'symbol':'1.2-2' }}</span>
+        </div>
+        <div class="reporte-resumen-item">
+            <span>Total Ingresos:</span>
             <span style="color:#28a745; font-weight:bold;">+{{ resumen.total_ingresos | currency:'USD':'symbol':'1.2-2' }}</span>
         </div>
         <div class="reporte-resumen-item">
@@ -43,6 +51,29 @@
             <span>SALDO FINAL:</span>
             <span>{{ resumen.saldo_final | currency:'USD':'symbol':'1.2-2' }}</span>
         </div>
+    </div>
+
+    <!-- CAJAS CHICAS CERRADAS -->
+    <div class="reporte-section" *ngIf="cajasChicas.length > 0">
+        <h3>CAJAS CHICAS CERRADAS</h3>
+        <table class="reporte-table">
+            <thead>
+                <tr>
+                    <th style="width:25%;">Fecha</th>
+                    <th style="width:25%;" class="text-right">Saldo Inicial</th>
+                    <th style="width:25%;" class="text-right">Saldo Final</th>
+                    <th style="width:25%;">Usuario</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let cc of cajasChicas">
+                    <td>{{ dateFrom(cc.fecha) | date:'dd/MM/yyyy' }}</td>
+                    <td class="text-right">{{ cc.monto_inicial | currency:'USD':'symbol':'1.2-2' }}</td>
+                    <td class="text-right" style="font-weight:bold;color:#28a745;">{{ cc.monto_actual | currency:'USD':'symbol':'1.2-2' }}</td>
+                    <td>{{ cc.usuario_nombre || '-' }}</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 
     <div class="reporte-section">
@@ -85,7 +116,7 @@
         <div class="reporte-firma-item">
             <div class="linea"></div>
             <div>Responsable</div>
-            <div><small>{{ caja?.usuario_nombre }}</small></div>
+            <div><small>{{ caja.usuario_nombre }}</small></div>
         </div>
         <div class="reporte-firma-item">
             <div class="linea"></div>

@@ -29,6 +29,8 @@ export class ImprimirCajaBancoMensualComponent implements OnInit {
   resumen = {
     total_ingresos: 0,
     total_egresos: 0,
+    ingresos_cajas_chicas: 0,
+    ingresos_otros: 0,
     saldo_final: 0,
     cantidad_movimientos: 0,
   };
@@ -48,7 +50,7 @@ export class ImprimirCajaBancoMensualComponent implements OnInit {
       ]).subscribe(([cajas, movs, cc]) => {
         this.cajasBanco = cajas || [];
         this.movimientos = movs || [];
-        this.cajasChicas = cc || [];
+        this.cajasChicas = (cc || []).filter(c => c.estado === 'CERRADA');
         this.calcularResumen();
         this.datoCargado = true;
         // Ahora que tenemos todos los datos, esperamos 500ms para que Angular renderice el DOM y luego imprimimos
@@ -58,16 +60,36 @@ export class ImprimirCajaBancoMensualComponent implements OnInit {
   }
 
   calcularResumen(): void {
-    let ingresos = 0;
+    let ingresosCajasChicas = 0;
+    let ingresosOtros = 0;
     let egresos = 0;
-    (this.movimientos || []).forEach(m => {
-      if (m.tipo === 'INGRESO') ingresos += m.monto || 0;
-      else egresos += m.monto || 0;
+    
+    // 1. Sumar ingresos de cajas chicas CERRADAS
+    (this.cajasChicas || []).forEach(cc => {
+      ingresosCajasChicas += cc.monto_actual || 0;
     });
-    this.resumen.total_ingresos = ingresos;
+    
+    // 2. Sumar movimientos de ingresos/egresos
+    (this.movimientos || []).forEach(m => {
+      if (m.tipo === 'INGRESO') {
+        ingresosOtros += m.monto || 0;
+      } else if (m.tipo === 'EGRESO') {
+        egresos += m.monto || 0;
+      }
+    });
+    
+    this.resumen.ingresos_cajas_chicas = ingresosCajasChicas;
+    this.resumen.ingresos_otros = ingresosOtros;
+    this.resumen.total_ingresos = ingresosCajasChicas + ingresosOtros;
     this.resumen.total_egresos = egresos;
     this.resumen.cantidad_movimientos = (this.movimientos || []).length;
-    this.resumen.saldo_final = ingresos - egresos;
+    
+    // 3. Calcular saldo final basado en saldo inicial de cajas banco + ingresos - egresos
+    let saldoInicial = 0;
+    (this.cajasBanco || []).forEach(cb => {
+      saldoInicial += cb.saldo_inicial || 0;
+    });
+    this.resumen.saldo_final = saldoInicial + this.resumen.total_ingresos - this.resumen.total_egresos;
   }
 
   dateFrom(value: any): Date {

@@ -20,12 +20,14 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { firstValueFrom } from 'rxjs';
 import { CajaChica, MovimientoCajaChica, ResumenCajaChica } from '../models/caja-chica.model';
+import { CajaBancoService } from './caja-banco.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class CajaChicaService {
   private firestore = inject(Firestore);
+  private cajaBancoService = inject(CajaBancoService);
 
   // 🔹 Obtener todas las cajas chicas (SOLO ACTIVAS)
   getCajasChicas(): Observable<CajaChica[]> {
@@ -133,6 +135,12 @@ export class CajaChicaService {
   // Solo permite 1 caja por día (abierta o cerrada). Si ya existe una caja con la misma fecha, lanza error.
   async abrirCajaChica(caja: CajaChica): Promise<string> {
     try {
+      // 🔒 VALIDACIÓN OBLIGATORIA: Verificar que exista al menos una Caja Banco
+      const existeCajaBanco = await firstValueFrom(this.cajaBancoService.existeAlMenosUnaCajaBanco());
+      if (!existeCajaBanco) {
+        throw new Error('Debe crear primero una Caja Banco antes de registrar una Caja Chica.');
+      }
+
       const cajasRef = collection(this.firestore, 'cajas_chicas');
       const fecha = caja.fecha ? new Date(caja.fecha) : new Date();
       fecha.setHours(0, 0, 0, 0);
@@ -350,6 +358,12 @@ export class CajaChicaService {
   // 🔹 Reactivar una caja chica (reversible)
   async activarCajaChica(cajaChicaId: string): Promise<void> {
     try {
+      // 🔒 VALIDACIÓN OBLIGATORIA: Verificar que exista al menos una Caja Banco
+      const existeCajaBanco = await firstValueFrom(this.cajaBancoService.existeAlMenosUnaCajaBanco());
+      if (!existeCajaBanco) {
+        throw new Error('Debe crear primero una Caja Banco antes de activar una Caja Chica.');
+      }
+
       await updateDoc(doc(this.firestore, `cajas_chicas/${cajaChicaId}`), {
         activo: true,
         updatedAt: Timestamp.now(),

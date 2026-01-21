@@ -99,6 +99,17 @@ export class CajaBancoService {
     return docData(cajaDoc, { idField: 'id' }) as Observable<CajaBanco>;
   }
 
+  // 🔹 Verificar si existe al menos una caja banco en el sistema
+  existeAlMenosUnaCajaBanco(): Observable<boolean> {
+    const cajasRef = collection(this.firestore, 'cajas_banco');
+    const q = query(cajasRef);
+    return collectionData(q, { idField: 'id' }).pipe(
+      map((cajas: any[]) => {
+        return cajas && cajas.length > 0;
+      })
+    );
+  }
+
   // 🔹 Abrir una nueva caja banco (o actualizar si ya existe para el día)
   async abrirCajaBanco(caja: CajaBanco): Promise<string> {
     const cajasRef = collection(this.firestore, 'cajas_banco');

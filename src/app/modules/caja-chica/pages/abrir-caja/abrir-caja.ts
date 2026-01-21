@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
+import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import Swal from 'sweetalert2';
 
@@ -14,6 +15,7 @@ import Swal from 'sweetalert2';
 })
 export class AbrirCajaComponent implements OnInit {
   private cajaChicaService = inject(CajaChicaService);
+  private cajaBancoService = inject(CajaBancoService);
   private authService = inject(AuthService);
   private formBuilder = inject(FormBuilder);
   private router = inject(Router);
@@ -25,7 +27,44 @@ export class AbrirCajaComponent implements OnInit {
 
   ngOnInit(): void {
     this.inicializarFormulario();
+    this.validarExistenciaCajaBanco();
     this.validarCajaAbiertaHoy();
+  }
+
+  validarExistenciaCajaBanco(): void {
+    this.cajaBancoService.existeAlMenosUnaCajaBanco().subscribe({
+      next: (existe) => {
+        if (!existe) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Caja Banco requerida',
+            text: 'Debe crear primero una Caja Banco antes de registrar una Caja Chica.',
+            confirmButtonText: 'Ir a Caja Banco',
+            showCancelButton: true,
+            cancelButtonText: 'Volver',
+            allowOutsideClick: false,
+            allowEscapeKey: false
+          }).then((result) => {
+            if (result.isConfirmed) {
+              this.router.navigate(['/caja-banco']);
+            } else {
+              this.router.navigate(['/caja-chica']);
+            }
+          });
+        }
+      },
+      error: (err) => {
+        console.error('Error al verificar existencia de Caja Banco:', err);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error de validación',
+          text: 'No se pudo verificar la existencia de una Caja Banco. Inténtelo nuevamente.',
+          confirmButtonText: 'Volver'
+        }).then(() => {
+          this.router.navigate(['/caja-chica']);
+        });
+      }
+    });
   }
 
   inicializarFormulario(): void {
@@ -118,10 +157,33 @@ export class AbrirCajaComponent implements OnInit {
     const usuario = this.authService.getCurrentUser();
     const montoParse = parseFloat(this.form.get('monto_inicial')?.value);
 
-    // Crear la fecha en zona horaria local (evitar offset timezone)
-    const fechaStr = this.form.get('fecha')?.value;
-    const [year, month, day] = fechaStr.split('-');
-    const fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 0, 0, 0, 0);
+    // Obtener la fecha del formulario y normalizarla
+    const fechaValue = this.form.get('fecha')?.value;
+    let fecha: Date;
+
+    // Manejar diferentes tipos de entrada (Date, string, null)
+    if (fechaValue instanceof Date) {
+      // Si ya es un Date, normalizarlo a medianoche
+      fecha = new Date(fechaValue);
+      fecha.setHours(0, 0, 0, 0);
+    } else if (typeof fechaValue === 'string') {
+      // Si es string (formato YYYY-MM-DD o DD/MM/YYYY)
+      if (fechaValue.includes('-')) {
+        const [year, month, day] = fechaValue.split('-');
+        fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 0, 0, 0, 0);
+      } else if (fechaValue.includes('/')) {
+        const [day, month, year] = fechaValue.split('/');
+        fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 0, 0, 0, 0);
+      } else {
+        // Fallback: usar fecha actual
+        fecha = new Date();
+        fecha.setHours(0, 0, 0, 0);
+      }
+    } else {
+      // Fallback: usar fecha actual si el valor es null o undefined
+      fecha = new Date();
+      fecha.setHours(0, 0, 0, 0);
+    }
 
     const nuevaCaja = {
       fecha,

@@ -11,6 +11,8 @@
 
     <div class="reporte-resumen">
         <h3>RESUMEN FINANCIERO</h3>
+        <div class="reporte-resumen-item"><span>Ingresos Cajas Chicas:</span><span style="color:#28a745; font-weight:bold;">+{{ resumen.ingresos_cajas_chicas | currency:'USD':'symbol':'1.2-2' }}</span></div>
+        <div class="reporte-resumen-item"><span>Otros Ingresos ({{ resumen.cantidad_movimientos }} movs):</span><span style="color:#28a745; font-weight:bold;">+{{ resumen.ingresos_otros | currency:'USD':'symbol':'1.2-2' }}</span></div>
         <div class="reporte-resumen-item"><span>Total Ingresos:</span><span style="color:#28a745; font-weight:bold;">+{{ resumen.total_ingresos | currency:'USD':'symbol':'1.2-2' }}</span></div>
         <div class="reporte-resumen-item"><span>Total Egresos:</span><span style="color:#dc3545; font-weight:bold;">-{{ resumen.total_egresos | currency:'USD':'symbol':'1.2-2' }}</span></div>
         <div class="reporte-resumen-item total-final"><span>SALDO FINAL:</span><span>{{ resumen.saldo_final | currency:'USD':'symbol':'1.2-2' }}</span></div>

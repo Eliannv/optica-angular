@@ -27,7 +27,8 @@ export class VerCajaComponent implements OnInit {
     total_ingresos: 0,
     total_egresos: 0,
     ingresos_cajas_chicas: 0,
-    ingresos_otros: 0
+    ingresos_otros: 0,
+    saldo_actual_calculado: 0
   };
 
   ngOnInit(): void {
@@ -71,8 +72,16 @@ export class VerCajaComponent implements OnInit {
     const mes = fecha.getMonth();
     
     this.cajaChicaService.getCajasChicasPorMes(year, mes).subscribe(todas => {
-      // Filtrar solo las cajas chicas CERRADAS del mes
-      this.cajasChicas = (todas || []).filter(cc => cc.estado === 'CERRADA');
+      // Filtrar solo las cajas chicas CERRADAS del mismo día de la caja banco
+      const cajaBancoDay = new Date(fecha);
+      cajaBancoDay.setHours(0, 0, 0, 0);
+      
+      this.cajasChicas = (todas || []).filter(cc => {
+        if (cc.estado !== 'CERRADA') return false;
+        const cajaDia = new Date(cc.fecha instanceof Date ? cc.fecha : (cc.fecha as any).toDate?.() || new Date(cc.fecha));
+        cajaDia.setHours(0, 0, 0, 0);
+        return cajaDia.getTime() === cajaBancoDay.getTime();
+      });
       // Recalcular resumen cuando se cargan las cajas chicas
       this.calcularResumen();
     });
@@ -83,11 +92,9 @@ export class VerCajaComponent implements OnInit {
     let ingresosOtros = 0;
     let egresos = 0;
     
-    // 1. Sumar ingresos de cajas chicas CERRADAS del mismo día
+    // 1. Sumar ingresos de cajas chicas (ya están filtradas por estado CERRADA y mismo día en cargarCajasChicas)
     (this.cajasChicas || []).forEach(cc => {
-      if (cc.estado === 'CERRADA') {
-        ingresosCajasChicas += cc.monto_actual || 0;
-      }
+      ingresosCajasChicas += cc.monto_actual || 0;
     });
     
     // 2. Sumar movimientos de ingresos/egresos
@@ -105,6 +112,10 @@ export class VerCajaComponent implements OnInit {
     this.resumen.ingresos_otros = ingresosOtros;
     this.resumen.total_ingresos = ingresosCajasChicas + ingresosOtros;
     this.resumen.total_egresos = egresos;
+    
+    // 3. Calcular el saldo actual: saldo_inicial + total_ingresos - total_egresos
+    const saldoInicial = this.caja?.saldo_inicial ?? 0;
+    this.resumen.saldo_actual_calculado = saldoInicial + this.resumen.total_ingresos - this.resumen.total_egresos;
   }
 
   formatoFecha(fecha: any): string {

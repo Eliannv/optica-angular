@@ -109,18 +109,18 @@
     <div class="t-hr"></div>
 
     <!-- INFORMACIÓN DE FACTURAS -->
-    <div *ngIf="facturas && facturas.length > 0">
-        <div class="t-bold t-small">FACTURAS PENDIENTES</div>
+    <div *ngIf="facturas && facturas.length > 0 && obtenerUltimaFactura()">
+        <div class="t-bold t-small">FACTURA MÁS RECIENTE</div>
 
-        <div *ngFor="let factura of facturas" class="t-small" style="margin-bottom: 12px;">
-            <div><b>Fac:</b> {{ factura.id || '-' }}</div>
-            <div><b>Total:</b> ${{ factura.total | number:'1.2-2' }}</div>
-            <div><b>Abono:</b> ${{ factura.abonado | number:'1.2-2' }}</div>
-            <div><b>Restante:</b> ${{ calcularTotalRestante(factura) | number:'1.2-2' }}</div>
-            <div *ngIf="tieneArmazon(factura)" style="color: #333; margin-top: 4px;">
+        <div class="t-small" style="margin-bottom: 12px;">
+            <div><b>Fac:</b> {{ obtenerUltimaFactura().id || '-' }}</div>
+            <div><b>Total:</b> ${{ obtenerUltimaFactura().total | number:'1.2-2' }}</div>
+            <div><b>Abono:</b> ${{ obtenerUltimaFactura().abonado | number:'1.2-2' }}</div>
+            <div><b>Restante:</b> ${{ calcularTotalRestante(obtenerUltimaFactura()) | number:'1.2-2' }}</div>
+            <div *ngIf="tieneArmazon(obtenerUltimaFactura())" style="color: #333; margin-top: 4px;">
                 ✓ Armazón Incluido
             </div>
-            <div *ngIf="!tieneArmazon(factura)" style="color: #666; margin-top: 4px;">
+            <div *ngIf="!tieneArmazon(obtenerUltimaFactura())" style="color: #666; margin-top: 4px;">
                 - Armazón Propio
             </div>
         </div>
