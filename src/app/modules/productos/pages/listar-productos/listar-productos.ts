@@ -78,9 +78,6 @@ export class ListarProductos implements OnInit {
     this.paginaActual = Math.ceil(this.totalProductos / this.productosPorPagina);
     this.actualizarPaginacion();
   }
-  crearProducto() {
-    this.router.navigate(['/productos/crear']);
-  }
 
   nuevoIngreso() {
     this.router.navigate(['/ingresos/nuevo']);

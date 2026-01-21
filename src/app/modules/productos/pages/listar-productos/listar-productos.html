@@ -33,9 +33,6 @@
                     <button class="btn btn-success" (click)="nuevoIngreso()">
                         <i class="bi bi-file-earmark-arrow-down"></i> + Nuevo Ingreso
                     </button>
-                    <button class="btn btn-primary" (click)="crearProducto()">
-                        <i class="bi bi-plus-circle"></i> + Nuevo Producto
-                    </button>
                 </div>
             </div>
             <!-- Indicador de filtro activo -->
@@ -126,9 +123,7 @@
 
                 <div *ngIf="totalProductos === 0" class="text-center p-4">
                     <p class="text-muted">No hay productos registrados</p>
-                    <button class="btn btn-primary mt-3" (click)="crearProducto()">
-            Crear Primer Producto
-          </button>
+                    <p class="text-muted text-sm" style="margin-top: 12px;">Importa productos desde un archivo Excel</p>
                 </div>
             </div>
         </div>
