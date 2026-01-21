@@ -51,6 +51,42 @@
     box-shadow: var(--shadow-md);
 }
 
+.btn-secondary {
+    padding: 0.65rem 1.25rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: none;
+    cursor: pointer;
+    background: #6c757d;
+    color: white;
+    transition: all var(--transition-fast);
+}
+
+.btn-secondary:hover {
+    transform: translateY(-2px);
+    background: #5a6268;
+    box-shadow: var(--shadow-md);
+}
+
+.btn-warning {
+    padding: 0.65rem 1.25rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: none;
+    cursor: pointer;
+    background: #f39c12;
+    color: white;
+    transition: all var(--transition-fast);
+}
+
+.btn-warning:hover {
+    transform: translateY(-2px);
+    background: #e67e22;
+    box-shadow: var(--shadow-md);
+}
+
 .caja-body {
     padding: 1.5rem;
 }

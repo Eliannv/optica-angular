@@ -82,6 +82,85 @@ export class ListarCajasComponent implements OnInit {
     this.router.navigate(['/caja-banco/imprimir-mensual', String(year), String(month)]);
   }
 
+  // 🔹 Cerrar mes y abrir nuevo periodo
+  async cerrarMes(): Promise<void> {
+    const ahora = new Date();
+    const mesAnterior = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
+    const yearAnterior = mesAnterior.getFullYear();
+    const monthAnterior = mesAnterior.getMonth() + 1;
+
+    const resultado = await Swal.fire({
+      title: '📅 Cerrar Mes',
+      html: `
+        <div style="text-align: left;">
+          <p>Vas a cerrar el mes de <strong>${this.getNombreMes(monthAnterior - 1)} ${yearAnterior}</strong></p>
+          <p style="margin-top: 1rem;">Esto hará:</p>
+          <ul style="text-align: left; padding-left: 1.5rem;">
+            <li>Cerrar todas las cajas banco del mes</li>
+            <li>Generar resumen mensual</li>
+            <li>Abrir nueva caja banco para el mes actual</li>
+          </ul>
+          <p style="color: #e67e22; margin-top: 1rem;"><strong>⚠️ Esta acción no se puede deshacer</strong></p>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Sí, cerrar mes',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (resultado.isConfirmed) {
+      try {
+        // Mostrar loading
+        Swal.fire({
+          title: 'Cerrando mes...',
+          text: 'Por favor espera',
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+
+        // Cerrar todas las cajas del mes anterior
+        await this.cajaBancoService.cerrarMesCompleto(yearAnterior, monthAnterior - 1);
+
+        Swal.fire({
+          title: '✅ Mes Cerrado',
+          html: `
+            <div style="text-align: left;">
+              <p>Se ha cerrado el mes de <strong>${this.getNombreMes(monthAnterior - 1)} ${yearAnterior}</strong></p>
+              <p style="margin-top: 1rem;">✅ Cajas banco cerradas</p>
+              <p>✅ Nueva caja banco abierta para el mes actual</p>
+            </div>
+          `,
+          icon: 'success',
+          confirmButtonText: 'Ver Reporte Mensual'
+        }).then((res) => {
+          if (res.isConfirmed) {
+            this.router.navigate(['/caja-banco/imprimir-mensual', String(yearAnterior), String(monthAnterior)]);
+          }
+        });
+
+        // Recargar datos
+        this.cargarCajas();
+      } catch (error) {
+        console.error('Error al cerrar mes:', error);
+        Swal.fire({
+          title: '❌ Error',
+          text: 'No se pudo cerrar el mes. Intenta nuevamente.',
+          icon: 'error'
+        });
+      }
+    }
+  }
+
+  getNombreMes(index: number): string {
+    const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    return meses[index] || '';
+  }
+
   // 🔹 Eliminar una caja chica y restar el dinero de la caja banco
   async eliminarCajaChica(cajaChica: CajaChica): Promise<void> {
     const resultado = await Swal.fire({

@@ -444,4 +444,74 @@ export class CajaBancoService {
       throw error;
     }
   }
+
+  // 🔹 Cerrar mes completo y abrir nuevo periodo
+  async cerrarMesCompleto(year: number, monthIndex0: number): Promise<void> {
+    try {
+      // 1. Obtener todas las cajas banco del mes
+      const inicioMes = new Date(year, monthIndex0, 1);
+      const inicioSiguienteMes = new Date(year, monthIndex0 + 1, 1);
+      
+      const cajasRef = collection(this.firestore, 'cajas_banco');
+      const q = query(
+        cajasRef,
+        where('fecha', '>=', inicioMes),
+        where('fecha', '<', inicioSiguienteMes)
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      // 2. Cerrar todas las cajas del mes (filtrar activas en código)
+      const promises = snapshot.docs
+        .filter(docSnap => {
+          const caja = docSnap.data() as CajaBanco;
+          return caja.activo !== false && caja.estado === 'ABIERTA';
+        })
+        .map(async (docSnap) => {
+          const caja = docSnap.data() as CajaBanco;
+          await this.cerrarCajaBanco(docSnap.id, caja.saldo_actual);
+        });
+      
+      await Promise.all(promises);
+      
+      // 3. Crear nueva caja banco para el mes actual
+      const hoy = new Date();
+      const inicioDiaActual = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 0, 0, 0, 0);
+      
+      // Verificar si ya existe caja para hoy
+      const cajasHoyRef = collection(this.firestore, 'cajas_banco');
+      const qHoy = query(
+        cajasHoyRef,
+        where('fecha', '>=', inicioDiaActual),
+        where('fecha', '<', new Date(inicioDiaActual.getTime() + 24 * 60 * 60 * 1000))
+      );
+      
+      const snapshotHoy = await getDocs(qHoy);
+      const cajasActivasHoy = snapshotHoy.docs.filter(doc => {
+        const caja = doc.data() as CajaBanco;
+        return caja.activo !== false;
+      });
+      
+      if (cajasActivasHoy.length === 0) {
+        // No existe caja para hoy, crear una nueva
+        await this.abrirCajaBanco({
+          fecha: inicioDiaActual,
+          saldo_inicial: 0,
+          saldo_actual: 0,
+          estado: 'ABIERTA',
+          observacion: `Caja banco creada automáticamente al cerrar mes de ${this.getNombreMes(monthIndex0)} ${year}`
+        });
+      }
+      
+      console.log('✅ Mes cerrado y nueva caja banco creada');
+    } catch (error) {
+      console.error('Error al cerrar mes completo:', error);
+      throw error;
+    }
+  }
+
+  private getNombreMes(index: number): string {
+    const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    return meses[index] || '';
+  }
 }
