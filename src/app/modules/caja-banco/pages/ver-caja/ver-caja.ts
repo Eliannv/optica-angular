@@ -65,17 +65,14 @@ export class VerCajaComponent implements OnInit {
   cargarCajasChicas(): void {
     if (!this.caja?.fecha) return;
     const fecha = this.caja.fecha instanceof Date ? this.caja.fecha : (this.caja.fecha as any).toDate?.() || new Date(this.caja.fecha);
-    const inicio = new Date(fecha);
-    inicio.setHours(0, 0, 0, 0);
-    const fin = new Date(inicio);
-    fin.setDate(fin.getDate() + 1);
     
-    this.cajaChicaService.getCajasChicas().subscribe(todas => {
-      this.cajasChicas = (todas || []).filter(cc => {
-        const ccFecha = cc.fecha instanceof Date ? cc.fecha : (cc.fecha as any).toDate?.() || new Date(cc.fecha);
-        ccFecha.setHours(0, 0, 0, 0);
-        return ccFecha.getTime() === inicio.getTime();
-      });
+    // Obtener todas las cajas chicas cerradas del mes de la caja banco
+    const year = fecha.getFullYear();
+    const mes = fecha.getMonth();
+    
+    this.cajaChicaService.getCajasChicasPorMes(year, mes).subscribe(todas => {
+      // Filtrar solo las cajas chicas CERRADAS del mes
+      this.cajasChicas = (todas || []).filter(cc => cc.estado === 'CERRADA');
       // Recalcular resumen cuando se cargan las cajas chicas
       this.calcularResumen();
     });
@@ -128,30 +125,6 @@ export class VerCajaComponent implements OnInit {
     this.router.navigate(['/caja-banco/registrar-movimiento'], {
       state: { cajaId: this.cajaId }
     });
-  }
-
-  async cerrarMes(): Promise<void> {
-    const confirmar = await Swal.fire({
-      icon: 'question',
-      title: '¿Cerrar mes?',
-      text: 'Esta acción creará una nueva caja banco para el próximo día.',
-      showCancelButton: true,
-      confirmButtonText: 'Sí, cerrar',
-      cancelButtonText: 'Cancelar'
-    });
-
-    if (!confirmar.isConfirmed) return;
-
-    try {
-      const ahora = new Date();
-      const year = ahora.getFullYear();
-      const mes = ahora.getMonth();
-      await this.cajaBancoService.cerrarMesCompleto(year, mes);
-      Swal.fire({ title: 'Mes cerrado', icon: 'success', timer: 2000 });
-      this.volver();
-    } catch (error) {
-      Swal.fire({ title: 'Error', text: 'No se pudo cerrar el mes', icon: 'error' });
-    }
   }
 
   imprimirMensualActual(): void {

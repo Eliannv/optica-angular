@@ -3,7 +3,8 @@
         <div class="caja-header">
             <div class="header-content">
                 <h1 class="caja-title">Caja Banco</h1>
-                <button class="btn-primary" (click)="crearCajaBanco()">+ Crear Caja Banco</button>
+                <!-- Mostrar botón solo si NO hay cajas banco (primera vez) -->
+                <button *ngIf="cajas.length === 0" class="btn-primary" (click)="crearCajaBanco()">+ Crear Caja Banco</button>
             </div>
         </div>
 
