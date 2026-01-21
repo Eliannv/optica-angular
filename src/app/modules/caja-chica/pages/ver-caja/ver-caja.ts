@@ -224,29 +224,73 @@ export class VerCajaComponent implements OnInit {
       };
 
       // Preparar datos para el reporte con conversión de Timestamps
-      const reporteData = {
-        caja: {
-          ...this.caja,
-          fecha: convertirTimestamp(this.caja?.fecha),
-          cerrado_en: this.caja?.cerrado_en ? convertirTimestamp(this.caja.cerrado_en) : null,
-          createdAt: this.caja?.createdAt ? convertirTimestamp(this.caja.createdAt) : new Date()
-        },
-        movimientos: this.movimientos.map(m => ({
-          ...m,
-          fecha: convertirTimestamp(m.fecha),
-          createdAt: m.createdAt ? convertirTimestamp(m.createdAt) : new Date()
-        })),
-        resumen: { ...this.resumen },
-        fechaReporte: new Date(),
-        usuarioCierre: this.authService.getCurrentUser()?.nombre || 'N/A'
+      const caja = {
+        ...this.caja,
+        fecha: convertirTimestamp(this.caja?.fecha),
+        cerrado_en: this.caja?.cerrado_en ? convertirTimestamp(this.caja.cerrado_en) : null,
+        createdAt: this.caja?.createdAt ? convertirTimestamp(this.caja.createdAt) : new Date()
       };
 
-      console.log('📄 Datos del reporte preparados:', reporteData);
+      const movimientos = this.movimientos.map(m => ({
+        ...m,
+        fecha: convertirTimestamp(m.fecha),
+        createdAt: m.createdAt ? convertirTimestamp(m.createdAt) : new Date()
+      }));
 
-      // Navegar al componente de impresión con los datos
-      this.router.navigate(['/caja-chica/imprimir'], {
-        state: { reporteData }
+      const resumen = { ...this.resumen };
+      const fechaReporte = new Date();
+      const usuarioCierre = this.authService.getCurrentUser()?.nombre || 'N/A';
+
+      // Generar HTML del reporte
+      const htmlReporte = this.generarHTMLReporte({
+        caja,
+        movimientos,
+        resumen,
+        fechaReporte,
+        usuarioCierre
       });
+
+      // Abrir ventana de impresión directa
+      const w = window.open('', 'PRINT_CAJA_CHICA', 'height=800,width=900');
+      if (!w) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'No se pudo abrir la ventana de impresión. Verifique los bloqueadores de ventanas emergentes.'
+        });
+        return;
+      }
+
+      w.document.write(htmlReporte);
+      w.document.close();
+
+      // Disparar impresión automáticamente cuando el contenido esté listo
+      const triggerPrint = () => {
+        let closed = false;
+        const safeClose = () => {
+          if (closed) return;
+          closed = true;
+          w.close();
+        };
+
+        try {
+          w.focus();
+          w.addEventListener('afterprint', safeClose, { once: true });
+          w.print();
+          // Fallback: cerrar si afterprint no se dispara
+          setTimeout(safeClose, 3000);
+        } catch (err) {
+          safeClose();
+        }
+      };
+
+      if (w.document.readyState === 'complete') {
+        setTimeout(triggerPrint, 150);
+      } else {
+        w.onload = () => setTimeout(triggerPrint, 150);
+      }
+
+      console.log('✅ Reporte enviado a impresión');
     } catch (error) {
       console.error('❌ Error al preparar reporte:', error);
       Swal.fire({
@@ -255,5 +299,409 @@ export class VerCajaComponent implements OnInit {
         text: 'No se pudo generar el reporte para impresión'
       });
     }
+  }
+
+  /**
+   * Genera el HTML del reporte de cierre de caja chica
+   */
+  private generarHTMLReporte(data: any): string {
+    const formatoMoneda = (valor: number) => {
+      return new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(valor);
+    };
+
+    const formatoFecha = (fecha: Date) => {
+      return new Intl.DateTimeFormat('es-CO', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(new Date(fecha));
+    };
+
+    const formatoFechaSolo = (fecha: Date) => {
+      return new Intl.DateTimeFormat('es-CO', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }).format(new Date(fecha));
+    };
+
+    const formatoHora = (fecha: Date) => {
+      return new Intl.DateTimeFormat('es-CO', {
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(new Date(fecha));
+    };
+
+    const filasMovimientos = data.movimientos.map((mov: any) => `
+      <tr>
+        <td>${formatoFechaSolo(mov.fecha)}<br><small>${formatoHora(mov.createdAt)}</small></td>
+        <td class="text-center ${mov.tipo === 'INGRESO' ? 'tipo-ingreso' : 'tipo-egreso'}">${mov.tipo}</td>
+        <td>${mov.descripcion}</td>
+        <td class="text-right ${mov.tipo === 'INGRESO' ? 'tipo-ingreso' : 'tipo-egreso'}">${mov.tipo === 'INGRESO' ? '+' : '-'}${formatoMoneda(mov.monto)}</td>
+        <td class="text-right">${formatoMoneda(mov.saldo_nuevo)}</td>
+        <td class="text-center">${mov.comprobante || '-'}</td>
+      </tr>
+    `).join('');
+
+    return `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Reporte de Cierre - Caja Chica</title>
+        <style>
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          
+          body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #333;
+            background: #fff;
+            padding: 20px;
+          }
+          
+          .reporte-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+          }
+          
+          .reporte-header {
+            text-align: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+          }
+          
+          .reporte-header h1 {
+            font-size: 20px;
+            margin-bottom: 5px;
+            font-weight: bold;
+          }
+          
+          .reporte-header h2 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            font-weight: normal;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          
+          .fecha-reporte {
+            font-size: 10px;
+            color: #666;
+          }
+          
+          .reporte-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+            background: #f8f8f8;
+            padding: 12px;
+            border-radius: 4px;
+          }
+          
+          .reporte-info-item {
+            display: flex;
+            flex-direction: column;
+          }
+          
+          .reporte-info-item .label {
+            font-weight: bold;
+            font-size: 10px;
+            color: #666;
+            margin-bottom: 3px;
+          }
+          
+          .reporte-info-item .value {
+            font-size: 11px;
+            color: #333;
+          }
+          
+          .reporte-resumen {
+            background: #f0f0f0;
+            padding: 12px;
+            margin-bottom: 20px;
+            border-left: 4px solid #007bff;
+            border-radius: 3px;
+          }
+          
+          .reporte-resumen h3 {
+            font-size: 12px;
+            margin-bottom: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 8px;
+          }
+          
+          .reporte-resumen-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 11px;
+          }
+          
+          .reporte-resumen-item span:first-child {
+            font-weight: 500;
+          }
+          
+          .reporte-resumen-item.total-final {
+            background: white;
+            padding: 8px;
+            margin-top: 8px;
+            border-top: 2px solid #333;
+            font-weight: bold;
+            font-size: 12px;
+          }
+          
+          .tipo-ingreso {
+            color: #28a745;
+            font-weight: bold;
+          }
+          
+          .tipo-egreso {
+            color: #dc3545;
+            font-weight: bold;
+          }
+          
+          .reporte-section {
+            margin-bottom: 20px;
+          }
+          
+          .reporte-section h3 {
+            font-size: 12px;
+            margin-bottom: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-bottom: 2px solid #333;
+            padding-bottom: 8px;
+          }
+          
+          .reporte-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+          }
+          
+          .reporte-table thead {
+            background: #e0e0e0;
+            font-weight: bold;
+          }
+          
+          .reporte-table th {
+            padding: 8px 5px;
+            text-align: left;
+            border: 1px solid #999;
+            font-size: 9px;
+          }
+          
+          .reporte-table td {
+            padding: 7px 5px;
+            border: 1px solid #ddd;
+          }
+          
+          .reporte-table tbody tr:nth-child(even) {
+            background: #f9f9f9;
+          }
+          
+          .reporte-table tbody tr:hover {
+            background: #f0f0f0;
+          }
+          
+          .text-center {
+            text-align: center;
+          }
+          
+          .text-right {
+            text-align: right;
+          }
+          
+          .reporte-empty {
+            text-align: center;
+            padding: 20px;
+            background: #f8f8f8;
+            color: #999;
+            border-radius: 4px;
+          }
+          
+          .reporte-firma {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            margin-bottom: 20px;
+          }
+          
+          .reporte-firma-item {
+            flex: 1;
+            text-align: center;
+            font-size: 10px;
+          }
+          
+          .reporte-firma-item .linea {
+            width: 80%;
+            height: 1px;
+            background: #000;
+            margin: 30px auto 5px;
+          }
+          
+          .reporte-firma-item small {
+            display: block;
+            font-size: 9px;
+            color: #666;
+            margin-top: 3px;
+          }
+          
+          .reporte-footer {
+            text-align: center;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+            margin-top: 20px;
+            font-size: 9px;
+            color: #999;
+          }
+          
+          .reporte-footer p {
+            margin: 3px 0;
+          }
+          
+          @media print {
+            body {
+              padding: 0;
+              margin: 0;
+            }
+            
+            .reporte-container {
+              box-shadow: none;
+            }
+            
+            .reporte-table tbody tr {
+              page-break-inside: avoid;
+            }
+            
+            .reporte-section {
+              page-break-inside: avoid;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="reporte-container">
+          <!-- HEADER -->
+          <div class="reporte-header">
+            <h1>ÓPTICA MACÍAS</h1>
+            <h2>REPORTE DE CIERRE DE CAJA CHICA</h2>
+            <div class="fecha-reporte">Fecha de impresión: ${formatoFecha(data.fechaReporte)}</div>
+          </div>
+          
+          <!-- INFORMACIÓN GENERAL -->
+          <div class="reporte-info">
+            <div class="reporte-info-item">
+              <span class="label">Fecha de Apertura:</span>
+              <span class="value">${formatoFechaSolo(data.caja.fecha)}</span>
+            </div>
+            <div class="reporte-info-item">
+              <span class="label">Fecha de Cierre:</span>
+              <span class="value">${formatoFechaSolo(data.caja.cerrado_en)}</span>
+            </div>
+            <div class="reporte-info-item">
+              <span class="label">Usuario:</span>
+              <span class="value">${data.caja.usuario_nombre || '-'}</span>
+            </div>
+            <div class="reporte-info-item">
+              <span class="label">Estado:</span>
+              <span class="value">${data.caja.estado}</span>
+            </div>
+          </div>
+          
+          <!-- RESUMEN FINANCIERO -->
+          <div class="reporte-resumen">
+            <h3>RESUMEN FINANCIERO</h3>
+            <div class="reporte-resumen-item">
+              <span>Monto Inicial:</span>
+              <span>${formatoMoneda(data.caja.monto_inicial)}</span>
+            </div>
+            <div class="reporte-resumen-item">
+              <span>Total Ingresos (${data.movimientos.filter((m: any) => m.tipo === 'INGRESO').length} movimientos):</span>
+              <span class="tipo-ingreso">+${formatoMoneda(data.resumen.total_ingresos || 0)}</span>
+            </div>
+            <div class="reporte-resumen-item">
+              <span>Total Egresos:</span>
+              <span class="tipo-egreso">-${formatoMoneda(data.resumen.total_egresos || 0)}</span>
+            </div>
+            <div class="reporte-resumen-item total-final">
+              <span>SALDO FINAL:</span>
+              <span>${formatoMoneda(data.caja.monto_actual)}</span>
+            </div>
+          </div>
+          
+          <!-- DETALLE DE MOVIMIENTOS -->
+          <div class="reporte-section">
+            <h3>DETALLE DE MOVIMIENTOS</h3>
+            ${data.movimientos.length > 0 ? `
+              <table class="reporte-table">
+                <thead>
+                  <tr>
+                    <th style="width: 15%;">Fecha/Hora</th>
+                    <th style="width: 10%;" class="text-center">Tipo</th>
+                    <th style="width: 35%;">Descripción</th>
+                    <th style="width: 15%;" class="text-right">Monto</th>
+                    <th style="width: 15%;" class="text-right">Saldo</th>
+                    <th style="width: 10%;" class="text-center">Comprobante</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${filasMovimientos}
+                </tbody>
+              </table>
+            ` : `
+              <div class="reporte-empty">No se registraron movimientos en esta caja</div>
+            `}
+          </div>
+          
+          ${data.caja.observacion ? `
+            <!-- OBSERVACIONES -->
+            <div class="reporte-section">
+              <h3>OBSERVACIONES</h3>
+              <p>${data.caja.observacion}</p>
+            </div>
+          ` : ''}
+          
+          <!-- FIRMAS -->
+          <div class="reporte-firma">
+            <div class="reporte-firma-item">
+              <div class="linea"></div>
+              <div>Responsable de Caja</div>
+              <small>${data.caja.usuario_nombre}</small>
+            </div>
+            <div class="reporte-firma-item">
+              <div class="linea"></div>
+              <div>Supervisor/Gerente</div>
+            </div>
+          </div>
+          
+          <!-- FOOTER -->
+          <div class="reporte-footer">
+            <p>Este documento es un reporte interno de cierre de caja chica</p>
+            <p>Generado por el Sistema de Gestión - Óptica Macías</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
   }
 }

@@ -16,25 +16,32 @@ import {
   Timestamp,
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { map, switchMap } from 'rxjs/operators';
 import { firstValueFrom } from 'rxjs';
 import { CajaBanco, MovimientoCajaBanco, ResumenCajaBanco } from '../models/caja-banco.model';
+import { AuthService } from './auth.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class CajaBancoService {
   private firestore = inject(Firestore);
+  private authService = inject(AuthService);
 
   // 🔹 Obtener todas las cajas banco (SOLO ACTIVAS)
   getCajasBanco(): Observable<CajaBanco[]> {
     const cajasRef = collection(this.firestore, 'cajas_banco');
+    // Obtener todas las cajas sin filtros de desigualdad para evitar requerir índices
     const q = query(
       cajasRef,
-      where('activo', '!=', false),
-      orderBy('createdAt', 'desc')
+      orderBy('fecha', 'desc')
     );
-    return collectionData(q, { idField: 'id' }) as Observable<CajaBanco[]>;
+    return collectionData(q, { idField: 'id' }).pipe(
+      map((cajas: any[]) => {
+        // Filtrar cajas activas en memoria
+        return (cajas || []).filter(c => c.activo !== false);
+      })
+    ) as Observable<CajaBanco[]>;
   }
   // 🔹 Obtener cajas banco por mes (rango)
   getCajasBancoPorMes(year: number, monthIndex0: number): Observable<CajaBanco[]> {
@@ -202,10 +209,10 @@ export class CajaBancoService {
   getMovimientosCajaBanco(cajaBancoId?: string): Observable<MovimientoCajaBanco[]> {
     const movimientosRef = collection(this.firestore, 'movimientos_cajas_banco');
     if (cajaBancoId) {
+      // Obtener movimientos con caja_banco_id específica
       const q = query(
         movimientosRef,
         where('caja_banco_id', '==', cajaBancoId)
-        // Sin orderBy para evitar necesidad de índice compuesto
       );
       return collectionData(q, { idField: 'id' }).pipe(
         map((movimientos: any[]) => {
@@ -494,11 +501,14 @@ export class CajaBancoService {
       
       if (cajasActivasHoy.length === 0) {
         // No existe caja para hoy, crear una nueva
+        const usuarioActual = this.authService.getCurrentUser();
         await this.abrirCajaBanco({
           fecha: inicioDiaActual,
           saldo_inicial: 0,
           saldo_actual: 0,
           estado: 'ABIERTA',
+          usuario_id: usuarioActual?.id,
+          usuario_nombre: usuarioActual?.nombre,
           observacion: `Caja banco creada automáticamente al cerrar mes de ${this.getNombreMes(monthIndex0)} ${year}`
         });
       }
@@ -513,5 +523,46 @@ export class CajaBancoService {
   private getNombreMes(index: number): string {
     const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     return meses[index] || '';
+  }
+
+  // 🔹 Asociar movimientos antiguos a cajas banco por fecha
+  async asociarMovimientosAntiguos(cajaBancoId: string): Promise<void> {
+    try {
+      const cajaDoc = await getDoc(doc(this.firestore, `cajas_banco/${cajaBancoId}`));
+      if (!cajaDoc.exists()) return;
+
+      const caja = cajaDoc.data() as CajaBanco;
+      const cajaFecha = caja.fecha instanceof Date ? caja.fecha : (caja.fecha as any).toDate?.() || new Date(caja.fecha);
+      
+      const inicioDelDia = new Date(cajaFecha);
+      inicioDelDia.setHours(0, 0, 0, 0);
+      const finDelDia = new Date(inicioDelDia);
+      finDelDia.setDate(finDelDia.getDate() + 1);
+
+      // Obtener todos los movimientos del mismo día sin caja_banco_id
+      const movimientosRef = collection(this.firestore, 'movimientos_cajas_banco');
+      const snapshot = await getDocs(movimientosRef);
+      
+      const batch: Promise<void>[] = [];
+      snapshot.docs.forEach((docSnap) => {
+        const mov = docSnap.data() as MovimientoCajaBanco;
+        if (!mov.caja_banco_id && mov.fecha) {
+          const movFecha = mov.fecha instanceof Date ? mov.fecha : (mov.fecha as any).toDate?.() || new Date(mov.fecha);
+          movFecha.setHours(0, 0, 0, 0);
+          
+          if (movFecha.getTime() === inicioDelDia.getTime()) {
+            batch.push(
+              updateDoc(doc(this.firestore, `movimientos_cajas_banco/${docSnap.id}`), {
+                caja_banco_id: cajaBancoId,
+              })
+            );
+          }
+        }
+      });
+
+      await Promise.all(batch);
+    } catch (error) {
+      console.error('Error asociando movimientos antiguos:', error);
+    }
   }
 }

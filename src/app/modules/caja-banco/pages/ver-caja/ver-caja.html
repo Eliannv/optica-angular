@@ -1,50 +1,134 @@
 <div class="caja-container">
     <div class="caja-card">
         <div class="caja-header">
-            <h1 class="caja-title">📊 Detalle Caja Banco</h1>
-            <div style="display:flex; gap:8px;">
-                <button class="btn-secondary" (click)="volver()">← Volver</button>
-                <button class="btn-primary" (click)="imprimir()">🖨️ Imprimir</button>
+            <div class="header-content">
+                <h1 class="caja-title">Detalles de Caja Banco</h1>
+                <div class="header-actions">
+                    <button class="btn-secondary" (click)="volver()">← Volver</button>
+                    <button class="btn-primary" (click)="registrarMovimiento()">+ Registrar Movimiento</button>
+                    <button class="btn-warning" (click)="cerrarMes()">📅 Cerrar Mes</button>
+                    <button class="btn-secondary" (click)="imprimirMensualActual()">🖨️ Imprimir Mes Actual</button>
+                </div>
             </div>
         </div>
 
         <div class="caja-body">
-            <ng-container *ngIf="!cargando && movimientos.length > 0">
-                <div class="tabla-responsive">
-                    <table class="tabla">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Tipo</th>
-                                <th>Categoría</th>
-                                <th>Descripción</th>
-                                <th class="text-right">Monto</th>
-                                <th>Referencia</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr *ngFor="let mov of movimientos" class="tabla-row" [class]="getColorTipo(mov.tipo)">
-                                <td>{{ formatoFecha(mov.fecha) }}</td>
-                                <td>
-                                    <span class="badge" [class.badge-success]="mov.tipo === 'INGRESO'" [class.badge-danger]="mov.tipo !== 'INGRESO'">
-                    {{ mov.tipo }}
-                  </span>
-                                </td>
-                                <td>{{ mov.categoria }}</td>
-                                <td>{{ mov.descripcion }}</td>
-                                <td class="text-right" [class.text-success]="mov.tipo === 'INGRESO'" [class.text-danger]="mov.tipo !== 'INGRESO'">
-                                    {{ formatoMoneda(mov.monto) }}
-                                </td>
-                                <td>{{ mov.referencia || '-' }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </ng-container>
+            <ng-container *ngIf="!cargando && caja">
+                <!-- INFORMACIÓN PRINCIPAL -->
+                <div class="info-section">
+                    <div class="info-card">
+                        <h3>Información General</h3>
+                        <div class="info-row">
+                            <span class="label">Fecha de Apertura:</span>
+                            <span class="value">{{ formatoFecha(caja.fecha) }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Estado:</span>
+                            <span class="badge" [ngClass]="caja.estado === 'ABIERTA' ? 'badge-success' : 'badge-danger'">
+                {{ caja.estado }}
+              </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Usuario:</span>
+                            <span class="value">{{ caja.usuario_nombre || '-' }}</span>
+                        </div>
+                        <div class="info-row" *ngIf="caja.observacion">
+                            <span class="label">Observación:</span>
+                            <span class="value">{{ caja.observacion }}</span>
+                        </div>
+                    </div>
 
-            <ng-container *ngIf="!cargando && movimientos.length === 0">
-                <div class="empty-state">
-                    <p>No hay movimientos para esta caja</p>
+                    <div class="montos-card">
+                        <h3>Movimientos Financieros</h3>
+                        <div class="monto-row">
+                            <span class="label">Saldo Inicial:</span>
+                            <span class="value">{{ formatoMoneda(caja.saldo_inicial ?? 0) }}</span>
+                        </div>
+                        <div class="monto-row">
+                            <span class="label">Ingresos Cajas Chicas:</span>
+                            <span class="value text-ingreso">+{{ formatoMoneda(resumen.ingresos_cajas_chicas) }}</span>
+                        </div>
+                        <div class="monto-row">
+                            <span class="label">Otros Ingresos:</span>
+                            <span class="value text-ingreso">+{{ formatoMoneda(resumen.ingresos_otros) }}</span>
+                        </div>
+                        <div class="monto-row">
+                            <span class="label">Total Ingresos:</span>
+                            <span class="value text-ingreso">+{{ formatoMoneda(resumen.total_ingresos) }}</span>
+                        </div>
+                        <div class="monto-row">
+                            <span class="label">Total Egresos:</span>
+                            <span class="value text-egreso">-{{ formatoMoneda(resumen.total_egresos) }}</span>
+                        </div>
+                        <div class="monto-row total">
+                            <span class="label">Saldo Actual:</span>
+                            <span class="value">{{ formatoMoneda(caja.saldo_actual || 0) }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CAJAS CHICAS CERRADAS -->
+                <div class="section">
+                    <h2>Cajas Chicas Cerradas</h2>
+                    <div class="tabla-responsive" *ngIf="cajasChicas.length > 0; else sinCajasChicas">
+                        <table class="tabla">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Tipo</th>
+                                    <th>Saldo Inicial</th>
+                                    <th>Saldo Actual</th>
+                                    <th>Estado</th>
+                                    <th>Usuario</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr *ngFor="let cc of cajasChicas">
+                                    <td>{{ formatoFecha(cc.fecha) }}</td>
+                                    <td><span class="badge badge-info">CAJA CHICA</span></td>
+                                    <td class="text-right">{{ formatoMoneda(cc.monto_inicial || 0) }}</td>
+                                    <td class="text-right font-bold">{{ formatoMoneda(cc.monto_actual || 0) }}</td>
+                                    <td><span class="badge" [class.badge-success]="cc.estado === 'CERRADA'" [class.badge-warning]="cc.estado !== 'CERRADA'">{{ cc.estado }}</span></td>
+                                    <td>{{ cc.usuario_nombre || '-' }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <ng-template #sinCajasChicas>
+                        <p class="text-muted">No hay cajas chicas para este día</p>
+                    </ng-template>
+                </div>
+
+                <!-- INGRESOS / EGRESO -->
+                <div class="section">
+                    <h2>Ingresos / Egreso</h2>
+                    <div class="tabla-responsive" *ngIf="movimientos.length > 0; else sinMovimientos">
+                        <table class="tabla">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Descripción</th>
+                                    <th>Referencia</th>
+                                    <th class="text-right">Monto</th>
+                                    <th>Tipo</th>
+                                    <th>Usuario</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr *ngFor="let mov of movimientos" [class.tabla-row-ingreso]="mov.tipo === 'INGRESO'" [class.tabla-row-egreso]="mov.tipo !== 'INGRESO'">
+                                    <td>{{ formatoFecha(mov.fecha) }}</td>
+                                    <td>{{ mov.descripcion }}</td>
+                                    <td>{{ mov.referencia || '-' }}</td>
+                                    <td class="text-right" [class.text-success]="mov.tipo === 'INGRESO'" [class.text-danger]="mov.tipo !== 'INGRESO'">{{ mov.tipo === 'INGRESO' ? '+' : '-' }}{{ formatoMoneda(mov.monto || 0) }}</td>
+                                    <td><span class="badge" [class.badge-success]="mov.tipo === 'INGRESO'" [class.badge-danger]="mov.tipo !== 'INGRESO'">{{ mov.tipo }}</span></td>
+                                    <td>{{ mov.usuario_nombre || '-' }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <ng-template #sinMovimientos>
+                        <p class="text-muted">No hay movimientos registrados</p>
+                    </ng-template>
                 </div>
             </ng-container>
 

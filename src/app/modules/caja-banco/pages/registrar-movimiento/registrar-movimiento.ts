@@ -26,6 +26,7 @@ export class RegistrarMovimientoComponent implements OnInit {
   formulario!: FormGroup;
   guardando = false;
   mensaje = '';
+  cajaId: string = ''; // ID de la caja banco a la que se asocia el movimiento
 
   // Para búsqueda de clientes
   clientes: any[] = [];
@@ -43,6 +44,11 @@ export class RegistrarMovimientoComponent implements OnInit {
   categorias_actuales: string[] = this.categorias_ingresos;
 
   ngOnInit(): void {
+    // Capturar el cajaId del estado del router
+    const navigation = this.router.getCurrentNavigation();
+    if (navigation?.extras.state?.['cajaId']) {
+      this.cajaId = navigation.extras.state['cajaId'];
+    }
     this.inicializarFormulario();
     this.cargarClientes();
     this.cargarEmpleados();
@@ -305,6 +311,11 @@ export class RegistrarMovimientoComponent implements OnInit {
         usuario_nombre: usuario?.nombre || null,
       };
 
+      // Asociar el movimiento a la caja banco específica
+      if (this.cajaId) {
+        movimientoBase.caja_banco_id = this.cajaId;
+      }
+
       // Procesar según categoría
       const categoria = this.formulario.value.categoria;
       if (categoria === 'PAGO_PROVEEDORES' && this.proveedorSeleccionado) {
@@ -343,7 +354,12 @@ export class RegistrarMovimientoComponent implements OnInit {
         timer: 1500,
         showConfirmButton: false
       }).then(() => {
-        this.router.navigate(['/caja-banco']);
+        // Volver a la caja específica si viene de ver-caja, sino ir a listar
+        if (this.cajaId) {
+          this.router.navigate(['/caja-banco', this.cajaId, 'ver']);
+        } else {
+          this.router.navigate(['/caja-banco']);
+        }
       });
     } catch (error) {
       console.error('Error al guardar movimiento:', error);

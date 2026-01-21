@@ -4,6 +4,7 @@ import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { Router } from '@angular/router';
 import { CajaBanco, MovimientoCajaBanco } from '../../../../core/models/caja-banco.model';
 import { CajaChica } from '../../../../core/models/caja-chica.model';
+import { combineLatest } from 'rxjs';
 import Swal from 'sweetalert2';
 
 @Component({
@@ -22,6 +23,15 @@ export class ListarCajasComponent implements OnInit {
   movimientosGlobales: MovimientoCajaBanco[] = [];
   cargando = false;
 
+  // Totales
+  totales = {
+    total_cajas: 0,
+    total_ganado_cajas_chicas: 0,
+    total_transferencias: 0,
+    total_ingresos: 0,
+    total_egresos: 0
+  };
+
   ngOnInit(): void {
     this.cargarCajas();
     this.cargarCajasChicas();
@@ -30,11 +40,10 @@ export class ListarCajasComponent implements OnInit {
 
   cargarCajas(): void {
     this.cargando = true;
-    // 🔹 Cargar TODAS las cajas banco (activas e inactivas) para cálculos correctos
-    this.cajaBancoService.getCajasBancoTodas().subscribe({
+    this.cajaBancoService.getCajasBanco().subscribe({
       next: (cajas) => {
-        // Mostrar todas las cajas (ABIERTA y CERRADA)
         this.cajas = (cajas || []);
+        this.calcularTotales();
         this.cargando = false;
       },
       error: (error) => {
@@ -45,10 +54,10 @@ export class ListarCajasComponent implements OnInit {
   }
 
   cargarCajasChicas(): void {
-    // 🔹 Cargar TODAS las cajas chicas (activas e inactivas)
-    this.cajaChicaService.getCajasChicasTodas().subscribe({
+    this.cajaChicaService.getCajasChicas().subscribe({
       next: (cajas) => {
         this.cajasChicas = cajas || [];
+        this.calcularTotales();
       },
       error: (error) => {
         console.error('Error al cargar cajas chicas:', error);
@@ -59,7 +68,8 @@ export class ListarCajasComponent implements OnInit {
   cargarMovimientosGlobales(): void {
     this.cajaBancoService.getMovimientosCajaBanco().subscribe({
       next: (movimientos) => {
-        this.movimientosGlobales = (movimientos || []).filter(m => !m.caja_banco_id);
+        this.movimientosGlobales = movimientos || [];
+        this.calcularTotales();
       },
       error: (error) => {
         console.error('Error al cargar movimientos globales:', error);
@@ -67,8 +77,113 @@ export class ListarCajasComponent implements OnInit {
     });
   }
 
+  calcularTotales(): void {
+    // 1. Total de cajas banco creadas
+    this.totales.total_cajas = this.cajas.length;
+
+    // 2. Total ganado de cajas chicas (sumar monto_actual de cajas chicas cerradas)
+    this.totales.total_ganado_cajas_chicas = (this.cajasChicas || [])
+      .filter(cc => cc.estado === 'CERRADA')
+      .reduce((sum, cc) => sum + (cc.monto_actual || 0), 0);
+
+    // 3. Total transferencias y otros ingresos (TODOS los movimientos de ingreso registrados)
+    this.totales.total_transferencias = (this.movimientosGlobales || [])
+      .filter(m => m.tipo === 'INGRESO')
+      .reduce((sum, m) => sum + (m.monto || 0), 0);
+
+    // 4. Total ingresos (cajas chicas + movimientos de ingreso)
+    this.totales.total_ingresos = this.totales.total_ganado_cajas_chicas + this.totales.total_transferencias;
+
+    // 5. Total egresos
+    this.totales.total_egresos = (this.movimientosGlobales || [])
+      .filter(m => m.tipo === 'EGRESO')
+      .reduce((sum, m) => sum + (m.monto || 0), 0);
+  }
+
   verDetalles(cajaId: string): void {
-    this.router.navigate(['/caja-banco', cajaId, 'detalle']);
+    this.router.navigate(['/caja-banco', cajaId, 'ver']);
+  }
+
+  async crearCajaBanco(): Promise<void> {
+    const { value: formValues } = await Swal.fire({
+      title: 'Crear Nueva Caja Banco',
+      html: `
+        <div style="text-align: left;">
+          <div class="form-group" style="margin-bottom: 15px;">
+            <label for="saldo_inicial" style="display: block; margin-bottom: 5px; font-weight: 600;">Saldo Inicial (USD):</label>
+            <input 
+              id="saldo_inicial" 
+              type="number" 
+              class="swal2-input" 
+              placeholder="0.00" 
+              value="0"
+              step="0.01"
+              min="0"
+              style="width: 100%;"
+            />
+          </div>
+          <div class="form-group">
+            <label for="observacion" style="display: block; margin-bottom: 5px; font-weight: 600;">Observación (opcional):</label>
+            <textarea 
+              id="observacion" 
+              class="swal2-input" 
+              placeholder="Detalles sobre la apertura de caja..."
+              rows="3"
+              style="width: 100%; resize: vertical;"
+            ></textarea>
+          </div>
+        </div>
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: 'Crear',
+      cancelButtonText: 'Cancelar',
+      preConfirm: () => {
+        const saldoInput = (document.getElementById('saldo_inicial') as HTMLInputElement)?.value;
+        const observacion = (document.getElementById('observacion') as HTMLTextAreaElement)?.value;
+        
+        const saldo = parseFloat(saldoInput || '0');
+        if (isNaN(saldo) || saldo < 0) {
+          Swal.showValidationMessage('El saldo inicial debe ser un número válido y mayor o igual a 0');
+          return false;
+        }
+        
+        return { saldo_inicial: saldo, observacion };
+      }
+    });
+
+    if (!formValues) return;
+
+    try {
+      const nuevaCaja = {
+        saldo_inicial: formValues.saldo_inicial,
+        saldo_actual: formValues.saldo_inicial,
+        estado: 'ABIERTA' as const,
+        usuario_id: '',
+        usuario_nombre: 'Sistema',
+        observacion: formValues.observacion || '',
+        fecha: new Date()
+      };
+
+      await this.cajaBancoService.abrirCajaBanco(nuevaCaja);
+      
+      Swal.fire({
+        icon: 'success',
+        title: '¡Caja creada!',
+        text: `Caja banco creada con saldo inicial: $${formValues.saldo_inicial.toFixed(2)}`,
+        timer: 2000,
+        showConfirmButton: false
+      });
+
+      this.cargarCajas();
+    } catch (error) {
+      console.error('Error al crear caja banco:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo crear la caja banco. Intenta de nuevo.'
+      });
+    }
   }
 
   registrarMovimiento(): void {
@@ -79,7 +194,267 @@ export class ListarCajasComponent implements OnInit {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1; // 1-12
-    this.router.navigate(['/caja-banco/imprimir-mensual', String(year), String(month)]);
+    const m0 = month - 1;
+
+    // Cargar datos y generar impresión directa
+    combineLatest([
+      this.cajaBancoService.getCajasBancoPorMes(year, m0),
+      this.cajaBancoService.getMovimientosCajaBancoPorMes(year, m0),
+      this.cajaChicaService.getCajasChicasPorMes(year, m0)
+    ]).subscribe(([cajas, movs, cc]) => {
+      const htmlReporte = this.generarReporteMensual(
+        year,
+        month,
+        cajas || [],
+        movs || [],
+        cc || []
+      );
+
+      // Abrir ventana de impresión directa
+      const w = window.open('', 'PRINT_CAJA_BANCO_MENSUAL', 'height=800,width=900');
+      if (!w) {
+        console.error('No se pudo abrir la ventana de impresión');
+        return;
+      }
+
+      w.document.write(htmlReporte);
+      w.document.close();
+
+      // Disparar impresión automáticamente
+      const triggerPrint = () => {
+        let closed = false;
+        const safeClose = () => {
+          if (closed) return;
+          closed = true;
+          w.close();
+        };
+
+        try {
+          w.focus();
+          w.addEventListener('afterprint', safeClose, { once: true });
+          w.print();
+          setTimeout(safeClose, 3000);
+        } catch (err) {
+          safeClose();
+        }
+      };
+
+      if (w.document.readyState === 'complete') {
+        setTimeout(triggerPrint, 150);
+      } else {
+        w.onload = () => setTimeout(triggerPrint, 150);
+      }
+    });
+  }
+
+  private generarReporteMensual(
+    year: number,
+    month: number,
+    cajas: any[],
+    movimientos: any[],
+    cajasChicas: any[]
+  ): string {
+    const formatoMoneda = (valor: number) => {
+      return new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(valor);
+    };
+
+    const getNombreMes = (index: number): string => {
+      const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+      return meses[index] || '';
+    };
+
+    const convertirTimestamp = (fecha: any): Date => {
+      if (!fecha) return new Date();
+      if (fecha instanceof Date) return fecha;
+      if (fecha.toDate && typeof fecha.toDate === 'function') return fecha.toDate();
+      return new Date(fecha);
+    };
+
+    const formatoFechaSolo = (fecha: Date) => {
+      return new Intl.DateTimeFormat('es-CO', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }).format(new Date(fecha));
+    };
+
+    const formatoHora = (fecha: Date) => {
+      return new Intl.DateTimeFormat('es-CO', {
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(new Date(fecha));
+    };
+
+    // Calcular resumen
+    let totalIngresos = 0;
+    let totalEgresos = 0;
+    movimientos.forEach((m: any) => {
+      if (m.tipo === 'INGRESO') totalIngresos += m.monto || 0;
+      else totalEgresos += m.monto || 0;
+    });
+    const saldoFinal = totalIngresos - totalEgresos;
+
+    const filasMovimientos = movimientos.map((mov: any) => `
+      <tr>
+        <td>${formatoFechaSolo(convertirTimestamp(mov.fecha))}<br><small>${formatoHora(convertirTimestamp(mov.createdAt))}</small></td>
+        <td class="text-center ${mov.tipo === 'INGRESO' ? 'tipo-ingreso' : 'tipo-egreso'}">${mov.tipo}</td>
+        <td>${mov.categoria || '-'}</td>
+        <td>${mov.descripcion}</td>
+        <td class="text-right ${mov.tipo === 'INGRESO' ? 'tipo-ingreso' : 'tipo-egreso'}">${mov.tipo === 'INGRESO' ? '+' : '-'}${formatoMoneda(mov.monto)}</td>
+        <td class="text-center">${mov.referencia || '-'}</td>
+      </tr>
+    `).join('');
+
+    const filasCajasChicas = cajasChicas.map((cc: any) => `
+      <tr>
+        <td>${formatoFechaSolo(convertirTimestamp(cc.fecha))}</td>
+        <td>${cc.usuario_nombre || '-'}</td>
+        <td class="text-right">${formatoMoneda(cc.monto_inicial || 0)}</td>
+        <td class="text-right">${formatoMoneda(cc.monto_actual || 0)}</td>
+      </tr>
+    `).join('');
+
+    return `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Reporte Mensual - Caja Banco</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; background: #fff; padding: 20px; }
+          .reporte-container { max-width: 900px; margin: 0 auto; background: white; }
+          .reporte-header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 20px; }
+          .reporte-header h1 { font-size: 20px; margin-bottom: 5px; font-weight: bold; }
+          .reporte-header h2 { font-size: 14px; margin-bottom: 8px; font-weight: normal; text-transform: uppercase; }
+          .fecha-reporte { font-size: 10px; color: #666; }
+          .reporte-resumen { background: #f0f0f0; padding: 12px; margin-bottom: 20px; border-left: 4px solid #007bff; border-radius: 3px; }
+          .reporte-resumen h3 { font-size: 12px; margin-bottom: 10px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
+          .reporte-resumen-item { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 11px; }
+          .reporte-resumen-item span:first-child { font-weight: 500; }
+          .reporte-resumen-item.total-final { background: white; padding: 8px; margin-top: 8px; border-top: 2px solid #333; font-weight: bold; font-size: 12px; }
+          .tipo-ingreso { color: #28a745; font-weight: bold; }
+          .tipo-egreso { color: #dc3545; font-weight: bold; }
+          .reporte-section { margin-bottom: 20px; }
+          .reporte-section h3 { font-size: 12px; margin-bottom: 10px; font-weight: bold; text-transform: uppercase; border-bottom: 2px solid #333; padding-bottom: 8px; }
+          .reporte-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+          .reporte-table thead { background: #e0e0e0; font-weight: bold; }
+          .reporte-table th { padding: 8px 5px; text-align: left; border: 1px solid #999; font-size: 9px; }
+          .reporte-table td { padding: 7px 5px; border: 1px solid #ddd; }
+          .reporte-table tbody tr:nth-child(even) { background: #f9f9f9; }
+          .reporte-table tbody tr:hover { background: #f0f0f0; }
+          .text-center { text-align: center; }
+          .text-right { text-align: right; }
+          .reporte-firma { display: flex; justify-content: space-between; margin-top: 30px; margin-bottom: 20px; }
+          .reporte-firma-item { flex: 1; text-align: center; font-size: 10px; }
+          .reporte-firma-item .linea { width: 80%; height: 1px; background: #000; margin: 30px auto 5px; }
+          .reporte-footer { text-align: center; border-top: 1px solid #ddd; padding-top: 10px; margin-top: 20px; font-size: 9px; color: #999; }
+          .reporte-footer p { margin: 3px 0; }
+          @media print {
+            body { padding: 0; margin: 0; }
+            .reporte-container { box-shadow: none; }
+            .reporte-table tbody tr { page-break-inside: avoid; }
+            .reporte-section { page-break-inside: avoid; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="reporte-container">
+          <div class="reporte-header">
+            <h1>ÓPTICA MACÍAS</h1>
+            <h2>REPORTE MENSUAL CAJA BANCO</h2>
+            <div class="fecha-reporte">Periodo: ${getNombreMes(month - 1)} ${year}</div>
+          </div>
+          
+          <div class="reporte-resumen">
+            <h3>RESUMEN FINANCIERO</h3>
+            <div class="reporte-resumen-item">
+              <span>Total Ingresos:</span>
+              <span class="tipo-ingreso">+${formatoMoneda(totalIngresos)}</span>
+            </div>
+            <div class="reporte-resumen-item">
+              <span>Total Egresos:</span>
+              <span class="tipo-egreso">-${formatoMoneda(totalEgresos)}</span>
+            </div>
+            <div class="reporte-resumen-item total-final">
+              <span>SALDO FINAL:</span>
+              <span>${formatoMoneda(saldoFinal)}</span>
+            </div>
+          </div>
+          
+          <div class="reporte-section">
+            <h3>CAJAS CHICAS DEL MES</h3>
+            ${cajasChicas.length > 0 ? `
+              <table class="reporte-table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Fecha</th>
+                    <th style="width: 40%;">Usuario</th>
+                    <th style="width: 20%;" class="text-right">Monto Inicial</th>
+                    <th style="width: 20%;" class="text-right">Saldo Final</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${filasCajasChicas}
+                </tbody>
+              </table>
+            ` : `
+              <div style="text-align: center; padding: 20px; background: #f8f8f8; color: #999; border-radius: 4px;">
+                No se registraron cajas chicas
+              </div>
+            `}
+          </div>
+          
+          <div class="reporte-section">
+            <h3>DETALLE DE MOVIMIENTOS DEL MES</h3>
+            ${movimientos.length > 0 ? `
+              <table class="reporte-table">
+                <thead>
+                  <tr>
+                    <th style="width: 15%;">Fecha/Hora</th>
+                    <th style="width: 10%;" class="text-center">Tipo</th>
+                    <th style="width: 15%;">Categoría</th>
+                    <th style="width: 35%;">Descripción</th>
+                    <th style="width: 15%;" class="text-right">Monto</th>
+                    <th style="width: 10%;" class="text-center">Ref.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${filasMovimientos}
+                </tbody>
+              </table>
+            ` : `
+              <div style="text-align: center; padding: 20px; background: #f8f8f8; color: #999; border-radius: 4px;">
+                No se registraron movimientos
+              </div>
+            `}
+          </div>
+          
+          <div class="reporte-firma">
+            <div class="reporte-firma-item">
+              <div class="linea"></div>
+              <div>Responsable</div>
+            </div>
+            <div class="reporte-firma-item">
+              <div class="linea"></div>
+              <div>Supervisor/Gerente</div>
+            </div>
+          </div>
+          
+          <div class="reporte-footer">
+            <p>Reporte mensual de Caja Banco - Óptica Macías</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
   }
 
   // 🔹 Cerrar mes y abrir nuevo periodo
@@ -364,32 +739,19 @@ export class ListarCajasComponent implements OnInit {
   }
 
   getTotalGanado(): number {
-    // Total de cajas chicas cerradas (solo las activas)
-    // Esto suma el saldo_actual de cada caja chica
-    return this.cajasChicas
-      .filter(c => c.activo !== false) // 🔹 Filtrar solo cajas activas
-      .reduce((acc, c) => acc + (c.monto_actual || 0), 0);
+    return this.totales.total_ganado_cajas_chicas;
   }
 
   getTotalTransferencias(): number {
-    // Solo transferencias de clientes
-    return this.movimientosGlobales
-      .filter(m => m.categoria === 'TRANSFERENCIA_CLIENTE' && m.tipo === 'INGRESO')
-      .reduce((acc, m) => acc + (m.monto || 0), 0);
+    return this.totales.total_transferencias;
   }
 
   getTotalIngresos(): number {
-    // Total Ingresos = Total Ganado Cajas + TODOS los ingresos globales
-    const ingresosGlobales = this.movimientosGlobales
-      .filter(m => m.tipo === 'INGRESO')
-      .reduce((acc, m) => acc + (m.monto || 0), 0);
-    return this.getTotalGanado() + ingresosGlobales;
+    return this.totales.total_ingresos;
   }
 
   getTotalEgresos(): number {
-    return this.movimientosGlobales
-      .filter(m => m.tipo === 'EGRESO')
-      .reduce((acc, m) => acc + (m.monto || 0), 0);
+    return this.totales.total_egresos;
   }
 
   getEstadoBadge(estado: string): string {

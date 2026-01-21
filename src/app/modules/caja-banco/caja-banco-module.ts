@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { CajaBancoRoutingModule } from './caja-banco-routing-module';
 import { ListarCajasComponent } from './pages/listar-cajas/listar-cajas';
-import { DetalleCajaBancoComponent } from './pages/detalle-caja-banco/detalle-caja-banco';
+import { VerCajaComponent } from './pages/ver-caja/ver-caja';
 import { RegistrarMovimientoComponent } from './pages/registrar-movimiento/registrar-movimiento';
 import { ImprimirCajaBancoComponent } from './pages/imprimir-caja-banco/imprimir-caja-banco';
 import { ImprimirCajaBancoMensualComponent } from './pages/imprimir-caja-banco-mensual/imprimir-caja-banco-mensual';
@@ -11,7 +11,7 @@ import { ImprimirCajaBancoMensualComponent } from './pages/imprimir-caja-banco-m
 @NgModule({
   declarations: [
     ListarCajasComponent,
-    DetalleCajaBancoComponent,
+    VerCajaComponent,
     RegistrarMovimientoComponent,
     ImprimirCajaBancoComponent,
     ImprimirCajaBancoMensualComponent

@@ -3,11 +3,7 @@
         <div class="caja-header">
             <div class="header-content">
                 <h1 class="caja-title">Caja Banco</h1>
-                <div style="display:flex; gap:8px;">
-                    <button class="btn-primary" (click)="registrarMovimiento()">+ Registrar Movimiento</button>
-                    <button class="btn-warning" (click)="cerrarMes()">📅 Cerrar Mes</button>
-                    <button class="btn-secondary" (click)="imprimirMensualActual()">🖨️ Imprimir Mes Actual</button>
-                </div>
+                <button class="btn-primary" (click)="crearCajaBanco()">+ Crear Caja Banco</button>
             </div>
         </div>
 
@@ -36,7 +32,7 @@
                 </div>
             </div>
 
-            <!-- SECCIÓN 1: CAJAS BANCO PRINCIPALES -->
+            <!-- LISTA SIMPLE DE CAJAS BANCO -->
             <div class="caja-section">
                 <h2 class="section-title">📊 Cajas Banco del Mes</h2>
 
@@ -86,103 +82,6 @@
                         <p>No hay cajas banco registradas para este mes</p>
                     </div>
                 </ng-container>
-            </div>
-
-            <!-- SECCIÓN 2: Cajas Chicas Cerradas -->
-            <div class="caja-section">
-                <h2 class="section-title">🔑 Cajas Chicas Cerradas</h2>
-
-                <ng-container *ngIf="!cargando && (cajas.length > 0 || cajasChicas.length > 0)">
-                    <div class="tabla-responsive">
-                        <table class="tabla">
-                            <thead>
-                                <tr>
-                                    <th>Fecha</th>
-                                    <th>Tipo</th>
-                                    <th class="text-right">Saldo Inicial</th>
-                                    <th class="text-right">Saldo Diario</th>
-                                    <th>Estado</th>
-                                    <th>Usuario</th>
-                                    <th class="text-right">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Cajas Chicas -->
-                                <tr *ngFor="let cajaChica of cajasChicas" class="tabla-row tabla-row-chica" [style.opacity]="cajaChica.activo === false ? '0.6' : '1'">
-                                    <td>{{ formatoFecha(cajaChica.fecha) }}</td>
-                                    <td>
-                                        <span class="badge badge-warning">Caja Chica</span>
-                                        <span *ngIf="cajaChica.activo === false" class="badge badge-secondary" style="margin-left: 5px;">INACTIVA</span>
-                                    </td>
-                                    <td class="text-right">{{ formatoMoneda(cajaChica.monto_inicial || 0) }}</td>
-                                    <td class="text-right font-bold">{{ formatoMoneda(cajaChica.monto_actual || 0) }}</td>
-                                    <td>
-                                        <span class="badge" [ngClass]="cajaChica.estado === 'ABIERTA' ? 'badge-success' : 'badge-secondary'">
-                                            {{ cajaChica.estado }}
-                                        </span>
-                                    </td>
-                                    <td>{{ cajaChica.usuario_nombre || '-' }}</td>
-                                    <td class="text-right">
-                                        <div class="action-buttons">
-                                            <!-- Botón para desactivar (si está activa) -->
-                                            <button *ngIf="cajaChica.activo !== false" class="btn-action btn-action-delete" (click)="eliminarCajaChica(cajaChica)" title="Desactivar caja chica">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                            </button>
-                                            <!-- Botón para reactivar (si está desactivada) -->
-                                            <button *ngIf="cajaChica.activo === false" class="btn-action btn-action-reactivate" (click)="reactivarCajaChica(cajaChica)" title="Reactivar caja chica" style="color: #28a745;">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-undo-icon lucide-undo"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </ng-container>
-
-                <ng-container *ngIf="!cargando && cajas.length === 0 && cajasChicas.length === 0">
-                    <div class="empty-state">
-                        <div class="empty-icon">📭</div>
-                        <p>No hay cajas registradas</p>
-                    </div>
-                </ng-container>
-
-                <ng-container *ngIf="cargando">
-                    <div class="loading">Cargando...</div>
-                </ng-container>
-            </div>
-
-            <!-- SECCIÓN 3: Movimientos globales (transferencias de clientes) -->
-            <div class="caja-section" *ngIf="movimientosGlobales.length > 0">
-                <h2 class="section-title">Ingresos / Egreso </h2>
-                <div class="tabla-responsive">
-                    <table class="tabla">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Descripción</th>
-                                <th>Referencia</th>
-                                <th class="text-right">Monto</th>
-                                <th>Tipo</th>
-                                <th>Usuario</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr *ngFor="let mov of movimientosGlobales" class="tabla-row" [ngClass]="'tipo-' + mov.tipo.toLowerCase()">
-                                <td>{{ formatoFecha(mov.fecha) }}</td>
-                                <td>{{ mov.descripcion || '-' }}</td>
-                                <td>{{ mov.referencia || '-' }}</td>
-                                <td class="text-right font-bold">{{ formatoMoneda(mov.monto || 0) }}</td>
-                                <td>
-                                    <span class="badge" [ngClass]="mov.tipo === 'INGRESO' ? 'badge-success' : 'badge-danger'">
-                                        {{ mov.tipo }}
-                                    </span>
-                                </td>
-                                <td>{{ mov.usuario_nombre || '-' }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
             </div>
         </div>
     </div>
