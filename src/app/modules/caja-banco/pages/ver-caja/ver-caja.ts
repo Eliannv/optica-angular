@@ -127,6 +127,11 @@ export class VerCajaComponent implements OnInit {
     });
   }
 
+  verCajaChica(cajaChicaId: string): void {
+    // Redirigir a ver-caja de caja chica
+    this.router.navigate(['/caja-chica/ver', cajaChicaId]);
+  }
+
   imprimirMensualActual(): void {
     if (!this.caja) {
       alert('No hay caja cargada');

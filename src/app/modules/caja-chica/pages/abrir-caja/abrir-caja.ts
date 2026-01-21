@@ -34,7 +34,7 @@ export class AbrirCajaComponent implements OnInit {
     this.maxFecha = hoy.toISOString().split('T')[0];
 
     this.form = this.formBuilder.group({
-      fecha: [this.maxFecha, Validators.required],
+      fecha: [hoy, Validators.required], // Fecha actual, pero no editable en el HTML
       monto_inicial: ['', [Validators.required, Validators.min(0)]],
       observacion: ['']
     });

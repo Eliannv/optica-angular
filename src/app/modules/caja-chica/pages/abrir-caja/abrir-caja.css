@@ -243,3 +243,29 @@
         font-size: 0.85rem;
     }
 }
+
+/* Fecha Display (solo lectura) */
+.fecha-display {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.fecha-value {
+    color: var(--btn-primary-bg);
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.fecha-hint {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 400;
+}
