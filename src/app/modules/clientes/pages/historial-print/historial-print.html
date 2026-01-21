@@ -57,6 +57,38 @@
 
     <div class="t-hr"></div>
 
+    <!-- MEDIDAS DEL ARMAZÓN -->
+    <div class="t-bold t-small">MEDIDAS DEL ARMAZÓN</div>
+
+    <div class="t-small" style="margin-top:4px">
+        <div *ngIf="historial.armazonH">
+            <b>H (Ancho):</b> {{ historial.armazonH | number:'1.1-1' }} mm
+        </div>
+        <div *ngIf="historial.armazonV">
+            <b>V (Alto):</b> {{ historial.armazonV | number:'1.1-1' }} mm
+        </div>
+        <div *ngIf="historial.armazonDM">
+            <b>DM (Diag. Mayor):</b> {{ historial.armazonDM | number:'1.1-1' }} mm
+        </div>
+        <div *ngIf="historial.armazonP">
+            <b>P (Puente):</b> {{ historial.armazonP | number:'1.1-1' }} mm
+        </div>
+        <div *ngIf="historial.armazonTipo">
+            <b>Tipo:</b> {{ historial.armazonTipo }}
+        </div>
+        <div *ngIf="historial.armazonDNP_OD">
+            <b>DNP OD:</b> {{ historial.armazonDNP_OD | number:'1.1-1' }} mm
+        </div>
+        <div *ngIf="historial.armazonDNP_OI">
+            <b>DNP OI:</b> {{ historial.armazonDNP_OI | number:'1.1-1' }} mm
+        </div>
+        <div *ngIf="historial.armazonAltura">
+            <b>Altura:</b> {{ historial.armazonAltura | number:'1.1-1' }} mm
+        </div>
+    </div>
+
+    <div class="t-hr"></div>
+
     <!-- Observaciones -->
     <div class="t-small" *ngIf="historial.observacion">
         <b>Obs:</b><br> {{ historial.observacion }}

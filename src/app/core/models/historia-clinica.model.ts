@@ -24,6 +24,16 @@ export interface HistoriaClinica {
   color: string;
   observacion: string;
 
+  // Medidas del armazón (montura)
+  armazonH?: number | null;        // Horizontal / A (ancho del aro)
+  armazonV?: number | null;        // Vertical / B (alto del aro)
+  armazonDM?: number | null;       // Diagonal mayor
+  armazonP?: number | null;        // Puente
+  armazonTipo?: string;            // Completo / Ranurado / Al Aire
+  armazonDNP_OD?: number | null;   // DNP Ojo Derecho
+  armazonDNP_OI?: number | null;   // DNP Ojo Izquierdo
+  armazonAltura?: number | null;   // Altura del armazón
+
   createdAt?: any;
   updatedAt?: any;
   doctor?: string;

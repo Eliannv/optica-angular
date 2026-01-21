@@ -78,7 +78,17 @@ export class CrearHistorialClinicoComponent implements OnInit {
       color: [''],
       observacion: [''],
 
-      doctor: ['']
+      doctor: [''],
+
+      // Medidas del armazón (montura)
+      armazonH: [null, Validators.required],
+      armazonV: [null, Validators.required],
+      armazonDM: [null, Validators.required],
+      armazonP: [null, Validators.required],
+      armazonTipo: ['', Validators.required],
+      armazonDNP_OD: [null, Validators.required],
+      armazonDNP_OI: [null, Validators.required],
+      armazonAltura: [null, Validators.required]
     });
 
     /* =========================
@@ -171,6 +181,18 @@ export class CrearHistorialClinicoComponent implements OnInit {
       data.doctor = data.doctor || 'N/A';
       data.observacion = data.observacion || '';
 
+      // ✅ Validar campos requeridos del armazón
+      if (!data.armazonH || !data.armazonV || !data.armazonDM || !data.armazonP || 
+          !data.armazonTipo || !data.armazonDNP_OD || !data.armazonDNP_OI || !data.armazonAltura) {
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Campos incompletos',
+          text: 'Todos los campos de Medidas del Armazón son obligatorios.',
+          confirmButtonColor: '#3085d6'
+        });
+        return;
+      }
+
       await this.historialSrv.guardarHistorial(this.clienteId, data);
 
       await this.clientesSrv.updateCliente(
@@ -210,12 +232,25 @@ export class CrearHistorialClinicoComponent implements OnInit {
   get esCreate() { return this.mode === 'create'; }
 
   canGuardar(): boolean {
-    // Solo valida los campos requeridos: de, color, doctor
+    // Solo valida los campos requeridos: de, color, doctor y campos del armazón
     const de = this.form.get('de');
     const color = this.form.get('color');
     const doctor = this.form.get('doctor');
     
-    return !!(de?.valid && color?.valid && doctor?.valid);
+    // Validar campos del armazón
+    const armazonH = this.form.get('armazonH');
+    const armazonV = this.form.get('armazonV');
+    const armazonDM = this.form.get('armazonDM');
+    const armazonP = this.form.get('armazonP');
+    const armazonTipo = this.form.get('armazonTipo');
+    const armazonDNP_OD = this.form.get('armazonDNP_OD');
+    const armazonDNP_OI = this.form.get('armazonDNP_OI');
+    const armazonAltura = this.form.get('armazonAltura');
+    
+    return !!(de?.valid && color?.valid && doctor?.valid && 
+              armazonH?.valid && armazonV?.valid && armazonDM?.valid && 
+              armazonP?.valid && armazonTipo?.valid && armazonDNP_OD?.valid && 
+              armazonDNP_OI?.valid && armazonAltura?.valid);
   }
 
   esInvalidoCliente(campo: string): boolean {

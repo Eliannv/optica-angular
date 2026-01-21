@@ -83,6 +83,18 @@ form {
     margin-bottom: 1.5rem;
 }
 
+.armazon-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    background: var(--bg-secondary, #f0f9ff);
+    padding: 1.25rem;
+    border-radius: 10px;
+    border: 2px solid var(--primary-color, #3b82f6);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
 .ojos-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -296,6 +308,9 @@ form {
     .section-medidas {
         grid-template-columns: 1fr;
     }
+    .armazon-grid {
+        grid-template-columns: 1fr;
+    }
     .ojos-grid {
         grid-template-columns: 1fr;
     }
@@ -316,4 +331,6 @@ form {
 
 
 /* Usar variables globales del tema */
+
+
 /* Los estilos heredan automáticamente de :root y [data-theme="dark"] en styles.css */
