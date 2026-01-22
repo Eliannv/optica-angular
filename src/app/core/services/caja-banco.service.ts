@@ -99,6 +99,48 @@ export class CajaBancoService {
     return docData(cajaDoc, { idField: 'id' }) as Observable<CajaBanco>;
   }
 
+  // 🔹 Obtener la caja banco ABIERTA del mes actual
+  async getCajaBancoActivaMes(): Promise<CajaBanco | null> {
+    try {
+      const hoy = new Date();
+      const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+      const inicioSiguienteMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 1);
+
+      const cajasRef = collection(this.firestore, 'cajas_banco');
+      const q = query(
+        cajasRef,
+        where('fecha', '>=', inicioMes),
+        where('fecha', '<', inicioSiguienteMes)
+      );
+
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        console.warn('⚠️ No hay caja banco para este mes');
+        return null;
+      }
+
+      // Filtrar en memoria: solo activas y ABIERTA
+      const cajasValidas = snapshot.docs
+        .map(doc => ({
+          ...doc.data(),
+          id: doc.id,
+        } as CajaBanco))
+        .filter(c => c.activo !== false && c.estado === 'ABIERTA');
+
+      if (cajasValidas.length === 0) {
+        console.warn('⚠️ No hay caja banco ABIERTA para este mes');
+        return null;
+      }
+
+      // Retornar la primera caja abierta encontrada (usualmente solo hay una por mes)
+      return cajasValidas[0];
+    } catch (error) {
+      console.error('Error obteniendo caja banco activa del mes:', error);
+      throw error;
+    }
+  }
+
   // 🔹 Verificar si existe al menos una caja banco en el sistema
   existeAlMenosUnaCajaBanco(): Observable<boolean> {
     const cajasRef = collection(this.firestore, 'cajas_banco');
@@ -218,13 +260,17 @@ export class CajaBancoService {
         categoria: movimiento.categoria
       });
       
-      // Si el movimiento es ligado a una caja específica, validar saldo
+      // Si el movimiento es ligado a una caja específica, validar que esté ABIERTA
       if (movimiento.caja_banco_id) {
         const cajaDoc = await getDoc(doc(this.firestore, `cajas_banco/${movimiento.caja_banco_id}`));
         const caja = cajaDoc.data() as CajaBanco;
 
-        if (!caja || caja.estado !== 'ABIERTA') {
-          throw new Error('La caja banco no está abierta');
+        if (!caja) {
+          throw new Error('La caja banco no existe');
+        }
+
+        if (caja.estado !== 'ABIERTA') {
+          throw new Error(`❌ No se pueden registrar movimientos. La caja banco está ${caja.estado}. Solo se puede imprimir.`);
         }
 
         const saldoAnterior = caja.saldo_actual;
@@ -452,13 +498,52 @@ export class CajaBancoService {
     usuarioId?: string,
     usuarioNombre?: string
   ): Promise<string> {
+    // 🔹 Obtener la caja banco ABIERTA del mes actual
+    const cajaBancoActiva = await this.getCajaBancoActivaMes();
+    
+    if (!cajaBancoActiva || !cajaBancoActiva.id) {
+      throw new Error('No hay una caja banco abierta para este mes. No se puede registrar la transferencia.');
+    }
+
     const movimiento: MovimientoCajaBanco = {
+      caja_banco_id: cajaBancoActiva.id,
       fecha: new Date(),
       tipo: 'INGRESO',
       categoria: 'TRANSFERENCIA_CLIENTE',
       descripcion: `Transferencia de cliente - Venta #${ventaId}`,
       monto,
       referencia: codigoTransferencia,
+      venta_id: ventaId,
+      usuario_id: usuarioId,
+      usuario_nombre: usuarioNombre,
+    };
+
+    return this.registrarMovimiento(movimiento);
+  }
+
+  // 🔹 Registrar un pago por tarjeta de cliente
+  async registrarPagoTarjeta(
+    monto: number,
+    ultimos4Digitos: string,
+    ventaId: string,
+    usuarioId?: string,
+    usuarioNombre?: string
+  ): Promise<string> {
+    // 🔹 Obtener la caja banco ABIERTA del mes actual
+    const cajaBancoActiva = await this.getCajaBancoActivaMes();
+    
+    if (!cajaBancoActiva || !cajaBancoActiva.id) {
+      throw new Error('No hay una caja banco abierta para este mes. No se puede registrar el pago por tarjeta.');
+    }
+
+    const movimiento: MovimientoCajaBanco = {
+      caja_banco_id: cajaBancoActiva.id,
+      fecha: new Date(),
+      tipo: 'INGRESO',
+      categoria: 'TRANSFERENCIA_CLIENTE', // Se usa la misma categoría que transferencias
+      descripcion: `Pago por tarjeta - Venta #${ventaId} (Últimos 4 dígitos: ${ultimos4Digitos})`,
+      monto,
+      referencia: `TARJETA_${ultimos4Digitos}`,
       venta_id: ventaId,
       usuario_id: usuarioId,
       usuario_nombre: usuarioNombre,

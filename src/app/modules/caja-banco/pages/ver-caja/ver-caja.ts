@@ -50,13 +50,24 @@ export class VerCajaComponent implements OnInit {
     });
     this.cajaBancoService.getMovimientosCajaBanco(this.cajaId).subscribe({
       next: (movimientos) => {
-        console.log('Movimientos cargados para caja:', this.cajaId, movimientos);
+        console.log('📊 Movimientos cargados para caja:', this.cajaId);
+        console.log('   Total:', movimientos?.length || 0);
+        (movimientos || []).forEach((m, i) => {
+          console.log(`   [${i}]`, {
+            id: m.id,
+            caja_banco_id: m.caja_banco_id,
+            categoria: m.categoria,
+            descripcion: m.descripcion,
+            monto: m.monto,
+            tipo: m.tipo
+          });
+        });
         this.movimientos = movimientos || [];
         this.calcularResumen();
         this.cargando = false;
       },
       error: (error) => {
-        console.error('Error al cargar caja:', error);
+        console.error('❌ Error al cargar movimientos de caja:', this.cajaId, error);
         this.cargando = false;
       }
     });

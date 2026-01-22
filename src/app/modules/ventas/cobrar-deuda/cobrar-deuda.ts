@@ -31,6 +31,8 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
   facturaSeleccionada: any = null;
 
   metodoPago = 'Efectivo';
+  codigoTransferencia = ''; // Código de transferencia bancaria
+  ultimosCuatroTarjeta = ''; // Últimos 4 dígitos de la tarjeta
   abono = 0;
   saldoNuevo = 0;
 
@@ -142,6 +144,8 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     this.facturaSeleccionada = f;
     this.abono = 0;
     this.metodoPago = 'Efectivo';
+    this.codigoTransferencia = '';
+    this.ultimosCuatroTarjeta = '';
     this.recalcularSaldoNuevo();
   }
 
@@ -299,25 +303,53 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
           console.warn('No se pudo registrar el pago en Caja Chica:', err);
           // No fallar la operación si hay error en Caja Chica
         }
-      } else if (this.metodoPago === 'Transferencia' && abonoReal > 0) {
+      } else if (this.metodoPago === 'Transferencia' && this.codigoTransferencia.trim() && abonoReal > 0) {
         // 🏦 Pago por TRANSFERENCIA → Registrar en Caja Banco
         try {
           const usuario = this.authService.getCurrentUser();
           await this.cajaBancoService.registrarTransferenciaCliente(
             abonoReal,
-            f.id, // usar el ID de la factura como referencia
+            this.codigoTransferencia,
             f.id,
             usuario?.id || '',
             usuario?.nombre || 'Usuario'
           );
           console.log('✅ Pago de deuda registrado en Caja Banco');
         } catch (err) {
-          console.warn('No se pudo registrar el pago en Caja Banco:', err);
-          // No fallar la operación si hay error en Caja Banco
+          console.error('❌ Error registrando transferencia en Caja Banco:', err);
+          // Mostrar advertencia pero no fallar la operación
+          Swal.fire({
+            icon: 'warning',
+            title: 'Advertencia',
+            text: `El pago se registró pero hubo un error al registrar la transferencia en caja banco: ${err instanceof Error ? err.message : 'Error desconocido'}`,
+            confirmButtonText: 'Aceptar'
+          });
+        }
+      } else if (this.metodoPago === 'Tarjeta' && this.ultimosCuatroTarjeta.trim() && abonoReal > 0) {
+        // 💳 Pago por TARJETA → Registrar en Caja Banco
+        try {
+          const usuario = this.authService.getCurrentUser();
+          await this.cajaBancoService.registrarPagoTarjeta(
+            abonoReal,
+            this.ultimosCuatroTarjeta,
+            f.id,
+            usuario?.id || '',
+            usuario?.nombre || 'Usuario'
+          );
+          console.log('✅ Pago por tarjeta registrado en Caja Banco');
+        } catch (err) {
+          console.error('❌ Error registrando pago por tarjeta en Caja Banco:', err);
+          // Mostrar advertencia pero no fallar la operación
+          Swal.fire({
+            icon: 'warning',
+            title: 'Advertencia',
+            text: `El pago se registró pero hubo un error al registrar el pago por tarjeta en caja banco: ${err instanceof Error ? err.message : 'Error desconocido'}`,
+            confirmButtonText: 'Aceptar'
+          });
         }
       }
 
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
       await Swal.fire({
         icon: 'error',

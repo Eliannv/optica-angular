@@ -150,6 +150,13 @@
                             <small class="muted">Número o referencia de la transferencia bancaria</small>
                         </div>
 
+                        <!-- ✅ ÚLTIMOS 4 DÍGITOS DE TARJETA (solo si es tarjeta) -->
+                        <div class="metodo-pago" *ngIf="metodoPago === 'Tarjeta'">
+                            <label>Últimos 4 Dígitos de la Tarjeta</label>
+                            <input type="text" class="search-input" [(ngModel)]="ultimosCuatroTarjeta" placeholder="Ej: 1234" maxlength="4" />
+                            <small class="muted">Últimos 4 dígitos de la tarjeta de crédito/débito</small>
+                        </div>
+
                         <!-- ✅ ABONO -->
                         <div class="metodo-pago">
                             <label>Abono (paga hoy)</label>

@@ -456,131 +456,17 @@ export class CajaChicaService {
       });
 
       // 5️⃣ 🆕 Actualizar saldo_actual en caja_banco
-      try {
-        // 🔹 Si la caja chica tiene caja_banco_id, usar ese ID directamente (MEJOR)
-        // Si no, buscar por fecha (fallback para cajas antiguas)
-        if (caja.caja_banco_id) {
-          // RUTA 1️⃣: Usar el caja_banco_id explícito (más seguro y rápido)
-          const cajaBancoRef = doc(this.firestore, `cajas_banco/${caja.caja_banco_id}`);
-          const cajaBancoSnap = await getDoc(cajaBancoRef);
-          
-          if (cajaBancoSnap.exists()) {
-            const cajaBanco = cajaBancoSnap.data() as any;
-            
-            // Saltar cajas soft-deleted
-            if (cajaBanco.activo === false) {
-              console.warn('⚠️ La caja banco asociada está desactivada');
-              return docRef.id; // Retornar el ID del movimiento sin actualizar caja banco
-            }
-            
-            // Obtener TODAS las cajas chicas cerradas de esta caja_banco
-            const cajasChicasRef = collection(this.firestore, 'cajas_chicas');
-            const qCajasChicas = query(cajasChicasRef);
-            const snapshotCajasChicas = await getDocs(qCajasChicas);
-            let totalIngresosCajasChicas = 0;
-            
-            snapshotCajasChicas.docs.forEach(docSnap => {
-              const cc = docSnap.data() as any;
-              
-              // Filtrar: solo activas, cerradas, y que pertenezcan a esta caja_banco
-              if (cc.activo !== false && cc.estado === 'CERRADA' && cc.caja_banco_id === caja.caja_banco_id) {
-                // Sumar el monto_actual de todas las cajas cerradas
-                totalIngresosCajasChicas += cc.monto_actual || 0;
-              }
-            });
-            
-            // Calcular nuevo saldo: saldo_inicial + total de cajas chicas cerradas
-            const nuevoSaldoCajaBanco = (cajaBanco.saldo_inicial || 0) + totalIngresosCajasChicas;
-            
-            console.log('🔄 Actualizando caja_banco (por caja_banco_id):', {
-              cajaBancoId: caja.caja_banco_id,
-              saldoInicial: cajaBanco.saldo_inicial,
-              totalIngresosCajasChicas,
-              nuevoSaldo: nuevoSaldoCajaBanco,
-              cajasCerradasCount: snapshotCajasChicas.docs.filter(d => {
-                const cc = d.data() as any;
-                return cc.activo !== false && cc.estado === 'CERRADA' && cc.caja_banco_id === caja.caja_banco_id;
-              }).length
-            });
-            
-            // Actualizar saldo_actual en caja_banco
-            await updateDoc(cajaBancoRef, {
-              saldo_actual: nuevoSaldoCajaBanco,
-              updatedAt: Timestamp.now()
-            });
-            
-            console.log('✅ Caja banco actualizada exitosamente');
-          } else {
-            console.warn('⚠️ Caja banco no encontrada con ID:', caja.caja_banco_id);
-          }
-        } else {
-          // RUTA 2️⃣: Fallback para cajas antiguas sin caja_banco_id (buscar por fecha)
-          const fechaCaja = caja.fecha instanceof Date ? caja.fecha : (caja.fecha as any).toDate?.() || new Date(caja.fecha);
-          const hoy = new Date(fechaCaja);
-          hoy.setHours(0, 0, 0, 0);
-          
-          const mañana = new Date(hoy);
-          mañana.setDate(mañana.getDate() + 1);
-
-          const cajasRef = collection(this.firestore, 'cajas_banco');
-          const q = query(
-            cajasRef,
-            where('fecha', '>=', hoy),
-            where('fecha', '<', mañana)
-          );
-
-          const snapshot = await getDocs(q);
-          
-          if (!snapshot.empty) {
-            const cajaDoc = snapshot.docs[0];
-            const cajaBanco = cajaDoc.data() as any;
-            
-            // Saltar cajas soft-deleted
-            if (cajaBanco.activo === false) {
-              console.warn('⚠️ La caja banco del día está desactivada');
-              return docRef.id; // Retornar el ID del movimiento sin actualizar caja banco
-            }
-            
-            // Obtener TODAS las cajas chicas cerradas del mismo mes
-            const cajasChicasRef = collection(this.firestore, 'cajas_chicas');
-            const qCajasChicas = query(cajasChicasRef);
-            const snapshotCajasChicas = await getDocs(qCajasChicas);
-            let totalIngresosCajasChicas = 0;
-            
-            snapshotCajasChicas.docs.forEach(docSnap => {
-              const cc = docSnap.data() as any;
-              
-              if (cc.activo !== false && cc.estado === 'CERRADA') {
-                // Para cajas antiguas, comparar por mes y año
-                const fechaCajaChica = cc.fecha instanceof Date ? cc.fecha : (cc.fecha as any).toDate?.() || new Date(cc.fecha);
-                if (fechaCajaChica.getFullYear() === hoy.getFullYear() && fechaCajaChica.getMonth() === hoy.getMonth()) {
-                  totalIngresosCajasChicas += cc.monto_actual || 0;
-                }
-              }
-            });
-            
-            const nuevoSaldoCajaBanco = (cajaBanco.saldo_inicial || 0) + totalIngresosCajasChicas;
-            
-            console.log('🔄 Actualizando caja_banco (fallback por fecha):', {
-              cajaBancoId: cajaDoc.id,
-              saldoInicial: cajaBanco.saldo_inicial,
-              totalIngresosCajasChicas,
-              nuevoSaldo: nuevoSaldoCajaBanco
-            });
-            
-            await updateDoc(cajaDoc.ref, {
-              saldo_actual: nuevoSaldoCajaBanco,
-              updatedAt: Timestamp.now()
-            });
-            
-            console.log('✅ Caja banco actualizada exitosamente');
-          }
-        }
-      } catch (err) {
-        console.warn('Advertencia: No se pudo actualizar caja_banco:', err);
-        // No lanzar error, solo advertencia, para no afectar el flujo principal
+      // ⚠️ IMPORTANTE: Solo actualizar caja banco si la caja chica está siendo CERRADA
+      // Los movimientos normales en caja chica NO afectan caja banco hasta que se cierre
+      if (caja.estado === 'CERRADA') {
+        // La caja chica ya está cerrada, NO hacer nada más
+        return docRef.id;
       }
-
+      
+      // Si llegamos aquí, la caja chica está ABIERTA
+      // Los movimientos en caja abierta NO deben afectar caja banco
+      // Solo la acción de CERRAR la caja es lo que dispara la actualización
+      
       return docRef.id;
     } catch (error) {
       console.error('Error registrando movimiento:', error);
@@ -627,24 +513,50 @@ export class CajaChicaService {
         ...(montoFinal !== undefined && { monto_actual: montoFinal }),
       });
 
-      // 🔹 CRÍTICO: Registrar un movimiento final para que se actualice caja_banco
-      // Esto dispara automáticamente la actualización del saldo_actual en caja_banco
-      const movimientoFinal: MovimientoCajaChica = {
-        caja_chica_id: cajaChicaId,
-        fecha: new Date(),
-        tipo: 'INGRESO', // Usar INGRESO para que se acumule en caja_banco
-        descripcion: 'Cierre de Caja Chica',
-        monto: 0, // Monto 0 porque solo queremos dispara la actualización
-        comprobante: 'CIERRE',
-        observacion: `Cierre de caja chica con saldo final de $${montoFinal || caja.monto_actual || 0}`,
-        usuario_id: '',
-        usuario_nombre: 'Sistema'
-      };
+      // 🔹 CRÍTICO: Al cerrar, actualizar el saldo_actual en caja_banco
+      // Solo en este momento se transfiere el dinero de caja chica a caja banco
+      try {
+        if (caja.caja_banco_id) {
+          const cajaBancoRef = doc(this.firestore, `cajas_banco/${caja.caja_banco_id}`);
+          const cajaBancoSnap = await getDoc(cajaBancoRef);
+          
+          if (cajaBancoSnap.exists()) {
+            const cajaBanco = cajaBancoSnap.data() as any;
+            
+            // Saltar cajas soft-deleted
+            if (cajaBanco.activo === false) {
+              console.warn('⚠️ La caja banco asociada está desactivada');
+            } else {
+              // 🔹 El nuevo saldo es el saldo actual + el monto de la caja chica que se acaba de cerrar
+              const saldoActual = cajaBanco.saldo_actual || cajaBanco.saldo_inicial || 0;
+              const montoActualCajaChica = montoFinal !== undefined ? montoFinal : (caja.monto_actual || 0);
+              const nuevoSaldoCajaBanco = saldoActual + montoActualCajaChica;
+              
+              console.log('🔄 Actualizando caja_banco al cerrar caja chica:', {
+                cajaBancoId: caja.caja_banco_id,
+                saldoActualAnterior: saldoActual,
+                montoActualCajaChicaCerrada: montoActualCajaChica,
+                nuevoSaldo: nuevoSaldoCajaBanco
+              });
+              
+              // Actualizar saldo_actual en caja_banco
+              await updateDoc(cajaBancoRef, {
+                saldo_actual: nuevoSaldoCajaBanco,
+                updatedAt: Timestamp.now()
+              });
+              
+              console.log('✅ Caja banco actualizada al cerrar caja chica');
+            }
+          } else {
+            console.warn('⚠️ Caja banco no encontrada con ID:', caja.caja_banco_id);
+          }
+        }
+      } catch (updateError) {
+        console.error('⚠️ No se pudo actualizar caja banco al cerrar:', updateError);
+        // No lanzar error aquí para que el cierre sea exitoso aunque falle la actualización
+      }
 
-      // Llamar a registrarMovimiento para que actualice el saldo en caja_banco
-      await this.registrarMovimiento(cajaChicaId, movimientoFinal);
-
-      console.log('✅ Caja chica cerrada y saldo de caja_banco actualizado');
+      console.log('✅ Caja chica cerrada');
     } catch (error) {
       console.error('Error al cerrar caja chica:', error);
       throw error;

@@ -46,6 +46,7 @@ export class CrearVentaComponent implements OnInit {
 
   metodoPago = 'Efectivo';
   codigoTransferencia = ''; // Código de transferencia bancaria
+  ultimosCuatroTarjeta = ''; // Últimos 4 dígitos de la tarjeta
 
   loading = true;
   guardando = false;
@@ -438,7 +439,33 @@ const ref = await this.facturasSrv.crearFactura(facturaLimpia);
         );
         console.log('✅ Transferencia registrada en Caja Banco');
       } catch (err) {
-        console.error('Error registrando transferencia en Caja Banco:', err);
+        console.error('❌ Error registrando transferencia en Caja Banco:', err);
+        Swal.fire({
+          icon: 'warning',
+          title: 'Advertencia',
+          text: `La venta se registró pero hubo un error al registrar la transferencia en caja banco: ${err instanceof Error ? err.message : 'Error desconocido'}`,
+          confirmButtonText: 'Aceptar'
+        });
+      }
+    } else if (this.metodoPago === 'Tarjeta' && this.ultimosCuatroTarjeta.trim()) {
+      // 💳 Venta por TARJETA → Registrar en Caja Banco
+      try {
+        await this.cajaBancoService.registrarPagoTarjeta(
+          this.total,
+          this.ultimosCuatroTarjeta,
+          facturaId,
+          usuario?.id || '',
+          usuario?.nombre || 'Usuario'
+        );
+        console.log('✅ Pago por tarjeta registrado en Caja Banco');
+      } catch (err) {
+        console.error('❌ Error registrando pago por tarjeta en Caja Banco:', err);
+        Swal.fire({
+          icon: 'warning',
+          title: 'Advertencia',
+          text: `La venta se registró pero hubo un error al registrar el pago por tarjeta en caja banco: ${err instanceof Error ? err.message : 'Error desconocido'}`,
+          confirmButtonText: 'Aceptar'
+        });
       }
     }
 

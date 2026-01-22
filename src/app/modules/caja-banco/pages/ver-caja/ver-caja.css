@@ -317,3 +317,16 @@
     transform: translateY(-2px);
     color: var(--primary-dark);
 }
+
+/* Estilos para botones desactivados */
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: var(--disabled-color, #ccc) !important;
+    color: var(--text-disabled, #999) !important;
+}
+
+.btn:disabled:hover {
+    transform: none;
+    background-color: var(--disabled-color, #ccc) !important;
+}

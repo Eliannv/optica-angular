@@ -347,6 +347,14 @@ export class RegistrarMovimientoComponent implements OnInit {
         if (movimientoBase[k] === undefined) delete movimientoBase[k];
       });
 
+      console.log('📝 Movimiento a registrar:', {
+        cajaId: this.cajaId,
+        caja_banco_id: movimientoBase.caja_banco_id,
+        tipo: movimientoBase.tipo,
+        categoria: movimientoBase.categoria,
+        monto: movimientoBase.monto
+      });
+
       // Guardar el movimiento
       await this.cajaBancoService.registrarMovimiento(movimientoBase);
 
