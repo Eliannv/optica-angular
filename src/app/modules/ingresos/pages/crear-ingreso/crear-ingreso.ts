@@ -8,6 +8,56 @@ import { ProveedoresService } from '../../../../core/services/proveedores';
 import { Proveedor } from '../../../../core/models/proveedor.model';
 import Swal from 'sweetalert2';
 
+/**
+ * Componente CrearIngresoComponent - Creación de nuevos ingresos con validaciones complejas.
+ *
+ * **Responsabilidades principales:**
+ * - Formulario de creación de ingreso (factura, proveedor, fecha, etc)
+ * - Gestión de lista de proveedores existentes
+ * - Opción de crear nuevo proveedor inline (sin salir del flujo)
+ * - Validaciones complejas: RUC ecuatoriano, teléfonos, códigos únicos
+ * - Guardado temporal de ingreso para continuar a agregar productos
+ *
+ * **Características técnicas:**
+ * - Componente standalone moderno
+ * - Formulario reactivo (FormBuilder, FormGroup, Validators)
+ * - Búsqueda de proveedores en tiempo real con input autocomplete
+ * - Validaciones asincrónicas: RUC, nombre, código, número factura (Promise-based)
+ * - Uso de Angular signals (guardando, error, mostrarFormNuevoProveedor)
+ * - Objeto ingreso temporal stored en IngresosService durante flujo
+ *
+ * **Flujo de usuario:**
+ * 1. Usuario ve formulario: Proveedor, Número Factura, Fecha, Tipo Compra, etc
+ * 2. Busca proveedor existente (autocomplete)
+ * 3. Si no existe, puede crear proveedor nuevo inline (modal/form collapse)
+ * 4. Ingresa detalles: Factura, fecha, descuento, flete, IVA
+ * 5. Hace clic "Continuar" → Valida todo → Guarda temporal
+ * 6. Navega a /productos/ingreso/:id/agregar-productos
+ * 7. Usuario agrega productos de ingreso
+ * 8. Al guardar productos → Ingreso se finaliza en BD
+ *
+ * **Integración de servicios:**
+ * - IngresosService: guardarIngresoTemporal(), numeroFacturaExists()
+ * - ProveedoresService: CRUD de proveedores, validaciones (RUC, nombre, código)
+ * - Router: Navegación a siguiente paso (agregar productos)
+ *
+ * **Validaciones implementadas:**
+ * - RUC ecuatoriano (13 dígitos, formato específico)
+ * - Teléfonos (celular 09XXXXXXXX, convencional 07XXXXX)
+ * - Códigos de lugar (1-24, provincias Ecuador)
+ * - Nombres y códigos únicos (no duplicados en BD)
+ * - Número de factura único (solo una factura por número)
+ * - Formato de datos (strings trimmed, numbers positivos)
+ *
+ * @component
+ * @selector app-crear-ingreso
+ * @standalone true
+ * @imports [CommonModule, FormsModule, ReactiveFormsModule]
+ *
+ * @example
+ * // En routing:
+ * { path: 'nuevo', component: CrearIngresoComponent }
+ */
 @Component({
   selector: 'app-crear-ingreso',
   standalone: true,
@@ -16,39 +66,154 @@ import Swal from 'sweetalert2';
   styleUrls: ['./crear-ingreso.css'],
 })
 export class CrearIngresoComponent implements OnInit {
+  /**
+   * Referencia inyectada a Angular Router para navegación SPA.
+   * @type {Router}
+   * @private
+   */
   private router = inject(Router);
+
+  /**
+   * Referencia inyectada a FormBuilder para crear formularios reactivos.
+   * @type {FormBuilder}
+   * @private
+   */
   private fb = inject(FormBuilder);
+
+  /**
+   * Referencia inyectada a IngresosService para operaciones de ingresos.
+   * @type {IngresosService}
+   * @private
+   */
   private ingresosService = inject(IngresosService);
+
+  /**
+   * Referencia inyectada a ProveedoresService para operaciones de proveedores.
+   * @type {ProveedoresService}
+   * @private
+   */
   private proveedoresService = inject(ProveedoresService);
 
-  // Señales
+  /**
+   * Señal reactiva para estado de guardado.
+   * true: Operación en progreso (deshabilitar botones)
+   * false: Listo para interacción
+   * @type {WritableSignal<boolean>}
+   * @default false
+   */
   guardando = signal(false);
+
+  /**
+   * Señal reactiva para mensajes de error.
+   * null: Sin error
+   * string: Mensaje de error a mostrar al usuario
+   * @type {WritableSignal<string | null>}
+   * @default null
+   */
   error = signal<string | null>(null);
+
+  /**
+   * Señal reactiva para mostrar/ocultar formulario de nuevo proveedor.
+   * true: Mostrar form para crear proveedor
+   * false: Ocultar form (mostrar búsqueda de proveedores existentes)
+   * @type {WritableSignal<boolean>}
+   * @default false
+   */
   mostrarFormNuevoProveedor = signal(false);
+
+  /**
+   * Término de búsqueda en campo autocomplete de proveedores.
+   * Se usa para filtrar lista de proveedores disponibles en tiempo real.
+   * @type {WritableSignal<string>}
+   * @default ''
+   */
   busquedaProveedor = signal('');
 
-  // Datos del formulario
+  /**
+   * Objeto ingreso en construcción durante el flujo de creación.
+   * Se completa progresivamente:
+   * 1. En este paso: proveedor, numeroFactura, fecha, tipoCompra, descuento, flete, iva
+   * 2. En siguiente paso: Se agregan items (productos) y detalles
+   * 3. Al guardar: Se finalizará en BD con estado BORRADOR
+   * @type {Ingreso}
+   * @remarks Algunos campos son opcionales (IVA, descuento, flete pueden ser 0)
+   */
   ingreso: Ingreso = {
     proveedor: '',
     numeroFactura: '',
     fecha: new Date(),
     tipoCompra: 'CONTADO',
-    descuento: 0, // Nuevo campo
-    flete: 0, // Nuevo campo
-    iva: 0, // Nuevo campo - monto de IVA
+    descuento: 0,
+    flete: 0,
+    iva: 0,
   };
 
-  // Lista de proveedores desde Firebase
+  /**
+   * Lista completa de proveedores cargados desde Firestore.
+   * Se obtiene en ngOnInit y se mantiene como referencia.
+   * @type {Proveedor[]}
+   * @private Se refiere desde cargarProveedores() en constructor
+   */
   proveedores: Proveedor[] = [];
+
+  /**
+   * Lista filtrada de proveedores para mostrar en dropdown autocomplete.
+   * Se actualiza en buscarProveedor() cuando usuario escribe en búsqueda.
+   * @type {Proveedor[]}
+   * @private Inicialmente igual a this.proveedores, filtrada después
+   */
   proveedoresFiltrados: Proveedor[] = [];
+
+  /**
+   * Proveedor actualmente seleccionado en dropdown.
+   * null: Ninguno seleccionado (o usuario escribió texto libre)
+   * Proveedor: Usuario seleccionó proveedor de la lista
+   * @type {Proveedor | null}
+   * @default null
+   */
   proveedorSeleccionado: Proveedor | null = null;
-  
-  // Formulario reactivo para nuevo proveedor
+
+  /**
+   * Formulario reactivo para crear nuevo proveedor inline.
+   * Se inicializa en initFormNuevoProveedor() con validadores.
+   * @type {FormGroup}
+   * @remarks Se llena con valores del usuario si elige "Crear proveedor"
+   */
   formNuevoProveedor!: FormGroup;
+
+  /**
+   * Flag de validación asincrónica: Nombre en proceso de validación.
+   * true: Esperando respuesta de ProveedoresService.nombreExists()
+   * false: Validación completada o no iniciada
+   * @type {boolean}
+   * @default false
+   * @remarks Se usa para deshabilitar botón "Guardar proveedor" mientras valida
+   */
   validandoNombre = false;
+
+  /**
+   * Flag de validación asincrónica: RUC en proceso de validación.
+   * true: Esperando respuesta de ProveedoresService.rucExists()
+   * false: Validación completada o no iniciada
+   * @type {boolean}
+   * @default false
+   */
   validandoRuc = false;
 
-  // Validaciones para el proveedor y factura
+  /**
+   * Objeto con estado de validaciones de todos los campos del proveedor.
+   * Estructura: { campo: { valido: boolean, mensaje: string } }
+   * Se usa para mostrar mensajes de validación al usuario (✓ o ✗)
+   * @type {Object}
+   * @remarks
+   * - codigo: Formato A1234 (1+ letras, 4+ números)
+   * - nombre: Nombre único en BD
+   * - ruc: 13 dígitos, formato ecuatoriano válido, único en BD
+   * - telefonoPrincipal: 09XXXXXXXX (celular) o 07XXXXX (convencional)
+   * - telefonoSecundario: Mismo formato que principal
+   * - codigoLugar: 01-24 (provincias Ecuador)
+   * - numeroFactura: Número único de factura del ingreso actual
+   */
   validaciones = {
     codigo: { valido: false, mensaje: '' },
     nombre: { valido: false, mensaje: '' },
@@ -59,15 +224,54 @@ export class CrearIngresoComponent implements OnInit {
     numeroFactura: { valido: false, mensaje: '' }
   };
 
+  /**
+   * Flag de validación asincrónica: Número factura en proceso.
+   * true: Esperando respuesta de IngresosService.numeroFacturaExists()
+   * false: Validación completada o no iniciada
+   * @type {boolean}
+   * @default false
+   */
   validandoNumeroFactura = false;
 
+  /**
+   * Hook de inicialización del ciclo de vida Angular.
+   *
+   * **Responsabilidades:**
+   * 1. Carga lista de proveedores desde Firestore
+   * 2. Inicializa formulario reactivo para nuevo proveedor
+   *
+   * @returns {void}
+   *
+   * @remarks
+   * - Se ejecuta automáticamente por Angular después de construcción
+   * - Operaciones asincrónicas aquí disparan observables (sin await)
+   * - El formulario se prepara para posible uso en modal/collapse
+   */
   ngOnInit() {
     this.cargarProveedores();
     this.initFormNuevoProveedor();
   }
 
   /**
-   * Verificar si el formulario de proveedor es válido para guardar
+   * Getter que valida si el formulario de nuevo proveedor es válido para guardar.
+   *
+   * **Criterios de validación:**
+   * 1. FormGroup es válido (Validators básicos: required, minLength, etc)
+   * 2. No hay validaciones asincrónicas pendientes (validandoNombre, validandoRuc, etc)
+   * 3. Si nombre tiene mensaje de validación: debe ser válido (no duplicado)
+   * 4. Si código está completo: debe ser válido (no duplicado)
+   * 5. Si RUC tiene mensaje de validación: debe ser válido (no duplicado)
+   *
+   * **Flujo lógico:**
+   * - Si algún criterio falla → Retorna false (botón deshabilitado)
+   * - Solo si TODOS pasan → Retorna true (botón habilitado)
+   *
+   * @returns {boolean} true si formulario es válido y listo para guardar
+   *
+   * @remarks
+   * - Usado en template: [disabled]="!puedeGuardarProveedor"
+   * - Previene guardado de datos inválidos
+   * - Las validaciones asincrónicas son obligatorias antes de guardar
    */
   get puedeGuardarProveedor(): boolean {
     if (this.formNuevoProveedor.invalid) {
@@ -97,6 +301,33 @@ export class CrearIngresoComponent implements OnInit {
     return true;
   }
 
+  /**
+   * Inicializa el formulario reactivo para crear nuevo proveedor.
+   *
+   * **Campos del formulario:**
+   * - codigo (optional): A1234, 1+ letras + 4+ números
+   * - nombre (required): Nombre único del proveedor
+   * - ruc (required): 13 dígitos, ecuatoriano válido
+   * - representante (optional): Nombre del representante legal
+   * - telefonoPrincipal (optional): 09XXXXXXXX o 07XXXXX
+   * - telefonoSecundario (optional): 09XXXXXXXX o 07XXXXX
+   * - codigoLugar (optional): 01-24 (provincia)
+   * - direccion (optional): Dirección física
+   * - saldo (optional): Deuda inicial (default 0)
+   *
+   * **Validadores:**
+   * - nombre: Requerido (validator)
+   * - ruc: Requerido, minLength 13, maxLength 13
+   * - saldo: Mínimo 0
+   * - Resto: Sin validadores (validaciones custom en métodos)
+   *
+   * @returns {void}
+   *
+   * @remarks
+   * - Se ejecuta en ngOnInit
+   * - Los validadores son básicos; validaciones async ocurren después (blur)
+   * - FormBuilder crea FormGroup con FormControls tipados
+   */
   initFormNuevoProveedor() {
     this.formNuevoProveedor = this.fb.group({
       codigo: [''],
@@ -111,6 +342,26 @@ export class CrearIngresoComponent implements OnInit {
     });
   }
 
+  /**
+   * Carga lista de todos los proveedores desde Firestore.
+   *
+   * **Flujo:**
+   * 1. Suscribe a ProveedoresService.getProveedores() Observable
+   * 2. Asigna resultado a this.proveedores
+   * 3. Copia a this.proveedoresFiltrados (para búsqueda/dropdown)
+   *
+   * **Manejo de errores:**
+   * - Log de error en consola
+   * - Asigna mensaje de error a signal (mostrado en template)
+   * - No interrumpe flujo (error silencioso para algunos usuarios)
+   *
+   * @returns {void}
+   *
+   * @remarks
+   * - Se ejecuta en ngOnInit
+   * - La suscripción persiste durante vida del componente
+   * - Actualiza lista visible cuando usuario abre form de nuevo proveedor
+   */
   cargarProveedores(): void {
     this.proveedoresService.getProveedores().subscribe({
       next: (proveedores) => {
@@ -124,6 +375,37 @@ export class CrearIngresoComponent implements OnInit {
     });
   }
 
+  /**
+   * Busca proveedores por término (nombre, código, RUC) en tiempo real.
+   *
+   * **Algoritmo:**
+   * 1. Obtiene término de this.busquedaProveedor() signal
+   * 2. Normaliza: trim() + toLowerCase() (case-insensitive, sin espacios)
+   * 3. Si término vacío: Muestra todos (this.proveedoresFiltrados = this.proveedores)
+   * 4. Si término tiene contenido: Filtra por:
+   *    - Nombre contiene término
+   *    - Código contiene término
+   *    - RUC contiene término
+   *    - Operador OR: Si coincide CUALQUIERA, incluir
+   * 5. Asigna resultado a this.proveedoresFiltrados
+   *
+   * **Casos especiales:**
+   * - Búsqueda vacía: Muestra todos
+   * - Sin coincidencias: proveedoresFiltrados = [] (dropdown vacío)
+   * - Búsqueda parcial: Ejemplo "prov" coincide "Proveedor A"
+   *
+   * **Performance:**
+   * - O(n) donde n = cantidad de proveedores
+   * - Se ejecuta en tiempo real (on input change)
+   * - Rápido incluso con cientos de proveedores
+   *
+   * @returns {void}
+   *
+   * @remarks
+   * - Se ejecuta cuando usuario escribe en campo de búsqueda
+   * - (ngModelChange)="buscarProveedor()" en template
+   * - No es método async (búsqueda local es instantánea)
+   */
   buscarProveedor() {
     const termino = this.busquedaProveedor().toLowerCase();
     if (!termino) {
@@ -138,6 +420,33 @@ export class CrearIngresoComponent implements OnInit {
     );
   }
 
+  /**
+   * Selecciona un proveedor de la lista y asigna sus datos al ingreso.
+   *
+   * **Algoritmo:**
+   * 1. Busca proveedor por código, ID, o nombre (múltiples modos)
+   * 2. Si encuentra: Asigna proveedor a this.proveedorSeleccionado
+   * 3. Asigna nombre del proveedor a this.ingreso.proveedor (visible)
+   * 4. Opcionalmente guarda proveedorId para vincular (comentado)
+   * 5. Limpia campo de búsqueda (cierra dropdown)
+   *
+   * **Parámetro:**
+   * - codigo: Puede ser código actual, ID Firestore, o nombre
+   * - Intenta buscar en múltiples campos para robustez
+   *
+   * **Casos especiales:**
+   * - Proveedor no encontrado: Asigna null a proveedorSeleccionado
+   * - Campo de búsqueda se vacía (oculta dropdown)
+   *
+   * @param {string} codigo - Identificador de proveedor (código, ID, o nombre)
+   * @returns {void}
+   *
+   * @remarks
+   * - Se ejecuta cuando usuario hace clic en proveedor de dropdown
+   * - (ngClick)="seleccionarProveedor(proveedor.codigo)" en template
+   * - El nombre seleccionado se muestra en campo de entrada
+   * - No usa proveedorId explícitamente (solo nombre en ingreso.proveedor)
+   */
   seleccionarProveedor(codigo: string) {
     const prov = this.proveedores.find(p =>
       p.codigo?.toLowerCase() === codigo.toLowerCase() ||
@@ -152,7 +461,16 @@ export class CrearIngresoComponent implements OnInit {
     this.busquedaProveedor.set('');
   }
 
-  // Validaciones
+  /**
+   * Valida que un código de proveedor tenga el formato correcto.
+   *
+   * **Formato requerido:** Mínimo 1 letra + 4 números
+   * - Ejemplos válidos: A1234, ABC5678, PROV0001
+   * - Ejemplos inválidos: 12345 (sin letras), ABC (sin números)
+   *
+   * @param {string} codigo - Código a validar
+   * @returns {boolean} true si formato es válido
+   */
   validarFormatoCodigo(codigo: string): boolean {
     if (!codigo) return false;
     const letras = (codigo.match(/[a-zA-Z]/g) || []).length;
@@ -160,6 +478,17 @@ export class CrearIngresoComponent implements OnInit {
     return letras >= 1 && numeros >= 4;
   }
 
+  /**
+   * Valida que código de proveedor sea único (sin duplicados en BD).
+   *
+   * **Flujo:**
+   * 1. Si vacío: Limpia validación
+   * 2. Si formato inválido: Setea mensaje de error
+   * 3. Si formato válido: Busca en BD si existe
+   * 4. Asigna valido y mensaje según resultado
+   *
+   * @returns {Promise<void>} Operación async
+   */
   async validarCodigo(): Promise<void> {
     const codigo = this.formNuevoProveedor.get('codigo')?.value;
     if (!codigo || codigo.trim() === '') {
@@ -188,6 +517,18 @@ export class CrearIngresoComponent implements OnInit {
     }
   }
 
+  /**
+   * Valida que nombre de proveedor sea único (sin duplicados en BD).
+   *
+   * **Flujo:**
+   * 1. Si vacío: Limpia validación
+   * 2. Setea validandoNombre=true (deshabilita botón)
+   * 3. Busca en BD si nombre existe
+   * 4. Asigna valido y mensaje
+   * 5. En finally: Setea validandoNombre=false
+   *
+   * @returns {Promise<void>} Operación async
+   */
   async validarNombre(): Promise<void> {
     const nombre = this.formNuevoProveedor.get('nombre')?.value;
     if (!nombre || nombre.trim() === '') {
@@ -213,6 +554,23 @@ export class CrearIngresoComponent implements OnInit {
     }
   }
 
+  /**
+   * Valida que RUC sea único y formato correcto (ecuatoriano).
+   *
+   * **Validaciones de formato:**
+   * 1. Exactamente 13 dígitos
+   * 2. Primeros 2 dígitos: Código provincia (01-24)
+   * 3. Tercer dígito: Tipo de contribuyente (0-5, 6, ó 9)
+   *
+   * **Flujo:**
+   * 1. Valida formato
+   * 2. Setea validandoRuc=true
+   * 3. Busca en BD si existe
+   * 4. Asigna valido y mensaje
+   * 5. En finally: Setea validandoRuc=false
+   *
+   * @returns {Promise<void>} Operación async
+   */
   async validarRUC(): Promise<void> {
     const ruc = this.formNuevoProveedor.get('ruc')?.value;
     
@@ -260,6 +618,17 @@ export class CrearIngresoComponent implements OnInit {
     }
   }
 
+  /**
+   * Valida que número de factura sea único (sin duplicados en BD).
+   *
+   * **Flujo:**
+   * 1. Setea validandoNumeroFactura=true
+   * 2. Busca en BD si número existe
+   * 3. Asigna valido y mensaje
+   * 4. En finally: Setea validandoNumeroFactura=false
+   *
+   * @returns {Promise<void>} Operación async
+   */
   async validarNumeroFactura(): Promise<void> {
     const num = this.ingreso.numeroFactura;
     if (!num || num.trim() === '') {
@@ -285,6 +654,16 @@ export class CrearIngresoComponent implements OnInit {
     }
   }
 
+  /**
+   * Valida que teléfono sea en formato correcto para Ecuador.
+   *
+   * **Formatos aceptados:**
+   * - Celular: 09XXXXXXXX (10 dígitos)
+   * - Convencional: 07XXXXXX o 07XXXXXXX (8-9 dígitos, El Oro)
+   *
+   * @param {('principal'|'secundario')} tipo - Tipo de teléfono a validar
+   * @returns {void}
+   */
   validarTelefono(tipo: 'principal' | 'secundario'): void {
     const campo = tipo === 'principal' ? 'telefonoPrincipal' : 'telefonoSecundario';
     const telefono = this.formNuevoProveedor.get(tipo === 'principal' ? 'telefonoPrincipal' : 'telefonoSecundario')?.value;
@@ -310,6 +689,13 @@ export class CrearIngresoComponent implements OnInit {
     }
   }
 
+  /**
+   * Valida que código de lugar sea válido (01-24, provincias Ecuador).
+   *
+   * **Rango válido: 1-24** (24 provincias Ecuador)
+   *
+   * @returns {void}
+   */
   validarCodigoLugar(): void {
     const codigoLugar = this.formNuevoProveedor.get('codigoLugar')?.value;
     
@@ -329,6 +715,11 @@ export class CrearIngresoComponent implements OnInit {
     }
   }
 
+  /**
+   * Crea un objeto Proveedor vacío con estructura correcta.
+   *
+   * @returns {Proveedor} Objeto Proveedor con todos los campos inicializados
+   */
   getProveedorVacio(): Proveedor {
     return {
       codigo: '',
@@ -347,6 +738,16 @@ export class CrearIngresoComponent implements OnInit {
     };
   }
 
+  /**
+   * Muestra/oculta formulario para crear nuevo proveedor inline.
+   *
+   * **Comportamiento:**
+   * 1. Toggle mostrarFormNuevoProveedor signal
+   * 2. Si muestra: Reset form + reset validaciones + focus en primer campo
+   * 3. Si oculta: Form desaparece del DOM
+   *
+   * @returns {void}
+   */
   toggleFormNuevoProveedor(): void {
     this.mostrarFormNuevoProveedor.set(!this.mostrarFormNuevoProveedor());
     if (this.mostrarFormNuevoProveedor()) {
@@ -373,6 +774,36 @@ export class CrearIngresoComponent implements OnInit {
     }
   }
 
+  /**
+   * Guarda un nuevo proveedor en Firestore tras validaciones complejas.
+   *
+   * **Validaciones previas al guardado:**
+   * 1. FormGroup validación básica (required fields)
+   * 2. Nombre no duplicado en BD (validarNombre async)
+   * 3. RUC formato ecuatoriano válido (validarRUC async)
+   * 4. Si código presente: no duplicado en BD (validarCodigo async)
+   *
+   * **Flujo de guardado:**
+   * 1. Valida todos los criterios (retorna si falla alguno)
+   * 2. Setea guardando=true
+   * 3. Crea objeto Proveedor tipado con estructura correcta
+   * 4. Llama a ProveedoresService.createProveedor (async)
+   * 5. Si éxito: Muestra SweetAlert2, asigna nombre a ingreso, recarga lista
+   * 6. Si error: Muestra SweetAlert2 con mensaje de error
+   * 7. Finalmente: Setea guardando=false, cierra form, resetea validaciones
+   *
+   * **Manejo de errores:**
+   * - Captura excepciones de createProveedor
+   * - Muestra mensaje amigable en SweetAlert2
+   * - Setea signal error para mostrar en template
+   *
+   * @returns {Promise<void>} Operación async
+   *
+   * @remarks
+   * - Método critical: Crea datos en BD
+   * - Sin await explícito en llamador (async fire-and-forget)
+   * - Al cerrar form, usuario puede proceder al siguiente paso
+   */
   async guardarNuevoProveedor(): Promise<void> {
     if (this.formNuevoProveedor.invalid) {
       this.error.set('Complete los campos obligatorios del proveedor (Nombre y RUC)');
@@ -463,6 +894,20 @@ export class CrearIngresoComponent implements OnInit {
     }
   }
 
+  /**
+   * Cancela creación de nuevo proveedor y resetea formulario.
+   *
+   * **Acciones:**
+   * 1. Oculta form de nuevo proveedor (mostrarFormNuevoProveedor=false)
+   * 2. Resetea formulario a valores vacíos
+   *
+   * @returns {void}
+   *
+   * @remarks
+   * - Botón "Cancelar" en form de nuevo proveedor
+   * - No navega (usuario sigue en página creación ingreso)
+   * - Limpia datos parcialmente ingresados
+   */
   cancelarNuevoProveedor(): void {
     this.mostrarFormNuevoProveedor.set(false);
     this.formNuevoProveedor.reset({
@@ -477,6 +922,38 @@ export class CrearIngresoComponent implements OnInit {
     });
   }
 
+  /**
+   * Valida ingreso actual y navega a siguiente paso (agregar productos).
+   *
+   * **Validaciones:**
+   * 1. Proveedor seleccionado (no vacío)
+   * 2. Número factura ingresado (no vacío)
+   * 3. Número factura único en BD (validarNumeroFactura async)
+   *
+   * **Flujo:**
+   * 1. Si faltan campos obligatorios: Setea error y retorna
+   * 2. Valida número factura en BD
+   * 3. Si factura existe: Retorna con error
+   * 4. Asegura que ingreso.proveedor sea nombre (no código)
+   * 5. Guarda ingreso TEMPORALMENTE (sin persista en BD)
+   * 6. Navega a /productos/ingreso/:id/agregar-productos
+   * 7. Usuario continúa en siguiente paso añadiendo items
+   *
+   * **Almacenamiento temporal:**
+   * - Usa IngresosService.guardarIngresoTemporal()
+   * - Ingreso NO está en BD todavía (solo en memoria/local)
+   * - Cuando usuario termina de agregar productos, se finaliza en BD
+   *
+   * **Manejo de errores:**
+   * - Si error en guardado temporal: Muestra mensaje amigable
+   * - Setea signal guardando mientras procesa
+   *
+   * @returns {Promise<void>} Operación async
+   * @remarks
+   * - Botón \"Continuar\" en formulario principal
+   * - Este paso es CRÍTICO: Prepara ingreso para siguientes pasos
+   * - El ID temporal se usa para asociar productos después
+   */
   async continuar() {
     // Validaciones
     if (!this.ingreso.proveedor || !this.ingreso.numeroFactura) {
@@ -519,11 +996,34 @@ export class CrearIngresoComponent implements OnInit {
     }
   }
 
+  /**
+   * Cancela creación de ingreso y navega atrás.
+   *
+   * **Acción:**
+   * 1. Navigate a /ingresos (listar ingresos)
+   * 2. Descarta todos los datos temporales del ingreso actual
+   *
+   * @returns {void}
+   *
+   * @remarks
+   * - Botón "Cancelar" en formulario principal
+   * - Usuario vuelve a la lista de ingresos
+   * - Datos ingresados NO se guardan
+   */
   cancelar() {
     this.router.navigate(['/ingresos']);
   }
 
-  // Navegar al siguiente campo con Enter
+  /**
+   * Navega al siguiente campo cuando usuario presiona Enter.
+   * @param {Event} event - Evento de teclado
+   * @param {string} nextId - ID HTML del próximo elemento a enfocar
+   * @returns {void}
+   *
+   * @remarks
+   * - Mejora UX: Usuario no necesita mouse
+   * - Se usa (keyup.enter)="focusNext($event, 'campo-siguiente')"
+   */
   focusNext(event: Event, nextId: string) {
     event.preventDefault();
     const nextElement = document.getElementById(nextId);
@@ -532,7 +1032,9 @@ export class CrearIngresoComponent implements OnInit {
     }
   }
 
-  // Manejar Enter en textareas (permitir saltos de línea, Ctrl+Enter para siguiente campo)
+  /**
+   * Maneja Enter en textareas.
+   */
   onTextareaKeydown(event: KeyboardEvent, nextId: string) {
     if (event.key === 'Enter' && event.ctrlKey) {
       event.preventDefault();
