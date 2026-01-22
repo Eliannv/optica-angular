@@ -8,6 +8,7 @@ export interface CajaChica {
   usuario_nombre?: string; // Nombre del usuario que abrió la caja
   observacion?: string; // Observaciones generales
   activo?: boolean; // 🔹 Soft delete: true = activo, false = desactivado
+  caja_banco_id?: string; // 🔹 ID de la caja banco asociada (si existe)
   createdAt?: any; // Timestamp de creación
   updatedAt?: any; // Timestamp de actualización
   cerrado_en?: any; // Timestamp de cierre

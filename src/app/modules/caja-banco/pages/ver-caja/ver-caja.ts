@@ -27,8 +27,7 @@ export class VerCajaComponent implements OnInit {
     total_ingresos: 0,
     total_egresos: 0,
     ingresos_cajas_chicas: 0,
-    ingresos_otros: 0,
-    saldo_actual_calculado: 0
+    ingresos_otros: 0
   };
 
   ngOnInit(): void {
@@ -72,15 +71,13 @@ export class VerCajaComponent implements OnInit {
     const mes = fecha.getMonth();
     
     this.cajaChicaService.getCajasChicasPorMes(year, mes).subscribe(todas => {
-      // Filtrar solo las cajas chicas CERRADAS del mismo día de la caja banco
-      const cajaBancoDay = new Date(fecha);
-      cajaBancoDay.setHours(0, 0, 0, 0);
-      
+      // Filtrar solo las cajas chicas CERRADAS del MISMO MES Y AÑO de la caja banco
+      // (NO solo del mismo día, sino de todo el período de mes)
       this.cajasChicas = (todas || []).filter(cc => {
         if (cc.estado !== 'CERRADA') return false;
         const cajaDia = new Date(cc.fecha instanceof Date ? cc.fecha : (cc.fecha as any).toDate?.() || new Date(cc.fecha));
-        cajaDia.setHours(0, 0, 0, 0);
-        return cajaDia.getTime() === cajaBancoDay.getTime();
+        // Comparar año y mes, pero NO el día
+        return cajaDia.getFullYear() === year && cajaDia.getMonth() === mes;
       });
       // Recalcular resumen cuando se cargan las cajas chicas
       this.calcularResumen();
@@ -113,9 +110,8 @@ export class VerCajaComponent implements OnInit {
     this.resumen.total_ingresos = ingresosCajasChicas + ingresosOtros;
     this.resumen.total_egresos = egresos;
     
-    // 3. Calcular el saldo actual: saldo_inicial + total_ingresos - total_egresos
-    const saldoInicial = this.caja?.saldo_inicial ?? 0;
-    this.resumen.saldo_actual_calculado = saldoInicial + this.resumen.total_ingresos - this.resumen.total_egresos;
+    // 🔹 El saldo_actual ahora viene directamente de Firestore en caja.saldo_actual
+    // No es necesario calcularlo aquí
   }
 
   formatoFecha(fecha: any): string {
@@ -133,6 +129,8 @@ export class VerCajaComponent implements OnInit {
   }
 
   registrarMovimiento(): void {
+    // Guardar el ID en sessionStorage para que registrar-movimiento lo pueda recuperar
+    sessionStorage.setItem('cajaBancoIdActual', this.cajaId);
     this.router.navigate(['/caja-banco/registrar-movimiento'], {
       state: { cajaId: this.cajaId }
     });

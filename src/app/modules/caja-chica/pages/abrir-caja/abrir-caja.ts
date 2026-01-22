@@ -1,10 +1,12 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import Swal from 'sweetalert2';
 
 @Component({
@@ -13,7 +15,7 @@ import Swal from 'sweetalert2';
   templateUrl: './abrir-caja.html',
   styleUrls: ['./abrir-caja.css']
 })
-export class AbrirCajaComponent implements OnInit {
+export class AbrirCajaComponent implements OnInit, OnDestroy {
   private cajaChicaService = inject(CajaChicaService);
   private cajaBancoService = inject(CajaBancoService);
   private authService = inject(AuthService);
@@ -24,16 +26,37 @@ export class AbrirCajaComponent implements OnInit {
   cargando = false;
   error = '';
   maxFecha = '';
+  // 🔹 Flag para evitar ejecuciones automáticas - solo se ejecuta si el usuario presiona el botón
+  userInitiatedAction = false;
+  
+  // 🔹 Subject para destruir subscriptes cuando el componente se destruye
+  private destroy$ = new Subject<void>();
+  
+  // 🔹 Flag para evitar ejecuciones duplicadas
+  private procesando = false;
 
   ngOnInit(): void {
     this.inicializarFormulario();
-    this.validarCajaAbiertaHoy();
+    // 🔹 Resetear flag de acción para prevenir ejecuciones automáticas
+    this.userInitiatedAction = false;
+    // 🔹 Removido: Ahora permite abrir múltiples cajas chicas en el mismo día
+    // this.validarCajaAbiertaHoy();
+  }
+
+  ngOnDestroy(): void {
+    // 🔹 Destruir todos los subscriptes activos
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   inicializarFormulario(): void {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     this.maxFecha = hoy.toISOString().split('T')[0];
+
+    // 🔹 IMPORTANTE: Siempre limpiar localStorage cuando se inicializa el formulario
+    // Esto previene que se ejecuten acciones automáticas no deseadas
+    localStorage.removeItem('cajaChicaAbierta');
 
     this.form = this.formBuilder.group({
       fecha: [hoy, Validators.required], // Fecha actual, pero no editable en el HTML
@@ -42,6 +65,8 @@ export class AbrirCajaComponent implements OnInit {
     });
   }
 
+  // 🔹 DEPRECATED: Removido para permitir múltiples cajas chicas en el mismo día
+  /*
   validarCajaAbiertaHoy(): void {
     const cajaAbiertaId = localStorage.getItem('cajaChicaAbierta');
     if (cajaAbiertaId) {
@@ -79,16 +104,25 @@ export class AbrirCajaComponent implements OnInit {
       });
     }
   }
+  */
 
   abrirCaja(): void {
+    // 🔹 CRÍTICO: Marcar que el usuario presionó el botón explícitamente
+    this.userInitiatedAction = true;
+    
     // Bloquear si ya está cargando
     if (this.cargando) return;
+    
+    // 🔹 IMPORTANTE: El usuario debe presionar explícitamente el botón
+    // No permitir ejecuciones automáticas
     
     // Establecer cargando para bloquear el botón
     this.cargando = true;
 
     // Validar existencia de Caja Banco primero (async)
-    this.cajaBancoService.existeAlMenosUnaCajaBanco().subscribe({
+    this.cajaBancoService.existeAlMenosUnaCajaBanco()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
       next: (existe) => {
         if (!existe) {
           this.cargando = false; // Desbloquear botón
@@ -110,7 +144,12 @@ export class AbrirCajaComponent implements OnInit {
               allowEscapeKey: false
             }).then((result) => {
               if (result.isConfirmed) {
+                // 🔹 Resetear flag cuando el usuario navega fuera
+                this.userInitiatedAction = false;
                 this.router.navigate(['/caja-banco']);
+              } else {
+                // 🔹 Resetear flag si el usuario cancela
+                this.userInitiatedAction = false;
               }
             });
           } else {
@@ -122,17 +161,23 @@ export class AbrirCajaComponent implements OnInit {
               confirmButtonText: 'Aceptar',
               allowOutsideClick: false,
               allowEscapeKey: false
+            }).then(() => {
+              // 🔹 Resetear flag
+              this.userInitiatedAction = false;
             });
           }
           return;
         }
 
         // Si existe Caja Banco, continuar con la validación del formulario
+        // 🔹 Aquí es donde el usuario realmente abre la caja
         this.procederAbrirCaja();
         this.cargando = false; // Desbloquear después de procesar
       },
       error: (err) => {
         this.cargando = false; // Desbloquear en caso de error
+        // 🔹 Resetear flag en error
+        this.userInitiatedAction = false;
         console.error('Error al verificar existencia de Caja Banco:', err);
         Swal.fire({
           icon: 'error',
@@ -145,7 +190,16 @@ export class AbrirCajaComponent implements OnInit {
   }
 
   private procederAbrirCaja(): void {
+    // 🔹 CRÍTICO: Prevenir ejecuciones duplicadas
+    if (this.procesando) {
+      console.warn('Ya se está procesando la apertura de caja. Evitando ejecución duplicada.');
+      return;
+    }
+    
+    this.procesando = true;
+    
     if (this.form.invalid) {
+      this.procesando = false;
       Swal.fire({
         icon: 'error',
         title: 'Campos requeridos',
@@ -160,6 +214,7 @@ export class AbrirCajaComponent implements OnInit {
     fechaSel.setHours(0,0,0,0);
     hoyCmp.setHours(0,0,0,0);
     if (fechaSel.getTime() > hoyCmp.getTime()) {
+      this.procesando = false;
       Swal.fire({
         icon: 'warning',
         title: 'Fecha inválida',
@@ -171,6 +226,7 @@ export class AbrirCajaComponent implements OnInit {
     // Verificación rápida en localStorage (ayuda UX)
     const cajaAbiertaId = localStorage.getItem('cajaChicaAbierta');
     if (cajaAbiertaId) {
+      this.procesando = false;
       Swal.fire({
         icon: 'error',
         title: 'Caja ya abierta',
@@ -225,6 +281,7 @@ export class AbrirCajaComponent implements OnInit {
     this.cajaChicaService.abrirCajaChica(nuevaCaja).then(
       (cajaId) => {
         this.cargando = false;
+        this.procesando = false; // 🔹 Resetear flag de procesamiento
         localStorage.setItem('cajaChicaAbierta', cajaId);
         Swal.fire({
           icon: 'success',
@@ -238,6 +295,7 @@ export class AbrirCajaComponent implements OnInit {
       },
       (error) => {
         this.cargando = false;
+        this.procesando = false; // 🔹 Resetear flag de procesamiento
         console.error('Error al abrir caja:', error);
         Swal.fire({
           icon: 'error',

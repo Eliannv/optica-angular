@@ -97,44 +97,39 @@ export class CajaChicaService {
 
   // 🔹 Obtener la caja abierta para el día actual (desde localStorage)
   async getCajaAbiertaHoy(): Promise<CajaChica | null> {
-    // Usar localStorage para evitar query con índice
-    const cajaChicaId = localStorage.getItem('cajaChicaAbierta');
-    
-    if (!cajaChicaId) {
-      return null;
-    }
-
     try {
-      const cajaDoc = await getDoc(doc(this.firestore, `cajas_chicas/${cajaChicaId}`));
-      if (cajaDoc.exists()) {
-        const data = cajaDoc.data() as CajaChica;
-        data.id = cajaDoc.id;
-        
-        // Validar que esté abierta y sea del día actual
-        if (data.estado === 'ABIERTA') {
-          const hoy = new Date();
-          hoy.setHours(0, 0, 0, 0);
-          const fechaCaja = new Date(data.fecha);
-          fechaCaja.setHours(0, 0, 0, 0);
-          
-          if (fechaCaja.getTime() === hoy.getTime()) {
-            return data;
+      // 1. PRIMERO: Verificar localStorage
+      const cajaChicaId = localStorage.getItem('cajaChicaAbierta');
+      
+      if (cajaChicaId) {
+        try {
+          const cajaDoc = await getDoc(doc(this.firestore, `cajas_chicas/${cajaChicaId}`));
+          if (cajaDoc.exists()) {
+            const data = cajaDoc.data() as CajaChica;
+            data.id = cajaDoc.id;
+            
+            // Validar que esté abierta y sea del día actual
+            if (data.estado === 'ABIERTA') {
+              const hoy = new Date();
+              hoy.setHours(0, 0, 0, 0);
+              const fechaCaja = new Date(data.fecha);
+              fechaCaja.setHours(0, 0, 0, 0);
+              
+              if (fechaCaja.getTime() === hoy.getTime()) {
+                return data; // ✅ Caja válida
+              }
+            }
+            
+            // Si la caja no es válida, limpiar localStorage
+            localStorage.removeItem('cajaChicaAbierta');
           }
+        } catch (err) {
+          console.warn('Error al obtener caja de localStorage:', err);
+          localStorage.removeItem('cajaChicaAbierta');
         }
-        
-        // Si la caja no es válida, limpiar localStorage
-        localStorage.removeItem('cajaChicaAbierta');
       }
-    } catch (err) {
-      console.warn('Error al obtener caja abierta:', err);
-    }
-    
-    return null;
-  }
 
-  // 🔹 NUEVO: Obtener caja abierta directamente de Firestore (busca por fecha de hoy)
-  async existeCajaAbiertaHoy(): Promise<boolean> {
-    try {
+      // 2. SI NO ESTÁ EN LOCALSTORAGE: Buscar en Firestore
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
       
@@ -150,7 +145,168 @@ export class CajaChicaService {
       );
 
       const snapshot = await getDocs(q);
-      return !snapshot.empty;
+      
+      if (!snapshot.empty) {
+        // Buscar la primera caja abierta que no esté soft-deleted
+        for (const doc of snapshot.docs) {
+          const data = doc.data() as CajaChica;
+          
+          // Saltar cajas soft-deleted
+          if (data.activo === false) {
+            continue;
+          }
+          
+          data.id = doc.id;
+          
+          // Guardar en localStorage para futuras validaciones
+          localStorage.setItem('cajaChicaAbierta', doc.id);
+          return data;
+        }
+      }
+      
+      return null;
+    } catch (err) {
+      console.warn('Error al obtener caja abierta:', err);
+    }
+    
+    return null;
+  }
+
+  // 🔹 NUEVO: Validar estado detallado de la caja chica para hoy
+  async validarCajaChicaHoy(): Promise<{ valida: boolean; tipo: 'ABIERTA' | 'CERRADA' | 'NO_EXISTE'; caja?: CajaChica }> {
+    try {
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      
+      const mañana = new Date(hoy);
+      mañana.setDate(mañana.getDate() + 1);
+
+      const cajasRef = collection(this.firestore, 'cajas_chicas');
+      
+      // Buscar CUALQUIER caja para hoy (abierta o cerrada)
+      // Nota: No usamos where('activo', '!=', false) porque Firestore no lo permite
+      const q = query(
+        cajasRef,
+        where('fecha', '>=', hoy),
+        where('fecha', '<', mañana)
+      );
+
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        // Buscar la primera caja que no esté soft-deleted
+        for (const doc of snapshot.docs) {
+          const data = doc.data() as CajaChica;
+          
+          // Saltar cajas soft-deleted
+          if (data.activo === false) {
+            continue;
+          }
+          
+          data.id = doc.id;
+          
+          // Si está ABIERTA
+          if (data.estado === 'ABIERTA') {
+            localStorage.setItem('cajaChicaAbierta', doc.id);
+            return { 
+              valida: true, 
+              tipo: 'ABIERTA', 
+              caja: data 
+            };
+          } 
+          // Si está CERRADA
+          else if (data.estado === 'CERRADA') {
+            localStorage.removeItem('cajaChicaAbierta');
+            return { 
+              valida: false, 
+              tipo: 'CERRADA', 
+              caja: data 
+            };
+          }
+        }
+      }
+      
+      // No existe caja para hoy
+      localStorage.removeItem('cajaChicaAbierta');
+      return { 
+        valida: false, 
+        tipo: 'NO_EXISTE' 
+      };
+      
+    } catch (err) {
+      console.error('Error al validar caja chica:', err);
+      return { 
+        valida: false, 
+        tipo: 'NO_EXISTE' 
+      };
+    }
+  }
+
+  // 🔹 NUEVO: Obtener caja abierta directamente de Firestore (busca por fecha de hoy)
+  async existeCajaAbiertaHoy(): Promise<boolean> {
+    try {
+      // 1. PRIMERO: Verificar localStorage
+      const cajaChicaId = localStorage.getItem('cajaChicaAbierta');
+      if (cajaChicaId) {
+        try {
+          const cajaDoc = await getDoc(doc(this.firestore, `cajas_chicas/${cajaChicaId}`));
+          if (cajaDoc.exists()) {
+            const data = cajaDoc.data() as CajaChica;
+            
+            // Validar que esté abierta y sea del día actual
+            if (data.estado === 'ABIERTA') {
+              const hoy = new Date();
+              hoy.setHours(0, 0, 0, 0);
+              const fechaCaja = new Date(data.fecha);
+              fechaCaja.setHours(0, 0, 0, 0);
+              
+              if (fechaCaja.getTime() === hoy.getTime()) {
+                return true; // ✅ Caja válida encontrada
+              }
+            }
+          }
+          // Si la caja de localStorage no es válida, limpiarla
+          localStorage.removeItem('cajaChicaAbierta');
+        } catch (err) {
+          console.warn('Error al validar caja de localStorage:', err);
+          localStorage.removeItem('cajaChicaAbierta');
+        }
+      }
+
+      // 2. SI NO ESTÁ EN LOCALSTORAGE: Buscar en Firestore
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      
+      const mañana = new Date(hoy);
+      mañana.setDate(mañana.getDate() + 1);
+
+      const cajasRef = collection(this.firestore, 'cajas_chicas');
+      const q = query(
+        cajasRef,
+        where('fecha', '>=', hoy),
+        where('fecha', '<', mañana),
+        where('estado', '==', 'ABIERTA')
+      );
+
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        // Buscar la primera caja abierta que no esté soft-deleted
+        for (const doc of snapshot.docs) {
+          const data = doc.data() as CajaChica;
+          
+          // Saltar cajas soft-deleted
+          if (data.activo === false) {
+            continue;
+          }
+          
+          // Encontramos una caja abierta válida, guardarla en localStorage
+          localStorage.setItem('cajaChicaAbierta', doc.id);
+          return true;
+        }
+      }
+      
+      return false;
     } catch (err) {
       console.error('Error al verificar caja abierta hoy:', err);
       return false;
@@ -199,6 +355,46 @@ export class CajaChicaService {
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
+
+      // 🔹 Buscar la caja banco ABIERTA del MISMO MES (no del mismo día)
+      try {
+        const cajaBancoRef = collection(this.firestore, 'cajas_banco');
+        // Traer TODAS las cajas banco y filtrar en memoria por fecha y estado
+        const qCajaBanco = query(cajaBancoRef);
+        const snapCajaBanco = await getDocs(qCajaBanco);
+        
+        if (!snapCajaBanco.empty) {
+          // Buscar la caja banco ABIERTA que sea del mismo mes/año
+          for (const doc of snapCajaBanco.docs) {
+            const cb = doc.data() as any;
+            
+            // Saltar cajas soft-deleted o cerradas
+            if (cb.activo === false) continue;
+            if (cb.estado !== 'ABIERTA') continue;
+            
+            // Comparar mes y año (no el día)
+            const fechaCajaBanco = cb.fecha instanceof Date ? cb.fecha : (cb.fecha as any).toDate?.() || new Date(cb.fecha);
+            const mesCajaBanco = fechaCajaBanco.getFullYear() * 100 + fechaCajaBanco.getMonth();
+            
+            const fechaNuevaCAja = new Date(fecha);
+            const mesNuevaCAja = fechaNuevaCAja.getFullYear() * 100 + fechaNuevaCAja.getMonth();
+            
+            // Si es del mismo mes/año, asignar el ID
+            if (mesCajaBanco === mesNuevaCAja) {
+              nuevaCaja.caja_banco_id = doc.id;
+              console.log('✅ Caja banco del mes encontrada y asignada:', doc.id, 'para mes:', mesNuevaCAja);
+              break;
+            }
+          }
+        }
+        
+        if (!nuevaCaja.caja_banco_id) {
+          console.warn('⚠️ No se encontró caja_banco ABIERTA del mismo mes. La caja chica se creará sin relación.');
+        }
+      } catch (err) {
+        console.warn('No se pudo obtener caja_banco_id:', err);
+        // Continuar sin el ID, no es crítico
+      }
 
       const docRef = await addDoc(cajasRef, nuevaCaja);
 
@@ -253,11 +449,137 @@ export class CajaChicaService {
 
       const docRef = await addDoc(movimientosRef, nuevoMovimiento as MovimientoCajaChica);
 
-      // 4️⃣ Actualizar el monto_actual de la caja
+      // 4️⃣ Actualizar el monto_actual de la caja chica
       await updateDoc(doc(this.firestore, `cajas_chicas/${cajaChicaId}`), {
         monto_actual: Math.max(0, nuevoSaldo),
         updatedAt: Timestamp.now(),
       });
+
+      // 5️⃣ 🆕 Actualizar saldo_actual en caja_banco
+      try {
+        // 🔹 Si la caja chica tiene caja_banco_id, usar ese ID directamente (MEJOR)
+        // Si no, buscar por fecha (fallback para cajas antiguas)
+        if (caja.caja_banco_id) {
+          // RUTA 1️⃣: Usar el caja_banco_id explícito (más seguro y rápido)
+          const cajaBancoRef = doc(this.firestore, `cajas_banco/${caja.caja_banco_id}`);
+          const cajaBancoSnap = await getDoc(cajaBancoRef);
+          
+          if (cajaBancoSnap.exists()) {
+            const cajaBanco = cajaBancoSnap.data() as any;
+            
+            // Saltar cajas soft-deleted
+            if (cajaBanco.activo === false) {
+              console.warn('⚠️ La caja banco asociada está desactivada');
+              return docRef.id; // Retornar el ID del movimiento sin actualizar caja banco
+            }
+            
+            // Obtener TODAS las cajas chicas cerradas de esta caja_banco
+            const cajasChicasRef = collection(this.firestore, 'cajas_chicas');
+            const qCajasChicas = query(cajasChicasRef);
+            const snapshotCajasChicas = await getDocs(qCajasChicas);
+            let totalIngresosCajasChicas = 0;
+            
+            snapshotCajasChicas.docs.forEach(docSnap => {
+              const cc = docSnap.data() as any;
+              
+              // Filtrar: solo activas, cerradas, y que pertenezcan a esta caja_banco
+              if (cc.activo !== false && cc.estado === 'CERRADA' && cc.caja_banco_id === caja.caja_banco_id) {
+                // Sumar el monto_actual de todas las cajas cerradas
+                totalIngresosCajasChicas += cc.monto_actual || 0;
+              }
+            });
+            
+            // Calcular nuevo saldo: saldo_inicial + total de cajas chicas cerradas
+            const nuevoSaldoCajaBanco = (cajaBanco.saldo_inicial || 0) + totalIngresosCajasChicas;
+            
+            console.log('🔄 Actualizando caja_banco (por caja_banco_id):', {
+              cajaBancoId: caja.caja_banco_id,
+              saldoInicial: cajaBanco.saldo_inicial,
+              totalIngresosCajasChicas,
+              nuevoSaldo: nuevoSaldoCajaBanco,
+              cajasCerradasCount: snapshotCajasChicas.docs.filter(d => {
+                const cc = d.data() as any;
+                return cc.activo !== false && cc.estado === 'CERRADA' && cc.caja_banco_id === caja.caja_banco_id;
+              }).length
+            });
+            
+            // Actualizar saldo_actual en caja_banco
+            await updateDoc(cajaBancoRef, {
+              saldo_actual: nuevoSaldoCajaBanco,
+              updatedAt: Timestamp.now()
+            });
+            
+            console.log('✅ Caja banco actualizada exitosamente');
+          } else {
+            console.warn('⚠️ Caja banco no encontrada con ID:', caja.caja_banco_id);
+          }
+        } else {
+          // RUTA 2️⃣: Fallback para cajas antiguas sin caja_banco_id (buscar por fecha)
+          const fechaCaja = caja.fecha instanceof Date ? caja.fecha : (caja.fecha as any).toDate?.() || new Date(caja.fecha);
+          const hoy = new Date(fechaCaja);
+          hoy.setHours(0, 0, 0, 0);
+          
+          const mañana = new Date(hoy);
+          mañana.setDate(mañana.getDate() + 1);
+
+          const cajasRef = collection(this.firestore, 'cajas_banco');
+          const q = query(
+            cajasRef,
+            where('fecha', '>=', hoy),
+            where('fecha', '<', mañana)
+          );
+
+          const snapshot = await getDocs(q);
+          
+          if (!snapshot.empty) {
+            const cajaDoc = snapshot.docs[0];
+            const cajaBanco = cajaDoc.data() as any;
+            
+            // Saltar cajas soft-deleted
+            if (cajaBanco.activo === false) {
+              console.warn('⚠️ La caja banco del día está desactivada');
+              return docRef.id; // Retornar el ID del movimiento sin actualizar caja banco
+            }
+            
+            // Obtener TODAS las cajas chicas cerradas del mismo mes
+            const cajasChicasRef = collection(this.firestore, 'cajas_chicas');
+            const qCajasChicas = query(cajasChicasRef);
+            const snapshotCajasChicas = await getDocs(qCajasChicas);
+            let totalIngresosCajasChicas = 0;
+            
+            snapshotCajasChicas.docs.forEach(docSnap => {
+              const cc = docSnap.data() as any;
+              
+              if (cc.activo !== false && cc.estado === 'CERRADA') {
+                // Para cajas antiguas, comparar por mes y año
+                const fechaCajaChica = cc.fecha instanceof Date ? cc.fecha : (cc.fecha as any).toDate?.() || new Date(cc.fecha);
+                if (fechaCajaChica.getFullYear() === hoy.getFullYear() && fechaCajaChica.getMonth() === hoy.getMonth()) {
+                  totalIngresosCajasChicas += cc.monto_actual || 0;
+                }
+              }
+            });
+            
+            const nuevoSaldoCajaBanco = (cajaBanco.saldo_inicial || 0) + totalIngresosCajasChicas;
+            
+            console.log('🔄 Actualizando caja_banco (fallback por fecha):', {
+              cajaBancoId: cajaDoc.id,
+              saldoInicial: cajaBanco.saldo_inicial,
+              totalIngresosCajasChicas,
+              nuevoSaldo: nuevoSaldoCajaBanco
+            });
+            
+            await updateDoc(cajaDoc.ref, {
+              saldo_actual: nuevoSaldoCajaBanco,
+              updatedAt: Timestamp.now()
+            });
+            
+            console.log('✅ Caja banco actualizada exitosamente');
+          }
+        }
+      } catch (err) {
+        console.warn('Advertencia: No se pudo actualizar caja_banco:', err);
+        // No lanzar error, solo advertencia, para no afectar el flujo principal
+      }
 
       return docRef.id;
     } catch (error) {
@@ -289,13 +611,42 @@ export class CajaChicaService {
   // 🔹 Cerrar una caja chica
   async cerrarCajaChica(cajaChicaId: string, montoFinal?: number): Promise<void> {
     try {
+      // Obtener la caja antes de cerrarla
+      const cajaDoc = await getDoc(doc(this.firestore, `cajas_chicas/${cajaChicaId}`));
+      if (!cajaDoc.exists()) {
+        throw new Error('Caja chica no encontrada');
+      }
+
+      const caja = cajaDoc.data() as CajaChica;
+
+      // Actualizar estado a CERRADA
       await updateDoc(doc(this.firestore, `cajas_chicas/${cajaChicaId}`), {
         estado: 'CERRADA',
         cerrado_en: Timestamp.now(),
         updatedAt: Timestamp.now(),
         ...(montoFinal !== undefined && { monto_actual: montoFinal }),
       });
+
+      // 🔹 CRÍTICO: Registrar un movimiento final para que se actualice caja_banco
+      // Esto dispara automáticamente la actualización del saldo_actual en caja_banco
+      const movimientoFinal: MovimientoCajaChica = {
+        caja_chica_id: cajaChicaId,
+        fecha: new Date(),
+        tipo: 'INGRESO', // Usar INGRESO para que se acumule en caja_banco
+        descripcion: 'Cierre de Caja Chica',
+        monto: 0, // Monto 0 porque solo queremos dispara la actualización
+        comprobante: 'CIERRE',
+        observacion: `Cierre de caja chica con saldo final de $${montoFinal || caja.monto_actual || 0}`,
+        usuario_id: '',
+        usuario_nombre: 'Sistema'
+      };
+
+      // Llamar a registrarMovimiento para que actualice el saldo en caja_banco
+      await this.registrarMovimiento(cajaChicaId, movimientoFinal);
+
+      console.log('✅ Caja chica cerrada y saldo de caja_banco actualizado');
     } catch (error) {
+      console.error('Error al cerrar caja chica:', error);
       throw error;
     }
   }

@@ -274,6 +274,18 @@
     flex-wrap: nowrap;
 }
 
+.btn-action-move {
+    border-radius: 12px;
+    color: #16a34a;
+    background: #dcfce7;
+}
+
+.btn-action-move:hover {
+    background: #bbf7d0;
+    transform: translateY(-2px);
+    color: #15803d;
+}
+
 .btn-action {
     display: inline-flex;
     align-items: center;

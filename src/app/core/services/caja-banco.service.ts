@@ -211,6 +211,13 @@ export class CajaBancoService {
     try {
       const movimientosRef = collection(this.firestore, 'movimientos_cajas_banco');
       
+      console.log('📝 Registrando movimiento:', {
+        caja_banco_id: movimiento.caja_banco_id,
+        tipo: movimiento.tipo,
+        monto: movimiento.monto,
+        categoria: movimiento.categoria
+      });
+      
       // Si el movimiento es ligado a una caja específica, validar saldo
       if (movimiento.caja_banco_id) {
         const cajaDoc = await getDoc(doc(this.firestore, `cajas_banco/${movimiento.caja_banco_id}`));
@@ -240,6 +247,8 @@ export class CajaBancoService {
           saldo_nuevo: nuevoSaldo,
           createdAt: Timestamp.now(),
         };
+
+        console.log('✅ Movimiento a guardar con caja_banco_id:', nuevoMovimiento.caja_banco_id);
 
         const docRef = await addDoc(movimientosRef, nuevoMovimiento);
 

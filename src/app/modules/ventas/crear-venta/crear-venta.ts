@@ -67,27 +67,53 @@ export class CrearVentaComponent implements OnInit {
   ) {}
 
   async ngOnInit() {
-    // ✅ Validar que exista una caja chica abierta hoy (PRIMERO verificar localStorage, luego Firestore)
-    let cajaChicaAbierta = localStorage.getItem('cajaChicaAbierta');
-    
-    // Si localStorage no tiene ID, buscar en Firestore
-    if (!cajaChicaAbierta) {
-      const existeEnFirestore = await this.cajaChicaService.existeCajaAbiertaHoy();
-      if (!existeEnFirestore) {
-        Swal.fire({
+    // 🔒 VALIDACIÓN CRÍTICA: Verificar estado detallado de caja chica para hoy
+    try {
+      const validacion = await this.cajaChicaService.validarCajaChicaHoy();
+      
+      // ✅ Caja ABIERTA - Permitir entrada
+      if (validacion.valida && validacion.tipo === 'ABIERTA') {
+        // Continuamos con la carga normal
+      } 
+      // ❌ Caja CERRADA - Bloquear con mensaje específico
+      else if (validacion.tipo === 'CERRADA') {
+        await Swal.fire({
           icon: 'error',
-          title: 'Caja Chica Requerida',
-          text: 'Debe crear primero la caja chica de este día para empezar con una nueva venta',
-          confirmButtonText: 'Ir a Caja Chica',
+          title: 'Caja Chica Cerrada',
+          text: `La caja chica de hoy (${validacion.caja?.fecha ? new Date(validacion.caja.fecha).toLocaleDateString('es-ES') : 'hoy'}) ya fue cerrada. No se pueden crear ventas con una caja cerrada.`,
+          confirmButtonText: 'Abrir Nueva Caja Chica',
           allowOutsideClick: false,
           allowEscapeKey: false
-        }).then((result) => {
-          if (result.isConfirmed) {
-            this.router.navigate(['/caja-chica']);
-          }
+        }).then(() => {
+          this.router.navigate(['/caja-chica']);
         });
         return;
       }
+      // ❌ NO EXISTE caja para hoy - Bloquear con indicación de crear
+      else {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Caja Chica No Encontrada',
+          text: 'No hay una caja chica abierta para hoy. Debe crear una caja chica antes de poder registrar ventas.',
+          confirmButtonText: 'Crear Caja Chica',
+          allowOutsideClick: false,
+          allowEscapeKey: false
+        }).then(() => {
+          this.router.navigate(['/caja-chica']);
+        });
+        return;
+      }
+    } catch (error) {
+      console.error('Error al validar caja chica:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al verificar la caja chica. Intente nuevamente.',
+        confirmButtonText: 'Volver'
+      }).then(() => {
+        this.router.navigate(['/caja-chica']);
+      });
+      return;
     }
 
     // ✅ puedes entrar con /ventas/crear?clienteId=xxx

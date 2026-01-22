@@ -44,11 +44,22 @@ export class RegistrarMovimientoComponent implements OnInit {
   categorias_actuales: string[] = this.categorias_ingresos;
 
   ngOnInit(): void {
-    // Capturar el cajaId del estado del router
+    // Capturar el cajaId del estado del router - usar sessionStorage como fallback
     const navigation = this.router.getCurrentNavigation();
     if (navigation?.extras.state?.['cajaId']) {
       this.cajaId = navigation.extras.state['cajaId'];
+      // Guardar en sessionStorage como fallback
+      sessionStorage.setItem('cajaBancoIdActual', this.cajaId);
+    } else {
+      // Si no viene en navigation, intentar recuperar de sessionStorage
+      const stored = sessionStorage.getItem('cajaBancoIdActual');
+      if (stored) {
+        this.cajaId = stored;
+      }
     }
+    
+    console.log('🔍 CajaId capturado en registrar-movimiento:', this.cajaId);
+    
     this.inicializarFormulario();
     this.cargarClientes();
     this.cargarEmpleados();

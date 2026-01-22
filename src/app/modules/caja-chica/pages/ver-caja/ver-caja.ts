@@ -98,37 +98,12 @@ export class VerCajaComponent implements OnInit {
       const hoy = new Date();
       const fechaNormalizada = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 0, 0, 0, 0);
 
-      // Buscar si existe Caja Banco para el mismo día
-      const cajasBanco = await firstValueFrom(this.cajaBancoService.getCajasBanco());
-      const cajaBancoHoy = cajasBanco.find(c => {
-        const fechaCaja = c.fecha instanceof Date 
-          ? new Date(c.fecha) 
-          : (c.fecha && typeof c.fecha === 'object' && 'toDate' in c.fecha)
-            ? (c.fecha as any).toDate()
-            : new Date(c.fecha || new Date());
-        fechaCaja.setHours(0, 0, 0, 0);
-        const hoyNormalizado = new Date(fechaNormalizada);
-        return fechaCaja.getTime() === hoyNormalizado.getTime();
-      });
-
-      // Si existe Caja Banco, sumar el monto al saldo actual
-      if (cajaBancoHoy?.id) {
-        const nuevoSaldo = (cajaBancoHoy.saldo_actual || 0) + montoActual;
-        await this.cajaBancoService.actualizarSaldoCajaBanco(cajaBancoHoy.id, nuevoSaldo);
-      } else {
-        // Si no existe, crearla
-        await this.cajaBancoService.abrirCajaBanco({
-          fecha: fechaNormalizada,
-          saldo_inicial: 0,
-          saldo_actual: montoActual,
-          estado: 'ABIERTA',
-          usuario_id: usuario?.id,
-          usuario_nombre: usuario?.nombre,
-          observacion: 'Caja Banco creada automáticamente'
-        });
-      }
+      // 🔹 IMPORTANTE: Ya no creamos caja_banco aquí
+      // El sistema automático en cerrarCajaChica() → registrarMovimiento() 
+      // se encarga de actualizar el saldo_actual en caja_banco
 
       // Cerrar la Caja Chica
+      // Esto automáticamente dispara registrarMovimiento() que actualiza caja_banco
       await this.cajaChicaService.cerrarCajaChica(this.cajaId, montoActual);
 
       // 🗑️ Limpiar localStorage
