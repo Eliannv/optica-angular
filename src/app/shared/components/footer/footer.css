@@ -1,3 +1,10 @@
+/**
+ * @file footer.css
+ * @description Estilos del componente FooterComponent con efecto de ola SVG, soporte para modo oscuro
+ * y animaciones suaves. El footer incluye redes sociales, disclaimer legal y versión de la aplicación.
+ * Utiliza variables CSS del sistema de temas (--bg-secondary, --footer-text).
+ */
+
 /* =========================
    FOOTER
 ========================= */
@@ -9,9 +16,6 @@
     padding-bottom: 40px;
     overflow: hidden;
 }
-
-
-/* Ola clara */
 
 .app-footer::before {
     content: '';
@@ -28,9 +32,6 @@
     transition: opacity 0.3s ease;
 }
 
-
-/* Fondo debajo de la ola */
-
 .app-footer::after {
     content: '';
     position: absolute;
@@ -43,9 +44,6 @@
     transition: background-color 0.3s ease;
 }
 
-
-/* Contenido */
-
 .footer-inner {
     position: relative;
     z-index: 5;
@@ -56,9 +54,6 @@
     align-items: center;
     gap: 18px;
 }
-
-
-/* Redes sociales */
 
 .socials {
     display: flex;
@@ -86,9 +81,6 @@
     height: 22px;
 }
 
-
-/* Texto legal */
-
 .disclaimer {
     color: var(--footer-text);
     font-size: 13px;
@@ -113,7 +105,6 @@
     transform: translateY(-2px);
 }
 
-
 /* =========================
    MODO OSCURO
 ========================= */
@@ -126,8 +117,9 @@
     background: var(--bg-secondary);
 }
 
-
-/* Responsive */
+/* =========================
+   RESPONSIVE
+========================= */
 
 @media (max-width: 600px) {
     .disclaimer {

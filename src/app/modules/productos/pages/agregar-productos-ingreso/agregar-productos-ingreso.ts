@@ -8,6 +8,19 @@ import { IngresosService } from '../../../../core/services/ingresos.service';
 import { ProductosService } from '../../../../core/services/productos';
 import Swal from 'sweetalert2';
 
+/**
+ * Componente para agregar productos a un ingreso existente
+ * 
+ * @description
+ * Permite agregar productos existentes del inventario o crear nuevos productos
+ * durante el proceso de ingreso. Soporta navegación por teclado (Enter, flechas),
+ * búsqueda en tiempo real, y manejo de productos desactivados.
+ * 
+ * @example
+ * ```html
+ * <app-agregar-productos-ingreso></app-agregar-productos-ingreso>
+ * ```
+ */
 @Component({
   selector: 'app-agregar-productos-ingreso',
   standalone: true,
@@ -22,7 +35,6 @@ export class AgregarProductosIngresoComponent implements OnInit {
   private ingresosService = inject(IngresosService);
   private productosService = inject(ProductosService);
 
-  // Señales
   ingresoId = signal<string>('');
   ingreso = signal<Ingreso | null>(null);
   detalles = signal<DetalleIngreso[]>([]);
@@ -34,14 +46,19 @@ export class AgregarProductosIngresoComponent implements OnInit {
   busqueda = signal('');
   proximoIdInterno = signal<number | null>(null);
   productoSeleccionado = signal<Producto | null>(null);
-  selectedIndex = signal<number>(-1); // Para navegación con flechas en búsqueda
+  selectedIndex = signal<number>(-1);
 
-  // Formularios
   formProductoExistente!: FormGroup;
   formProductoNuevo!: FormGroup;
 
+  /**
+   * Inicializa el componente y carga datos del ingreso
+   * 
+   * @description
+   * Obtiene el ID del ingreso desde la URL, carga su información y los productos disponibles.
+   * Inicializa los formularios reactivos y obtiene el próximo ID interno para nuevos productos.
+   */
   ngOnInit() {
-    // Obtener ID del ingreso de la ruta
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.ingresoId.set(id);
@@ -49,24 +66,27 @@ export class AgregarProductosIngresoComponent implements OnInit {
       this.cargarProductos();
     }
 
-    // Inicializar formularios
     this.initForms();
-    
-    // Cargar próximo ID interno
     this.cargarProximoId();
   }
 
+  /**
+   * Inicializa los formularios reactivos con validaciones
+   * 
+   * @private
+   * @description
+   * Crea formProductoExistente y formProductoNuevo con sus respectivas validaciones.
+   * Sincroniza stock con cantidad en el formulario de producto nuevo.
+   */
   initForms() {
-    // Formulario para agregar producto existente
     this.formProductoExistente = this.fb.group({
       productoId: ['', Validators.required],
       cantidad: [1, [Validators.required, Validators.min(1)]],
       costoUnitario: [0, Validators.min(0)],
-      pvp1: [0, Validators.min(0)], // Nuevo: PVP1 para actualizar precio de venta
+      pvp1: [0, Validators.min(0)],
       observacion: [''],
     });
 
-    // Formulario para crear producto nuevo con lógica reactiva
     this.formProductoNuevo = this.fb.group({
       nombre: ['', Validators.required],
       modelo: [''],
@@ -76,11 +96,10 @@ export class AgregarProductosIngresoComponent implements OnInit {
       cantidad: [1, [Validators.required, Validators.min(1)]],
       costoUnitario: [0, Validators.min(0)],
       pvp1: [0, Validators.min(0)],
-      iva: [0, [Validators.min(0), Validators.max(100)]], // Agregar campo IVA
+      iva: [0, [Validators.min(0), Validators.max(100)]],
       observacion: [''],
     });
 
-    // Lógica reactiva: sincronizar stock con cantidad
     this.formProductoNuevo.get('cantidad')?.valueChanges.subscribe((cantidad) => {
       this.formProductoNuevo.patchValue({ stock: cantidad }, { emitEvent: false });
     });
@@ -90,6 +109,11 @@ export class AgregarProductosIngresoComponent implements OnInit {
     });
   }
 
+  /**
+   * Obtiene el próximo ID interno disponible para un nuevo producto
+   * 
+   * @private
+   */
   async cargarProximoId(): Promise<void> {
     try {
       const counterDoc = await this.productosService.getCounterDoc();
@@ -100,8 +124,14 @@ export class AgregarProductosIngresoComponent implements OnInit {
     }
   }
 
+  /**
+   * Carga la información del ingreso desde Firestore o desde memoria temporal
+   * 
+   * @param id - ID del ingreso (puede ser temporal con prefijo 'temp_')
+   * 
+   * @private
+   */
   async cargarIngreso(id: string) {
-    // Si es un ingreso temporal (creado hace poco), usar el almacenado en memoria
     if (id.startsWith('temp_')) {
       const ingresoTemporal = this.ingresosService.obtenerIngresoTemporal();
       if (ingresoTemporal) {
@@ -110,7 +140,6 @@ export class AgregarProductosIngresoComponent implements OnInit {
       }
     }
     
-    // Si no es temporal, cargar desde BD
     this.ingresosService.getIngresoById(id).subscribe({
       next: (ingreso) => this.ingreso.set(ingreso),
       error: (err) => {
@@ -120,8 +149,12 @@ export class AgregarProductosIngresoComponent implements OnInit {
     });
   }
 
+  /**
+   * Carga todos los productos (activos e inactivos) desde Firestore
+   * 
+   * @private
+   */
   cargarProductos() {
-    // 🔹 Cargar TODOS los productos (activos e inactivos)
     this.productosService.getProductosTodosInclusoInactivos().subscribe({
       next: (productos) => {
         this.productos.set(productos);
@@ -131,6 +164,13 @@ export class AgregarProductosIngresoComponent implements OnInit {
     });
   }
 
+  /**
+   * Filtra productos en tiempo real según el término de búsqueda
+   * 
+   * @description
+   * Busca coincidencias en nombre, modelo y código del producto.
+   * Resetea el índice de selección al actualizar los resultados.
+   */
   buscarProducto() {
     const termino = this.busqueda().toLowerCase();
     if (!termino) {
@@ -149,7 +189,14 @@ export class AgregarProductosIngresoComponent implements OnInit {
     this.selectedIndex.set(-1);
   }
 
-  // Navegación con teclado en búsqueda
+  /**
+   * Maneja la navegación por teclado en el campo de búsqueda
+   * 
+   * @param event - Evento de teclado
+   * 
+   * @description
+   * Permite navegar entre resultados con flechas arriba/abajo y seleccionar con Enter.
+   */
   onSearchKeydown(event: KeyboardEvent) {
     const filtrados = this.productosFiltrados();
     if (filtrados.length === 0) return;
@@ -168,7 +215,12 @@ export class AgregarProductosIngresoComponent implements OnInit {
     }
   }
 
-  // Navegar al siguiente campo con Enter
+  /**
+   * Enfoca el siguiente campo del formulario al presionar Enter
+   * 
+   * @param event - Evento de teclado
+   * @param nextId - ID del siguiente elemento a enfocar
+   */
   focusNext(event: Event, nextId: string) {
     event.preventDefault();
     const nextElement = document.getElementById(nextId);
@@ -177,7 +229,12 @@ export class AgregarProductosIngresoComponent implements OnInit {
     }
   }
 
-  // Manejar Enter en textareas (permitir saltos de línea, Ctrl+Enter para siguiente campo)
+  /**
+   * Maneja Enter en textareas (Ctrl+Enter navega al siguiente campo)
+   * 
+   * @param event - Evento de teclado
+   * @param nextId - ID del siguiente elemento
+   */
   onTextareaKeydown(event: KeyboardEvent, nextId: string) {
     if (event.key === 'Enter' && event.ctrlKey) {
       event.preventDefault();
@@ -188,12 +245,26 @@ export class AgregarProductosIngresoComponent implements OnInit {
     }
   }
 
-  // Trigger para agregar con Enter desde el último campo
+  /**
+   * Ejecuta un callback al presionar Enter
+   * 
+   * @param event - Evento del formulario
+   * @param callback - Función a ejecutar
+   */
   submitOnEnter(event: Event, callback: () => void) {
     event.preventDefault();
     callback();
   }
 
+  /**
+   * Selecciona un producto existente para agregar al ingreso
+   * 
+   * @param producto - Producto seleccionado del inventario
+   * 
+   * @description
+   * Cambia al modo EXISTENTE, llena el formulario con datos del producto
+   * y enfoca automáticamente el campo de cantidad.
+   */
   seleccionarProductoExistente(producto: Producto) {
     this.modoAgregar.set('EXISTENTE');
     this.productoSeleccionado.set(producto);
@@ -203,19 +274,29 @@ export class AgregarProductosIngresoComponent implements OnInit {
     });
     this.selectedIndex.set(-1);
     
-    // Enfocar en el campo de cantidad
     setTimeout(() => {
       const cantidadInput = document.getElementById('existenteCantidad');
       if (cantidadInput) cantidadInput.focus();
     }, 100);
   }
 
+  /**
+   * Cancela la selección de producto existente y limpia el formulario
+   */
   cancelarSeleccion() {
     this.productoSeleccionado.set(null);
     this.formProductoExistente.reset({ cantidad: 1, costoUnitario: 0, pvp1: 0 });
     this.busqueda.set('');
   }
 
+  /**
+   * Agrega un producto existente al detalle del ingreso
+   * 
+   * @description
+   * Valida el formulario, detecta si el producto está desactivado, crea un DetalleIngreso
+   * y lo añade a la lista. Maneja actualización opcional de PVP1. Reinicia el formulario
+   * y enfoca el buscador para continuar agregando productos.
+   */
   agregarProductoExistente() {
     if (this.formProductoExistente.invalid) return;
 
@@ -224,7 +305,6 @@ export class AgregarProductosIngresoComponent implements OnInit {
 
     if (!producto) return;
 
-    // 🔹 Detectar si el producto está desactivado
     const estaDesactivado = producto.activo === false;
 
     const detalle: DetalleIngreso = {
@@ -234,26 +314,22 @@ export class AgregarProductosIngresoComponent implements OnInit {
       nombre: producto.nombre,
       cantidad: valores.cantidad,
       costoUnitario: valores.costoUnitario,
-      estaDesactivado: estaDesactivado, // 🔹 Pasar flag de desactivación
+      estaDesactivado: estaDesactivado,
     };
 
-    // Agregar campos opcionales solo si existen
     if (producto.modelo) detalle.modelo = producto.modelo;
     if (producto.color) detalle.color = producto.color;
     if (producto.grupo) detalle.grupo = producto.grupo;
     if (producto.codigo) detalle.codigo = producto.codigo;
     
-    // NUEVO: Agregar PVP1 si se especifica para actualizar precio de venta
     if (valores.pvp1 && valores.pvp1 > 0) {
       detalle.pvp1 = valores.pvp1;
     }
     
-    // 🔹 Si está desactivado, guardar stock anterior para suma posterior
     if (estaDesactivado) {
       detalle.stockActivoAnterior = producto.stock || 0;
     }
     
-    // IMPORTANTE: Agregar observación SIEMPRE, incluso si está vacía
     detalle.observacion = valores.observacion || '';
 
     this.detalles.update((list) => [...list, detalle]);
@@ -261,13 +337,20 @@ export class AgregarProductosIngresoComponent implements OnInit {
     this.productoSeleccionado.set(null);
     this.busqueda.set('');
     
-    // Enfocar nuevamente en el buscador
     setTimeout(() => {
       const searchInput = document.getElementById('searchInput');
       if (searchInput) searchInput.focus();
     }, 100);
   }
 
+  /**
+   * Agrega un producto nuevo al detalle del ingreso
+   * 
+   * @description
+   * Valida el formulario, crea un DetalleIngreso de tipo NUEVO con todos los datos
+   * ingresados. Actualiza el próximo ID interno y enfoca el primer campo para
+   * continuar creando productos.
+   */
   agregarProductoNuevo() {
     if (this.formProductoNuevo.invalid) return;
 
@@ -282,20 +365,17 @@ export class AgregarProductosIngresoComponent implements OnInit {
       stockInicial: valores.stock || valores.cantidad,
     };
 
-    // Agregar campos opcionales solo si existen
     if (valores.modelo) detalle.modelo = valores.modelo;
     if (valores.color) detalle.color = valores.color;
     if (valores.grupo) detalle.grupo = valores.grupo;
     if (valores.pvp1) detalle.pvp1 = valores.pvp1;
-    if (valores.iva) detalle.iva = valores.iva; // Agregar IVA
-    // IMPORTANTE: Agregar observación SIEMPRE, incluso si está vacía
+    if (valores.iva) detalle.iva = valores.iva;
     detalle.observacion = valores.observacion || '';
 
     this.detalles.update((list) => [...list, detalle]);
     this.formProductoNuevo.reset({ cantidad: 1, stock: 1, costoUnitario: 0, pvp1: 0, observacion: '' });
     this.modoAgregar.set(null);
     
-    // Actualizar el próximo ID y enfocar en el primer campo
     this.cargarProximoId();
     setTimeout(() => {
       const firstInput = document.getElementById('nuevoNombre');
@@ -303,10 +383,20 @@ export class AgregarProductosIngresoComponent implements OnInit {
     }, 100);
   }
 
+  /**
+   * Elimina un detalle de producto de la lista
+   * 
+   * @param id - ID del detalle a eliminar
+   */
   eliminarDetalle(id: string) {
     this.detalles.update((list) => list.filter((d) => d.id !== id));
   }
 
+  /**
+   * Calcula el total del ingreso sumando todos los detalles
+   * 
+   * @returns Total en formato numérico
+   */
   calcularTotal(): number {
     return this.detalles().reduce(
       (total, d) => total + (d.costoUnitario || 0) * d.cantidad,
@@ -314,6 +404,14 @@ export class AgregarProductosIngresoComponent implements OnInit {
     );
   }
 
+  /**
+   * Finaliza el ingreso guardando todos los detalles en Firestore
+   * 
+   * @description
+   * Valida que existan detalles, crea el ingreso en BD si es temporal,
+   * actualiza stock de productos existentes y crea nuevos productos.
+   * Muestra confirmación y redirige a la lista de productos.
+   */
   async finalizar() {
     if (this.detalles().length === 0) {
       this.error.set('Debes agregar al menos un producto');
@@ -326,16 +424,13 @@ export class AgregarProductosIngresoComponent implements OnInit {
     try {
       let ingresoId = this.ingresoId();
       
-      // Si es un ingreso temporal, crear en BD AHORA
       if (ingresoId.startsWith('temp_')) {
         const ingresoTemporal = this.ingreso();
         if (!ingresoTemporal) {
           throw new Error('No hay datos de ingreso');
         }
-        // Crear el ingreso en BD
         ingresoId = await this.ingresosService.crearIngresoBorrador(ingresoTemporal);
         this.ingresoId.set(ingresoId);
-        // Limpiar temporal
         this.ingresosService.limpiarIngresoTemporal();
       }
 
@@ -369,6 +464,13 @@ export class AgregarProductosIngresoComponent implements OnInit {
     }
   }
 
+  /**
+   * Cancela la operación de ingreso tras confirmación del usuario
+   * 
+   * @description
+   * Muestra un diálogo de confirmación. Si se confirma, limpia el ingreso temporal
+   * y redirige a la lista de productos.
+   */
   cancelar() {
     Swal.fire({
       title: '¿Cancelar ingreso?',
@@ -381,7 +483,6 @@ export class AgregarProductosIngresoComponent implements OnInit {
       cancelButtonText: 'Continuar editando'
     }).then((result) => {
       if (result.isConfirmed) {
-        // Limpiar ingreso temporal si existe
         this.ingresosService.limpiarIngresoTemporal();
         this.router.navigate(['/productos']);
       }

@@ -1,3 +1,23 @@
+/**
+ * Gestiona el sistema completo de ingresos (compras) de inventario.
+ * Maneja el flujo de borrador → detalle → finalización con creación automática de productos,
+ * actualización de stocks, registro de movimientos de trazabilidad y cálculo de saldos de proveedores.
+ *
+ * Este servicio implementa:
+ * - Sistema de borrador temporal en memoria (antes de persistir en BD)
+ * - Generación automática de ID secuencial para número de factura
+ * - Creación automática de productos desde detalles de ingreso
+ * - Actualización atómica de stock vía transacciones Firestore
+ * - Registro de movimientos de stock para trazabilidad completa
+ * - Validación de duplicación de número de factura
+ * - Integración con proveedores para actualización de saldos
+ * - Importación masiva desde Excel (productos + ingresos)
+ *
+ * Los datos se persisten en 'ingresos', 'productos' y 'movimientos_stock' de Firestore.
+ * Se integra estrechamente con ProductosService y ProveedoresService.
+ *
+ * Forma parte del módulo de inventario del sistema de gestión de la óptica.
+ */
 import { inject, Injectable } from '@angular/core';
 import {
   Firestore,
@@ -41,7 +61,13 @@ export class IngresosService {
   private ingresoTemporal: Ingreso | null = null;
   private ingresoTemporalId: string | null = null;
 
-  // 🔹 Guardar ingreso temporalmente (sin crear en BD)
+  /**
+   * Guarda un ingreso temporalmente en memoria (sin persistir en BD).
+   * Utilizado en el flujo de creación de ingresos antes de agregar detalles.
+   *
+   * @param ingreso Datos del ingreso a guardar temporalmente.
+   * @returns string ID temporal generado (formato: 'temp_timestamp').
+   */
   guardarIngresoTemporal(ingreso: Ingreso): string {
     this.ingresoTemporal = ingreso;
     // Generar un ID temporal para usarlo durante la navegación
@@ -49,12 +75,19 @@ export class IngresosService {
     return this.ingresoTemporalId;
   }
 
-  // 🔹 Obtener ingreso temporal
+  /**
+   * Recupera el ingreso guardado temporalmente en memoria.
+   *
+   * @returns Ingreso | null Ingreso temporal o null si no hay ninguno guardado.
+   */
   obtenerIngresoTemporal(): Ingreso | null {
     return this.ingresoTemporal;
   }
 
-  // 🔹 Limpiar ingreso temporal
+  /**
+   * Limpia el ingreso temporal de la memoria.
+   * Debe llamarse después de finalizar o cancelar la creación del ingreso.
+   */
   limpiarIngresoTemporal(): void {
     this.ingresoTemporal = null;
     this.ingresoTemporalId = null;
@@ -86,25 +119,45 @@ export class IngresosService {
     return nuevoNumero.toString().padStart(10, '0');
   }
 
-  // 🔹 Obtener todos los ingresos
+  /**
+   * Recupera todos los ingresos ordenados por fecha de creación descendente.
+   *
+   * @returns Observable<Ingreso[]> Stream reactivo con todos los ingresos.
+   */
   getIngresos(): Observable<Ingreso[]> {
     const q = query(this.ingresosRef, orderBy('createdAt', 'desc'));
     return collectionData(q, { idField: 'id' }) as Observable<Ingreso[]>;
   }
 
-  // 🔹 Obtener un ingreso por ID
+  /**
+   * Recupera un ingreso específico por su ID de Firestore.
+   *
+   * @param id ID del ingreso.
+   * @returns Observable<Ingreso> Stream con los datos del ingreso.
+   */
   getIngresoById(id: string): Observable<Ingreso> {
     const ingresoDoc = doc(this.firestore, `ingresos/${id}`);
     return docData(ingresoDoc, { idField: 'id' }) as Observable<Ingreso>;
   }
 
-  // 🔹 Obtener detalles de un ingreso
+  /**
+   * Recupera todos los detalles (items) de un ingreso específico.
+   *
+   * @param ingresoId ID del ingreso.
+   * @returns Observable<DetalleIngreso[]> Stream con los detalles del ingreso.
+   */
   getDetallesIngreso(ingresoId: string): Observable<DetalleIngreso[]> {
     const detallesRef = collection(this.firestore, `ingresos/${ingresoId}/detalles`);
     return collectionData(detallesRef, { idField: 'id' }) as Observable<DetalleIngreso[]>;
   }
 
-  // 🔹 Crear ingreso (solo datos básicos - PASO 1)
+  /**
+   * Crea un ingreso en estado BORRADOR (PASO 1 del flujo de ingreso).
+   * Genera automáticamente un ID secuencial de 10 dígitos y normaliza la fecha.
+   *
+   * @param ingreso Datos básicos del ingreso.
+   * @returns Promise<string> ID del ingreso creado.
+   */
   async crearIngresoBorrador(ingreso: Ingreso): Promise<string> {
     const fechaSolo = ingreso.fecha ? new Date(ingreso.fecha) : new Date();
     fechaSolo.setHours(0, 0, 0, 0);
@@ -128,7 +181,14 @@ export class IngresosService {
     return docRef.id;
   }
 
-  // 🔹 Actualizar ingreso
+  /**
+   * Actualiza los datos de un ingreso existente.
+   * Actualiza automáticamente el campo updatedAt.
+   *
+   * @param id ID del ingreso.
+   * @param datos Datos parciales a actualizar.
+   * @returns Promise<void> Se resuelve cuando la actualización se completa.
+   */
   async actualizarIngreso(id: string, datos: Partial<Ingreso>): Promise<void> {
     const ingresoDoc = doc(this.firestore, `ingresos/${id}`);
     await updateDoc(ingresoDoc, {
@@ -137,7 +197,24 @@ export class IngresosService {
     });
   }
 
-  // 🔹 Finalizar ingreso y procesar productos (PASO 4)
+  /**
+   * Finaliza el ingreso procesando todos los detalles (PASO 4 del flujo).
+   * Crea nuevos productos, actualiza existentes, incrementa stocks y registra movimientos.
+   *
+   * Proceso:
+   * 1. Para cada detalle tipo NUEVO: crea producto automáticamente
+   * 2. Para cada detalle tipo EXISTENTE: actualiza datos del producto (proveedor, PVP, costo, etc.)
+   * 3. Reactiva productos desactivados si es necesario
+   * 4. Incrementa stock del producto
+   * 5. Registra movimiento de stock para trazabilidad
+   * 6. Actualiza estado del ingreso a FINALIZADO
+   * 7. Calcula total de la factura
+   * 8. Actualiza saldo del proveedor
+   *
+   * @param ingresoId ID del ingreso a finalizar.
+   * @param detalles Array con todos los detalles del ingreso.
+   * @returns Promise<void> Se resuelve cuando el proceso se completa.
+   */
   async finalizarIngreso(
     ingresoId: string,
     detalles: DetalleIngreso[]
@@ -149,19 +226,19 @@ export class IngresosService {
     const ingresoDoc = doc(this.firestore, `ingresos/${ingresoId}`);
     const ingresoSnap = await getDoc(ingresoDoc);
     const ingreso = ingresoSnap.data() as Ingreso;
-    // 🔹 IMPORTANTE: Siempre usar ingreso.proveedor (el nombre), NO el proveedorId
+    // IMPORTANTE: Siempre usar ingreso.proveedor (el nombre), NO el proveedorId
     const proveedorIngreso = ingreso?.proveedor || '';
 
     for (const detalle of detalles) {
       if (detalle.tipo === 'NUEVO') {
-        // 🔸 Crear producto nuevo
+        // Crear producto nuevo
         const productoId = await this.crearProductoDesdeIngreso(
           ingresoId,
           detalle
         );
         detalle.productoId = productoId;
       } else if (detalle.tipo === 'EXISTENTE' && detalle.productoId) {
-        // 🔸 Actualizar datos del producto existente si es necesario
+        // Actualizar datos del producto existente si es necesario
         const productoDoc = doc(this.firestore, `productos/${detalle.productoId}`);
         const productoSnap = await getDoc(productoDoc);
         
@@ -169,13 +246,13 @@ export class IngresosService {
           const productoData = productoSnap.data() as Producto;
           const actualizaciones: any = { updatedAt: new Date() };
           
-          // 🔹 SI el producto estaba desactivado, reactivarlo
+          // SI el producto estaba desactivado, reactivarlo
           if (detalle.estaDesactivado) {
             actualizaciones.activo = true;
             console.log('🔄 Reactivando producto desactivado:', detalle.nombre);
           }
           
-          // 🔹 SIEMPRE actualizar el proveedor al del Excel (se reemplaza)
+          // SIEMPRE actualizar el proveedor al del Excel (se reemplaza)
           actualizaciones.proveedor = proveedorIngreso;
           
           // Actualizar PVP1 si viene en el detalle y es diferente
@@ -200,7 +277,7 @@ export class IngresosService {
           }
           
           // Actualizar stock del producto existente
-          // 🔹 IMPORTANTE: Si estaba desactivado, ya tiene el stock guardado, solo suma la nueva cantidad
+          // IMPORTANTE: Si estaba desactivado, ya tiene el stock guardado, solo suma la nueva cantidad
           const esLunas = detalle.grupo === 'LUNAS' || (productoData as any)?.stockIlimitado === true;
           if (!esLunas) {
             const stockActual = productoData.stock || 0;
@@ -208,7 +285,7 @@ export class IngresosService {
             actualizaciones.stock = nuevoStock;
           }
           
-          // 🔹 Actualizar observación: CONCATENAR con el anterior, NO reemplazar
+          // Actualizar observación: CONCATENAR con el anterior, NO reemplazar
           if (detalle.observacion !== undefined && detalle.observacion !== null && detalle.observacion !== '') {
             const observacionAnterior = productoData.observacion || '';
             // Concatenar si hay observación anterior, sino solo usar la nueva
@@ -222,7 +299,7 @@ export class IngresosService {
         }
       }
 
-      // 🔸 Registrar movimiento de stock
+      // Registrar movimiento de stock
       if (detalle.productoId) {
         await this.registrarMovimiento({
           productoId: detalle.productoId,
@@ -240,7 +317,7 @@ export class IngresosService {
       totalFactura += (detalle.costoUnitario || 0) * detalle.cantidad;
     }
 
-    // 🔸 Guardar detalles en subcolección
+    // Guardar detalles en subcolección
     for (const detalle of detalles) {
       const detalleRef = doc(collection(this.firestore, `ingresos/${ingresoId}/detalles`));
       
@@ -271,7 +348,7 @@ export class IngresosService {
       batch.set(detalleRef, detalleData);
     }
 
-    // 🔸 Actualizar estado del ingreso (reusar la referencia ya obtenida)
+    // Actualizar estado del ingreso (reusar la referencia ya obtenida)
     batch.update(ingresoDoc, {
       estado: 'FINALIZADO',
       total: totalFactura + (ingreso.flete || 0) + (ingreso.iva || 0) - (ingreso.descuento || 0),
@@ -280,7 +357,7 @@ export class IngresosService {
 
     await batch.commit();
 
-    // 🔸 Actualizar saldo del proveedor en Firestore (después de finalizar ingreso)
+    // Actualizar saldo del proveedor en Firestore (después de finalizar ingreso)
     const proveedorNombre = ingreso?.proveedor || '';
     const proveedorIdCampo = (ingreso as any)?.proveedorId || '';
     if (proveedorNombre) {
@@ -300,7 +377,15 @@ export class IngresosService {
     }
   }
 
-  // 🔹 Crear producto desde ingreso
+  /**
+   * Crea un nuevo producto automáticamente desde un detalle de ingreso.
+   * Genera ID interno, asigna proveedor del ingreso y establece valores iniciales.
+   * Productos del grupo LUNAS se marcan con stockIlimitado=true.
+   *
+   * @param ingresoId ID del ingreso origen.
+   * @param detalle Datos del detalle que contiene la información del producto.
+   * @returns Promise<string> ID de Firestore del producto creado.
+   */
   private async crearProductoDesdeIngreso(
     ingresoId: string,
     detalle: DetalleIngreso
@@ -343,7 +428,7 @@ export class IngresosService {
     return productoRef.id;
   }
 
-  // 🔹 Actualizar stock de producto existente
+  // Actualizar stock de producto existente
   private async actualizarStockProducto(
     productoId: string,
     cantidad: number,
@@ -375,7 +460,7 @@ export class IngresosService {
     }
   }
 
-  // 🔹 Registrar movimiento de stock
+  // Registrar movimiento de stock
   private async registrarMovimiento(
     movimiento: MovimientoStock
   ): Promise<void> {
@@ -416,7 +501,7 @@ export class IngresosService {
     }
   }
 
-  // 🔹 Validar número de factura único
+  // Validar número de factura único
   async numeroFacturaExists(numero: string): Promise<boolean> {
     const numeroNormalizado = (numero || '').trim();
     if (!numeroNormalizado) return false;
@@ -425,7 +510,7 @@ export class IngresosService {
     return !snap.empty;
   }
 
-  // 🔹 Obtener movimientos de un producto
+  // Obtener movimientos de un producto
   getMovimientosProducto(productoId: string): Observable<MovimientoStock[]> {
     const q = query(
       this.movimientosRef,
@@ -435,7 +520,7 @@ export class IngresosService {
     return collectionData(q, { idField: 'id' }) as Observable<MovimientoStock[]>;
   }
 
-  // 🔹 Obtener movimientos de un ingreso
+  // Obtener movimientos de un ingreso
   getMovimientosIngreso(ingresoId: string): Observable<MovimientoStock[]> {
     const q = query(
       this.movimientosRef,
@@ -445,7 +530,7 @@ export class IngresosService {
     return collectionData(q, { idField: 'id' }) as Observable<MovimientoStock[]>;
   }
 
-  // 🔹 Obtener ingresos por nombre de proveedor
+  // Obtener ingresos por nombre de proveedor
   getIngresosPorProveedor(proveedorNombre: string): Observable<Ingreso[]> {
     const q = query(
       this.ingresosRef,
@@ -455,7 +540,7 @@ export class IngresosService {
     return collectionData(q, { idField: 'id' }) as Observable<Ingreso[]>;
   }
 
-  // 🔹 Eliminar ingreso borrador
+  // Eliminar ingreso borrador
   async eliminarIngreso(id: string): Promise<void> {
     const ingresoDoc = doc(this.firestore, `ingresos/${id}`);
     const ingresoSnap = await getDoc(ingresoDoc);
@@ -468,7 +553,7 @@ export class IngresosService {
       // Eliminar el ingreso
       await deleteDoc(ingresoDoc);
       
-      // 🔸 Recalcular y actualizar saldo del proveedor
+      // Recalcular y actualizar saldo del proveedor
       if (proveedorNombre) {
         // Si tenemos proveedorId directo, usarlo; sino buscar por nombre
         if (proveedorIdCampo) {
@@ -487,7 +572,7 @@ export class IngresosService {
     }
   }
 
-  // 🔹 Calcular deuda total de la sucursal (suma de todos los saldos de proveedores)
+  // Calcular deuda total de la sucursal (suma de todos los saldos de proveedores)
   async calcularDeudaSucursal(): Promise<number> {
     try {
       const proveedoresRef = collection(this.firestore, 'proveedores');

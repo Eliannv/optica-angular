@@ -1,22 +1,29 @@
+/**
+ * Modelo de datos para el historial clínico oftalmológico.
+ *
+ * Define la estructura de información médica almacenada para cada cliente,
+ * incluyendo datos de refracción ocular (OD/OI), agudeza visual, y medidas
+ * específicas para la prescripción de lentes.
+ *
+ * Este modelo se almacena en Firestore en la ruta:
+ * clientes/{clienteId}/historialClinico/main
+ */
+
 export interface HistoriaClinica {
   clienteId: string;
 
-  // Medidas
   dp: number;
   add?: number;
   altura?: number;
 
-  // Ojo derecho
   odEsfera?: number;
   odCilindro?: number;
   odEje?: number;
 
-  // Ojo izquierdo
   oiEsfera?: number;
   oiCilindro?: number;
   oiEje?: number;
 
-  // Extra
   de: string;
   color: string;
   observacion?: string;

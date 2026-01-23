@@ -1,3 +1,17 @@
+/**
+ * Proporciona funcionalidades de importación y exportación de datos mediante archivos Excel.
+ * Especializado en la importación de ingresos de productos desde plantillas Excel estandarizadas,
+ * parseando automáticamente encabezados, productos y datos fiscales.
+ *
+ * Este servicio utiliza la librería XLSX para leer archivos .xlsx/.xls y extrae información
+ * estructurada como proveedor, número de factura, fecha y lista de productos con sus
+ * atributos (cantidad, código, nombre, modelo, color, PVP).
+ *
+ * El formato de Excel esperado sigue una estructura específica documentada en el sistema,
+ * con encabezados en filas fijas y productos a partir de la fila 6.
+ *
+ * Forma parte del módulo de inventario y se integra con el servicio de ingresos.
+ */
 import { Injectable } from '@angular/core';
 import * as XLSX from 'xlsx';
 import { Producto } from '../models/producto.model';
@@ -36,8 +50,8 @@ export interface ProductoExcelPreview {
   proveedorAnterior?: string; // Proveedor anterior del producto
   pvp1Anterior?: number; // PVP1 anterior del producto
   idInterno?: number; // ID interno del producto existente
-  estaDesactivado?: boolean; // 🔹 Si el producto estaba desactivado, se debe reactivar
-  stockActivoAnterior?: number; // 🔹 Stock del producto desactivado que se va a sumar
+  estaDesactivado?: boolean; // Si el producto estaba desactivado, se debe reactivar
+  stockActivoAnterior?: number; // Stock del producto desactivado que se va a sumar
 }
 
 @Injectable({
@@ -48,7 +62,7 @@ export class ExcelService {
   constructor() { }
 
   /**
-   * 📥 Importar productos desde Excel
+   * Importar productos desde Excel
    * Lee el archivo y retorna datos estructurados para preview
    */
   async importarProductos(file: File): Promise<DatosExcelImportacion> {
@@ -148,7 +162,7 @@ export class ExcelService {
   }
 
   /**
-   * 📤 Exportar productos a Excel (sin grupo ni costo)
+   * Exportar productos a Excel (sin grupo ni costo)
    */
   exportarProductos(productos: Producto[], nombreArchivo: string = 'productos'): void {
     // Preparar datos para exportar (sin GRUPO ni COSTO)
@@ -184,7 +198,7 @@ export class ExcelService {
   }
 
   /**
-   * 📤 Exportar plantilla vacía para importación
+   * Exportar plantilla vacía para importación
    * Descarga el archivo plantilla_importacion_productos.xlsx
    * Usa IPC en Electron, fetch en web
    */
@@ -279,7 +293,7 @@ export class ExcelService {
   }
 
   /**
-   * 🔧 Utilidades privadas
+   * Utilidades privadas
    */
   private extraerValor(data: any[], fila: number, columna: number): string {
     if (data[fila] && data[fila][columna]) {

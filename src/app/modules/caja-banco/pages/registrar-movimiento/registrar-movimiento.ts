@@ -1,3 +1,19 @@
+/**
+ * Componente para registrar movimientos financieros en cajas banco.
+ *
+ * Funcionalidad:
+ * - Registro de ingresos: cierre de cajas chicas, transferencias de clientes, otros ingresos
+ * - Registro de egresos: pagos a trabajadores, pagos a proveedores, otros egresos
+ * - Búsqueda inteligente de clientes, empleados y proveedores
+ * - Validación de montos y categorías
+ * - Control de deuda de proveedores
+ * - Asociación automática a caja banco específica
+ *
+ * El componente utiliza formularios reactivos con validación en tiempo real.
+ *
+ * @component RegistrarMovimientoComponent
+ */
+
 import { Component, inject, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -15,34 +31,87 @@ import Swal from 'sweetalert2';
   styleUrls: ['./registrar-movimiento.css']
 })
 export class RegistrarMovimientoComponent implements OnInit {
+  /** Form builder para construcción reactiva de formularios */
   private fb = inject(FormBuilder);
+
+  /** Router para navegación */
   private router = inject(Router);
+
+  /** Servicio de cajas banco */
   private cajaBancoService = inject(CajaBancoService);
+
+  /** Servicio de clientes */
   private clientesService = inject(ClientesService);
+
+  /** Servicio de empleados */
   private empleadosService = inject(EmpleadosService);
+
+  /** Servicio de proveedores */
   private proveedoresService = inject(ProveedoresService);
+
+  /** Servicio de autenticación */
   private authService = inject(AuthService);
 
+  /** Formulario reactivo para entrada de datos */
   formulario!: FormGroup;
-  guardando = false;
-  mensaje = '';
-  cajaId: string = ''; // ID de la caja banco a la que se asocia el movimiento
 
-  // Para búsqueda de clientes
+  /** Estado de guardado de movimiento */
+  guardando = false;
+
+  /** Mensaje de feedback para el usuario */
+  mensaje = '';
+
+  /** ID de la caja banco a la que se asocia el movimiento */
+  cajaId: string = '';
+
+  /** Lista de clientes cargados del sistema */
   clientes: any[] = [];
+
+  /** Lista de empleados cargados del sistema */
   empleados: any[] = [];
+
+  /** Lista de proveedores cargados del sistema */
   proveedores: any[] = [];
-  personasBusqueda: any[] = []; // clientes, empleados o proveedores según el caso
+
+  /**
+   * Lista dinámicamente actualizada según tipo/categoría de movimiento.
+   * Puede contener clientes, empleados o proveedores.
+   */
+  personasBusqueda: any[] = [];
+
+  /** Término de búsqueda actual en el input */
   busquedaCliente = '';
+
+  /** Persona seleccionada de la lista de búsqueda */
   clienteSeleccionado: any = null;
+
+  /** Proveedor seleccionado (cuando categoría es PAGO_PROVEEDORES) */
   proveedorSeleccionado: any = null;
+
+  /** Saldo actual del proveedor seleccionado */
   deudaActual = 0;
+
+  /** Saldo restante del proveedor después de pago */
   deudaRestante = 0;
 
+  /** Categorías disponibles para ingresos */
   categorias_ingresos = ['CIERRE_CAJA_CHICA', 'TRANSFERENCIA_CLIENTE', 'OTRO_INGRESO'];
+
+  /** Categorías disponibles para egresos */
   categorias_egresos = ['PAGO_TRABAJADOR', 'PAGO_PROVEEDORES', 'OTRO_EGRESO'];
+
+  /** Categorías actualmente válidas según el tipo de movimiento seleccionado */
   categorias_actuales: string[] = this.categorias_ingresos;
 
+  /**
+   * Hook de inicialización de Angular.
+   *
+   * Realiza:
+   * 1. Intenta obtener cajaId del estado del router
+   * 2. Si no lo obtiene, busca en sessionStorage
+   * 3. Inicializa formulario reactivo
+   * 4. Carga listas de clientes, empleados y proveedores
+   */
   ngOnInit(): void {
     // Capturar el cajaId del estado del router - usar sessionStorage como fallback
     const navigation = this.router.getCurrentNavigation();
@@ -57,15 +126,30 @@ export class RegistrarMovimientoComponent implements OnInit {
         this.cajaId = stored;
       }
     }
-    
+
     console.log('🔍 CajaId capturado en registrar-movimiento:', this.cajaId);
-    
+
     this.inicializarFormulario();
     this.cargarClientes();
     this.cargarEmpleados();
     this.cargarProveedores();
   }
 
+  /**
+   * Inicializa el formulario reactivo con validadores y cambios de listeners.
+   *
+   * Campos:
+   * - tipo: INGRESO|EGRESO (obligatorio)
+   * - categoria: categoría del movimiento (obligatorio)
+   * - descripcion: detalle del movimiento (min 5 caracteres, obligatorio)
+   * - monto: cantidad en USD (mín 0.01, obligatorio)
+   * - referencia: número de comprobante o referencia (opcional)
+   *
+   * Listeners activos:
+   * - Cambio de tipo: actualiza categorías disponibles
+   * - Cambio de categoría: limpia búsqueda y selecciones
+   * - Cambio de monto: recalcula deuda restante (si aplica)
+   */
   inicializarFormulario(): void {
     this.formulario = this.fb.group({
       tipo: ['INGRESO', Validators.required],
@@ -88,6 +172,10 @@ export class RegistrarMovimientoComponent implements OnInit {
     });
   }
 
+  /**
+   * Carga la lista de clientes desde el servicio.
+   * Los clientes se utilizan para movimientos de TRANSFERENCIA_CLIENTE.
+   */
   cargarClientes(): void {
     this.clientesService.getClientes().subscribe({
       next: (clientes) => {
@@ -100,6 +188,10 @@ export class RegistrarMovimientoComponent implements OnInit {
     });
   }
 
+  /**
+   * Carga la lista de empleados desde el servicio.
+   * Los empleados se utilizan para movimientos de PAGO_TRABAJADOR.
+   */
   cargarEmpleados(): void {
     this.empleadosService.getEmpleados().subscribe({
       next: (empleados) => {
@@ -112,6 +204,10 @@ export class RegistrarMovimientoComponent implements OnInit {
     });
   }
 
+  /**
+   * Carga la lista de proveedores desde el servicio.
+   * Los proveedores se utilizan para movimientos de PAGO_PROVEEDORES.
+   */
   cargarProveedores(): void {
     this.proveedoresService.getProveedores().subscribe({
       next: (proveedores) => {
@@ -124,14 +220,26 @@ export class RegistrarMovimientoComponent implements OnInit {
     });
   }
 
+  /**
+   * Ejecuta búsqueda de clientes/empleados/proveedores según el término ingresado.
+   *
+   * Busca coincidencias en:
+   * - Nombres y apellidos
+   * - Cédula/RUC
+   * - Código (para proveedores)
+   * - ID de Firebase
+   * - Representante legal (para empresas)
+   *
+   * La fuente de búsqueda depende del tipo y categoría seleccionados.
+   */
   buscarCliente(): void {
     const termino = (this.busquedaCliente || '').toLowerCase();
     const tipo = this.formulario.get('tipo')?.value;
     const categoria = this.formulario.get('categoria')?.value;
-    
+
     const esEgresoPagoTrabajador = tipo === 'EGRESO' && categoria === 'PAGO_TRABAJADOR';
     const esEgresoPagoProveedor = tipo === 'EGRESO' && categoria === 'PAGO_PROVEEDORES';
-    
+
     let fuente: any[] = [];
     if (esEgresoPagoTrabajador) {
       fuente = this.empleados;
@@ -155,7 +263,7 @@ export class RegistrarMovimientoComponent implements OnInit {
       const ruc = (p.ruc || '').toLowerCase();
       const codigo = (p.codigo || '').toLowerCase();
       const id = (p.id ? String(p.id).toLowerCase() : '');
-      
+
       return (
         (nombre && nombre.includes(termino)) ||
         (apellido && apellido.includes(termino)) ||
@@ -169,10 +277,23 @@ export class RegistrarMovimientoComponent implements OnInit {
     });
   }
 
+  /**
+   * Selecciona una persona de la lista de búsqueda.
+   *
+   * Para proveedores:
+   * - Guarda la deuda actual
+   * - Muestra el código del proveedor en el campo de búsqueda
+   * - Recalcula deuda restante
+   *
+   * Para otros:
+   * - Muestra cédula o nombre completo
+   *
+   * @param cliente - Objeto seleccionado de clientes/empleados/proveedores
+   */
   seleccionarCliente(cliente: any): void {
     this.clienteSeleccionado = cliente;
     this.proveedorSeleccionado = null;
-    
+
     // Para proveedores, guardar la deuda actual y mostrar código
     if (this.formulario.get('categoria')?.value === 'PAGO_PROVEEDORES') {
       this.proveedorSeleccionado = cliente;
@@ -187,11 +308,21 @@ export class RegistrarMovimientoComponent implements OnInit {
       const cedula = cliente.cedula || '';
       this.busquedaCliente = cedula || `${nombre} ${apellido}`.trim();
     }
-    
+
     // Limpiar opciones de búsqueda
     this.actualizarOpcionesBusqueda();
   }
 
+  /**
+   * Manejador para cambio de tipo de movimiento (INGRESO/EGRESO).
+   *
+   * Actualiza:
+   * - Categorías disponibles
+   * - Valor de categoría (por defecto la primera de su tipo)
+   * - Limpia selecciones previas
+   *
+   * @param tipo - Tipo de movimiento seleccionado
+   */
   onTipoChange(tipo: string): void {
     const categoriaControl = this.formulario.get('categoria');
     if (tipo === 'INGRESO') {
@@ -206,6 +337,14 @@ export class RegistrarMovimientoComponent implements OnInit {
     this.actualizarOpcionesBusqueda();
   }
 
+  /**
+   * Manejador para cambio de categoría.
+   *
+   * Limpia todas las selecciones de personas y búsqueda.
+   * Actualiza las opciones disponibles según la nueva categoría.
+   *
+   * @param categoria - Categoría seleccionada
+   */
   onCategoriaChange(categoria: string): void {
     this.clienteSeleccionado = null;
     this.proveedorSeleccionado = null;
@@ -215,6 +354,16 @@ export class RegistrarMovimientoComponent implements OnInit {
     this.actualizarOpcionesBusqueda();
   }
 
+  /**
+   * Determina si el formulario debe mostrar campo de búsqueda de persona.
+   *
+   * Retorna true para:
+   * - INGRESO + TRANSFERENCIA_CLIENTE
+   * - EGRESO + PAGO_TRABAJADOR
+   * - EGRESO + PAGO_PROVEEDORES
+   *
+   * @returns {boolean} Indica si debe mostrarse el campo de búsqueda
+   */
   mostrarBusquedaCliente(): boolean {
     const tipo = this.formulario.get('tipo')?.value;
     const categoria = this.formulario.get('categoria')?.value;
@@ -223,16 +372,34 @@ export class RegistrarMovimientoComponent implements OnInit {
            (tipo === 'EGRESO' && categoria === 'PAGO_PROVEEDORES');
   }
 
+  /**
+   * Actualiza la deuda restante del proveedor tras un pago.
+   *
+   * Solo aplica para categoría PAGO_PROVEEDORES.
+   * deudaRestante = max(0, deudaActual - montoIngresado)
+   *
+   * @param monto - Monto del pago
+   */
   actualizarDeudaRestante(monto: number): void {
     if (this.formulario.get('categoria')?.value === 'PAGO_PROVEEDORES' && this.proveedorSeleccionado) {
       this.deudaRestante = Math.max(0, this.deudaActual - (monto || 0));
     }
   }
 
+  /**
+   * Actualiza la lista de opciones de búsqueda según tipo/categoría actual.
+   *
+   * La fuente puede ser:
+   * - Empleados (si PAGO_TRABAJADOR)
+   * - Proveedores (si PAGO_PROVEEDORES)
+   * - Clientes (en cualquier otro caso)
+   *
+   * @private
+   */
   private actualizarOpcionesBusqueda(): void {
     const tipo = this.formulario?.get('tipo')?.value;
     const categoria = this.formulario?.get('categoria')?.value;
-    
+
     if (tipo === 'EGRESO' && categoria === 'PAGO_TRABAJADOR') {
       this.personasBusqueda = this.empleados || [];
     } else if (tipo === 'EGRESO' && categoria === 'PAGO_PROVEEDORES') {
@@ -242,7 +409,18 @@ export class RegistrarMovimientoComponent implements OnInit {
     }
   }
 
-  // Al cambiar manualmente el valor del input con datalist, seleccionar la persona
+  /**
+   * Valida la selección de persona cuando se pierde el foco del input.
+   *
+   * Si el texto ingresado coincide con alguna persona en la lista actual,
+   * la selecciona automáticamente. De lo contrario, limpia la selección.
+   *
+   * Compara contra:
+   * - Cédula/RUC
+   * - ID de Firebase
+   * - Código (proveedores)
+   * - Nombre completo
+   */
   onBlurSeleccionPersona(): void {
     const valor = (this.busquedaCliente || '').trim();
     if (!valor) {
@@ -250,10 +428,10 @@ export class RegistrarMovimientoComponent implements OnInit {
       this.proveedorSeleccionado = null;
       return;
     }
-    
+
     const tipo = this.formulario.get('tipo')?.value;
     const categoria = this.formulario.get('categoria')?.value;
-    
+
     let lista: any[] = [];
     if (tipo === 'EGRESO' && categoria === 'PAGO_TRABAJADOR') {
       lista = this.empleados;
@@ -262,7 +440,7 @@ export class RegistrarMovimientoComponent implements OnInit {
     } else {
       lista = this.clientes;
     }
-    
+
     const encontrada = (lista || []).find((p: any) => {
       const nombre = (p.nombres || p.nombre || '').trim();
       const apellido = (p.apellidos || p.apellido || '').trim();
@@ -274,6 +452,18 @@ export class RegistrarMovimientoComponent implements OnInit {
     }
   }
 
+  /**
+   * Valida y guarda un nuevo movimiento en la base de datos.
+   *
+   * Proceso:
+   * 1. Valida el formulario
+   * 2. Si requiere persona, verifica que esté seleccionada
+   * 3. Construye el objeto de movimiento con campos específicos según categoría
+   * 4. Para PAGO_PROVEEDORES: actualiza saldo del proveedor en Firestore
+   * 5. Redirige según origen (caja específica o listado general)
+   *
+   * @returns {Promise<void>}
+   */
   async guardarMovimiento(): Promise<void> {
     if (!this.formulario.valid) {
       this.mensaje = 'Por favor completa todos los campos obligatorios';
@@ -392,6 +582,9 @@ export class RegistrarMovimientoComponent implements OnInit {
     }
   }
 
+  /**
+   * Navega de vuelta a la lista de cajas banco.
+   */
   volver(): void {
     this.router.navigate(['/caja-banco']);
   }

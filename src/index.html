@@ -1,20 +1,54 @@
+<!--
+  Óptica Macías - Sistema de Gestión Integral
+  
+  Página HTML principal de la aplicación Angular.
+  Este archivo sirve como punto de entrada para toda la aplicación SPA.
+  
+  Características:
+  - Metaetiquetas optimizadas para móviles y SEO
+  - Precarga de fuentes de Google Fonts para rendimiento
+  - Ícono personalizado de la óptica
+  - Configuración de idioma en español
+-->
 <!doctype html>
-<html lang="en">
+<html lang="es">
 
 <head>
+    <!-- Codificación de caracteres UTF-8 para soporte completo de caracteres especiales -->
     <meta charset="utf-8">
-    <title>Optica Macias</title>
+    
+    <!-- Título de la aplicación mostrado en la pestaña del navegador -->
+    <title>Óptica Macías - Sistema de Gestión</title>
+    
+    <!-- Base href para ruteo de Angular -->
     <base href="/">
+    
+    <!-- Viewport para diseño responsive en dispositivos móviles -->
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" type="icono" href="icono/OpticaM.ico">
+    
+    <!-- Descripción para motores de búsqueda (SEO) -->
+    <meta name="description" content="Sistema integral de gestión para Óptica Macías: clientes, inventario, ventas y finanzas.">
+    
+    <!-- Palabras clave para SEO -->
+    <meta name="keywords" content="óptica, gestión, inventario, ventas, sistema administrativo">
+    
+    <!-- Autor de la aplicación -->
+    <meta name="author" content="Óptica Macías">
+    
+    <!-- Ícono del sitio (favicon) -->
+    <link rel="icon" type="image/x-icon" href="icono/OpticaM.ico">
+    
+    <!-- Preconexión a Google Fonts para optimizar carga de fuentes -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Fuentes de Google: Playfair Display, Roboto, Sansita Swashed, Trocchi -->
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Sansita+Swashed:wght@500&family=Trocchi&display=swap"
         rel="stylesheet">
-
 </head>
 
 <body>
+    <!-- Componente raíz de la aplicación Angular -->
     <app-root></app-root>
 </body>
 

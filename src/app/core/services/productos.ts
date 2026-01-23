@@ -1,3 +1,21 @@
+/**
+ * Gestiona el catálogo completo de productos del sistema de inventario.
+ * Maneja operaciones CRUD con validaciones de unicidad, generación automática de IDs
+ * internos secuenciales, actualizaciones de stock mediante transacciones Firestore
+ * y soft delete para preservar historial.
+ *
+ * Este servicio implementa:
+ * - Generación automática de idInterno (secuencial numérico)
+ * - Descuento de stock con transacciones atómicas (evita condiciones de carrera)
+ * - Soft delete (campo activo) para mantener trazabilidad
+ * - Validación de códigos duplicados (opcional según validaciones del modelo)
+ * - Filtrado automático de productos desactivados en consultas
+ *
+ * Los datos se persisten en 'productos' de Firestore.
+ * Se integra con ingreso.service.ts para actualizaciones de stock y movimientos.service.ts para trazabilidad.
+ *
+ * Forma parte del módulo de inventario del sistema de gestión de la óptica.
+ */
 import { inject, Injectable } from '@angular/core';
 import {
   Firestore,
@@ -26,8 +44,13 @@ export class ProductosService {
   private firestore = inject(Firestore);
   private productosRef = collection(this.firestore, 'productos');
 
-  // 🔹 Obtener todos los productos (SOLO ACTIVOS)
-  // Incluye productos con activo:true O sin el campo (para compatibilidad con datos anteriores)
+  /**
+   * Recupera todos los productos activos del sistema.
+   * Incluye productos con activo:true O sin el campo (compatibilidad con datos legacy).
+   * Filtra en el cliente para evitar requerimiento de índice Firestore.
+   *
+   * @returns Observable<Producto[]> Stream reactivo con los productos activos.
+   */
   getProductos(): Observable<Producto[]> {
     return collectionData(this.productosRef, {
       idField: 'id',
@@ -39,14 +62,24 @@ export class ProductosService {
     ) as Observable<Producto[]>;
   }
 
-  // 🔹 Obtener TODOS los productos (incluyendo inactivos) - para importación
+  /**
+   * Recupera TODOS los productos incluyendo los desactivados.
+   * Utilizado para importaciones y reportes históricos.
+   *
+   * @returns Observable<Producto[]> Stream con todos los productos sin filtrar.
+   */
   getProductosTodosInclusoInactivos(): Observable<Producto[]> {
     return collectionData(this.productosRef, {
       idField: 'id',
     }) as Observable<Producto[]>;
   }
 
-  // 🔹 Obtener un producto por ID
+  /**
+   * Recupera un producto específico por su ID de Firestore.
+   *
+   * @param id ID del producto.
+   * @returns Observable<Producto> Stream con los datos del producto.
+   */
   getProductoById(id: string): Observable<Producto> {
     const productoDoc = doc(this.firestore, `productos/${id}`);
     return docData(productoDoc, {
@@ -54,13 +87,23 @@ export class ProductosService {
     }) as Observable<Producto>;
   }
 
-  // 🔹 Obtener productos por ingreso ID
+  /**
+   * Recupera todos los productos asociados a un ingreso específico.
+   *
+   * @param ingresoId ID del ingreso.
+   * @returns Observable<Producto[]> Stream con los productos del ingreso.
+   */
   getProductosPorIngreso(ingresoId: string): Observable<Producto[]> {
     const q = query(this.productosRef, where('ingresoId', '==', ingresoId));
     return collectionData(q, { idField: 'id' }) as Observable<Producto[]>;
   }
 
-  // 🔹 Obtener el último ID del contador sin incrementarlo
+  /**
+   * Obtiene el último ID del contador de productos sin incrementarlo.
+   * Valida si existen productos en la colección y retorna el siguiente ID disponible.
+   *
+   * @returns Promise<number | null> Último ID usado o 1 si no hay productos, null si no existe contador.
+   */
   async getCounterDoc(): Promise<number | null> {
     const counterDoc = doc(this.firestore, 'counters/productos');
     const counterSnapshot = await getDoc(counterDoc);
@@ -81,7 +124,12 @@ export class ProductosService {
     return null;
   }
 
-  // 🔹 Generar siguiente ID interno automáticamente
+  /**
+   * Genera el siguiente ID interno secuencial usando un documento contador atómico.
+   * Utiliza transacción Firestore para evitar duplicados en operaciones concurrentes.
+   *
+   * @returns Promise<number> Siguiente ID interno disponible (mínimo 1).
+   */
   async getNextIdInterno(): Promise<number> {
     const counterDoc = doc(this.firestore, 'counters/productos');
     
@@ -111,7 +159,14 @@ export class ProductosService {
     return nextId;
   }
 
-  // 🔹 Verificar si un código de armazón ya existe
+  /**
+   * Verifica si un código de armazón ya existe en otro producto.
+   * Permite excluir un ID específico (para validaciones en edición).
+   *
+   * @param codigo Código de armazón a verificar.
+   * @param excludeId ID del producto a excluir de la búsqueda (opcional).
+   * @returns Promise<boolean> True si el código ya existe en otro producto.
+   */
   async codigoArmazonExists(codigo: string, excludeId?: string): Promise<boolean> {
     const q = query(
       this.productosRef,
@@ -133,7 +188,13 @@ export class ProductosService {
     return true;
   }
 
-  // 🔹 Crear producto con ID automático
+  /**
+   * Crea un nuevo producto con generación automática de ID interno secuencial.
+   * Aplica lógica especial para productos del grupo LUNAS (stock ilimitado).
+   *
+   * @param producto Datos del producto a crear (sin idInterno).
+   * @returns Promise con DocumentReference del producto creado.
+   */
   async createProducto(producto: Producto) {
     // Generar ID interno automáticamente
     const idInterno = await this.getNextIdInterno();
@@ -152,7 +213,13 @@ export class ProductosService {
     });
   }
 
-  // 🔹 Buscar productos por código de armazón
+  /**
+   * Busca un producto por su código de armazón.
+   * Retorna el primer producto que coincida con el código.
+   *
+   * @param codigo Código de armazón a buscar.
+   * @returns Promise<Producto | null> Producto encontrado o null.
+   */
   async getProductoByCodigo(codigo: string): Promise<Producto | null> {
     const q = query(
       this.productosRef,
@@ -169,7 +236,14 @@ export class ProductosService {
     return { id: doc.id, ...doc.data() } as Producto;
   }
 
-  // 🔹 Actualizar producto
+  /**
+   * Actualiza los datos de un producto existente.
+   * Actualiza automáticamente el campo updatedAt.
+   *
+   * @param id ID del producto.
+   * @param producto Datos parciales a actualizar.
+   * @returns Promise<void> Se resuelve cuando la actualización se completa.
+   */
   updateProducto(id: string, producto: Partial<Producto>) {
     const productoDoc = doc(this.firestore, `productos/${id}`);
     return updateDoc(productoDoc, {
@@ -178,7 +252,15 @@ export class ProductosService {
     });
   }
 
-  // 🔹 Descontar stock de forma segura (transacción)
+  /**
+   * Descuenta stock de un producto usando transacción atómica de Firestore.
+   * No aplica descuento a productos con stock ilimitado (grupo LUNAS).
+   *
+   * @param id ID del producto.
+   * @param cantidad Cantidad a descontar (positivo).
+   * @returns Promise<void> Se resuelve cuando la transacción se completa.
+   * @throws Error si el producto no existe o no hay stock suficiente.
+   */
   async descontarStock(id: string, cantidad: number): Promise<void> {
     if (!id || !isFinite(cantidad) || cantidad <= 0) return;
     const productoDoc = doc(this.firestore, `productos/${id}`);
@@ -206,7 +288,13 @@ export class ProductosService {
     });
   }
 
-  // 🔹 Eliminar producto (SOFT DELETE: desactivar)
+  /**
+   * Desactiva un producto (soft delete) cambiando su campo activo a false.
+   * El producto se mantiene en la base de datos pero se oculta de las consultas principales.
+   *
+   * @param id ID del producto a desactivar.
+   * @returns Promise<void> Se resuelve cuando la actualización se completa.
+   */
   desactivarProducto(id: string) {
     const productoDoc = doc(this.firestore, `productos/${id}`);
     return updateDoc(productoDoc, {
@@ -215,7 +303,13 @@ export class ProductosService {
     });
   }
 
-  // 🔹 Reactivar producto (reversible)
+  /**
+   * Reactiva un producto desactivado cambiando su campo activo a true.
+   * Permite revertir un soft delete.
+   *
+   * @param id ID del producto a reactivar.
+   * @returns Promise<void> Se resuelve cuando la actualización se completa.
+   */
   activarProducto(id: string) {
     const productoDoc = doc(this.firestore, `productos/${id}`);
     return updateDoc(productoDoc, {
@@ -224,7 +318,7 @@ export class ProductosService {
     });
   }
 
-  // 🔹 Eliminar producto (HARD DELETE: para desarrollo/test)
+  // Eliminar producto (HARD DELETE: para desarrollo/test)
   deleteProducto(id: string) {
     const productoDoc = doc(this.firestore, `productos/${id}`);
     return deleteDoc(productoDoc);

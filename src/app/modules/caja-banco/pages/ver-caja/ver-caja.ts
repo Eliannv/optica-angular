@@ -1,3 +1,17 @@
+/**
+ * Componente para visualizar detalles de una caja banco específica.
+ *
+ * Proporciona:
+ * - Información completa de la caja banco (saldo inicial/actual, estado)
+ * - Listado de cajas chicas cerradas del mismo período
+ * - Detalle de movimientos asociados a la caja
+ * - Resumen financiero (ingresos de cajas chicas y otros, egresos)
+ * - Funcionalidad para registrar nuevos movimientos
+ * - Generación de reportes individuales de caja
+ *
+ * @component VerCajaComponent
+ */
+
 import { Component, inject, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
@@ -13,16 +27,37 @@ import Swal from 'sweetalert2';
   styleUrls: ['./ver-caja.css']
 })
 export class VerCajaComponent implements OnInit {
+  /** Ruta activa para obtener parámetros */
   private route = inject(ActivatedRoute);
+
+  /** Router para navegación */
   private router = inject(Router);
+
+  /** Servicio de cajas banco */
   private cajaBancoService = inject(CajaBancoService);
+
+  /** Servicio de cajas chicas */
   private cajaChicaService = inject(CajaChicaService);
 
+  /** Caja banco actual siendo visualizada */
   caja: CajaBanco | null = null;
+
+  /** Cajas chicas cerradas del mismo período de la caja banco */
   cajasChicas: CajaChica[] = [];
+
+  /** Movimientos asociados a esta caja banco */
   movimientos: MovimientoCajaBanco[] = [];
+
+  /** Estado de carga de datos */
   cargando = false;
+
+  /** ID de la caja banco (parámetro de ruta) */
   cajaId: string = '';
+
+  /**
+   * Resumen financiero de la caja.
+   * Incluye totales de ingresos y egresos desglosados.
+   */
   resumen = {
     total_ingresos: 0,
     total_egresos: 0,
@@ -30,6 +65,10 @@ export class VerCajaComponent implements OnInit {
     ingresos_otros: 0
   };
 
+  /**
+   * Hook de inicialización de Angular.
+   * Obtiene el ID de la caja del parámetro de ruta y carga sus datos.
+   */
   ngOnInit(): void {
     this.route.params.subscribe((params) => {
       this.cajaId = params['id'];
@@ -39,6 +78,15 @@ export class VerCajaComponent implements OnInit {
     });
   }
 
+  /**
+   * Carga todos los datos relacionados con la caja banco.
+   *
+   * Realiza en paralelo:
+   * 1. Obtiene datos de la caja banco
+   * 2. Asocia movimientos antiguos sin referencia
+   * 3. Carga cajas chicas del mismo período
+   * 4. Carga movimientos de esta caja
+   */
   cargarDatos(): void {
     this.cargando = true;
     this.cajaBancoService.getCajaBancoById(this.cajaId).subscribe(c => {
@@ -73,14 +121,20 @@ export class VerCajaComponent implements OnInit {
     });
   }
 
+  /**
+   * Carga las cajas chicas cerradas del mismo mes/año que la caja banco.
+   *
+   * Filtra cajas chicas que estén CERRADAS y en el mismo período
+   * (no solo el mismo día, sino de todo el mes).
+   */
   cargarCajasChicas(): void {
     if (!this.caja?.fecha) return;
     const fecha = this.caja.fecha instanceof Date ? this.caja.fecha : (this.caja.fecha as any).toDate?.() || new Date(this.caja.fecha);
-    
+
     // Obtener todas las cajas chicas cerradas del mes de la caja banco
     const year = fecha.getFullYear();
     const mes = fecha.getMonth();
-    
+
     this.cajaChicaService.getCajasChicasPorMes(year, mes).subscribe(todas => {
       // Filtrar solo las cajas chicas CERRADAS del MISMO MES Y AÑO de la caja banco
       // (NO solo del mismo día, sino de todo el período de mes)
@@ -95,16 +149,25 @@ export class VerCajaComponent implements OnInit {
     });
   }
 
+  /**
+   * Calcula el resumen financiero de la caja.
+   *
+   * Desglose:
+   * - Ingresos cajas chicas: suma de montos_actual de cajas chicas cerradas
+   * - Ingresos otros: suma de movimientos de tipo INGRESO
+   * - Total ingresos: suma de ambos
+   * - Total egresos: suma de movimientos de tipo EGRESO
+   */
   calcularResumen(): void {
     let ingresosCajasChicas = 0;
     let ingresosOtros = 0;
     let egresos = 0;
-    
+
     // 1. Sumar ingresos de cajas chicas (ya están filtradas por estado CERRADA y mismo día en cargarCajasChicas)
     (this.cajasChicas || []).forEach(cc => {
       ingresosCajasChicas += cc.monto_actual || 0;
     });
-    
+
     // 2. Sumar movimientos de ingresos/egresos
     (this.movimientos || []).forEach(m => {
       if (m.tipo === 'INGRESO') {
@@ -115,30 +178,49 @@ export class VerCajaComponent implements OnInit {
         egresos += m.monto || 0;
       }
     });
-    
+
     this.resumen.ingresos_cajas_chicas = ingresosCajasChicas;
     this.resumen.ingresos_otros = ingresosOtros;
     this.resumen.total_ingresos = ingresosCajasChicas + ingresosOtros;
     this.resumen.total_egresos = egresos;
-    
-    // 🔹 El saldo_actual ahora viene directamente de Firestore en caja.saldo_actual
+
+    // El saldo_actual ahora viene directamente de Firestore en caja.saldo_actual
     // No es necesario calcularlo aquí
   }
 
+  /**
+   * Formatea una fecha con hora para mostrar en la UI.
+   *
+   * @param fecha - Objeto Date, Firestore Timestamp o string
+   * @returns {string} Fecha y hora formateadas
+   */
   formatoFecha(fecha: any): string {
     if (!fecha) return '-';
     const date = fecha.toDate ? fecha.toDate() : new Date(fecha);
     return date.toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
   }
 
+  /**
+   * Formatea un monto como moneda USD.
+   *
+   * @param monto - Valor numérico a formatear
+   * @returns {string} Monto formateado
+   */
   formatoMoneda(monto: number): string {
     return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'USD' }).format(monto || 0);
   }
 
+  /**
+   * Navega de vuelta a la lista de cajas banco.
+   */
   volver(): void {
     this.router.navigate(['/caja-banco']);
   }
 
+  /**
+   * Navega a la página de registro de movimiento para esta caja específica.
+   * Pasa el ID de la caja tanto en estado como en sessionStorage.
+   */
   registrarMovimiento(): void {
     // Guardar el ID en sessionStorage para que registrar-movimiento lo pueda recuperar
     sessionStorage.setItem('cajaBancoIdActual', this.cajaId);
@@ -147,11 +229,26 @@ export class VerCajaComponent implements OnInit {
     });
   }
 
+  /**
+   * Navega a la página de detalles de una caja chica.
+   *
+   * @param cajaChicaId - ID de la caja chica a visualizar
+   */
   verCajaChica(cajaChicaId: string): void {
     // Redirigir a ver-caja de caja chica
     this.router.navigate(['/caja-chica/ver', cajaChicaId]);
   }
 
+  /**
+   * Genera e imprime un reporte de la caja actual.
+   *
+   * Incluye:
+   * - Resumen financiero (saldo inicial/final, ingresos/egresos)
+   * - Cajas chicas del día
+   * - Detalle de movimientos
+   *
+   * Se abre en una nueva ventana para imprimir.
+   */
   imprimirMensualActual(): void {
     if (!this.caja) {
       alert('No hay caja cargada');
@@ -180,6 +277,15 @@ export class VerCajaComponent implements OnInit {
     }
   }
 
+  /**
+   * Genera el HTML para un reporte individual de caja.
+   *
+   * @param caja - Datos de la caja banco
+   * @param movimientos - Movimientos asociados
+   * @param cajasChicas - Cajas chicas del mismo período
+   * @returns {string} HTML del reporte
+   * @private
+   */
   private generarReporteCajaActual(caja: CajaBanco, movimientos: MovimientoCajaBanco[], cajasChicas: CajaChica[]): string {
     const nombreMes = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     const fechaCaja = caja.fecha instanceof Date ? caja.fecha : (caja.fecha as any).toDate?.() || new Date(caja.fecha);
@@ -264,7 +370,7 @@ export class VerCajaComponent implements OnInit {
             <h2>REPORTE CAJA BANCO</h2>
             <div class="fecha-reporte">Fecha: ${this.formatoFecha(caja.fecha)}</div>
           </div>
-          
+
           <div class="reporte-resumen">
             <h3>RESUMEN FINANCIERO</h3>
             <div class="reporte-resumen-item">
@@ -292,7 +398,7 @@ export class VerCajaComponent implements OnInit {
               <span>${this.formatoMoneda(saldoFinal)}</span>
             </div>
           </div>
-          
+
           ${cajasChicas.length > 0 ? `
           <div class="reporte-section">
             <h3>CAJAS CHICAS DEL DÍA</h3>
@@ -311,7 +417,7 @@ export class VerCajaComponent implements OnInit {
             </table>
           </div>
           ` : ''}
-          
+
           ${movimientos.length > 0 ? `
           <div class="reporte-section">
             <h3>MOVIMIENTOS</h3>

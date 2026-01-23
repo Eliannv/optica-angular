@@ -1,3 +1,23 @@
+/**
+ * Estilos para el componente de apertura de caja chica.
+ * 
+ * Define la presentación visual del formulario de apertura incluyendo:
+ * - Contenedor y tarjeta principal
+ * - Header con título y botón de retorno
+ * - Campos de formulario (fecha, monto, observación)
+ * - Alertas de error
+ * - Botones de acción
+ * - Estilos responsivos para mobile
+ * 
+ * Variables de tema utilizadas:
+ * - --bg-card, --bg-secondary: Fondos de contenedores
+ * - --border-color, --input-border: Bordes
+ * - --text-primary, --text-secondary: Colores de texto
+ * - --btn-primary-bg, --btn-secondary-bg: Colores de botones
+ * - --radius-md, --radius-xl: Radios de esquinas
+ * - --shadow-lg, --shadow-md: Sombras
+ */
+
 /* ============================================
    CONTAINER Y CARD
 ============================================ */
@@ -189,62 +209,9 @@
 
 
 /* ============================================
-   RESPONSIVE
+   FECHA DISPLAY (solo lectura)
 ============================================ */
 
-@media (max-width: 768px) {
-    .form-container {
-        padding: 0.75rem;
-        padding-top: 1rem;
-    }
-    .form-header {
-        padding: 1rem;
-    }
-    .header-content {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .form-title {
-        font-size: 1.15rem;
-    }
-    .btn-secondary {
-        width: 100%;
-    }
-    .form-body {
-        padding: 1.25rem;
-    }
-    .form-actions {
-        flex-direction: column-reverse;
-    }
-    .btn-primary,
-    .btn-secondary {
-        width: 100%;
-    }
-}
-
-@media (max-width: 480px) {
-    .form-container {
-        padding: 0.5rem;
-    }
-    .form-header {
-        padding: 0.85rem;
-    }
-    .form-title {
-        font-size: 1.05rem;
-    }
-    .form-body {
-        padding: 1rem;
-    }
-    .form-control {
-        font-size: 0.9rem;
-        padding: 0.65rem 0.85rem;
-    }
-    .form-group label {
-        font-size: 0.85rem;
-    }
-}
-
-/* Fecha Display (solo lectura) */
 .fecha-display {
     display: flex;
     align-items: center;
@@ -268,4 +235,73 @@
     color: var(--text-secondary);
     font-size: 0.85rem;
     font-weight: 400;
+}
+
+
+/* ============================================
+   RESPONSIVE
+============================================ */
+
+@media (max-width: 768px) {
+    .form-container {
+        padding: 0.75rem;
+        padding-top: 1rem;
+    }
+    
+    .form-header {
+        padding: 1rem;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .form-title {
+        font-size: 1.15rem;
+    }
+    
+    .btn-secondary {
+        width: 100%;
+    }
+    
+    .form-body {
+        padding: 1.25rem;
+    }
+    
+    .form-actions {
+        flex-direction: column-reverse;
+    }
+    
+    .btn-primary,
+    .btn-secondary {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .form-container {
+        padding: 0.5rem;
+    }
+    
+    .form-header {
+        padding: 0.85rem;
+    }
+    
+    .form-title {
+        font-size: 1.05rem;
+    }
+    
+    .form-body {
+        padding: 1rem;
+    }
+    
+    .form-control {
+        font-size: 0.9rem;
+        padding: 0.65rem 0.85rem;
+    }
+    
+    .form-group label {
+        font-size: 0.85rem;
+    }
 }

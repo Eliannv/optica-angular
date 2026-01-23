@@ -1,13 +1,24 @@
 import { Component, OnInit } from '@angular/core';
 import { Proveedor } from '../../../../core/models/proveedor.model';
 import { Ingreso } from '../../../../core/models/ingreso.model';
-import { Observable } from 'rxjs';
 import { ProveedoresService } from '../../../../core/services/proveedores';
 import { IngresosService } from '../../../../core/services/ingresos.service';
 import { Router } from '@angular/router';
 import Swal from 'sweetalert2';
 import { Timestamp } from '@angular/fire/firestore';
 
+/**
+ * Componente para listar y gestionar proveedores
+ * 
+ * @description
+ * Permite visualizar proveedores con filtrado, búsqueda, paginación,
+ * activación/desactivación, consulta de saldo y visualización de facturas/ingresos.
+ * 
+ * @example
+ * ```html
+ * <app-listar-proveedores></app-listar-proveedores>
+ * ```
+ */
 @Component({
   selector: 'app-listar-proveedores',
   standalone: false,
@@ -21,7 +32,7 @@ export class ListarProveedores implements OnInit {
   paginaActual: number = 1;
   proveedoresPorPagina: number = 10;
   totalProveedores: number = 0;
-  Math = Math; // Para usar Math.min en el template
+  Math = Math;
   proveedorSeleccionado: Proveedor | null = null;
   mostrarModal: boolean = false;
   mostrarModalFacturas: boolean = false;
@@ -37,33 +48,58 @@ export class ListarProveedores implements OnInit {
     private router: Router
   ) {}
 
+  /**
+   * Inicializa el componente y carga los proveedores
+   * 
+   * @description
+   * Carga todos los proveedores (activos e inactivos) desde Firestore
+   * y calcula sus saldos desde el documento del proveedor.
+   */
   ngOnInit() {
-    // 🔹 Cargar TODOS los proveedores (activos e inactivos)
+    this.cargarProveedores();
+  }
+
+  /**
+   * Carga todos los proveedores desde Firestore
+   * 
+   * @private
+   */
+  private cargarProveedores() {
     this.proveedoresService.getProveedoresTodosInclusoInactivos().subscribe(proveedores => {
       this.proveedores = proveedores;
       this.proveedoresFiltrados = proveedores;
       this.totalProveedores = proveedores.length;
       this.actualizarPaginacion();
       
-      // Usar el saldo directamente del documento del proveedor en Firestore
       this.proveedores.forEach(proveedor => {
         this.saldosCalculados[proveedor.nombre] = proveedor.saldo || 0;
       });
     });
   }
 
-  // Obtener saldo para mostrar en tabla (usa el saldo guardado en Firestore)
+  /**
+   * Obtiene el saldo de un proveedor desde el caché de saldos calculados
+   * 
+   * @param proveedorNombre - Nombre del proveedor
+   * @returns Saldo del proveedor o 0 si no existe
+   */
   getSaldoProveedor(proveedorNombre: string | undefined): number {
     if (!proveedorNombre) return 0;
     return this.saldosCalculados[proveedorNombre] || 0;
   }
 
+  /**
+   * Actualiza la paginación mostrando los proveedores de la página actual
+   */
   actualizarPaginacion() {
     const inicio = (this.paginaActual - 1) * this.proveedoresPorPagina;
     const fin = inicio + this.proveedoresPorPagina;
     this.proveedoresPaginados = [...this.proveedoresFiltrados.slice(inicio, fin)];
   }
 
+  /**
+   * Navega a la página siguiente si existe
+   */
   paginaSiguiente() {
     if (this.paginaActual * this.proveedoresPorPagina < this.totalProveedores) {
       this.paginaActual++;
@@ -71,72 +107,58 @@ export class ListarProveedores implements OnInit {
     }
   }
 
+  /**
+   * Navega a la página anterior si existe
+   */
   paginaAnterior() {
     if (this.paginaActual > 1) {
       this.paginaActual--;
       this.actualizarPaginacion();
     }
   }
+
+  /**
+   * Navega a la primera página
+   */
   irPrimeraPagina(): void {
     this.paginaActual = 1;
     this.actualizarPaginacion();
   }
 
+  /**
+   * Navega a la última página
+   */
   irUltimaPagina(): void {
     this.paginaActual = Math.ceil(this.totalProveedores / this.proveedoresPorPagina);
     this.actualizarPaginacion();
   }
+
+  /**
+   * Redirige a la página de creación de nuevo proveedor
+   */
   crearProveedor() {
     this.router.navigate(['/proveedores/crear']);
   }
 
+  /**
+   * Redirige a la página de edición de un proveedor
+   * 
+   * @param proveedor - Proveedor a editar
+   * @param event - Evento del click para evitar propagación
+   */
   editarProveedor(proveedor: Proveedor, event: any) {
     event.stopPropagation();
     this.router.navigate(['/proveedores/editar', proveedor.id]);
   }
 
-  eliminarProveedor(id: string) {
-    Swal.fire({
-      title: '¿Desactivar proveedor?',
-      text: 'El proveedor se desactivará pero podrá reactivarlo después',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#6c757d',
-      confirmButtonText: 'Sí, desactivar',
-      cancelButtonText: 'Cancelar'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        this.proveedoresService.desactivarProveedor(id).then(() => {
-          Swal.fire({
-            icon: 'success',
-            title: 'Desactivado',
-            text: 'Proveedor desactivado exitosamente',
-            timer: 2000,
-            showConfirmButton: false
-          });
-          // Recargar proveedores
-          this.proveedoresService.getProveedoresTodosInclusoInactivos().subscribe(proveedores => {
-            this.proveedores = proveedores;
-            this.proveedoresFiltrados = proveedores;
-            this.totalProveedores = proveedores.length;
-            this.paginaActual = 1;
-            this.actualizarPaginacion();
-          });
-        }).catch(error => {
-          console.error('Error al desactivar proveedor:', error);
-          Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Error al desactivar el proveedor'
-          });
-        });
-      }
-    });
-  }
-
   /**
-   * 🔄 Toggle de estado Activo/Desactivado para proveedores
+   * Activa o desactiva un proveedor (soft delete)
+   * 
+   * @param proveedor - Proveedor a modificar
+   * 
+   * @description
+   * Muestra un diálogo de confirmación y alterna el estado activo/inactivo del proveedor.
+   * Recarga automáticamente la lista tras el cambio.
    */
   toggleEstadoProveedor(proveedor: Proveedor) {
     const esActivo = proveedor.activo !== false;
@@ -158,20 +180,11 @@ export class ListarProveedores implements OnInit {
       if (result.isConfirmed) {
         metodo
           .then(() => {
-            const mensaje = esActivo ? 'Proveedor desactivado exitosamente' : 'Proveedor activado exitosamente';
-            Swal.fire(
-              esActivo ? 'Desactivado' : 'Activado',
-              mensaje,
-              'success'
-            );
-            // Recargar la lista
-            this.proveedoresService.getProveedoresTodosInclusoInactivos().subscribe(proveedores => {
-              this.proveedores = proveedores;
-              this.proveedoresFiltrados = proveedores;
-              this.totalProveedores = proveedores.length;
-              this.paginaActual = 1;
-              this.actualizarPaginacion();
-            });
+            const mensaje = esActivo 
+              ? 'Proveedor desactivado exitosamente' 
+              : 'Proveedor activado exitosamente';
+            Swal.fire(esActivo ? 'Desactivado' : 'Activado', mensaje, 'success');
+            this.cargarProveedores();
           })
           .catch(error => {
             console.error('Error al cambiar estado del proveedor:', error);
@@ -181,22 +194,34 @@ export class ListarProveedores implements OnInit {
     });
   }
 
+  /**
+   * Muestra el modal con los detalles completos de un proveedor
+   * 
+   * @param proveedor - Proveedor a visualizar
+   */
   verDetalle(proveedor: Proveedor) {
     this.proveedorSeleccionado = proveedor;
     this.mostrarModal = true;
     
-    // Actualizar saldo en el caché desde el documento del proveedor
     if (proveedor.nombre) {
       this.saldosCalculados[proveedor.nombre] = proveedor.saldo || 0;
     }
   }
 
+  /**
+   * Cierra el modal de detalle de proveedor
+   */
   cerrarModal() {
     this.mostrarModal = false;
     this.proveedorSeleccionado = null;
   }
 
-  // Abrir modal para ver facturas del proveedor
+  /**
+   * Abre el modal con las facturas/ingresos asociados a un proveedor
+   * 
+   * @param proveedor - Proveedor del cual ver facturas
+   * @param event - Evento del click para evitar propagación
+   */
   async verFacturasProveedor(proveedor: Proveedor, event: any) {
     event.stopPropagation();
     
@@ -223,24 +248,43 @@ export class ListarProveedores implements OnInit {
     }
   }
 
-  // Cerrar modal de facturas
+  /**
+   * Cierra el modal de facturas/ingresos
+   */
   cerrarModalFacturas() {
     this.mostrarModalFacturas = false;
     this.proveedorSeleccionado = null;
     this.ingresosPorProveedor = [];
   }
 
-  // Ver detalle de un ingreso
+  /**
+   * Navega al detalle de un ingreso específico
+   * 
+   * @param ingreso - Ingreso a visualizar
+   */
   verDetalleIngreso(ingreso: Ingreso) {
     this.cerrarModalFacturas();
-    // Navegar a ver-ingreso con el ID del ingreso
     this.router.navigate(['/ingresos/ver', ingreso.id]);
   }
 
+  /**
+   * Función de rastreo para ngFor optimizado
+   * 
+   * @param index - Índice del elemento en el array
+   * @param proveedor - Proveedor actual
+   * @returns ID único del proveedor o el índice como fallback
+   */
   trackByProveedorId(index: number, proveedor: Proveedor): string {
     return proveedor.id || index.toString();
   }
 
+  /**
+   * Filtra proveedores según el término de búsqueda
+   * 
+   * @description
+   * Busca coincidencias en nombre, RUC, representante, dirección y código.
+   * Resetea la paginación a la primera página.
+   */
   buscarProveedores() {
     const termino = this.terminoBusqueda.toLowerCase().trim();
 
@@ -263,26 +307,32 @@ export class ListarProveedores implements OnInit {
     }
 
     this.totalProveedores = this.proveedoresFiltrados.length;
-    this.paginaActual = 1; // Resetear a la primera página
+    this.paginaActual = 1;
     this.actualizarPaginacion();
   }
 
+  /**
+   * Limpia el campo de búsqueda y recarga todos los proveedores
+   */
   limpiarBusqueda() {
     this.terminoBusqueda = '';
     this.buscarProveedores();
   }
 
+  /**
+   * Convierte un Timestamp de Firestore a Date
+   * 
+   * @param fecha - Timestamp, Date o string a convertir
+   * @returns Objeto Date o null si no es válido
+   */
   convertirFecha(fecha: any): Date | null {
     if (!fecha) return null;
-    // Si es un Timestamp de Firestore, convertir a Date
     if (fecha.toDate && typeof fecha.toDate === 'function') {
       return fecha.toDate();
     }
-    // Si ya es un Date, retornarlo como está
     if (fecha instanceof Date) {
       return fecha;
     }
-    // Si es un string, intentar convertirlo
     if (typeof fecha === 'string') {
       return new Date(fecha);
     }

@@ -1,3 +1,27 @@
+/**
+ * Estilos del componente raíz de la aplicación.
+ * 
+ * Define el layout principal con una estructura flexible de 3 capas:
+ * 1. Navbar: Barra superior fija con z-index 1000
+ * 2. Content wrapper: Contenedor flex que aloja sidebar y main content
+ * 3. Footer: Pie de página fuera del scroll principal
+ * 
+ * El layout es completamente responsivo con breakpoint en 1150px:
+ * - Desktop (≥1150px): Sidebar fijo lateral, main content con scroll independiente
+ * - Mobile (<1150px): Sidebar tipo drawer con overlay, activado por toggle
+ * 
+ * Variables CSS del sistema utilizadas:
+ * - --bg-secondary: Color de fondo del layout principal
+ * - --sidebar-bg: Color de fondo del sidebar
+ * - --transition-normal: Velocidad estándar de transiciones
+ * 
+ * Características de rendimiento:
+ * - Uso de will-change para animaciones fluidas
+ * - Transform hardware-accelerated para el drawer
+ * - Scroll independiente en main-content
+ * - Ocultación de scrollbars nativas para diseño limpio
+ */
+
 /* Reset y estilos globales */
 
 * {
@@ -7,19 +31,25 @@
 }
 
 
-/* Layout principal */
+/* ==========================================================================
+   LAYOUT PRINCIPAL
+   Contenedor flex vertical que ocupa toda la altura del viewport.
+   Permite que el contenido crezca y el footer permanezca al final.
+   ========================================================================== */
 
 .app-layout {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    /* altura completa del viewport */
     background-color: var(--bg-secondary);
     transition: background-color var(--transition-normal);
 }
 
 
-/* Navbar wrapper */
+/* ==========================================================================
+   NAVBAR WRAPPER
+   Barra de navegación superior sticky con alto z-index para superposición.
+   ========================================================================== */
 
 .navbar-wrapper {
     width: 100%;
@@ -29,7 +59,12 @@
 }
 
 
-/* Content wrapper - contiene sidebar y main */
+/* ==========================================================================
+   CONTENT WRAPPER
+   Contenedor flex horizontal que aloja sidebar y main content.
+   Altura fija calculada: viewport - altura del navbar (64px).
+   Previene scroll del contenedor; cada hijo maneja su propio scroll.
+   ========================================================================== */
 
 .content-wrapper {
     display: flex;
@@ -37,29 +72,34 @@
     position: relative;
     overflow: hidden;
     height: calc(100vh - 64px);
-    /* altura fija: viewport - navbar */
     max-height: calc(100vh - 64px);
 }
 
 
-/* Sidebar Desktop (NO fuerces width aquí) */
+/* ==========================================================================
+   SIDEBAR DESKTOP
+   Sidebar fijo para vista desktop (≥50px).
+   No fuerza width para permitir que el componente sidebar controle su tamaño.
+   flex-shrink: 0 previene que se comprima cuando main content crece.
+   ========================================================================== */
 
 .sidebar-desktop {
-    /* width: 260px;  ❌ QUITAR */
     height: calc(100vh - 64px);
     position: sticky;
     top: 64px;
     overflow: hidden;
-    /* el scroll lo maneja el sidebar interno */
     flex-shrink: 0;
-    /* 🔥 no se encoge */
     display: block;
-    /* opcional por si tienes gaps raros */
     min-width: 0;
 }
 
 
-/* Sidebar Mobile */
+/* ==========================================================================
+   SIDEBAR MÓVIL (DRAWER)
+   Sistema de drawer deslizante con overlay para vista móvil (<1150px).
+   Overlay: Fondo oscuro difuminado que permite cerrar el sidebar.
+   Drawer: Panel deslizante desde la izquierda con animación suave.
+   ========================================================================== */
 
 .sidebar-overlay {
     position: fixed;
@@ -110,17 +150,21 @@
 }
 
 
-/* Main content */
+/* ==========================================================================
+   MAIN CONTENT
+   Área principal de contenido con scroll independiente.
+   - Oculta scrollbars nativas para diseño limpio
+   - Padding responsivo que se reduce en pantallas pequeñas
+   - Transición suave de color de fondo para cambios de tema
+   ========================================================================== */
 
 .main-content {
     flex: 1;
     background-color: var(--bg-secondary);
     padding: 1.5rem 2rem;
     overflow-y: auto;
-    /* scroll independiente */
     overflow-x: hidden;
     height: 100%;
-    /* toma la altura del content-wrapper */
     max-height: 100%;
     transition: background-color var(--transition-normal);
     scrollbar-width: none;
@@ -133,7 +177,10 @@
 }
 
 
-/* Animaciones */
+/* ==========================================================================
+   ANIMACIONES
+   Animación fade-in genérica para aparición suave de elementos.
+   ========================================================================== */
 
 @keyframes fadeIn {
     from {
@@ -145,7 +192,13 @@
 }
 
 
-/* Responsive */
+/* ==========================================================================
+   RESPONSIVE DESIGN
+   Breakpoints:
+   - 1149px: Cambio entre desktop y mobile (oculta sidebar desktop)
+   - 768px: Tablets (reduce padding, ajusta altura navbar)
+   - 480px: Móviles pequeños (sidebar ocupa 85% del ancho)
+   ========================================================================== */
 
 @media (max-width: 1149px) {
     .main-content {
@@ -188,7 +241,10 @@
 }
 
 
-/* Utilidades */
+/* ==========================================================================
+   CLASES UTILITARIAS
+   Helpers genéricos para mostrar/ocultar elementos.
+   ========================================================================== */
 
 .hidden {
     display: none;

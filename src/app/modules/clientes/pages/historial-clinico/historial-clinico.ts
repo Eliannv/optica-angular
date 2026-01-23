@@ -1,3 +1,18 @@
+/**
+ * Componente principal para la gestión de historiales clínicos de clientes.
+ *
+ * Este componente proporciona una vista completa de todos los clientes con funcionalidades de:
+ * - Búsqueda y filtrado avanzado (por nombre, cédula, teléfono, estado)
+ * - Paginación de resultados
+ * - Visualización de deudas pendientes por cliente
+ * - Modal para ver detalles del historial clínico
+ * - Acciones CRUD sobre clientes e historiales
+ * - Validación de caja chica antes de crear ventas o cobrar deudas
+ *
+ * Integra múltiples servicios (clientes, historial, facturas, caja chica) para
+ * proporcionar una experiencia cohesiva en la gestión de clientes.
+ */
+
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -7,8 +22,8 @@ import Swal from 'sweetalert2';
 
 import { ClientesService } from '../../../../core/services/clientes';
 import { HistorialClinicoService } from '../../../../core/services/historial-clinico.service';
-import { FacturasService } from '../../../../core/services/facturas'; // ✅ NUEVO
-import { CajaChicaService } from '../../../../core/services/caja-chica.service'; // ✅ PARA VALIDAR CAJA ABIERTA
+import { FacturasService } from '../../../../core/services/facturas';
+import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 
 import { Cliente } from '../../../../core/models/cliente.model';
 import { HistoriaClinica } from '../../../../core/models/historia-clinica.model';
@@ -30,35 +45,35 @@ export class HistorialClinicoComponent implements OnInit {
   clientes: ClienteUI[] = [];
   clientesFiltrados: ClienteUI[] = [];
   clientesPaginados: ClienteUI[] = [];
-  paginaActual: number = 1;
-  clientesPorPagina: number = 10;
-  Math = Math; // Para usar Math.min en el template
+  paginaActual = 1;
+  clientesPorPagina = 10;
+  Math = Math;
 
   cargando = true;
-
-  // ✅ NUEVO: deuda por cliente
   deudas: Record<string, { deudaTotal: number; pendientes: number }> = {};
-
-  // ✅ NUEVO: filtro de estado
   filtroEstado: 'todos' | 'deudores' | 'conHistorial' | 'sinHistorial' = 'todos';
+  cajaChicaAbierta = false;
 
-  // ✅ NUEVO: validar si hay caja chica abierta
-  cajaChicaAbierta: boolean = false;
-
-  // Modal
   clienteSeleccionado: ClienteUI | null = null;
   historialClinico: HistoriaClinica | null = null;
-  mostrarModal: boolean = false;
-  cargandoHistorial: boolean = false;
+  mostrarModal = false;
+  cargandoHistorial = false;
 
   constructor(
-    private router: Router,
-    private clientesSrv: ClientesService,
-    private historialSrv: HistorialClinicoService,
-    private facturasSrv: FacturasService, // ✅ NUEVO
-    private cajasChicaService: CajaChicaService // ✅ PARA VALIDAR CAJA ABIERTA
+    private readonly router: Router,
+    private readonly clientesSrv: ClientesService,
+    private readonly historialSrv: HistorialClinicoService,
+    private readonly facturasSrv: FacturasService,
+    private readonly cajasChicaService: CajaChicaService
   ) {}
 
+  /**
+   * Inicializa el componente cargando clientes y validando estado de caja chica.
+   *
+   * Realiza una carga inicial de todos los clientes activos, verifica si tienen
+   * historial clínico, y valida si existe una caja chica abierta para habilitar
+   * operaciones de venta y cobro.
+   */
   async ngOnInit(): Promise<void> {
     await this.cargarClientes();
     // ✅ NUEVO: validar caja chica abierta
@@ -67,6 +82,13 @@ export class HistorialClinicoComponent implements OnInit {
     this.cargando = false;
   }
 
+  /**
+   * Carga todos los clientes activos con su información de historial y deudas.
+   *
+   * Obtiene la lista de clientes de Firestore, verifica si cada uno tiene historial
+   * clínico, ordena por fecha de creación descendente, y carga las deudas pendientes
+   * de cada cliente en paralelo.
+   */
   private async cargarClientes(): Promise<void> {
     const data = await firstValueFrom(this.clientesSrv.getClientes());
 
@@ -88,6 +110,15 @@ export class HistorialClinicoComponent implements OnInit {
     await this.cargarDeudasClientes(this.clientes);
   }
 
+  /**
+   * Extrae el timestamp de creación de un cliente en milisegundos.
+   *
+   * Maneja diferentes formatos de fecha (Firestore Timestamp, Date, number)
+   * y los convierte a milisegundos para permitir ordenamiento consistente.
+   *
+   * @param c Cliente con posible campo createdAt.
+   * @returns Timestamp en milisegundos o 0 si no existe.
+   */
   private getCreatedMs(c: any): number {
     const v = c?.createdAt;
     if (!v) return 0;
@@ -99,12 +130,25 @@ export class HistorialClinicoComponent implements OnInit {
     return 0;
   }
 
-  imprimirHistorial(clienteId: string) {
+  /**
+   * Navega a la página de impresión del historial clínico.
+   *
+   * @param clienteId Identificador del cliente cuyo historial se imprimirá.
+   */
+  imprimirHistorial(clienteId: string): void {
   this.router.navigate(['/historial-print', clienteId]);
 }
 
 
-  // ✅ NUEVO: cargar deuda total por cliente
+  /**
+   * Carga en paralelo las deudas pendientes de todos los clientes.
+   *
+   * Para cada cliente, consulta el servicio de facturas y almacena el resumen
+   * de deuda en el diccionario 'deudas'. Maneja errores individuales sin
+   * interrumpir el proceso completo.
+   *
+   * @param lista Arreglo de clientes para los cuales cargar deudas.
+   */
   private async cargarDeudasClientes(lista: ClienteUI[]): Promise<void> {
     // carga en paralelo
     const tasks = lista.map(async c => {
@@ -121,16 +165,28 @@ export class HistorialClinicoComponent implements OnInit {
     await Promise.all(tasks);
   }
 
-  // 🔎 Buscar
+  /**
+   * Activa el filtrado de clientes basado en el término de búsqueda actual.
+   */
   buscarClientes(): void {
     this.aplicarFiltro();
   }
 
+  /**
+   * Limpia el término de búsqueda y muestra todos los clientes.
+   */
   limpiarBusqueda(): void {
     this.terminoBusqueda = '';
     this.aplicarFiltro();
   }
 
+  /**
+   * Aplica filtros múltiples a la lista de clientes.
+   *
+   * Combina filtrado por texto (nombre, cédula, teléfono) con filtros de estado
+   * (deudores, con historial, sin historial). Los resultados se ordenan por fecha
+   * de creación descendente y se reinicia la paginación.
+   */
   aplicarFiltro(): void {
     const t = (this.terminoBusqueda || '').trim().toLowerCase();
 
@@ -171,12 +227,18 @@ export class HistorialClinicoComponent implements OnInit {
     this.actualizarPaginacion();
   }
 
+  /**
+   * Actualiza el arreglo de clientes paginados según la página actual.
+   */
   actualizarPaginacion(): void {
     const inicio = (this.paginaActual - 1) * this.clientesPorPagina;
     const fin = inicio + this.clientesPorPagina;
     this.clientesPaginados = [...this.clientesFiltrados.slice(inicio, fin)];
   }
 
+  /**
+   * Navega a la página siguiente si existe.
+   */
   paginaSiguiente(): void {
     if (this.paginaActual * this.clientesPorPagina < this.totalClientes) {
       this.paginaActual++;
@@ -184,6 +246,9 @@ export class HistorialClinicoComponent implements OnInit {
     }
   }
 
+  /**
+   * Navega a la página anterior si existe.
+   */
   paginaAnterior(): void {
     if (this.paginaActual > 1) {
       this.paginaActual--;
@@ -191,24 +256,41 @@ export class HistorialClinicoComponent implements OnInit {
     }
   }
 
+  /**
+   * Navega a la primera página de resultados.
+   */
   irPrimeraPagina(): void {
     this.paginaActual = 1;
     this.actualizarPaginacion();
   }
 
+  /**
+   * Navega a la última página de resultados.
+   */
   irUltimaPagina(): void {
     this.paginaActual = Math.ceil(this.totalClientes / this.clientesPorPagina);
     this.actualizarPaginacion();
   }
 
-  // ✅ Acciones
+  /**
+   * Navega al formulario de creación de nuevo cliente.
+   *
+   * Incluye el parámetro returnTo para volver a esta página después de guardar.
+   */
   crearCliente(): void {
     this.router.navigate(['/clientes/crear'], {
       queryParams: { returnTo: '/clientes/historial-clinico' }
     });
   }
 
-  // ✅ Ver detalles en modal
+  /**
+   * Muestra el modal con los detalles del historial clínico de un cliente.
+   *
+   * Carga asíncronamente el historial clínico del cliente seleccionado desde
+   * Firestore y lo muestra en un modal. Maneja estados de carga y errores.
+   *
+   * @param cliente Cliente cuyos detalles se mostrarán.
+   */
   async verDetalle(cliente: ClienteUI): Promise<void> {
     this.clienteSeleccionado = cliente;
     this.mostrarModal = true;
@@ -229,27 +311,46 @@ export class HistorialClinicoComponent implements OnInit {
     }
   }
 
+  /**
+   * Cierra el modal y limpia los datos del cliente y historial seleccionados.
+   */
   cerrarModal(): void {
     this.mostrarModal = false;
     this.clienteSeleccionado = null;
     this.historialClinico = null;
   }
 
-  // ✅ Si NO tiene historial => crear
+  /**
+   * Navega al formulario de creación de historial clínico.
+   *
+   * @param clienteId Identificador del cliente para el cual crear el historial.
+   */
   crearHistorial(clienteId: string): void {
     this.router.navigate([`/clientes/${clienteId}/crear-historial-clinico`], {
       queryParams: { mode: 'create' }
     });
   }
 
-  // ✅ Editar
+  /**
+   * Navega al formulario de edición de historial clínico.
+   *
+   * @param clienteId Identificador del cliente cuyo historial se editará.
+   */
   editarHistorial(clienteId: string): void {
     this.router.navigate([`/clientes/${clienteId}/crear-historial-clinico`], {
       queryParams: { mode: 'edit' }
     });
   }
 
-  // ✅ Crear Recibo (POS)
+  /**
+   * Inicia el proceso de creación de recibo (venta) para un cliente.
+   *
+   * Antes de navegar al módulo de ventas, valida que exista una caja chica
+   * abierta. Si la caja está cerrada o no existe, muestra mensajes de error
+   * apropiados y redirige a la gestión de caja chica.
+   *
+   * @param clienteId Identificador del cliente para el cual crear la venta.
+   */
   async crearRecibo(clienteId: string): Promise<void> {
     // 🔒 VALIDACIÓN: Verificar estado detallado de caja chica
     try {
@@ -265,10 +366,21 @@ export class HistorialClinicoComponent implements OnInit {
       
       // ❌ Caja CERRADA - Mostrar error específico
       if (validacion.tipo === 'CERRADA') {
+        let fechaDisplay = 'hoy';
+        if (validacion.caja?.fecha) {
+          try {
+            const fecha = validacion.caja.fecha instanceof Date ? validacion.caja.fecha : (validacion.caja.fecha as any).toDate?.() || new Date(validacion.caja.fecha);
+            if (!isNaN(fecha.getTime())) {
+              fechaDisplay = fecha.toLocaleDateString('es-ES');
+            }
+          } catch (e) {
+            fechaDisplay = 'hoy';
+          }
+        }
         await Swal.fire({
           icon: 'error',
           title: 'Caja Chica Cerrada',
-          text: `La caja chica de hoy (${validacion.caja?.fecha ? new Date(validacion.caja.fecha).toLocaleDateString('es-ES') : 'hoy'}) ya fue cerrada. No se pueden crear ventas con una caja cerrada.`,
+          text: `La caja chica de ${fechaDisplay} ya fue cerrada. No se pueden crear ventas con una caja cerrada.`,
           confirmButtonText: 'Abrir Nueva Caja Chica',
           allowOutsideClick: false,
           allowEscapeKey: false
@@ -301,7 +413,15 @@ export class HistorialClinicoComponent implements OnInit {
     }
   }
 
-  // ✅ NUEVO: Cobrar deuda (con validación de caja chica)
+  /**
+   * Inicia el proceso de cobro de deuda para un cliente.
+   *
+   * Similar a crearRecibo, valida que exista una caja chica abierta antes
+   * de permitir registrar abonos. Redirige al módulo de deudas con el cliente
+   * preseleccionado.
+   *
+   * @param clienteId Identificador del cliente para cobrar deuda.
+   */
   async cobrarDeuda(clienteId: string): Promise<void> {
     // 🔒 VALIDACIÓN: Verificar estado detallado de caja chica
     try {
@@ -317,10 +437,21 @@ export class HistorialClinicoComponent implements OnInit {
       
       // ❌ Caja CERRADA - Mostrar error específico
       if (validacion.tipo === 'CERRADA') {
+        let fechaDisplay = 'hoy';
+        if (validacion.caja?.fecha) {
+          try {
+            const fecha = validacion.caja.fecha instanceof Date ? validacion.caja.fecha : (validacion.caja.fecha as any).toDate?.() || new Date(validacion.caja.fecha);
+            if (!isNaN(fecha.getTime())) {
+              fechaDisplay = fecha.toLocaleDateString('es-ES');
+            }
+          } catch (e) {
+            fechaDisplay = 'hoy';
+          }
+        }
         await Swal.fire({
           icon: 'error',
           title: 'Caja Chica Cerrada',
-          text: `La caja chica de hoy (${validacion.caja?.fecha ? new Date(validacion.caja.fecha).toLocaleDateString('es-ES') : 'hoy'}) ya fue cerrada. No se pueden registrar abonos con una caja cerrada.`,
+          text: `La caja chica de ${fechaDisplay} ya fue cerrada. No se pueden registrar abonos con una caja cerrada.`,
           confirmButtonText: 'Abrir Nueva Caja Chica',
           allowOutsideClick: false,
           allowEscapeKey: false
@@ -353,9 +484,16 @@ export class HistorialClinicoComponent implements OnInit {
     }
   }
 
-  // ✅ Eliminar Cliente
+  /**
+   * Desactiva un cliente mediante soft-delete.
+   *
+   * Valida que el cliente no tenga deudas pendientes antes de permitir la
+   * desactivación. Solicita confirmación al usuario y recarga la lista tras
+   * la operación exitosa.
+   *
+   * @param clienteId Identificador del cliente a desactivar.
+   */
   async eliminarCliente(clienteId: string): Promise<void> {
-    // Validar si el cliente tiene deuda
     const deuda = this.deudas[clienteId];
     if (deuda && deuda.deudaTotal > 0) {
       Swal.fire({
@@ -367,7 +505,6 @@ export class HistorialClinicoComponent implements OnInit {
       return;
     }
 
-    // Confirmación con Swal
     const result = await Swal.fire({
       icon: 'warning',
       title: '¿Desactivar cliente?',
@@ -381,7 +518,6 @@ export class HistorialClinicoComponent implements OnInit {
 
     try {
       await this.clientesSrv.desactivarCliente(clienteId);
-      // Recargar clientes
       await this.cargarClientes();
       await Swal.fire({
         icon: 'success',
@@ -401,7 +537,17 @@ export class HistorialClinicoComponent implements OnInit {
     }
   }
 
-  trackByClienteId(index: number, item: ClienteUI) {
+  /**
+   * Función de trackeo para optimizar el renderizado de la lista de clientes.
+   *
+   * Angular usa esta función para identificar únicamente cada cliente en el
+   * *ngFor, mejorando el rendimiento al evitar re-renders innecesarios.
+   *
+   * @param index Índice del elemento en el arreglo.
+   * @param item Cliente a trackear.
+   * @returns Identificador único del cliente.
+   */
+  trackByClienteId(index: number, item: ClienteUI): string {
     return item.id;
   }
 }

@@ -1,3 +1,26 @@
+/**
+ * Estilos para el componente de listado de cajas chicas.
+ * 
+ * Define la presentación visual del listado incluyendo:
+ * - Contenedor principal y tarjeta
+ * - Header con título y botones de acción
+ * - Sistema de filtros (todas, abiertas, cerradas)
+ * - Tabla responsiva de cajas
+ * - Badges de estado
+ * - Botones de acción por fila
+ * - Estado vacío
+ * - Estilos responsivos para mobile
+ * 
+ * Variables de tema utilizadas:
+ * - --bg-card, --bg-secondary, --bg-tertiary: Fondos
+ * - --border-color, --border-light: Bordes
+ * - --text-primary, --text-secondary: Colores de texto
+ * - --primary-color: Color principal
+ * - --btn-primary-bg: Color de botón primario
+ * - --radius-xl, --radius-md: Radios de esquinas
+ * - --shadow-lg, --shadow-md: Sombras
+ */
+
 /* ============================================
    CONTAINER Y CARD PRINCIPAL
 ============================================ */
@@ -247,61 +270,6 @@
 
 
 /* ============================================
-   ACCIONES (estilo facturas)
-============================================ */
-
-.action-buttons {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: nowrap;
-}
-
-.btn-action {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    padding: 0;
-    flex-shrink: 0;
-}
-
-.btn-action svg {
-    width: 20px;
-    height: 20px;
-    stroke-width: 2;
-}
-
-.btn-action-view {
-    color: #3b82f6;
-    background: #dbeafe;
-}
-
-.btn-action-view:hover {
-    background: #bfdbfe;
-    transform: translateY(-2px);
-    color: #1d4ed8;
-}
-
-.btn-action-move {
-    color: #16a34a;
-    background: #dcfce7;
-}
-
-.btn-action-move:hover {
-    background: #bbf7d0;
-    transform: translateY(-2px);
-    color: #15803d;
-}
-
-/* ============================================
    RESPONSIVE
 ============================================ */
 
@@ -310,22 +278,28 @@
         flex-direction: column;
         align-items: stretch;
     }
+    
     .header-actions {
         width: 100%;
     }
+    
     .btn-primary {
         width: 100%;
     }
+    
     .filtros {
         justify-content: center;
     }
+    
     .tabla {
         font-size: 0.8rem;
     }
+    
     .tabla th,
     .tabla td {
         padding: 0.5rem 0.75rem;
     }
+    
     .btn-icon {
         padding: 0.4rem 0.6rem;
         font-size: 0.9rem;
@@ -337,22 +311,28 @@
     .caja-container {
         padding: 0.75rem;
     }
+    
     .caja-header {
         padding: 1rem;
     }
+    
     .caja-title {
         font-size: 1.15rem;
     }
+    
     .caja-body {
         padding: 1rem;
     }
+    
     .tabla {
         font-size: 0.75rem;
     }
+    
     .tabla th,
     .tabla td {
         padding: 0.4rem 0.5rem;
     }
+    
     .empty-icon {
         font-size: 3rem;
     }

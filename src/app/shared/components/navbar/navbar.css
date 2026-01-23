@@ -1,3 +1,17 @@
+/**
+ * Estilos del componente Navbar.
+ *
+ * Este archivo define los estilos para la barra de navegación superior del sistema,
+ * incluyendo:
+ * - Layout sticky que permanece visible durante el scroll
+ * - Botón de toggle para sidebar/drawer (visible solo en móvil)
+ * - Selector de tema claro/oscuro
+ * - Información del usuario con menú dropdown
+ * - Diseño responsive con breakpoints para diferentes dispositivos
+ * - Integración con sistema de temas mediante variables CSS
+ * - Transiciones suaves para interacciones
+ */
+
 .navbar {
     background-color: var(--navbar-bg);
     border-bottom: 1px solid var(--navbar-border);

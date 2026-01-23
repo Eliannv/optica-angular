@@ -1,9 +1,22 @@
+/**
+ * Componente de autenticación tipo carrusel que gestiona login, registro y recuperación de contraseña.
+ * 
+ * Proporciona una interfaz unificada para todas las operaciones de autenticación del sistema,
+ * permitiendo navegar entre diferentes vistas mediante signals. Integra validaciones síncronas
+ * y asíncronas para garantizar la integridad de los datos de usuario.
+ * 
+ * Funcionalidades principales:
+ * - Inicio de sesión con validación de credenciales y estado de cuenta
+ * - Registro de nuevos empleados con validaciones exhaustivas
+ * - Recuperación de contraseña mediante enlace por correo electrónico
+ * - Monitoreo de conectividad para prevenir operaciones sin conexión
+ */
+
 import { Component, signal, OnInit, OnDestroy } from '@angular/core';
 import {
   AbstractControl,
   FormBuilder,
   FormGroup,
-  FormsModule,
   ReactiveFormsModule,
   Validators,
   ValidationErrors,
@@ -13,7 +26,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { ConnectivityService } from '../../../core/services/connectivity.service';
 import { RolUsuario } from '../../../core/models/usuario.model';
 import { CommonModule } from '@angular/common';
-import { Router, RouterModule } from '@angular/router';
+import { Router } from '@angular/router';
 import Swal from 'sweetalert2';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { Subscription } from 'rxjs';
@@ -23,7 +36,7 @@ import { ClientesService } from '../../../core/services/clientes';
 @Component({
   selector: 'app-auth-carousel',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, EnterNextDirective, RouterModule],
+  imports: [CommonModule, ReactiveFormsModule, EnterNextDirective],
   templateUrl: './auth-carousel.html',
   styleUrl: './auth-carousel.scss',
   animations: [
@@ -50,6 +63,10 @@ export class AuthCarousel implements OnInit, OnDestroy {
 
   // Estados de carga
   isLoading = false;
+
+  // Estados para recuperación de contraseña
+  emailSent = signal(false);
+  errorMessage = signal('');
 
   // Control de visibilidad de contraseñas
   showPassword = signal(false);
@@ -120,8 +137,14 @@ export class AuthCarousel implements OnInit, OnDestroy {
   }
 
   // ========== VALIDACIONES PERSONALIZADAS ==========
-  // Validación: mayor de edad
-  mayorEdadValidator(control: AbstractControl) {
+  /**
+   * Valida que el usuario sea mayor de 18 años.
+   * Calcula la edad basándose en la fecha de nacimiento ingresada.
+   * 
+   * @param control Control del formulario que contiene la fecha de nacimiento.
+   * @returns ValidationErrors si es menor de edad, null si es válido.
+   */
+  mayorEdadValidator(control: AbstractControl): ValidationErrors | null {
     const fecha = new Date(control.value);
     if (isNaN(fecha.getTime())) return null;
     const hoy = new Date();
@@ -129,27 +152,50 @@ export class AuthCarousel implements OnInit, OnDestroy {
     return edad < 18 ? { menorEdad: true } : null;
   }
 
-  // Validación: contraseña fuerte
-  passwordFuerteValidator(control: AbstractControl) {
+  /**
+   * Valida que la contraseña cumpla con criterios de seguridad.
+   * Requiere: mayúscula, minúscula, número y símbolo especial.
+   * 
+   * @param control Control del formulario que contiene la contraseña.
+   * @returns ValidationErrors si la contraseña es débil, null si es válida.
+   */
+  passwordFuerteValidator(control: AbstractControl): ValidationErrors | null {
     const value = control.value || '';
     const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])/;
     return strongPassword.test(value) ? null : { weakPassword: true };
   }
 
-  // Validación: contraseñas iguales
-  passwordsIgualesValidator(group: AbstractControl) {
+  /**
+   * Valida que las contraseñas coincidan en el formulario de registro.
+   * Compara los valores de 'password' y 'confirmPassword'.
+   * 
+   * @param group FormGroup que contiene ambos campos de contraseña.
+   * @returns ValidationErrors si no coinciden, null si coinciden.
+   */
+  passwordsIgualesValidator(group: AbstractControl): ValidationErrors | null {
     const pass = group.get('password')?.value;
     const confirm = group.get('confirmPassword')?.value;
     return pass === confirm ? null : { passwordMismatch: true };
   }
 
   // ========== CAMBIO DE SLIDES ==========
-  goTo(slide: number) {
+  /**
+   * Navega a una sección específica del carrusel de autenticación.
+   * 
+   * @param slide Número de sección: 1 = Login, 2 = Registro, 3 = Recuperación de contraseña.
+   */
+  goTo(slide: number): void {
     this.activeSlide.set(slide);
   }
 
   // ========== TOGGLE VISIBILIDAD DE CONTRASEÑAS ==========
-  togglePasswordVisibility(field: 'login' | 'register' | 'confirm') {
+  /**
+   * Alterna la visibilidad de los campos de contraseña.
+   * Permite al usuario ver u ocultar el texto de la contraseña.
+   * 
+   * @param field Campo a alternar: 'login', 'register' o 'confirm'.
+   */
+  togglePasswordVisibility(field: 'login' | 'register' | 'confirm'): void {
     if (field === 'login') {
       this.showPassword.set(!this.showPassword());
     } else if (field === 'register') {
@@ -160,7 +206,20 @@ export class AuthCarousel implements OnInit, OnDestroy {
   }
 
   // ========== LOGIN ==========
-  onLogin() {
+  /**
+   * Procesa el inicio de sesión de un usuario empleado.
+   * 
+   * Valida las credenciales contra Firebase Authentication y verifica el estado
+   * de la cuenta (activa/bloqueada), sucursal asignada y permisos de máquina.
+   * En caso de éxito, redirige al usuario según su rol.
+   * 
+   * Maneja diversos escenarios de error:
+   * - Sin conexión a internet
+   * - Cuenta no autorizada o bloqueada
+   * - Restricciones de sucursal o computadora
+   * - Credenciales inválidas
+   */
+  onLogin(): void {
     if (this.loginForm.invalid) return;
 
     // Verificar conexión antes de intentar login
@@ -243,37 +302,55 @@ export class AuthCarousel implements OnInit, OnDestroy {
   }
 
   // ========== RECUPERAR CONTRASEÑA ==========
-  onForgotPassword() {
-    if (this.forgotForm.invalid) return;
+  /**
+   * Procesa la solicitud de recuperación de contraseña.
+   * Envía un correo electrónico con un enlace para restablecer la contraseña del usuario.
+   * Actualiza el estado visual para mostrar confirmación o errores sin usar modales.
+   * 
+   * @returns Promise<void> Indica la finalización del proceso de envío.
+   */
+  async onForgotPassword(): Promise<void> {
+    if (this.forgotForm.invalid) {
+      return;
+    }
 
     this.isLoading = true;
-    const { email } = this.forgotForm.value;
+    this.errorMessage.set('');
 
-    this.authService.forgotPassword(email).subscribe({
-      next: () => {
-        this.isLoading = false;
-        Swal.fire({
-          title: 'Correo enviado',
-          text: 'Revisa tu correo electrónico para recuperar tu contraseña.',
-          icon: 'success',
-          confirmButtonColor: '#28a745',
-        });
-        this.goTo(1); // Volver al login
-      },
-      error: (err: any) => {
-        this.isLoading = false;
-        Swal.fire({
-          title: 'Error',
-          text: 'No se pudo enviar el correo. Verifica que el email sea correcto.',
-          icon: 'error',
-          confirmButtonColor: '#d33',
-        });
-      },
-    });
+    try {
+      const email = this.forgotForm.value.email;
+      await this.authService.resetPassword(email);
+      this.emailSent.set(true);
+    } catch (error: any) {
+      console.error('Error al enviar correo de recuperación:', error);
+      this.errorMessage.set(error.message || 'Error al enviar el correo. Intenta nuevamente.');
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  /**
+   * Regresa a la pantalla de inicio de sesión y resetea el estado de recuperación.
+   */
+  backToLogin(): void {
+    this.emailSent.set(false);
+    this.errorMessage.set('');
+    this.forgotForm.reset();
+    this.goTo(1);
   }
 
   // ========== REGISTRO ==========
-  onRegister() {
+  /**
+   * Procesa el registro de un nuevo empleado en el sistema.
+   * 
+   * Crea una cuenta de usuario en Firebase Authentication y un documento
+   * correspondiente en Firestore con los datos del empleado. El usuario se crea
+   * siempre con rol de empleado (requiere aprobación administrativa posterior).
+   * 
+   * Realiza validaciones de unicidad para cédula y correo electrónico.
+   * En caso de éxito, limpia el formulario y redirige al login.
+   */
+  onRegister(): void {
     if (this.registerForm.invalid) return;
 
     this.isLoading = true;
@@ -348,7 +425,12 @@ export class AuthCarousel implements OnInit, OnDestroy {
     });
   }
   
-  // Validador de cédula única (global)
+  /**
+   * Validador asíncrono que verifica la unicidad de la cédula en el sistema.
+   * Consulta Firestore para determinar si ya existe un cliente con la misma cédula.
+   * 
+   * @returns AsyncValidatorFn que retorna error 'cedulaTomada' si existe, null si está disponible.
+   */
   uniqueCedulaValidator(): AsyncValidatorFn {
     return async (control: AbstractControl): Promise<ValidationErrors | null> => {
       const value = (control.value || '').trim();
@@ -364,6 +446,12 @@ export class AuthCarousel implements OnInit, OnDestroy {
     };
   }
 
+  /**
+   * Validador asíncrono que verifica la unicidad del correo electrónico en el sistema.
+   * Consulta Firestore para determinar si ya existe un cliente con el mismo email.
+   * 
+   * @returns AsyncValidatorFn que retorna error 'emailTomado' si existe, null si está disponible.
+   */
   uniqueEmailValidator(): AsyncValidatorFn {
     return async (control: AbstractControl): Promise<ValidationErrors | null> => {
       const value = (control.value || '').trim();

@@ -6,12 +6,8 @@
 }
 
 .col-md-6 {
-    flex: 1;
-    min-width: 200px;
-}
-
-.col-md-6 {
     flex: 0 0 calc(50% - 0.5rem);
+    min-width: 200px;
 }
 
 @media (max-width: 768px) {

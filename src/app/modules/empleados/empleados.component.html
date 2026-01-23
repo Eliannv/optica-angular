@@ -32,7 +32,7 @@
                         <circle cx="11" cy="11" r="8"></circle>
                         <path d="m21 21-4.35-4.35"></path>
                     </svg>
-                    <input type="text" class="search-input" placeholder="Buscar por nombre al empleado" [(ngModel)]="filtroNombre" (input)="aplicarFiltros()" />
+                    <input type="text" class="search-input" placeholder="Buscar por nombre o email" [(ngModel)]="filtroNombre" (input)="aplicarFiltros()" />
                     <button *ngIf="filtroNombre" class="clear-btn" (click)="filtroNombre=''; aplicarFiltros()" title="Limpiar búsqueda">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -112,8 +112,8 @@
                                 <small class="text-muted">{{ empleado.email }}</small>
                             </div>
                         </div>
-                        <!-- Estado sin cuadro naranja: mostrar texto discreto para 'Sin acceso' -->
-                        <small class="text-muted" *ngIf="getEstadoTexto(empleado) === 'Sin acceso'">Sin Acceso</small>
+                        <!-- Estado discreto para 'Sin acceso' -->
+                        <small class="text-muted" *ngIf="getEstadoTexto(empleado) === 'Sin Acceso'">Sin Acceso</small>
                     </div>
 
                     <!-- Info -->

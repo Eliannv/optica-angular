@@ -1,3 +1,15 @@
+/**
+ * Componente para la impresión del historial clínico en formato ticket.
+ *
+ * Este componente genera una vista optimizada para impresión en papel térmico de 80mm,
+ * incluyendo los datos del cliente, su historial clínico oftalmológico completo,
+ * y la información de la factura más reciente si existe.
+ *
+ * El proceso de impresión se activa automáticamente tras la carga de datos,
+ * abriendo una ventana emergente con el contenido formateado y lanzando el
+ * diálogo de impresión del navegador.
+ */
+
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -19,20 +31,26 @@ import { HistoriaClinica } from '../../../../core/models/historia-clinica.model'
 export class HistorialPrintComponent implements OnInit {
 
   clienteId!: string;
-
   cliente!: Cliente;
   historial!: HistoriaClinica;
   facturas: any[] = [];
-
   loading = true;
 
   constructor(
-    private route: ActivatedRoute,
-    private clientesSrv: ClientesService,
-    private historialSrv: HistorialClinicoService,
-    private facturasSrv: FacturasService
+    private readonly route: ActivatedRoute,
+    private readonly clientesSrv: ClientesService,
+    private readonly historialSrv: HistorialClinicoService,
+    private readonly facturasSrv: FacturasService
   ) {}
 
+  /**
+   * Inicializa el componente y activa el proceso de impresión automática.
+   *
+   * Carga en secuencia los datos del cliente, su historial clínico y sus facturas
+   * pendientes desde Firestore. Una vez completada la carga, genera automáticamente
+   * una ventana emergente con el contenido del ticket formateado y lanza el diálogo
+   * de impresión del navegador.
+   */
   async ngOnInit() {
     try {
       this.clienteId = this.route.snapshot.paramMap.get('id')!;
@@ -51,13 +69,9 @@ export class HistorialPrintComponent implements OnInit {
 
       this.historial = snap.data() as HistoriaClinica;
 
-      // Obtener facturas del cliente
       this.facturas = await firstValueFrom(
         this.facturasSrv.getPendientesPorCliente(this.clienteId)
       );
-
-      console.log('HISTORIAL CARGADO:', this.historial); // 🔥 CLAVE
-      console.log('FACTURAS:', this.facturas); // 🔥 FACTURAS
     } catch (e) {
       console.error(e);
     } finally {
@@ -120,27 +134,45 @@ export class HistorialPrintComponent implements OnInit {
     }, 300);
   }
 
-  // Método helper para saber si hay armazón en la factura
+  /**
+   * Verifica si una factura contiene un armazón entre sus ítems.
+   *
+   * @param factura Factura a verificar.
+   * @returns true si la factura incluye un ítem de tipo 'armazon', false en caso contrario.
+   */
   tieneArmazon(factura: any): boolean {
     return factura?.items?.some((item: any) => item?.tipo === 'armazon' || item?.armazon);
   }
 
-  // Método para calcular total con descuento
+  /**
+   * Calcula el monto restante por pagar de una factura.
+   *
+   * @param factura Factura a calcular.
+   * @returns Monto pendiente (total - abonado).
+   */
   calcularTotalRestante(factura: any): number {
     const total = factura?.total || 0;
     const abonado = factura?.abonado || 0;
     return total - abonado;
   }
 
-  // Método para obtener SOLO la última factura (más reciente)
+  /**
+   * Obtiene la factura más reciente del cliente.
+   *
+   * Ordena las facturas por fecha de creación descendente y retorna la primera
+   * (la más reciente). Útil para mostrar solo la última factura en el ticket.
+   *
+   * @returns La factura más reciente o null si no hay facturas.
+   */
   obtenerUltimaFactura(): any {
     if (!this.facturas || this.facturas.length === 0) return null;
-    // Asumir que las facturas están ordenadas por fecha descendente (más reciente primero)
-    // Si no, ordenar por createdAt
+
     const sorted = [...this.facturas].sort((a, b) => {
       const fechaA = a.createdAt?.toMillis?.() || new Date(a.createdAt).getTime() || 0;
       const fechaB = b.createdAt?.toMillis?.() || new Date(b.createdAt).getTime() || 0;
-      return fechaB - fechaA; // descendente (más reciente primero)
+      return fechaB - fechaA;
     });
+
     return sorted[0] || null;
-  }}
+  }
+}

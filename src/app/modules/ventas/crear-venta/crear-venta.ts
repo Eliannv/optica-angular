@@ -78,10 +78,21 @@ export class CrearVentaComponent implements OnInit {
       } 
       // ❌ Caja CERRADA - Bloquear con mensaje específico
       else if (validacion.tipo === 'CERRADA') {
+        let fechaDisplay = 'hoy';
+        if (validacion.caja?.fecha) {
+          try {
+            const fecha = validacion.caja.fecha instanceof Date ? validacion.caja.fecha : (validacion.caja.fecha as any).toDate?.() || new Date(validacion.caja.fecha);
+            if (!isNaN(fecha.getTime())) {
+              fechaDisplay = fecha.toLocaleDateString('es-ES');
+            }
+          } catch (e) {
+            fechaDisplay = 'hoy';
+          }
+        }
         await Swal.fire({
           icon: 'error',
           title: 'Caja Chica Cerrada',
-          text: `La caja chica de hoy (${validacion.caja?.fecha ? new Date(validacion.caja.fecha).toLocaleDateString('es-ES') : 'hoy'}) ya fue cerrada. No se pueden crear ventas con una caja cerrada.`,
+          text: `La caja chica de ${fechaDisplay} ya fue cerrada. No se pueden crear ventas con una caja cerrada.`,
           confirmButtonText: 'Abrir Nueva Caja Chica',
           allowOutsideClick: false,
           allowEscapeKey: false

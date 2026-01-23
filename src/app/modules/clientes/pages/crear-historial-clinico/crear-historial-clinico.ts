@@ -1,3 +1,19 @@
+/**
+ * Componente para la creación y edición de historiales clínicos.
+ *
+ * Este componente proporciona un formulario reactivo completo para gestionar el historial
+ * clínico oftalmológico de los clientes, incluyendo:
+ * - Datos de refracción ocular (esfera, cilindro, eje) para ambos ojos
+ * - Agudeza visual sin corrección (AVSC) y con corrección (AVCC)
+ * - Medidas del armazón (montura)
+ * - Información del cliente
+ * - Observaciones y datos del doctor
+ *
+ * Soporta tres modos de operación: create (crear), edit (editar) y view (solo lectura).
+ * Los datos se almacenan en un único documento 'main' dentro de la subcolección
+ * 'historialClinico' de cada cliente.
+ */
+
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, Validators, FormGroup, ReactiveFormsModule } from '@angular/forms';
@@ -31,7 +47,7 @@ export class CrearHistorialClinicoComponent implements OnInit {
   mode: Mode = 'create';
   existeHistorial = false;
 
-  provinciasEcuador = [
+  readonly provinciasEcuador = [
     'Azuay', 'Bolívar', 'Cañar', 'Carchi', 'Chimborazo', 'Cotopaxi',
     'El Oro', 'Esmeraldas', 'Galápagos', 'Guayas', 'Imbabura', 'Loja',
     'Los Ríos', 'Manabí', 'Morona Santiago', 'Napo', 'Orellana', 'Pastaza',
@@ -47,6 +63,14 @@ export class CrearHistorialClinicoComponent implements OnInit {
     private clientesSrv: ClientesService
   ) {}
 
+  /**
+   * Inicializa el componente y configura los formularios reactivos.
+   *
+   * Crea dos formularios independientes: uno para el historial clínico (con campos
+   * de refracción y medidas del armazón) y otro para datos del cliente. Carga el
+   * cliente desde Firestore, determina el modo de operación (create/edit/view),
+   * y si existe historial previo, pre-llena el formulario con esos datos.
+   */
   async ngOnInit() {
 
     /* =========================
@@ -157,9 +181,14 @@ export class CrearHistorialClinicoComponent implements OnInit {
     this.loading = false;
   }
 
-  /* =========================
-     GUARDAR
-     ========================= */
+  /**
+   * Guarda o actualiza el historial clínico y los datos del cliente.
+   *
+   * Antes de guardar, normaliza los campos vacíos (numéricos a 0, textos a 'N/A'),
+   * valida que todos los campos obligatorios del armazón estén completos, y persiste
+   * tanto el historial como los datos actualizados del cliente en Firestore.
+   * Tras el guardado exitoso, navega de vuelta a la lista de historiales.
+   */
   async guardar() {
     if (this.mode === 'view') return;
 
@@ -220,17 +249,36 @@ export class CrearHistorialClinicoComponent implements OnInit {
     }
   }
 
+  /**
+   * Cancela la operación y retorna a la lista de historiales clínicos.
+   */
   cancelar() {
     this.router.navigate(['/clientes/historial-clinico']);
   }
 
-  /* =========================
-     HELPERS
-     ========================= */
-  get esView() { return this.mode === 'view'; }
-  get esEdit() { return this.mode === 'edit'; }
-  get esCreate() { return this.mode === 'create'; }
+  /**
+   * Verifica si el componente está en modo solo lectura.
+   */
+  get esView(): boolean { return this.mode === 'view'; }
 
+  /**
+   * Verifica si el componente está en modo edición.
+   */
+  get esEdit(): boolean { return this.mode === 'edit'; }
+
+  /**
+   * Verifica si el componente está en modo creación.
+   */
+  get esCreate(): boolean { return this.mode === 'create'; }
+
+  /**
+   * Determina si el botón guardar debe estar habilitado.
+   *
+   * Valida que todos los campos obligatorios (de, color, doctor y campos del armazón)
+   * estén válidos antes de permitir el guardado.
+   *
+   * @returns true si el formulario es válido, false en caso contrario.
+   */
   canGuardar(): boolean {
     // Solo valida los campos requeridos: de, color, doctor y campos del armazón
     const de = this.form.get('de');
@@ -253,16 +301,25 @@ export class CrearHistorialClinicoComponent implements OnInit {
               armazonDNP_OI?.valid && armazonAltura?.valid);
   }
 
+  /**
+   * Verifica si un campo del formulario de cliente es inválido y tocado.
+   */
   esInvalidoCliente(campo: string): boolean {
     const c = this.clienteForm.get(campo);
     return !!(c && c.invalid && c.touched);
   }
 
+  /**
+   * Verifica si un campo del formulario de historial es inválido y tocado.
+   */
   esInvalido(campo: string): boolean {
     const c = this.form.get(campo);
     return !!(c && c.invalid && c.touched);
   }
 
+  /**
+   * Genera el mensaje de error apropiado para un campo del formulario de cliente.
+   */
   getMensajeErrorCliente(campo: string): string {
     const c = this.clienteForm.get(campo);
     if (!c || !c.errors) return '';
@@ -277,6 +334,9 @@ export class CrearHistorialClinicoComponent implements OnInit {
     return 'Campo inválido';
   }
 
+  /**
+   * Genera el mensaje de error apropiado para un campo del formulario de historial.
+   */
   getMensajeError(campo: string): string {
     const c = this.form.get(campo);
     if (!c || !c.errors) return '';
@@ -290,6 +350,9 @@ export class CrearHistorialClinicoComponent implements OnInit {
     return 'Campo inválido';
   }
 
+  /**
+   * Validador asíncrono para verificar unicidad de email del cliente.
+   */
   uniqueEmailClienteValidator() {
     return async (control: any) => {
       const v = (control.value || '').trim().toLowerCase();
@@ -299,6 +362,9 @@ export class CrearHistorialClinicoComponent implements OnInit {
     };
   }
 
+  /**
+   * Validador asíncrono para verificar unicidad de cédula del cliente.
+   */
   uniqueCedulaClienteValidator() {
     return async (control: any) => {
       const v = (control.value || '').trim();

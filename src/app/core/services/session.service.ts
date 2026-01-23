@@ -1,12 +1,21 @@
+/**
+ * Gestiona el ciclo de vida de la sesión del usuario implementando un sistema de
+ * auto-logout por inactividad. Monitorea eventos de interacción del usuario con la
+ * aplicación y cierra automáticamente la sesión después de un período configurable
+ * de inactividad (30 minutos por defecto).
+ *
+ * Este servicio mejora la seguridad de la aplicación evitando que sesiones
+ * abandonadas permanezcan abiertas indefinidamente, especialmente importante
+ * en entornos de uso compartido.
+ *
+ * Forma parte del módulo core y se activa automáticamente tras el login exitoso.
+ */
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from './auth.service';
 import { fromEvent, merge, Subject, takeUntil, throttleTime } from 'rxjs';
 import Swal from 'sweetalert2';
 
-/**
- * Servicio para gestionar la sesión del usuario y el auto-logout por inactividad
- */
 @Injectable({
   providedIn: 'root'
 })
@@ -23,7 +32,11 @@ export class SessionService {
   constructor() {}
 
   /**
-   * Iniciar el monitoreo de inactividad
+   * Inicia el monitoreo de actividad del usuario.
+   * Escucha eventos del DOM (mouse, teclado, táctiles) para detectar interacción.
+   * Cada evento detectado reinicia el temporizador de inactividad.
+   *
+   * Los eventos se procesan con throttle de 1 segundo para optimizar rendimiento.
    */
   startInactivityMonitoring(): void {
     // 🔄 Reinicializar el Subject en caso de que haya sido completado
@@ -54,19 +67,19 @@ export class SessionService {
   }
 
   /**
-   * Detener el monitoreo de inactividad
+   * Detiene el monitoreo de inactividad y limpia los listeners de eventos.
+   * Debe llamarse al cerrar sesión o al navegar fuera de áreas protegidas.
    */
   stopInactivityMonitoring(): void {
     this.destroy$.next();
-    // ❌ No completar el Subject; lo reinicializamos en startInactivityMonitoring
-    // this.destroy$.complete();
     if (this.inactivityTimer) {
       clearTimeout(this.inactivityTimer);
     }
   }
 
   /**
-   * Reiniciar el temporizador de inactividad
+   * Reinicia el temporizador de inactividad cada vez que se detecta actividad del usuario.
+   * Cancela el temporizador anterior y crea uno nuevo con el tiempo completo.
    */
   private resetInactivityTimer(): void {
     if (this.inactivityTimer) {
@@ -79,7 +92,8 @@ export class SessionService {
   }
 
   /**
-   * Cerrar sesión por inactividad
+   * Gestiona el cierre de sesión automático por inactividad.
+   * Muestra un diálogo informativo al usuario antes de realizar el logout.
    */
   private handleInactivityLogout(): void {
     this.stopInactivityMonitoring();
@@ -96,7 +110,9 @@ export class SessionService {
   }
 
   /**
-   * Obtener el tiempo restante de sesión (en minutos)
+   * Retorna el tiempo configurado de inactividad antes del logout automático.
+   *
+   * @returns Tiempo en minutos (30 por defecto).
    */
   getRemainingTime(): number {
     return Math.floor(this.INACTIVITY_TIMEOUT / 60000);

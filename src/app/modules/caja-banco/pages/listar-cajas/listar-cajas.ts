@@ -1,3 +1,19 @@
+/**
+ * Componente para listar y gestionar todas las cajas banco del sistema.
+ *
+ * Este componente proporciona:
+ * - Listado completo de cajas banco (abiertas y cerradas)
+ * - Resumen financiero general (totales de ingresos/egresos)
+ * - Acciones de creación, visualización y eliminación de cajas
+ * - Cierre de mes y reporte mensual
+ * - Gestión de cajas chicas asociadas
+ *
+ * Integra datos de tres fuentes principales:
+ * 1. CajaBancoService: datos de cajas banco
+ * 2. CajaChicaService: datos de cajas chicas cerradas
+ * 3. MovimientoCajaBanco: movimientos financieros globales
+ */
+
 import { Component, inject, OnInit } from '@angular/core';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
@@ -14,16 +30,31 @@ import Swal from 'sweetalert2';
   styleUrls: ['./listar-cajas.css']
 })
 export class ListarCajasComponent implements OnInit {
+  /** Servicio de cajas banco */
   private cajaBancoService = inject(CajaBancoService);
+
+  /** Servicio de cajas chicas */
   private cajaChicaService = inject(CajaChicaService);
+
+  /** Router para navegación */
   private router = inject(Router);
 
+  /** Lista de todas las cajas banco del sistema */
   cajas: CajaBanco[] = [];
+
+  /** Lista de cajas chicas cerradas (para integración de ingresos) */
   cajasChicas: CajaChica[] = [];
+
+  /** Movimientos globales de caja banco registrados */
   movimientosGlobales: MovimientoCajaBanco[] = [];
+
+  /** Estado de carga de datos */
   cargando = false;
 
-  // Totales
+  /**
+   * Objeto con totales calculados del sistema.
+   * Incluye: cantidad de cajas, dinero ganado, transferencias, ingresos y egresos.
+   */
   totales = {
     total_cajas: 0,
     total_ganado_cajas_chicas: 0,
@@ -32,12 +63,20 @@ export class ListarCajasComponent implements OnInit {
     total_egresos: 0
   };
 
+  /**
+   * Hook de inicialización de Angular.
+   * Dispara la carga de datos de cajas, cajas chicas y movimientos globales.
+   */
   ngOnInit(): void {
     this.cargarCajas();
     this.cargarCajasChicas();
     this.cargarMovimientosGlobales();
   }
 
+  /**
+   * Carga todas las cajas banco del sistema desde Firestore.
+   * Actualiza el estado de carga y recalcula totales al completar.
+   */
   cargarCajas(): void {
     this.cargando = true;
     this.cajaBancoService.getCajasBanco().subscribe({
@@ -53,6 +92,10 @@ export class ListarCajasComponent implements OnInit {
     });
   }
 
+  /**
+   * Carga todas las cajas chicas cerradas del sistema.
+   * Las cajas chicas cerradas representan ingresos para la caja banco.
+   */
   cargarCajasChicas(): void {
     this.cajaChicaService.getCajasChicas().subscribe({
       next: (cajas) => {
@@ -65,6 +108,10 @@ export class ListarCajasComponent implements OnInit {
     });
   }
 
+  /**
+   * Carga todos los movimientos globales de caja banco.
+   * Incluye ingresos por transferencias y egresos registrados.
+   */
   cargarMovimientosGlobales(): void {
     this.cajaBancoService.getMovimientosCajaBanco().subscribe({
       next: (movimientos) => {
@@ -77,6 +124,16 @@ export class ListarCajasComponent implements OnInit {
     });
   }
 
+  /**
+   * Calcula los totales financieros del sistema basándose en datos cargados.
+   *
+   * Cálculos realizados:
+   * 1. Total de cajas banco creadas
+   * 2. Total ganado en cajas chicas (sumatoria de montos de cajas cerradas)
+   * 3. Total de transferencias e ingresos registrados
+   * 4. Total de ingresos (cajas chicas + movimientos)
+   * 5. Total de egresos
+   */
   calcularTotales(): void {
     // 1. Total de cajas banco creadas
     this.totales.total_cajas = this.cajas.length;
@@ -100,10 +157,26 @@ export class ListarCajasComponent implements OnInit {
       .reduce((sum, m) => sum + (m.monto || 0), 0);
   }
 
+  /**
+   * Navega a la vista de detalles de una caja banco específica.
+   *
+   * @param cajaId - Identificador único de la caja banco
+   */
   verDetalles(cajaId: string): void {
     this.router.navigate(['/caja-banco', cajaId, 'ver']);
   }
 
+  /**
+   * Abre un diálogo modal para crear una nueva caja banco.
+   *
+   * Solicita al usuario:
+   * - Saldo inicial (en USD)
+   * - Observación opcional (detalles sobre la apertura)
+   *
+   * La nueva caja se crea con estado 'ABIERTA' y fecha actual.
+   *
+   * @returns {Promise<void>} Se resuelve cuando se completa la creación
+   */
   async crearCajaBanco(): Promise<void> {
     const { value: formValues } = await Swal.fire({
       title: 'Crear Nueva Caja Banco',
@@ -160,13 +233,13 @@ export class ListarCajasComponent implements OnInit {
       preConfirm: () => {
         const saldoInput = (document.getElementById('saldo_inicial') as HTMLInputElement)?.value;
         const observacion = (document.getElementById('observacion') as HTMLTextAreaElement)?.value;
-        
+
         const saldo = parseFloat(saldoInput || '0');
         if (isNaN(saldo) || saldo < 0) {
           Swal.showValidationMessage('El saldo inicial debe ser un número válido y mayor o igual a 0');
           return false;
         }
-        
+
         return { saldo_inicial: saldo, observacion };
       }
     });
@@ -185,7 +258,7 @@ export class ListarCajasComponent implements OnInit {
       };
 
       await this.cajaBancoService.abrirCajaBanco(nuevaCaja);
-      
+
       Swal.fire({
         icon: 'success',
         title: '¡Caja Banco Creada!',
@@ -213,10 +286,23 @@ export class ListarCajasComponent implements OnInit {
     }
   }
 
+  /**
+   * Navega a la página de registro de movimiento.
+   */
   registrarMovimiento(): void {
     this.router.navigate(['/caja-banco/registrar-movimiento']);
   }
 
+  /**
+   * Genera e imprime un reporte mensual de todas las cajas banco.
+   *
+   * El reporte incluye:
+   * - Resumen financiero (ingresos, egresos, saldo final)
+   * - Listado de cajas chicas del mes
+   * - Detalle de todos los movimientos del mes
+   *
+   * Se abre en una nueva ventana del navegador para imprimir.
+   */
   imprimirMensualActual(): void {
     const now = new Date();
     const year = now.getFullYear();
@@ -274,6 +360,20 @@ export class ListarCajasComponent implements OnInit {
     });
   }
 
+  /**
+   * Genera el HTML para un reporte mensual completo.
+   *
+   * Incluye totales financieros, listado de cajas chicas y movimientos
+   * detallados con formato profesional para impresión.
+   *
+   * @param year - Año del reporte
+   * @param month - Mes (1-12)
+   * @param cajas - Array de cajas banco del mes
+   * @param movimientos - Array de movimientos del mes
+   * @param cajasChicas - Array de cajas chicas del mes
+   * @returns {string} HTML completo del reporte
+   * @private
+   */
   private generarReporteMensual(
     year: number,
     month: number,
@@ -399,7 +499,7 @@ export class ListarCajasComponent implements OnInit {
             <h2>REPORTE MENSUAL CAJA BANCO</h2>
             <div class="fecha-reporte">Periodo: ${getNombreMes(month - 1)} ${year}</div>
           </div>
-          
+
           <div class="reporte-resumen">
             <h3>RESUMEN FINANCIERO</h3>
             <div class="reporte-resumen-item">
@@ -415,7 +515,7 @@ export class ListarCajasComponent implements OnInit {
               <span>${formatoMoneda(saldoFinal)}</span>
             </div>
           </div>
-          
+
           <div class="reporte-section">
             <h3>CAJAS CHICAS DEL MES</h3>
             ${cajasChicas.length > 0 ? `
@@ -438,7 +538,7 @@ export class ListarCajasComponent implements OnInit {
               </div>
             `}
           </div>
-          
+
           <div class="reporte-section">
             <h3>DETALLE DE MOVIMIENTOS DEL MES</h3>
             ${movimientos.length > 0 ? `
@@ -463,7 +563,7 @@ export class ListarCajasComponent implements OnInit {
               </div>
             `}
           </div>
-          
+
           <div class="reporte-firma">
             <div class="reporte-firma-item">
               <div class="linea"></div>
@@ -474,7 +574,7 @@ export class ListarCajasComponent implements OnInit {
               <div>Supervisor/Gerente</div>
             </div>
           </div>
-          
+
           <div class="reporte-footer">
             <p>Reporte mensual de Caja Banco - Óptica Macías</p>
           </div>
@@ -484,7 +584,18 @@ export class ListarCajasComponent implements OnInit {
     `;
   }
 
-  // 🔹 Cerrar mes y abrir nuevo periodo
+  /**
+   * Abre un diálogo para cerrar el mes anterior y abrir uno nuevo.
+   *
+   * Acciones realizadas:
+   * - Cierra todas las cajas banco del mes anterior
+   * - Genera resumen mensual
+   * - Abre nueva caja banco para el mes actual
+   *
+   * ⚠️ Esta acción NO es reversible.
+   *
+   * @returns {Promise<void>}
+   */
   async cerrarMes(): Promise<void> {
     const ahora = new Date();
     const mesAnterior = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
@@ -554,12 +665,28 @@ export class ListarCajasComponent implements OnInit {
     }
   }
 
+  /**
+   * Retorna el nombre del mes en español basado en su índice.
+   *
+   * @param index - Índice del mes (0-11, donde 0 es enero)
+   * @returns {string} Nombre del mes capitalizado (ej: 'Enero', 'Diciembre')
+   */
   getNombreMes(index: number): string {
     const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     return meses[index] || '';
   }
 
-  // 🔹 Eliminar una caja chica y restar el dinero de la caja banco
+  /**
+   * Desactiva una caja chica y resta su monto de la caja banco actual.
+   *
+   * Esta es una operación que permite corregir errores:
+   * - La caja chica se desactiva (soft delete)
+   * - El dinero de la caja chica se resta de la caja banco
+   * - Puede ser reactivada posteriormente
+   *
+   * @param cajaChica - Objeto de caja chica a desactivar
+   * @returns {Promise<void>}
+   */
   async eliminarCajaChica(cajaChica: CajaChica): Promise<void> {
     const resultado = await Swal.fire({
       title: '¿Desactivar Caja Chica?',
@@ -586,10 +713,10 @@ export class ListarCajasComponent implements OnInit {
         // Obtener la caja banco abierta del mismo día
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
-        
+
         const cajaBancoHoy = this.cajas.find(c => {
-          const fechaCaja = c.fecha instanceof Date 
-            ? new Date(c.fecha) 
+          const fechaCaja = c.fecha instanceof Date
+            ? new Date(c.fecha)
             : (c.fecha && typeof c.fecha === 'object' && 'toDate' in c.fecha)
               ? (c.fecha as any).toDate()
               : new Date(c.fecha || new Date());
@@ -600,13 +727,13 @@ export class ListarCajasComponent implements OnInit {
         if (cajaBancoHoy) {
           // Restar el monto de la caja chica del saldo de la caja banco
           const nuevoSaldo = (cajaBancoHoy.saldo_actual || 0) - (cajaChica.monto_actual || 0);
-          
+
           await this.cajaBancoService.actualizarSaldoCajaBanco(cajaBancoHoy.id!, nuevoSaldo);
         }
 
         // Desactivar la caja chica (soft delete)
         await this.cajaChicaService.eliminarCajaChica(cajaChica.id!);
-        
+
         // Recargar listas
         this.cargarCajas();
         this.cargarCajasChicas();
@@ -628,7 +755,14 @@ export class ListarCajasComponent implements OnInit {
     }
   }
 
-  // 🔹 Reactivar una caja chica desactivada
+  /**
+   * Reactiva una caja chica previamente desactivada.
+   *
+   * El dinero de la caja chica se suma nuevamente a la caja banco actual.
+   *
+   * @param cajaChica - Objeto de caja chica a reactivar
+   * @returns {Promise<void>}
+   */
   async reactivarCajaChica(cajaChica: CajaChica): Promise<void> {
     if (cajaChica.activo !== false) {
       Swal.fire({
@@ -663,10 +797,10 @@ export class ListarCajasComponent implements OnInit {
         // Obtener la caja banco abierta del mismo día
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
-        
+
         const cajaBancoHoy = this.cajas.find(c => {
-          const fechaCaja = c.fecha instanceof Date 
-            ? new Date(c.fecha) 
+          const fechaCaja = c.fecha instanceof Date
+            ? new Date(c.fecha)
             : (c.fecha && typeof c.fecha === 'object' && 'toDate' in c.fecha)
               ? (c.fecha as any).toDate()
               : new Date(c.fecha || new Date());
@@ -675,15 +809,15 @@ export class ListarCajasComponent implements OnInit {
         });
 
         if (cajaBancoHoy) {
-          // 🔹 Sumar el monto de la caja chica al saldo de la caja banco (se restó cuando se desactivó)
+          // Sumar el monto de la caja chica al saldo de la caja banco (se restó cuando se desactivó)
           const nuevoSaldo = (cajaBancoHoy.saldo_actual || 0) + (cajaChica.monto_actual || 0);
-          
+
           await this.cajaBancoService.actualizarSaldoCajaBanco(cajaBancoHoy.id!, nuevoSaldo);
         }
 
         // Reactivar la caja chica
         await this.cajaChicaService.activarCajaChica(cajaChica.id!);
-        
+
         // Recargar listas
         this.cargarCajas();
         this.cargarCajasChicas();
@@ -705,7 +839,15 @@ export class ListarCajasComponent implements OnInit {
     }
   }
 
-  // 🔹 Eliminar una caja banco
+  /**
+   * Desactiva una caja banco (solo si está cerrada).
+   *
+   * Las cajas cerradas pueden ser desactivadas (soft delete).
+   * Una caja que está abierta no puede ser desactivada.
+   *
+   * @param cajaBanco - Objeto de caja banco a desactivar
+   * @returns {Promise<void>}
+   */
   async eliminarCajaBanco(cajaBanco: CajaBanco): Promise<void> {
     // Solo permitir eliminar si está CERRADA
     if (cajaBanco.estado !== 'CERRADA') {
@@ -740,7 +882,7 @@ export class ListarCajasComponent implements OnInit {
     if (resultado.isConfirmed) {
       try {
         await this.cajaBancoService.eliminarCajaBanco(cajaBanco.id!);
-        
+
         // Recargar listas
         this.cargarCajas();
 
@@ -761,38 +903,78 @@ export class ListarCajasComponent implements OnInit {
     }
   }
 
+  /**
+   * Getter para el total de cajas ganadas.
+   * @returns {number} Suma total de montos de cajas chicas cerradas
+   */
   getTotalGanado(): number {
     return this.totales.total_ganado_cajas_chicas;
   }
 
+  /**
+   * Getter para el total de transferencias.
+   * @returns {number} Suma total de ingresos por transferencia
+   */
   getTotalTransferencias(): number {
     return this.totales.total_transferencias;
   }
 
+  /**
+   * Getter para el total de ingresos.
+   * @returns {number} Suma de cajas chicas + transferencias
+   */
   getTotalIngresos(): number {
     return this.totales.total_ingresos;
   }
 
+  /**
+   * Getter para el total de egresos.
+   * @returns {number} Suma total de movimientos de egreso
+   */
   getTotalEgresos(): number {
     return this.totales.total_egresos;
   }
 
+  /**
+   * Retorna la clase CSS (badge) correspondiente al estado de una caja.
+   *
+   * @param estado - Estado de la caja ('ABIERTA', 'CERRADA', etc.)
+   * @returns {string} Clase CSS para aplicar estilos (ej: 'badge-success')
+   */
   getEstadoBadge(estado: string): string {
     if (estado === 'ABIERTA') return 'badge-success';
     if (estado === 'CERRADA') return 'badge-danger';
     return 'badge-secondary';
   }
 
+  /**
+   * Formatea una fecha para mostrar en la UI.
+   *
+   * @param fecha - Objeto Date, Firestore Timestamp o string
+   * @returns {string} Fecha formateada (ej: '15/01/2026')
+   */
   formatoFecha(fecha: any): string {
     if (!fecha) return '-';
     const date = fecha.toDate ? fecha.toDate() : new Date(fecha);
     return date.toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
   }
 
+  /**
+   * Formatea un monto como moneda USD.
+   *
+   * @param monto - Valor numérico a formatear
+   * @returns {string} Monto formateado (ej: '$1,234.56')
+   */
   formatoMoneda(monto: number): string {
     return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'USD' }).format(monto || 0);
   }
 
+  /**
+   * Retorna la clase CSS para colorear un tipo de movimiento.
+   *
+   * @param tipo - Tipo de movimiento ('INGRESO' o 'EGRESO')
+   * @returns {string} Nombre de clase CSS
+   */
   getColorTipo(tipo: string): string {
     return tipo === 'INGRESO' ? 'ingreso' : 'egreso';
   }

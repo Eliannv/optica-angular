@@ -1,3 +1,16 @@
+/**
+ * Gestiona las operaciones CRUD y de autorización sobre empleados (usuarios operadores).
+ * Proporciona funcionalidad para administrar cuentas de empleados, controlar acceso
+ * mediante machine ID y sucursal, y garantizar la unicidad de datos sensibles como
+ * correo electrónico y cédula.
+ *
+ * Este servicio implementa validaciones cruzadas entre las colecciones de usuarios
+ * y clientes para evitar duplicados en el sistema. También maneja la lógica de
+ * autorización de equipos específicos mediante machine ID.
+ *
+ * Forma parte del módulo de administración de personal y se integra con Firebase Auth
+ * para la gestión de contraseñas.
+ */
 import { Injectable, inject } from '@angular/core';
 import { 
   Firestore, 

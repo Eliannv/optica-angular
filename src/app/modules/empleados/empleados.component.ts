@@ -1,10 +1,25 @@
+﻿/**
+ * Componente para la gestión y administración de empleados.
+ * 
+ * Responsabilidades:
+ * - Listar todos los empleados con filtros dinámicos (nombre, estado)
+ * - Editar datos de empleados (cédula, nombre, apellido, email, fecha nacimiento)
+ * - Bloquear/desbloquear empleados y asignar automáticamente Machine ID y sucursal
+ * - Validar datos en tiempo real mediante formularios reactivos
+ * 
+ * Integración:
+ * - Conecta con EmpleadosService para operaciones CRUD
+ * - Utiliza Firestore para persistencia de datos
+ * - Emplea formularios reactivos de Angular para validación segura
+ * - SweetAlert2 para confirmaciones y notificaciones
+ */
+
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators, AbstractControl, AsyncValidatorFn, ValidationErrors, FormGroup } from '@angular/forms';
 import { EmpleadosService } from '../../core/services/empleados.service';
 import { EnterNextDirective } from '../../shared/directives/enter-next.directive';
 import { Usuario } from '../../core/models/usuario.model';
-import { AuthService } from '../../core/services/auth.service';
 import Swal from 'sweetalert2';
 
 @Component({
@@ -16,36 +31,40 @@ import Swal from 'sweetalert2';
 })
 export class EmpleadosComponent implements OnInit {
   private empleadosService = inject(EmpleadosService);
-  private authService = inject(AuthService);
   private fb = inject(FormBuilder);
 
   empleados: Usuario[] = [];
   empleadosFiltrados: Usuario[] = [];
   cargando = true;
   error: string | null = null;
-  
-  // Filtros
-  filtroNombre = '';
-  filtroEstado: 'todos' | 'activos' | 'inactivos' | 'sinAcceso' = 'todos';
 
-  // Modal
+  filtroNombre = '';
+  filtroEstado: 'todos' | 'activos' | 'inactivos' = 'todos';
+
   modalAbierto = false;
   empleadoSeleccionado: Usuario | null = null;
-  accionModal: 'editar' | 'autorizar' | 'cambiarPass' | null = null;
-  // Reactive form
   formEditar!: FormGroup;
 
-  // Machine ID actual
   machineIdActual: string | null = null;
   sucursalActual: string = 'PASAJE';
 
-  ngOnInit() {
+  /**
+   * Hook de inicialización del componente.
+   * Carga los empleados, Machine ID y sucursal actual.
+   */
+  ngOnInit(): void {
     this.cargarEmpleados();
     this.machineIdActual = this.empleadosService.getMachineIdActual();
     this.sucursalActual = this.empleadosService.getSucursalActual();
   }
 
-  cargarEmpleados() {
+  /**
+   * Carga la lista completa de empleados desde Firestore.
+   * Actualiza estado de carga y aplica filtros automáticamente.
+   * 
+   * Nota: Los errores de carga se capturan y se muestran en la interfaz.
+   */
+  cargarEmpleados(): void {
     this.cargando = true;
     this.error = null;
 
@@ -56,104 +75,132 @@ export class EmpleadosComponent implements OnInit {
         this.cargando = false;
       },
       error: (err) => {
-        this.error = 'Error al cargar empleados: ' + err.message;
+        this.error = `Error al cargar empleados: ${err.message}`;
         this.cargando = false;
       }
     });
   }
 
-  aplicarFiltros() {
+  /**
+   * Aplica filtros de búsqueda y estado a la lista de empleados.
+   * 
+   * Soporta:
+   * - Filtro por nombre o email (búsqueda case-insensitive)
+   * - Filtro por estado: todos, activos, inactivos
+   */
+  aplicarFiltros(): void {
     let filtrados = [...this.empleados];
 
-    // Filtro por nombre
     if (this.filtroNombre.trim()) {
       const termino = this.filtroNombre.toLowerCase();
-      filtrados = filtrados.filter(emp => 
+      filtrados = filtrados.filter(emp =>
         emp.nombre.toLowerCase().includes(termino) ||
         emp.email.toLowerCase().includes(termino)
       );
     }
 
-    // Filtro por estado
-    switch (this.filtroEstado) {
-      case 'activos':
-        filtrados = filtrados.filter(emp => emp.activo);
-        break;
-      case 'inactivos':
-        filtrados = filtrados.filter(emp => !emp.activo);
-        break;
-    }
+    filtrados = this.filtroEstado === 'activos'
+      ? filtrados.filter(emp => emp.activo)
+      : this.filtroEstado === 'inactivos'
+      ? filtrados.filter(emp => !emp.activo)
+      : filtrados;
 
     this.empleadosFiltrados = filtrados;
   }
 
-  toggleEstado(empleado: Usuario) {
+  /**
+   * Alterna el estado de actividad de un empleado.
+   * 
+   * @param empleado Empleado cuyo estado se alterna
+   */
+  toggleEstado(empleado: Usuario): void {
     const nuevoEstado = !empleado.activo;
-    
-    // Si se va a desbloquear, verificar que tengamos machineId
+
     if (nuevoEstado && !this.machineIdActual) {
-      Swal.fire({ icon: 'error', title: 'Machine ID no disponible', text: 'Asegúrate de estar ejecutando la aplicación empaquetada.' });
+      Swal.fire({
+        icon: 'error',
+        title: 'Machine ID no disponible',
+        text: 'Asegúrate de estar ejecutando la aplicación empaquetada.'
+      });
       return;
     }
 
-    const texto = nuevoEstado 
+    const titulo = empleado.activo ? 'Bloquear empleado' : 'Desbloquear empleado';
+    const texto = nuevoEstado
       ? `Desbloquear a ${empleado.nombre}.\nSe asignará:\nMachine ID: ${this.machineIdActual}\nSucursal: ${this.sucursalActual}`
       : `¿Estás seguro de bloquear a ${empleado.nombre}?\nSe quitarán Machine ID y Sucursal.`;
 
     Swal.fire({
       icon: 'question',
-      title: empleado.activo ? 'Bloquear empleado' : 'Desbloquear empleado',
+      title: titulo,
       text: texto,
       showCancelButton: true,
       confirmButtonText: 'Sí',
       cancelButtonText: 'No'
     }).then(res => {
       if (res.isConfirmed) {
-        // Al desbloquear, asignar machineId y sucursal
-        // Al bloquear, quitar machineId y sucursal
-        const datosActualizacion = nuevoEstado 
-          ? { activo: nuevoEstado, machineId: this.machineIdActual!, sucursal: this.sucursalActual }
-          : { activo: nuevoEstado, machineId: undefined, sucursal: undefined };
-
-        this.empleadosService.toggleEstadoEmpleado(empleado.id!, datosActualizacion)
-          .then(() => {
-            empleado.activo = nuevoEstado;
-            if (nuevoEstado) {
-              empleado.machineId = this.machineIdActual!;
-              empleado.sucursal = this.sucursalActual;
-            } else {
-              empleado.machineId = undefined;
-              empleado.sucursal = undefined;
-            }
-            Swal.fire({ icon: 'success', title: 'Listo', text: `Empleado ${nuevoEstado ? 'desbloqueado' : 'bloqueado'} exitosamente` });
-          })
-          .catch(err => Swal.fire({ icon: 'error', title: 'Error', text: err.message }));
+        this.aplicarCambioEstado(empleado, nuevoEstado);
       }
     });
   }
 
-  abrirModalEditar(empleado: Usuario) {
+  /**
+   * Aplica el cambio de estado en base de datos.
+   */
+  private aplicarCambioEstado(empleado: Usuario, nuevoEstado: boolean): void {
+    const datosActualizacion = nuevoEstado
+      ? { activo: nuevoEstado, machineId: this.machineIdActual!, sucursal: this.sucursalActual }
+      : { activo: nuevoEstado, machineId: undefined, sucursal: undefined };
+
+    this.empleadosService.toggleEstadoEmpleado(empleado.id!, datosActualizacion)
+      .then(() => {
+        empleado.activo = nuevoEstado;
+        if (nuevoEstado) {
+          empleado.machineId = this.machineIdActual!;
+          empleado.sucursal = this.sucursalActual;
+        } else {
+          empleado.machineId = undefined;
+          empleado.sucursal = undefined;
+        }
+        const accion = nuevoEstado ? 'desbloqueado' : 'bloqueado';
+        Swal.fire({
+          icon: 'success',
+          title: 'Listo',
+          text: `Empleado ${accion} exitosamente`
+        });
+      })
+      .catch(err => Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: err.message
+      }));
+  }
+
+  /**
+   * Abre el modal de edición para un empleado.
+   * 
+   * @param empleado Empleado a editar
+   */
+  abrirModalEditar(empleado: Usuario): void {
     this.empleadoSeleccionado = { ...empleado };
-    this.accionModal = 'editar';
     this.modalAbierto = true;
 
-    // Construir formulario reactivo con validaciones
     this.formEditar = this.fb.group({
       cedula: [empleado.cedula || '', {
         validators: [
-          Validators.required, 
+          Validators.required,
           Validators.pattern(/^\d{10}$/)
         ],
         asyncValidators: [this.uniqueCedulaValidator(empleado.id!)],
         updateOn: 'blur'
       }],
       nombre: [empleado.nombre || '', [
-        Validators.required, 
+        Validators.required,
         Validators.minLength(2),
         Validators.pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
       ]],
       apellido: [empleado.apellido || '', [
-        Validators.required, 
+        Validators.required,
         Validators.minLength(2),
         Validators.pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
       ]],
@@ -169,82 +216,60 @@ export class EmpleadosComponent implements OnInit {
     });
   }
 
-  eliminarEmpleado(empleado: Usuario) {
-    // 🔹 En lugar de eliminar, bloqueamos al usuario
-    const texto = `¿Estás seguro de bloquear a ${empleado.nombre}?\n\nSe quitarán Machine ID y Sucursal.\n\nNOTA: El empleado puede ser desbloqueado en cualquier momento.`;
+  /**
+   * Valida y guarda los cambios del formulario de edición.
+   */
+  guardarEdicion(): void {
+    if (!this.empleadoSeleccionado?.id) return;
 
-    Swal.fire({
-      icon: 'warning',
-      title: 'Bloquear empleado',
-      text: texto,
-      showCancelButton: true,
-      confirmButtonText: 'Sí, bloquear',
-      cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#dc3545'
-    }).then(res => {
-      if (res.isConfirmed) {
-        // Usar el método de toggle para bloquear (activo: false)
-        const datosActualizacion = { 
-          activo: false,  // 🔹 Bloquear
-          machineId: undefined, 
-          sucursal: undefined 
-        };
-
-        this.empleadosService.toggleEstadoEmpleado(empleado.id!, datosActualizacion)
-          .then(() => {
-            Swal.fire({ 
-              icon: 'success', 
-              title: 'Bloqueado', 
-              text: 'Empleado bloqueado exitosamente. Puede ser desbloqueado en cualquier momento.' 
-            });
-            this.cargarEmpleados();
-          })
-          .catch(err => Swal.fire({ icon: 'error', title: 'Error', text: err.message }));
-      }
-    });
-  }
-
-  guardarEdicion() {
-    if (!this.empleadoSeleccionado || !this.empleadoSeleccionado.id) return;
-
-    if (!this.formEditar || this.formEditar.invalid) {
+    if (this.formEditar?.invalid) {
       this.formEditar.markAllAsTouched();
-      // Evitar alertas: el usuario verá los errores en cada campo.
       return;
     }
 
-    const v = this.formEditar.value;
-    const datos: any = {
-      nombre: v.nombre,
-      email: v.email,
-      cedula: v.cedula || null,
-      apellido: v.apellido || null,
-      fechaNacimiento: v.fechaNacimiento || null
+    const datos = {
+      nombre: this.formEditar.value.nombre,
+      email: this.formEditar.value.email,
+      cedula: this.formEditar.value.cedula || null,
+      apellido: this.formEditar.value.apellido || null,
+      fechaNacimiento: this.formEditar.value.fechaNacimiento || null
     };
 
     this.empleadosService.actualizarEmpleado(this.empleadoSeleccionado.id, datos)
-    .then(() => {
-      // Confirmación discreta opcional
-      Swal.fire({ icon: 'success', title: 'Actualizado', text: 'Empleado actualizado exitosamente.' });
-      this.cerrarModal();
-      this.cargarEmpleados();
-    })
-    .catch(err => Swal.fire({ icon: 'error', title: 'Error', text: err.message }));
+      .then(() => {
+        Swal.fire({
+          icon: 'success',
+          title: 'Actualizado',
+          text: 'Empleado actualizado exitosamente.'
+        });
+        this.cerrarModal();
+        this.cargarEmpleados();
+      })
+      .catch(err => Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: err.message
+      }));
   }
 
-  // Métodos auxiliares para validación
+  /**
+   * Determina si un campo del formulario es inválido.
+   */
   esInvalido(campo: string): boolean {
     const control = this.formEditar?.get(campo);
     return !!(control?.invalid && (control?.touched || control?.dirty));
   }
 
+  /**
+   * Retorna el mensaje de error para un campo.
+   */
   getMensajeError(campo: string): string {
     const control = this.formEditar?.get(campo);
-    
+
     if (control?.hasError('required')) {
       return 'Este campo es requerido';
     }
-    
+
     if (campo === 'nombre' || campo === 'apellido') {
       if (control?.hasError('minlength')) {
         return 'Debe tener al menos 2 caracteres';
@@ -253,7 +278,7 @@ export class EmpleadosComponent implements OnInit {
         return 'Solo se permiten letras y espacios';
       }
     }
-    
+
     if (campo === 'cedula') {
       if (control?.hasError('pattern')) {
         return 'La cédula debe tener exactamente 10 dígitos';
@@ -262,7 +287,7 @@ export class EmpleadosComponent implements OnInit {
         return 'Esta cédula ya está registrada en el sistema';
       }
     }
-    
+
     if (campo === 'email') {
       if (control?.hasError('email')) {
         return 'Ingrese un correo electrónico válido';
@@ -271,67 +296,75 @@ export class EmpleadosComponent implements OnInit {
         return 'Este correo ya está registrado en el sistema';
       }
     }
-    
+
     if (campo === 'fechaNacimiento') {
       if (control?.hasError('edadMinima')) {
         return `El empleado debe tener al menos ${control.errors?.['edadMinima'].edadRequerida} años`;
       }
     }
-    
+
     return '';
   }
 
-  // Validador de edad mínima
-  edadMinimaValidator(edadMinima: number) {
+  /**
+   * Validador personalizado para edad mínima.
+   */
+  edadMinimaValidator(edadMinima: number): (control: AbstractControl) => ValidationErrors | null {
     return (control: AbstractControl): ValidationErrors | null => {
       if (!control.value) return null;
-      
+
       const fechaNac = new Date(control.value);
       const hoy = new Date();
       let edad = hoy.getFullYear() - fechaNac.getFullYear();
       const mes = hoy.getMonth() - fechaNac.getMonth();
-      
+
       if (mes < 0 || (mes === 0 && hoy.getDate() < fechaNac.getDate())) {
         edad--;
       }
-      
-      return edad < edadMinima 
+
+      return edad < edadMinima
         ? { edadMinima: { edadRequerida: edadMinima, edadActual: edad } }
         : null;
     };
   }
 
-  // Validadores asíncronos de unicidad
+  /**
+   * Validador asincrónico para verificar unicidad de email.
+   */
   uniqueEmailValidator(excluirId: string): AsyncValidatorFn {
     return async (control: AbstractControl): Promise<ValidationErrors | null> => {
-      const value = (control.value || '').toLowerCase();
+      const value = (control.value || '').toLowerCase().trim();
       if (!value) return null;
+
       const existe = await this.empleadosService.existeEmail(value, excluirId);
       return existe ? { emailTomado: true } : null;
     };
   }
 
+  /**
+   * Validador asincrónico para verificar unicidad de cédula.
+   */
   uniqueCedulaValidator(excluirId: string): AsyncValidatorFn {
     return async (control: AbstractControl): Promise<ValidationErrors | null> => {
       const value = (control.value || '').trim();
       if (!value) return null;
+
       const existe = await this.empleadosService.existeCedula(value, excluirId);
       return existe ? { cedulaTomada: true } : null;
     };
   }
 
-  cerrarModal() {
+  /**
+   * Cierra el modal de edición.
+   */
+  cerrarModal(): void {
     this.modalAbierto = false;
     this.empleadoSeleccionado = null;
-    this.accionModal = null;
   }
 
-  getEstadoBadge(empleado: Usuario): string {
-    if (!empleado.activo) return 'bg-danger';
-    if (!empleado.machineId) return 'bg-warning';
-    return 'bg-success';
-  }
-
+  /**
+   * Retorna el texto de estado del empleado.
+   */
   getEstadoTexto(empleado: Usuario): string {
     if (!empleado.activo) return 'Bloqueado';
     if (!empleado.machineId) return 'Sin Acceso';

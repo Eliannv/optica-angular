@@ -1,3 +1,50 @@
+/**
+ * STYLES.CSS - Estilos globales de la aplicación Óptica Macías
+ * 
+ * Este archivo contiene todos los estilos globales y el sistema de temas de la aplicación.
+ * Define variables CSS personalizadas para facilitar la consistencia visual y el cambio
+ * dinámico entre tema claro y oscuro.
+ * 
+ * Estructura del archivo:
+ * 1. Sistema de temas (variables CSS)
+ *    - Tema claro (:root)
+ *    - Tema oscuro ([data-theme="dark"])
+ * 2. Estilos globales (reset, body, html)
+ * 3. Tipografía (headings, párrafos, enlaces)
+ * 4. Componentes reutilizables:
+ *    - Botones (.btn-*)
+ *    - Tarjetas (.card-*)
+ *    - Formularios (.form-*)
+ *    - Tablas (.table)
+ *    - Badges (.badge-*)
+ * 5. Clases utilitarias (spacing, display, flex, colores)
+ * 6. Scrollbar personalizado
+ * 7. Animaciones (@keyframes)
+ * 8. Estilos de impresión (@media print)
+ * 9. Responsive (@media queries)
+ * 
+ * Variables del sistema de temas:
+ * - Colores: primary, secondary, accent, success, warning, danger, info
+ * - Fondos: bg-primary, bg-secondary, bg-tertiary, bg-card
+ * - Textos: text-primary, text-secondary, text-tertiary, text-muted
+ * - Bordes: border-color, border-light, border-dark
+ * - Sombras: shadow-sm, shadow-md, shadow-lg, shadow-xl
+ * - Componentes: sidebar, navbar, footer, inputs, botones, tablas
+ * - Transiciones: transition-fast, transition-normal, transition-slow
+ * - Espaciado: spacing-xs a spacing-xxl
+ * - Border radius: radius-sm a radius-full
+ * 
+ * Uso del sistema de temas:
+ * - Por defecto se carga el tema claro
+ * - Para activar tema oscuro: agregar atributo data-theme="dark" al elemento html
+ * - Ejemplo: document.documentElement.setAttribute('data-theme', 'dark')
+ * 
+ * Notas importantes:
+ * - Todos los componentes deben usar variables CSS en lugar de valores hardcodeados
+ * - El sistema soporta transiciones suaves al cambiar de tema
+ * - Compatible con sistema de temas del navegador (prefers-color-scheme)
+ */
+
 /* ========================================
    SISTEMA DE TEMAS - ÓPTICA ADMIN
    ======================================== */

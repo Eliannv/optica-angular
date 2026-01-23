@@ -1,3 +1,22 @@
+/**
+ * Gestiona el ciclo de vida diario de las cajas chicas del sistema financiero.
+ * Maneja operaciones de caja en efectivo con apertura/cierre diario, validaciones estrictas
+ * de fecha y sincronización automática con caja banco al cierre.
+ *
+ * Este servicio implementa:
+ * - Apertura única diaria por sucursal (validación estricta)
+ * - Registro de movimientos en efectivo con trazabilidad
+ * - Cierre automático que transfiere saldo a caja banco
+ * - Herencia de saldo inicial desde la última caja cerrada
+ * - Caché en localStorage para prevenir duplicados
+ * - Validación de horarios (no abrir cajas del día siguiente antes de tiempo)
+ * - Soft delete para preservar historial
+ *
+ * Los datos se persisten en 'cajas_chicas' y 'movimientos_cajas_chicas' de Firestore.
+ * Se integra estrechamente con CajaBancoService para registrar los cierres.
+ *
+ * Forma parte del módulo financiero del sistema de gestión de la óptica.
+ */
 import { inject, Injectable } from '@angular/core';
 import {
   Firestore,
@@ -29,7 +48,12 @@ export class CajaChicaService {
   private firestore = inject(Firestore);
   private cajaBancoService = inject(CajaBancoService);
 
-  // 🔹 Obtener todas las cajas chicas (SOLO ACTIVAS)
+  /**
+   * Recupera todas las cajas chicas activas del sistema ordenadas por fecha descendente.
+   * Filtra automáticamente las cajas desactivadas (soft delete) en memoria.
+   *
+   * @returns Observable<CajaChica[]> Stream reactivo con las cajas chicas activas.
+   */
   getCajasChicas(): Observable<CajaChica[]> {
     const cajasRef = collection(this.firestore, 'cajas_chicas');
     const q = query(
@@ -41,7 +65,12 @@ export class CajaChicaService {
     ) as Observable<CajaChica[]>;
   }
 
-  // 🔹 Obtener TODAS las cajas chicas (incluyendo desactivadas)
+  /**
+   * Recupera TODAS las cajas chicas incluyendo las desactivadas.
+   * Utilizado para reportes históricos y auditorías.
+   *
+   * @returns Observable<CajaChica[]> Stream con todas las cajas sin filtrar.
+   */
   getCajasChicasTodas(): Observable<CajaChica[]> {
     const cajasRef = collection(this.firestore, 'cajas_chicas');
     const q = query(
@@ -51,17 +80,22 @@ export class CajaChicaService {
     return collectionData(q, { idField: 'id' }) as Observable<CajaChica[]>;
   }
 
-  // 🔹 Obtener cajas chicas abiertas (SOLO ACTIVAS)
+  /**
+   * Recupera todas las cajas chicas con estado ABIERTA.
+   * Filtra por soft delete en el cliente y ordena por fecha de creación.
+   *
+   * @returns Observable<CajaChica[]> Stream con las cajas abiertas activas.
+   */
   getCajasChicasAbiertas(): Observable<CajaChica[]> {
     const cajasRef = collection(this.firestore, 'cajas_chicas');
-    // 🔹 Solo usar WHERE para 'estado' para evitar requerimiento de índice compuesto
+    // Solo usar WHERE para 'estado' para evitar requerimiento de índice compuesto
     const q = query(
       cajasRef,
       where('estado', '==', 'ABIERTA')
     );
     return collectionData(q, { idField: 'id' }).pipe(
       map((cajas: any[]) => {
-        // 🔹 Filtrar activas en el cliente (evita requerimiento de índice compuesto)
+        // Filtrar activas en el cliente (evita requerimiento de índice compuesto)
         return (cajas || [])
           .filter(c => c.activo !== false)
           .sort((a, b) => {
@@ -73,13 +107,25 @@ export class CajaChicaService {
     ) as Observable<CajaChica[]>;
   }
 
-  // 🔹 Obtener una caja chica por ID
+  /**
+   * Recupera una caja chica específica por su ID.
+   *
+   * @param id ID de la caja chica.
+   * @returns Observable<CajaChica> Stream con los datos de la caja.
+   */
   getCajaChicaById(id: string): Observable<CajaChica> {
     const cajaDoc = doc(this.firestore, `cajas_chicas/${id}`);
     return docData(cajaDoc, { idField: 'id' }) as Observable<CajaChica>;
   }
 
-  // 🔹 Obtener cajas chicas por mes (rango)
+  /**
+   * Recupera todas las cajas chicas de un mes específico.
+   * Utiliza un rango de fechas para consultas eficientes en Firestore.
+   *
+   * @param year Año calendario.
+   * @param monthIndex0 Índice del mes base 0 (0=Enero, 11=Diciembre).
+   * @returns Observable<CajaChica[]> Stream con las cajas del mes.
+   */
   getCajasChicasPorMes(year: number, monthIndex0: number): Observable<CajaChica[]> {
     const cajasRef = collection(this.firestore, 'cajas_chicas');
     const inicioMes = new Date(year, monthIndex0, 1);
@@ -95,7 +141,18 @@ export class CajaChicaService {
     ) as Observable<CajaChica[]>;
   }
 
-  // 🔹 Obtener la caja abierta para el día actual (desde localStorage)
+  /**
+   * Obtiene la caja chica abierta para el día actual.
+   * Implementa estrategia de doble validación: localStorage + Firestore.
+   *
+   * Proceso:
+   * 1. Verifica localStorage para caché rápido
+   * 2. Valida que la caja cacheada siga ABIERTA y sea de hoy
+   * 3. Si no hay caché válido, consulta Firestore
+   * 4. Actualiza localStorage con el resultado
+   *
+   * @returns Promise<CajaChica | null> Caja abierta de hoy o null.
+   */
   async getCajaAbiertaHoy(): Promise<CajaChica | null> {
     try {
       // 1. PRIMERO: Verificar localStorage
@@ -172,7 +229,12 @@ export class CajaChicaService {
     return null;
   }
 
-  // 🔹 NUEVO: Validar estado detallado de la caja chica para hoy
+  /**
+   * Valida el estado detallado de la caja chica para el día actual.
+   * Retorna información sobre si existe, su estado y los datos completos.
+   *
+   * @returns Promise con objeto que contiene: valida (booleano), tipo (ABIERTA/CERRADA/NO_EXISTE), caja (datos opcionales).
+   */
   async validarCajaChicaHoy(): Promise<{ valida: boolean; tipo: 'ABIERTA' | 'CERRADA' | 'NO_EXISTE'; caja?: CajaChica }> {
     try {
       const hoy = new Date();
@@ -242,7 +304,12 @@ export class CajaChicaService {
     }
   }
 
-  // 🔹 NUEVO: Obtener caja abierta directamente de Firestore (busca por fecha de hoy)
+  /**
+   * Verifica rápidamente si existe una caja chica abierta para hoy.
+   * Utiliza localStorage como caché para mejorar rendimiento.
+   *
+   * @returns Promise<boolean> True si existe caja abierta para hoy.
+   */
   async existeCajaAbiertaHoy(): Promise<boolean> {
     try {
       // 1. PRIMERO: Verificar localStorage
@@ -311,12 +378,26 @@ export class CajaChicaService {
       console.error('Error al verificar caja abierta hoy:', err);
       return false;
     }
-  }  // 🔹 Obtener la última caja chica abierta
-  // 🔹 Crear una nueva caja chica (apertura)
-  // Solo permite 1 caja por día (abierta o cerrada). Si ya existe una caja con la misma fecha, lanza error.
+  } 
+  /**
+   * Crea una nueva caja chica (apertura diaria) con validaciones estrictas.
+   * Solo permite 1 caja por día. Valida existencia de caja banco antes de crear.
+   *
+   * Proceso:
+   * 1. Valida que exista al menos una Caja Banco en el sistema
+   * 2. Normaliza fecha a medianoche
+   * 3. Verifica que no exista caja para ese día (ni ABIERTA ni CERRADA)
+   * 4. Busca caja banco ABIERTA del mismo mes/año
+   * 5. Crea la caja con estado ABIERTA y relación a caja banco
+   * 6. Guarda ID en localStorage para caché
+   *
+   * @param caja Datos de la caja chica a crear.
+   * @returns Promise<string> ID de la caja creada.
+   * @throws Error si no existe caja banco o ya existe caja para ese día.
+   */
   async abrirCajaChica(caja: CajaChica): Promise<string> {
     try {
-      // 🔒 VALIDACIÓN OBLIGATORIA: Verificar que exista al menos una Caja Banco
+      // VALIDACIÓN OBLIGATORIA: Verificar que exista al menos una Caja Banco
       const existeCajaBanco = await firstValueFrom(this.cajaBancoService.existeAlMenosUnaCajaBanco());
       if (!existeCajaBanco) {
         throw new Error('Debe crear primero una Caja Banco antes de registrar una Caja Chica.');
@@ -326,7 +407,7 @@ export class CajaChicaService {
       const fecha = caja.fecha ? new Date(caja.fecha) : new Date();
       fecha.setHours(0, 0, 0, 0);
 
-      // 🔍 Verificar en Firestore si ya existe cualquier caja (ABIERTA o CERRADA) para la fecha (día) actual
+      // Verificar en Firestore si ya existe cualquier caja (ABIERTA o CERRADA) para la fecha (día) actual
       const inicioDia = new Date(fecha);
       const finDia = new Date(fecha);
       finDia.setDate(finDia.getDate() + 1);
@@ -351,12 +432,12 @@ export class CajaChicaService {
         usuario_id: caja.usuario_id,
         usuario_nombre: caja.usuario_nombre,
         observacion: caja.observacion || '',
-        activo: true, // 🔹 Nueva caja siempre activa
+        activo: true, // Nueva caja siempre activa
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
 
-      // 🔹 Buscar la caja banco ABIERTA del MISMO MES (no del mismo día)
+      // Buscar la caja banco ABIERTA del MISMO MES (no del mismo día)
       try {
         const cajaBancoRef = collection(this.firestore, 'cajas_banco');
         // Traer TODAS las cajas banco y filtrar en memoria por fecha y estado
@@ -408,10 +489,24 @@ export class CajaChicaService {
     }
   }
 
-  // 🔹 Registrar un movimiento en la caja chica
+  /**
+   * Registra un movimiento de efectivo en la caja chica.
+   * Calcula nuevos saldos y actualiza la caja automáticamente.
+   *
+   * Flujo:
+   * 1. Obtiene caja actual para conocer saldo
+   * 2. Calcula nuevo saldo (+ ingreso / - egreso)
+   * 3. Registra movimiento con trazabilidad de saldos (anterior/nuevo)
+   * 4. Actualiza monto_actual de la caja
+   *
+   * @param cajaChicaId ID de la caja chica.
+   * @param movimiento Datos del movimiento a registrar.
+   * @returns Promise<string> ID del movimiento creado.
+   * @throws Error si la caja no existe.
+   */
   async registrarMovimiento(cajaChicaId: string, movimiento: MovimientoCajaChica): Promise<string> {
     try {
-      // 1️⃣ Obtener la caja actual para conocer el saldo
+      // 1️Obtener la caja actual para conocer el saldo
       const cajaDoc = await getDoc(doc(this.firestore, `cajas_chicas/${cajaChicaId}`));
       if (!cajaDoc.exists()) {
         throw new Error('Caja chica no encontrada');
@@ -420,7 +515,7 @@ export class CajaChicaService {
       const caja = cajaDoc.data() as CajaChica;
       const saldoAnterior = caja.monto_actual || 0;
 
-      // 2️⃣ Calcular el nuevo saldo según el tipo de movimiento
+      // Calcular el nuevo saldo según el tipo de movimiento
       let nuevoSaldo = saldoAnterior;
       if (movimiento.tipo === 'INGRESO') {
         nuevoSaldo = saldoAnterior + (movimiento.monto || 0);
@@ -428,7 +523,7 @@ export class CajaChicaService {
         nuevoSaldo = saldoAnterior - (movimiento.monto || 0);
       }
 
-      // 3️⃣ Registrar el movimiento con saldos
+      // Registrar el movimiento con saldos
       const movimientosRef = collection(this.firestore, 'movimientos_cajas_chicas');
       // Construir payload sin campos undefined (Firestore no los admite)
       const nuevoMovimiento: any = {
@@ -449,14 +544,14 @@ export class CajaChicaService {
 
       const docRef = await addDoc(movimientosRef, nuevoMovimiento as MovimientoCajaChica);
 
-      // 4️⃣ Actualizar el monto_actual de la caja chica
+      // Actualizar el monto_actual de la caja chica
       await updateDoc(doc(this.firestore, `cajas_chicas/${cajaChicaId}`), {
         monto_actual: Math.max(0, nuevoSaldo),
         updatedAt: Timestamp.now(),
       });
 
-      // 5️⃣ 🆕 Actualizar saldo_actual en caja_banco
-      // ⚠️ IMPORTANTE: Solo actualizar caja banco si la caja chica está siendo CERRADA
+      // Actualizar saldo_actual en caja_banco
+      // IMPORTANTE: Solo actualizar caja banco si la caja chica está siendo CERRADA
       // Los movimientos normales en caja chica NO afectan caja banco hasta que se cierre
       if (caja.estado === 'CERRADA') {
         // La caja chica ya está cerrada, NO hacer nada más
@@ -474,7 +569,13 @@ export class CajaChicaService {
     }
   }
 
-  // 🔹 Obtener movimientos de una caja chica
+  /**
+   * Recupera todos los movimientos de una caja chica específica.
+   * Ordena por fecha de creación descendente en el cliente.
+   *
+   * @param cajaChicaId ID de la caja chica.
+   * @returns Observable<MovimientoCajaChica[]> Stream con los movimientos.
+   */
   getMovimientosCajaChica(cajaChicaId: string): Observable<MovimientoCajaChica[]> {
     const movimientosRef = collection(this.firestore, 'movimientos_cajas_chicas');
     const q = query(
@@ -494,7 +595,22 @@ export class CajaChicaService {
     ) as Observable<MovimientoCajaChica[]>;
   }
 
-  // 🔹 Cerrar una caja chica
+  /**
+   * Cierra una caja chica y transfiere su saldo a la caja banco asociada.
+   * Este es el único momento donde el efectivo de caja chica impacta la caja banco.
+   *
+   * Proceso:
+   * 1. Valida que la caja chica exista
+   * 2. Actualiza estado a CERRADA con timestamp
+   * 3. Busca la caja banco asociada (vía caja_banco_id)
+   * 4. Suma el monto final de la caja chica al saldo_actual de caja banco
+   * 5. Limpia caché de localStorage
+   *
+   * @param cajaChicaId ID de la caja a cerrar.
+   * @param montoFinal Monto final de cierre (opcional, usa monto_actual si no se provee).
+   * @returns Promise<void> Se resuelve cuando el cierre se completa.
+   * @throws Error si la caja no existe.
+   */
   async cerrarCajaChica(cajaChicaId: string, montoFinal?: number): Promise<void> {
     try {
       // Obtener la caja antes de cerrarla
@@ -513,7 +629,7 @@ export class CajaChicaService {
         ...(montoFinal !== undefined && { monto_actual: montoFinal }),
       });
 
-      // 🔹 CRÍTICO: Al cerrar, actualizar el saldo_actual en caja_banco
+      // CRÍTICO: Al cerrar, actualizar el saldo_actual en caja_banco
       // Solo en este momento se transfiere el dinero de caja chica a caja banco
       try {
         if (caja.caja_banco_id) {
@@ -527,7 +643,7 @@ export class CajaChicaService {
             if (cajaBanco.activo === false) {
               console.warn('⚠️ La caja banco asociada está desactivada');
             } else {
-              // 🔹 El nuevo saldo es el saldo actual + el monto de la caja chica que se acaba de cerrar
+              // El nuevo saldo es el saldo actual + el monto de la caja chica que se acaba de cerrar
               const saldoActual = cajaBanco.saldo_actual || cajaBanco.saldo_inicial || 0;
               const montoActualCajaChica = montoFinal !== undefined ? montoFinal : (caja.monto_actual || 0);
               const nuevoSaldoCajaBanco = saldoActual + montoActualCajaChica;
@@ -563,7 +679,7 @@ export class CajaChicaService {
     }
   }
 
-  // 🔹 Obtener resumen de una caja chica
+  // Obtener resumen de una caja chica
   async getResumenCajaChica(cajaChicaId: string): Promise<ResumenCajaChica> {
     try {
       const movimientosRef = collection(this.firestore, 'movimientos_cajas_chicas');
@@ -600,7 +716,7 @@ export class CajaChicaService {
     }
   }
 
-  // 🔹 Eliminar un movimiento (solo si es el último)
+  // Eliminar un movimiento (solo si es el último)
   async eliminarMovimiento(cajaChicaId: string, movimientoId: string): Promise<void> {
     try {
       const movimientoDoc = await getDoc(doc(this.firestore, `movimientos_cajas_chicas/${movimientoId}`));
@@ -630,7 +746,7 @@ export class CajaChicaService {
     }
   }
 
-  // 🔹 Desactivar una caja chica (SOFT DELETE)
+  // Desactivar una caja chica (SOFT DELETE)
   async desactivarCajaChica(cajaChicaId: string): Promise<void> {
     try {
       await updateDoc(doc(this.firestore, `cajas_chicas/${cajaChicaId}`), {
@@ -643,10 +759,10 @@ export class CajaChicaService {
     }
   }
 
-  // 🔹 Reactivar una caja chica (reversible)
+  // Reactivar una caja chica (reversible)
   async activarCajaChica(cajaChicaId: string): Promise<void> {
     try {
-      // 🔒 VALIDACIÓN OBLIGATORIA: Verificar que exista al menos una Caja Banco
+      // VALIDACIÓN OBLIGATORIA: Verificar que exista al menos una Caja Banco
       const existeCajaBanco = await firstValueFrom(this.cajaBancoService.existeAlMenosUnaCajaBanco());
       if (!existeCajaBanco) {
         throw new Error('Debe crear primero una Caja Banco antes de activar una Caja Chica.');
@@ -662,10 +778,10 @@ export class CajaChicaService {
     }
   }
 
-  // 🔹 Eliminar una caja chica completa (SOFT DELETE - solo desde caja banco - admin)
+  // Eliminar una caja chica completa (SOFT DELETE - solo desde caja banco - admin)
   async eliminarCajaChica(cajaChicaId: string): Promise<void> {
     try {
-      // 🔹 SOFT DELETE: Solo marcar como inactivo
+      // SOFT DELETE: Solo marcar como inactivo
       await updateDoc(doc(this.firestore, `cajas_chicas/${cajaChicaId}`), {
         activo: false,
         updatedAt: Timestamp.now(),

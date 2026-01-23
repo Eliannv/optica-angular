@@ -1,3 +1,20 @@
+/**
+ * Estilos del componente de autenticación tipo carrusel.
+ * 
+ * Proporciona un diseño responsivo de dos columnas para las pantallas de login,
+ * registro y recuperación de contraseña. Utiliza un sistema de animaciones suaves
+ * y validación visual mediante iconos de advertencia.
+ * 
+ * Estructura:
+ * - Lado izquierdo: branding con logo, mensajes motivacionales y navegación mediante dots
+ * - Lado derecho: formularios interactivos con validación en tiempo real
+ * 
+ * Variables CSS utilizadas del sistema de temas:
+ * - --color-primary, --color-danger, --color-success, --color-warning
+ * - --spacing-xs, --spacing-sm, --spacing-md
+ * - --border-radius-sm, --border-radius-md
+ */
+
 /* --- CONTENEDOR PRINCIPAL --- */
 
 .auth-container {

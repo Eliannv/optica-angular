@@ -1,3 +1,15 @@
+/**
+ * Gestiona el ciclo de vida completo de las facturas de venta en el sistema.
+ * Proporciona operaciones CRUD, generación de IDs secuenciales personalizados,
+ * y funcionalidad avanzada para el manejo de pagos pendientes y deudas de clientes.
+ *
+ * Este servicio implementa un sistema de IDs de 10 dígitos (0000000001, 0000000002, etc.)
+ * para facilitar la identificación manual de facturas. También gestiona estados de pago
+ * (PENDIENTE/PAGADA) y mantiene trazabilidad de abonos y saldos pendientes.
+ *
+ * Los datos se persisten en la colección 'facturas' de Firestore y se integran con
+ * los módulos de caja chica y caja banco según el método de pago.
+ */
 import { inject, Injectable } from '@angular/core';
 import {
   Firestore,
@@ -49,7 +61,7 @@ export class FacturasService {
     return nuevoNumero.toString().padStart(10, '0');
   }
 
-  // ✅ EXISTENTE - MODIFICADO
+  // EXISTENTE - MODIFICADO
   async crearFactura(factura: Omit<Factura, 'id'>) {
     // Generar ID secuencial personalizado
     const idPersonalizado = await this.generarIdSecuencial();
@@ -65,19 +77,19 @@ export class FacturasService {
     return docRef;
   }
 
-  // ✅ EXISTENTE
+  // EXISTENTE
   getFacturas(): Observable<Factura[]> {
     return collectionData(this.facturasRef, { idField: 'id' }) as Observable<Factura[]>;
   }
 
-  // ✅ EXISTENTE
+  // EXISTENTE
   getFacturaById(id: string): Observable<Factura> {
     const ref = doc(this.fs, `facturas/${id}`);
     return docData(ref, { idField: 'id' }) as Observable<Factura>;
   }
 
   // =========================================================
-  // ✅ NUEVO: DEUDA / PENDIENTES
+  // NUEVO: DEUDA / PENDIENTES
   // =========================================================
 
   /**

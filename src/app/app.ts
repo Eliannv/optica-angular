@@ -1,3 +1,20 @@
+/**
+ * Componente raíz de la aplicación que gestiona el layout principal y la estructura global.
+ * 
+ * Responsabilidades principales:
+ * - Control del layout responsivo (desktop/mobile) con sidebar adaptativo
+ * - Gestión del ciclo de vida de autenticación y monitoreo de sesión
+ * - Monitoreo de conectividad a internet con notificaciones en tiempo real
+ * - Renderizado condicional entre vistas autenticadas y públicas
+ * - Splash screen inicial para mejorar la experiencia de carga
+ * 
+ * Estructura del layout:
+ * - Navbar: barra de navegación superior fija
+ * - Sidebar: menú lateral (drawer en móvil, fijo en desktop)
+ * - Main: contenido principal con router-outlet
+ * - Footer: pie de página
+ */
+
 import { Component, signal, OnInit, HostListener, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterOutlet, NavigationEnd } from '@angular/router';
@@ -28,18 +45,25 @@ import { SplashScreenComponent } from './shared/components/splash-screen/splash-
   styleUrl: './app.css'
 })
 export class App implements OnInit, OnDestroy {
+  /** Título de la aplicación */
   protected readonly title = signal('optica-angular');
   
-  // Control de vista
+  /** Indica si la vista es móvil (ancho < 1150px) */
   mobileView = false;
+  
+  /** Controla la visibilidad del sidebar en vista móvil */
   sidebarVisible = false;
+  
+  /** Controla la visualización del splash screen inicial */
   showSplash = true;
   
-  // Rutas de autenticación
-  private authRoutes = ['/login', '/register', '/forgot-password'];
+  /** Rutas públicas de autenticación (sin navbar/sidebar) */
+  private authRoutes = ['/login', '/register'];
 
-  // Suscripciones
+  /** Suscripción al estado de autenticación */
   private authSubscription?: Subscription;
+  
+  /** Suscripción al estado de conectividad */
   private connectivitySubscription?: Subscription;
 
   constructor(
@@ -51,7 +75,16 @@ export class App implements OnInit, OnDestroy {
     this.checkScreenSize();
   }
 
-  ngOnInit() {
+  /**
+   * Inicializa el componente y configura los monitores globales.
+   * 
+   * Configura:
+   * - Ocultación del splash screen tras 2 segundos
+   * - Cierre automático del sidebar en móvil al cambiar de ruta
+   * - Monitoreo de autenticación para control de sesiones inactivas
+   * - Monitoreo de conectividad con notificaciones toast
+   */
+  ngOnInit(): void {
     // Ocultar splash screen después de 2 segundos
     setTimeout(() => {
       this.showSplash = false;
@@ -107,36 +140,65 @@ export class App implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy() {
+  /**
+   * Limpia recursos y detiene monitores al destruir el componente.
+   * Cancela suscripciones y detiene el monitoreo de inactividad.
+   */
+  ngOnDestroy(): void {
     this.authSubscription?.unsubscribe();
     this.connectivitySubscription?.unsubscribe();
     this.sessionService.stopInactivityMonitoring();
   }
 
+  /**
+   * Listener del evento de redimensionamiento de ventana.
+   * Actualiza el estado de vista móvil/desktop dinámicamente.
+   */
   @HostListener('window:resize')
-  onResize() {
+  onResize(): void {
     this.checkScreenSize();
   }
 
-  private checkScreenSize() {
+  /**
+   * Verifica el tamaño de la pantalla y actualiza el estado del layout.
+   * Define el breakpoint en 1150px para cambiar entre móvil y desktop.
+   * Cierra automáticamente el sidebar al pasar a vista desktop.
+   */
+  private checkScreenSize(): void {
     this.mobileView = window.innerWidth < 1150;
     if (!this.mobileView) {
       this.sidebarVisible = false;
     }
   }
 
-  toggleSidebar() {
+  /**
+   * Alterna la visibilidad del sidebar en vista móvil.
+   * Utilizado por el navbar para abrir/cerrar el menú lateral.
+   */
+  toggleSidebar(): void {
     this.sidebarVisible = !this.sidebarVisible;
   }
 
+  /**
+   * Determina si la ruta actual es una ruta de autenticación pública.
+   * Las rutas de autenticación no muestran navbar, sidebar ni footer.
+   * 
+   * @returns true si la ruta actual es de autenticación, false en caso contrario.
+   */
   isAuthRoute(): boolean {
     const currentRoute = this.router.url;
     return this.authRoutes.some(route => currentRoute.startsWith(route));
   }
 
+  /**
+   * Verifica si el usuario actual tiene permisos de administrador.
+   * Utilizado para aplicar temas y mostrar/ocultar funcionalidades administrativas.
+   * 
+   * @returns true si el usuario es administrador, false en caso contrario.
+   * @todo Implementar verificación real del rol desde AuthService.
+   */
   isAdminUser(): boolean {
-    // Implementar lógica para verificar si es admin
-    // Por ahora retorna true ya que mencionaste que es solo para admin
+    // TODO: Implementar lógica real consultando authService.currentUser.rol
     return true;
   }
 }

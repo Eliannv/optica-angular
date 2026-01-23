@@ -1,45 +1,56 @@
+<!-- 
+    Layout principal de la aplicación
+    Renderiza condicionalmente entre vista autenticada (con navbar/sidebar/footer) 
+    y vista pública (solo contenido de autenticación)
+-->
+
 <ng-container *ngIf="!isAuthRoute(); else authView">
     <div class="app-layout" [class.admin-theme]="isAdminUser()">
 
-        <!-- Navbar -->
+        <!-- Navbar: Barra de navegación superior fija -->
         <app-navbar class="navbar-wrapper" (toggleSidebarEvent)="toggleSidebar()">
         </app-navbar>
 
         <div class="content-wrapper">
 
-            <!-- Sidebar - Mostrado para usuarios admin -->
+            <!-- Sidebar: Menú lateral adaptativo (drawer en móvil, fijo en desktop) -->
             <ng-container>
-                <!-- Sidebar flotante en móvil -->
+                <!-- Sidebar flotante en móvil con overlay -->
                 <ng-container *ngIf="mobileView">
+                    <!-- Overlay oscuro que cierra el sidebar al hacer clic -->
                     <div class="sidebar-overlay" *ngIf="sidebarVisible" (click)="toggleSidebar()">
                     </div>
 
+                    <!-- Drawer deslizante desde la izquierda -->
                     <div class="sidebar-drawer" [class.active]="sidebarVisible">
                         <app-sidebar class="inside-drawer" (closeSidebar)="toggleSidebar()">
                         </app-sidebar>
                     </div>
                 </ng-container>
 
-                <!-- Sidebar fijo escritorio -->
+                <!-- Sidebar fijo en vista desktop -->
                 <ng-container *ngIf="!mobileView">
                     <app-sidebar class="sidebar-desktop"></app-sidebar>
                 </ng-container>
             </ng-container>
 
-            <!-- MAIN -->
+            <!-- Main: Contenido principal con scroll independiente -->
             <main class="main-content">
+                <!-- Splash screen mostrado durante carga inicial -->
                 <app-splash-screen *ngIf="showSplash"></app-splash-screen>
 
+                <!-- Outlet del router para renderizar componentes de rutas -->
                 <router-outlet></router-outlet>
             </main>
         </div>
 
     </div>
-    <!-- Footer (solo en layout principal) -->
+    
+    <!-- Footer: Pie de página (solo en layout principal) -->
     <app-footer></app-footer>
 </ng-container>
 
-<!-- Vista de autenticación -->
+<!-- Vista de autenticación sin layout (login, registro, recuperación) -->
 <ng-template #authView>
     <router-outlet></router-outlet>
 </ng-template>

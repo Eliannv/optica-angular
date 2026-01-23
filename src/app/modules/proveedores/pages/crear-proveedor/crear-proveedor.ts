@@ -4,6 +4,19 @@ import { ProveedoresService } from '../../../../core/services/proveedores';
 import { Router, ActivatedRoute } from '@angular/router';
 import Swal from 'sweetalert2';
 
+/**
+ * Componente para crear o editar proveedores
+ * 
+ * @description
+ * Formulario con validaciones en tiempo real para nombre único, RUC ecuatoriano válido,
+ * teléfonos celulares/convencionales de El Oro, códigos de provincia y código del proveedor.
+ * Soporta tanto creación como edición de proveedores.
+ * 
+ * @example
+ * ```html
+ * <app-crear-proveedor></app-crear-proveedor>
+ * ```
+ */
 @Component({
   selector: 'app-crear-proveedor',
   standalone: false,
@@ -27,7 +40,6 @@ export class CrearProveedor implements OnInit {
     }
   };
 
-  // Validaciones
   validaciones = {
     codigo: { valido: false, mensaje: '' },
     nombre: { valido: false, mensaje: '' },
@@ -52,8 +64,13 @@ export class CrearProveedor implements OnInit {
     private activatedRoute: ActivatedRoute
   ) {}
 
+  /**
+   * Inicializa el componente y detecta si es modo edición
+   * 
+   * @description
+   * Si recibe un ID por parámetros de ruta, carga el proveedor para edición.
+   */
   ngOnInit(): void {
-    // Detectar si es edición
     this.activatedRoute.params.subscribe(params => {
       if (params['id']) {
         this.esEdicion = true;
@@ -63,7 +80,13 @@ export class CrearProveedor implements OnInit {
     });
   }
 
-  // Cargar datos del proveedor para edición
+  /**
+   * Carga los datos de un proveedor existente para edición
+   * 
+   * @param id - ID del proveedor a cargar
+   * 
+   * @private
+   */
   async cargarProveedor(id: string): Promise<void> {
     try {
       const proveedor$ = this.proveedoresService.getProveedorById(id);
@@ -91,34 +114,32 @@ export class CrearProveedor implements OnInit {
     }
   }
 
-  // Verificar si el formulario es válido para guardar
+  /**
+   * Verifica si el formulario es válido para guardar
+   * 
+   * @returns true si todos los campos obligatorios y validaciones están correctas
+   */
   get puedeGuardar(): boolean {
-    // Campos obligatorios
     if (!this.proveedor.nombre || !this.proveedor.ruc) {
       return false;
     }
 
-    // Evitar guardar mientras se valida nombre o RUC
     if (this.validandoNombre || this.validandoRuc) {
       return false;
     }
 
-    // Validar nombre (si tiene mensaje, debe ser válido)
     if (this.validaciones.nombre.mensaje && !this.validaciones.nombre.valido) {
       return false;
     }
 
-    // Validar código (si hay código ingresado, debe ser válido)
     if (this.proveedor.codigo && this.validaciones.codigo.mensaje && !this.validaciones.codigo.valido) {
       return false;
     }
 
-    // Validar RUC (si tiene mensaje, debe ser válido)
     if (this.validaciones.ruc.mensaje && !this.validaciones.ruc.valido) {
       return false;
     }
 
-    // Validar teléfonos (si están llenos y tienen mensaje, deben ser válidos)
     if (this.proveedor.telefonos?.principal && this.validaciones.telefonoPrincipal.mensaje && !this.validaciones.telefonoPrincipal.valido) {
       return false;
     }
@@ -127,7 +148,6 @@ export class CrearProveedor implements OnInit {
       return false;
     }
 
-    // Validar código de lugar (si está lleno y tiene mensaje, debe ser válido)
     if (this.proveedor.direccion?.codigoLugar && this.validaciones.codigoLugar.mensaje && !this.validaciones.codigoLugar.valido) {
       return false;
     }
@@ -135,7 +155,14 @@ export class CrearProveedor implements OnInit {
     return true;
   }
 
-  // Validar formato de código (1 letra y 4 números)
+  /**
+   * Valida el formato del código del proveedor (mínimo 1 letra y 4 números)
+   * 
+   * @param codigo - Código a validar
+   * @returns true si cumple con el formato requerido
+   * 
+   * @private
+   */
   validarFormatoCodigo(codigo: string): boolean {
     if (!codigo) return false;
     const letras = (codigo.match(/[a-zA-Z]/g) || []).length;
@@ -143,7 +170,12 @@ export class CrearProveedor implements OnInit {
     return letras >= 1 && numeros >= 4;
   }
 
-  // Validar código del proveedor
+  /**
+   * Valida que el código del proveedor sea único en el sistema
+   * 
+   * @description
+   * Verifica formato (1 letra + 4 números) y unicidad en Firestore.
+   */
   async validarCodigo(): Promise<void> {
     if (!this.proveedor.codigo || this.proveedor.codigo.trim() === '') {
       this.validaciones.codigo.valido = false;
@@ -157,7 +189,6 @@ export class CrearProveedor implements OnInit {
       return;
     }
 
-    // Verificar si el código ya existe
     try {
       const existe = await this.proveedoresService.codigoExists(this.proveedor.codigo);
       if (existe) {
@@ -172,7 +203,12 @@ export class CrearProveedor implements OnInit {
     }
   }
 
-  // Validar nombre del proveedor (unicidad)
+  /**
+   * Valida que el nombre del proveedor sea único
+   * 
+   * @description
+   * Consulta Firestore para verificar que no exista otro proveedor con el mismo nombre.
+   */
   async validarNombre(): Promise<void> {
     if (!this.proveedor.nombre || this.proveedor.nombre.trim() === '') {
       this.validaciones.nombre.valido = false;
@@ -197,7 +233,13 @@ export class CrearProveedor implements OnInit {
     }
   }
 
-  // Validar RUC ecuatoriano (13 dígitos)
+  /**
+   * Valida el formato y unicidad del RUC ecuatoriano
+   * 
+   * @description
+   * Verifica que el RUC tenga 13 dígitos, código de provincia válido (01-24),
+   * tercer dígito válido (0-6, 9) y que no esté duplicado en el sistema.
+   */
   async validarRUC(): Promise<void> {
     const ruc = this.proveedor.ruc;
     
@@ -207,14 +249,12 @@ export class CrearProveedor implements OnInit {
       return;
     }
 
-    // RUC ecuatoriano debe tener 13 dígitos
     if (!/^\d{13}$/.test(ruc)) {
       this.validaciones.ruc.valido = false;
       this.validaciones.ruc.mensaje = 'El RUC debe tener exactamente 13 dígitos';
       return;
     }
 
-    // Validar que los dos primeros dígitos sean código de provincia válido (01-24)
     const provincia = parseInt(ruc.substring(0, 2));
     if (provincia < 1 || provincia > 24) {
       this.validaciones.ruc.valido = false;
@@ -222,12 +262,8 @@ export class CrearProveedor implements OnInit {
       return;
     }
 
-    // El tercer dígito define el tipo de RUC
     const tercerDigito = parseInt(ruc.charAt(2));
     
-    // Tipo 9 = RUC público o privado sin cédula
-    // Tipo 6 = RUC sociedades públicas
-    // Tipo 0-5 = Persona natural o jurídica con cédula
     if (!(tercerDigito === 9 || tercerDigito === 6 || (tercerDigito >= 0 && tercerDigito <= 5))) {
       this.validaciones.ruc.valido = false;
       this.validaciones.ruc.mensaje = 'Tercer dígito de RUC inválido';
@@ -252,7 +288,16 @@ export class CrearProveedor implements OnInit {
     }
   }
 
-  // Validar teléfono ecuatoriano (celular o convencional)
+  /**
+   * Valida formato de teléfono ecuatoriano (celular o convencional de El Oro)
+   * 
+   * @param telefono - Número de teléfono a validar
+   * @param tipo - Tipo de teléfono ('principal' o 'secundario')
+   * 
+   * @description
+   * Celular: 09XXXXXXXX (10 dígitos)
+   * Convencional El Oro: 07XXXXXXX (9 dígitos)
+   */
   validarTelefono(telefono: string, tipo: 'principal' | 'secundario'): void {
     const campo = tipo === 'principal' ? 'telefonoPrincipal' : 'telefonoSecundario';
     
@@ -262,8 +307,6 @@ export class CrearProveedor implements OnInit {
       return;
     }
 
-    // Teléfono celular: 09XXXXXXXX (10 dígitos)
-    // Teléfono convencional: 07XXXXXXX (9 dígitos) - El Oro empieza con 07
     const esCelular = /^09\d{8}$/.test(telefono);
     const esConvencional = /^07\d{6,7}$/.test(telefono);
 
@@ -279,7 +322,12 @@ export class CrearProveedor implements OnInit {
     }
   }
 
-  // Validar código de lugar (código de provincia)
+  /**
+   * Valida el código de provincia ecuatoriano
+   * 
+   * @description
+   * Código 07 corresponde a El Oro - Pasaje. Acepta códigos entre 01-24.
+   */
   validarCodigoLugar(): void {
     const codigo = this.proveedor.direccion?.codigoLugar;
     
@@ -289,7 +337,6 @@ export class CrearProveedor implements OnInit {
       return;
     }
 
-    // Código de provincia El Oro es 07
     if (codigo === '07') {
       this.validaciones.codigoLugar.valido = true;
       this.validaciones.codigoLugar.mensaje = 'El Oro - Pasaje ✅';
@@ -308,14 +355,19 @@ export class CrearProveedor implements OnInit {
     }
   }
 
+  /**
+   * Guarda el proveedor (creación o actualización)
+   * 
+   * @description
+   * Realiza todas las validaciones necesarias antes de guardar.
+   * Crea o actualiza el proveedor en Firestore según el modo.
+   */
   async guardar() {
-    // Validar campos obligatorios
     if (!this.proveedor.nombre || !this.proveedor.ruc) {
       await Swal.fire({ icon: 'warning', title: 'Campos obligatorios', text: 'Por favor complete Nombre y RUC' });
       return;
     }
 
-    // Validar nombre duplicado (solo si cambió o es nuevo)
     if (this.proveedor.nombre !== this.nombreOriginal) {
       await this.validarNombre();
       if (!this.validaciones.nombre.valido && this.validaciones.nombre.mensaje) {
@@ -323,7 +375,6 @@ export class CrearProveedor implements OnInit {
       }
     }
 
-    // Validar código si está presente (solo en creación)
     if (!this.esEdicion && this.proveedor.codigo) {
       await this.validarCodigo();
       if (!this.validaciones.codigo.valido) {
@@ -331,7 +382,6 @@ export class CrearProveedor implements OnInit {
       }
     }
 
-    // Validar RUC (solo si cambió o es nuevo)
     if (this.proveedor.ruc !== this.rucOriginal) {
       this.validarRUC();
       if (!this.validaciones.ruc.valido) {
@@ -340,7 +390,6 @@ export class CrearProveedor implements OnInit {
       }
     }
 
-    // Validar teléfono principal si está presente
     if (this.proveedor.telefonos?.principal) {
       this.validarTelefono(this.proveedor.telefonos.principal, 'principal');
       if (!this.validaciones.telefonoPrincipal.valido) {
@@ -349,7 +398,6 @@ export class CrearProveedor implements OnInit {
       }
     }
 
-    // Validar teléfono secundario si está presente
     if (this.proveedor.telefonos?.secundario) {
       this.validarTelefono(this.proveedor.telefonos.secundario, 'secundario');
       if (!this.validaciones.telefonoSecundario.valido) {
@@ -358,7 +406,6 @@ export class CrearProveedor implements OnInit {
       }
     }
 
-    // Validar código de lugar si está presente
     if (this.proveedor.direccion?.codigoLugar) {
       this.validarCodigoLugar();
       if (!this.validaciones.codigoLugar.valido) {
@@ -369,11 +416,9 @@ export class CrearProveedor implements OnInit {
 
     try {
       if (this.esEdicion && this.proveedorIdOriginal) {
-        // Actualizar proveedor existente
         await this.proveedoresService.updateProveedor(this.proveedorIdOriginal, this.proveedor);
         await Swal.fire({ icon: 'success', title: 'Proveedor actualizado', timer: 1500, showConfirmButton: false });
       } else {
-        // Crear nuevo proveedor
         this.proveedor.fechaIngreso = new Date();
         await this.proveedoresService.createProveedor(this.proveedor);
         await Swal.fire({ icon: 'success', title: 'Proveedor creado', timer: 1500, showConfirmButton: false });
@@ -386,6 +431,9 @@ export class CrearProveedor implements OnInit {
     }
   }
 
+  /**
+   * Cancela la operación y vuelve a la lista de proveedores
+   */
   cancelar() {
     this.router.navigate(['/proveedores']);
   }

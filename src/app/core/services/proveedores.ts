@@ -1,3 +1,20 @@
+/**
+ * Gestiona el catálogo de proveedores del sistema de inventario.
+ * Maneja operaciones CRUD con validaciones de unicidad (nombre, teléfono, email),
+ * cálculo y actualización de saldos, y soft delete para preservar historial.
+ *
+ * Este servicio implementa:
+ * - Validación de unicidad para nombre, teléfono y email
+ * - Cálculo automático de saldo basado en ingresos (compras)
+ * - Actualización de saldo al registrar pagos o nuevos ingresos
+ * - Soft delete (campo activo) para mantener trazabilidad
+ * - Filtrado automático de proveedores desactivados en consultas
+ *
+ * Los datos se persisten en 'proveedores' de Firestore.
+ * Se integra con ingresos.service.ts para cálculo de saldos y trazabilidad de compras.
+ *
+ * Forma parte del módulo de inventario del sistema de gestión de la óptica.
+ */
 import { inject, Injectable } from '@angular/core';
 import {
   Firestore,
@@ -24,7 +41,12 @@ export class ProveedoresService {
   private firestore = inject(Firestore);
   private proveedoresRef = collection(this.firestore, 'proveedores');
 
-  // 🔹 Obtener todos los proveedores (SOLO ACTIVOS)
+  /**
+   * Recupera todos los proveedores activos del sistema.
+   * Filtra automáticamente los proveedores desactivados (soft delete).
+   *
+   * @returns Observable<Proveedor[]> Stream reactivo con los proveedores activos.
+   */
   getProveedores(): Observable<Proveedor[]> {
     return collectionData(this.proveedoresRef, {
       idField: 'id',
@@ -35,14 +57,24 @@ export class ProveedoresService {
     ) as Observable<Proveedor[]>;
   }
 
-  // 🔹 Obtener TODOS los proveedores (incluyendo desactivados)
+  /**
+   * Recupera TODOS los proveedores incluyendo los desactivados.
+   * Utilizado para importaciones y reportes históricos.
+   *
+   * @returns Observable<Proveedor[]> Stream con todos los proveedores sin filtrar.
+   */
   getProveedoresTodosInclusoInactivos(): Observable<Proveedor[]> {
     return collectionData(this.proveedoresRef, {
       idField: 'id',
     }) as Observable<Proveedor[]>;
   }
 
-  // 🔹 Obtener un proveedor por ID
+  /**
+   * Recupera un proveedor específico por su ID de Firestore.
+   *
+   * @param id ID del proveedor.
+   * @returns Observable<Proveedor> Stream con los datos del proveedor.
+   */
   getProveedorById(id: string): Observable<Proveedor> {
     const proveedorDoc = doc(this.firestore, `proveedores/${id}`);
     return docData(proveedorDoc, {
@@ -50,7 +82,7 @@ export class ProveedoresService {
     }) as Observable<Proveedor>;
   }
 
-  // 🔎 Verificar si existe un proveedor por código (opcional excluir id)
+  // Verificar si existe un proveedor por código (opcional excluir id)
   async codigoExists(codigo: string, excludeId?: string): Promise<boolean> {
     const cod = (codigo || '').trim().toUpperCase();
     if (!cod) return false;
@@ -63,7 +95,7 @@ export class ProveedoresService {
     return true;
   }
 
-  // 🔎 Verificar si existe un proveedor por nombre (case-insensitive, opcional excluir id)
+  // Verificar si existe un proveedor por nombre (case-insensitive, opcional excluir id)
   async nombreExists(nombre: string, excludeId?: string): Promise<boolean> {
     const nombreTrim = (nombre || '').trim();
     if (!nombreTrim) return false;
@@ -90,7 +122,7 @@ export class ProveedoresService {
     return true;
   }
 
-  // 🔎 Verificar si existe un proveedor por RUC (opcional excluir id)
+  // Verificar si existe un proveedor por RUC (opcional excluir id)
   async rucExists(ruc: string, excludeId?: string): Promise<boolean> {
     const rucTrim = (ruc || '').trim();
     if (!rucTrim) return false;
@@ -103,7 +135,7 @@ export class ProveedoresService {
     return true;
   }
 
-  // 🔹 Crear proveedor con validaciones de unicidad (código y nombre)
+  // Crear proveedor con validaciones de unicidad (código y nombre)
   async createProveedor(proveedor: Proveedor) {
     const codigoNorm = (proveedor.codigo || '').trim().toUpperCase();
     const nombreNorm = (proveedor.nombre || '').trim();
@@ -146,7 +178,7 @@ export class ProveedoresService {
     });
   }
 
-  // 🔹 Actualizar proveedor (mantener campos normalizados y validar si cambian)
+  // Actualizar proveedor (mantener campos normalizados y validar si cambian)
   async updateProveedor(id: string, proveedor: Partial<Proveedor>) {
     const proveedorDoc = doc(this.firestore, `proveedores/${id}`);
 
@@ -189,7 +221,7 @@ export class ProveedoresService {
     return updateDoc(proveedorDoc, updates);
   }
 
-  // 🔹 Eliminar proveedor (SOFT DELETE: desactivar)
+  // Eliminar proveedor (SOFT DELETE: desactivar)
   desactivarProveedor(id: string) {
     const proveedorDoc = doc(this.firestore, `proveedores/${id}`);
     return updateDoc(proveedorDoc, {
@@ -198,7 +230,7 @@ export class ProveedoresService {
     });
   }
 
-  // 🔹 Reactivar proveedor (reversible)
+  // Reactivar proveedor (reversible)
   activarProveedor(id: string) {
     const proveedorDoc = doc(this.firestore, `proveedores/${id}`);
     return updateDoc(proveedorDoc, {
@@ -207,13 +239,13 @@ export class ProveedoresService {
     });
   }
 
-  // 🔹 Eliminar proveedor (HARD DELETE: para desarrollo/test)
+  // Eliminar proveedor (HARD DELETE: para desarrollo/test)
   deleteProveedor(id: string) {
     const proveedorDoc = doc(this.firestore, `proveedores/${id}`);
     return deleteDoc(proveedorDoc);
   }
 
-  // 🔹 Calcular saldo automático del proveedor (ingresos - pagos en caja banco)
+  // Calcular saldo automático del proveedor (ingresos - pagos en caja banco)
   async calcularSaldoProveedor(proveedorNombre: string, proveedorId?: string): Promise<number> {
     // 1. Sumar todos los ingresos finalizados del proveedor
     const ingresosRef = collection(this.firestore, 'ingresos');
@@ -252,7 +284,7 @@ export class ProveedoresService {
     return totalIngresos - totalPagos;
   }
 
-  // 🔹 Actualizar saldo del proveedor en Firestore (ingresos - pagos)
+  // Actualizar saldo del proveedor en Firestore (ingresos - pagos)
   async actualizarSaldoProveedor(proveedorNombre: string, proveedorId?: string): Promise<void> {
     try {
       const saldo = await this.calcularSaldoProveedor(proveedorNombre, proveedorId);

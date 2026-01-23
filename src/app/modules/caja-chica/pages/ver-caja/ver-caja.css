@@ -1,3 +1,26 @@
+/**
+ * Estilos para el componente de vista detallada de caja chica.
+ * 
+ * Define la presentación visual de la página de detalles incluyendo:
+ * - Contenedor principal y tarjeta
+ * - Header con información y acciones
+ * - Sección de información general (fecha, usuario, estado, montos)
+ * - Sección de resumen financiero (ingresos, egresos, saldo)
+ * - Tabla de movimientos con acciones
+ * - Estado vacío
+ * - Estilos responsivos para mobile
+ * - Estilos para impresión de reportes
+ * 
+ * Variables de tema utilizadas:
+ * - --bg-card, --bg-secondary, --bg-tertiary: Fondos
+ * - --border-color, --border-light: Bordes
+ * - --text-primary, --text-secondary: Colores de texto
+ * - --primary-color: Color principal
+ * - --btn-primary-bg, --btn-secondary-bg, --btn-danger: Colores de botones
+ * - --radius-lg, --radius-md: Radios de esquinas
+ * - --shadow-lg, --shadow-md: Sombras
+ */
+
 /* ============================================
    CONTAINER Y CARD PRINCIPAL
 ============================================ */
@@ -298,7 +321,6 @@
     transform: scale(1.1);
 }
 
-
 .btn-action-move {
     border-radius: 12px;
     color: #16a34a;
@@ -359,17 +381,21 @@
     .info-section {
         grid-template-columns: 1fr;
     }
+    
     .header-actions {
         width: 100%;
     }
+    
     .btn-primary,
     .btn-secondary,
     .btn-danger {
         flex: 1;
     }
+    
     .tabla {
         font-size: 0.8rem;
     }
+    
     .tabla th,
     .tabla td {
         padding: 0.5rem;
@@ -380,31 +406,39 @@
     .caja-container {
         padding: 0.75rem;
     }
+    
     .caja-header {
         padding: 1rem;
     }
+    
     .caja-title {
         font-size: 1.15rem;
     }
+    
     .header-actions {
         flex-direction: column;
     }
+    
     .btn-primary,
     .btn-secondary,
     .btn-danger {
         width: 100%;
     }
+    
     .info-section,
     .movimientos-section {
         padding: 1rem;
     }
+    
     .tabla {
         font-size: 0.75rem;
     }
+    
     .tabla th,
     .tabla td {
         padding: 0.4rem 0.3rem;
     }
+    
     .empty-icon {
         font-size: 2rem;
     }
@@ -420,5 +454,5 @@
     .caja-container {
         display: none !important;
     }
-    /* El reporte se renderiza con sus propios estilos en reporte-caja-chica.css */
+    /* El reporte se renderiza con sus propios estilos internos */
 }

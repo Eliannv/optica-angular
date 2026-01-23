@@ -1,3 +1,25 @@
+/**
+ * Estilos para el componente de registro de movimiento en caja chica.
+ * 
+ * Define la presentación visual del formulario de registro incluyendo:
+ * - Contenedor y tarjeta principal
+ * - Header con título y botón de retorno
+ * - Panel de información de saldo actual
+ * - Campos de formulario (tipo, descripción, monto, etc.)
+ * - Alertas de error y éxito
+ * - Botones de acción
+ * - Estilos responsivos para mobile
+ * 
+ * Variables de tema utilizadas:
+ * - --bg-card, --bg-secondary: Fondos
+ * - --border-color, --input-border: Bordes
+ * - --text-primary, --text-secondary: Colores de texto
+ * - --btn-primary-bg, --btn-secondary-bg: Colores de botones
+ * - --primary-color: Color principal
+ * - --radius-md, --radius-xl: Radios de esquinas
+ * - --shadow-lg, --shadow-md: Sombras
+ */
+
 /* ============================================
    CONTAINER Y CARD
 ============================================ */
@@ -99,6 +121,199 @@
 }
 
 
+/* ============================================
+   FORMULARIO
+============================================ */
+
+.form-body {
+    padding: 1.5rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group:last-of-type {
+    margin-bottom: 2rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-md);
+    background: var(--input-bg);
+    color: var(--input-text);
+    font-size: 0.95rem;
+    font-family: inherit;
+    outline: none;
+    transition: all var(--transition-fast);
+}
+
+.form-control:focus {
+    border-color: var(--input-focus-border);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.form-control.error {
+    border-color: #e74c3c;
+    background: rgba(231, 76, 60, 0.05);
+}
+
+.form-control.error:focus {
+    box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
+}
+
+.textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.error-text {
+    display: block;
+    color: #e74c3c;
+    font-size: 0.8rem;
+    margin-top: 0.35rem;
+    font-weight: 500;
+}
+
+
+/* ============================================
+   ALERTAS
+============================================ */
+
+.alert {
+    padding: 1rem;
+    border-radius: var(--radius-md);
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+}
+
+.alert-error {
+    background: rgba(231, 76, 60, 0.15);
+    border: 1px solid rgba(231, 76, 60, 0.3);
+    color: #e74c3c;
+}
+
+.alert-success {
+    background: rgba(46, 204, 113, 0.15);
+    border: 1px solid rgba(46, 204, 113, 0.3);
+    color: #2ecc71;
+}
+
+
+/* ============================================
+   BOTONES
+============================================ */
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.btn-primary {
+    padding: 0.75rem 1.75rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    background: var(--btn-primary-hover);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+
+/* ============================================
+   RESPONSIVE
+============================================ */
+
+@media (max-width: 768px) {
+    .form-container {
+        padding: 0.75rem;
+        padding-top: 1rem;
+    }
+    
+    .form-header {
+        padding: 1rem;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .form-title {
+        font-size: 1.15rem;
+    }
+    
+    .btn-secondary {
+        width: 100%;
+    }
+    
+    .form-body {
+        padding: 1.25rem;
+    }
+    
+    .form-actions {
+        flex-direction: column-reverse;
+    }
+    
+    .btn-primary,
+    .btn-secondary {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .form-container {
+        padding: 0.5rem;
+    }
+    
+    .form-header,
+    .saldo-info {
+        padding: 0.85rem;
+    }
+    
+    .form-title {
+        font-size: 1.05rem;
+    }
+    
+    .form-body {
+        padding: 1rem;
+    }
+    
+    .form-control {
+        font-size: 0.9rem;
+        padding: 0.65rem 0.85rem;
+    }
+    
+    .form-group label {
+        font-size: 0.85rem;
+    }
+}
 /* ============================================
    FORMULARIO
 ============================================ */

@@ -1,3 +1,19 @@
+/**
+ * Componente para la creación y edición de clientes.
+ *
+ * Este componente proporciona un formulario reactivo completo para registrar nuevos
+ * clientes o editar información de clientes existentes. Implementa validaciones
+ * síncronas y asíncronas, incluyendo la verificación de unicidad de cédula y correo
+ * electrónico tanto en la colección de clientes como en usuarios.
+ *
+ * Características principales:
+ * - Formulario reactivo con validaciones robustas
+ * - Validación asíncrona de cédula y email (unicidad global)
+ * - Modo dual: creación y edición
+ * - Navegación con parámetro returnTo para retorno contextual
+ * - Directiva de navegación por teclado (Enter)
+ */
+
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, AbstractControl, AsyncValidatorFn, ValidationErrors } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -20,8 +36,7 @@ export class CrearCliente implements OnInit {
   clienteForm!: FormGroup;
   clienteIdEdicion: string | null = null;
 
-  // Datos para los selectores
-  provinciasEcuador = [
+  readonly provinciasEcuador = [
     'Azuay', 'Bolívar', 'Cañar', 'Carchi', 'Chimborazo', 'Cotopaxi', 
     'El Oro', 'Esmeraldas', 'Galápagos', 'Guayas', 'Imbabura', 'Loja', 
     'Los Ríos', 'Manabí', 'Morona Santiago', 'Napo', 'Orellana', 'Pastaza', 
@@ -36,6 +51,14 @@ export class CrearCliente implements OnInit {
     private route: ActivatedRoute
   ) {}
 
+  /**
+   * Inicializa el componente y configura el formulario reactivo.
+   *
+   * Determina si se está en modo creación o edición mediante el parámetro
+   * 'clienteId' en la query string. En modo edición, carga los datos del cliente
+   * existente. El formulario incluye validaciones síncronas (pattern, required)
+   * y asíncronas (unicidad de cédula y email).
+   */
   ngOnInit() {
     this.clienteIdEdicion = this.route.snapshot.queryParamMap.get('clienteId');
     
@@ -66,6 +89,13 @@ export class CrearCliente implements OnInit {
     }
   }
 
+  /**
+   * Carga los datos de un cliente existente para edición.
+   *
+   * Recupera el cliente de Firestore y pre-llena el formulario con sus datos.
+   * Los validadores asíncronos de cédula y email se actualizan para excluir
+   * el cliente actual de las búsquedas de duplicados.
+   */
   private async cargarClienteParaEditar() {
     try {
       const cliente = await this.clientesService.getClienteById(this.clienteIdEdicion!).toPromise();
@@ -91,6 +121,15 @@ export class CrearCliente implements OnInit {
     }
   }
 
+  /**
+   * Convierte una fecha de Firestore o Date al formato requerido por input[type="date"].
+   *
+   * Maneja diferentes formatos de fecha (Date, Timestamp de Firestore, string)
+   * y los convierte al formato ISO 'YYYY-MM-DD' requerido por el elemento HTML input.
+   *
+   * @param fecha Fecha en formato Date, Firestore Timestamp o string.
+   * @returns Fecha en formato 'YYYY-MM-DD' o string vacío si es inválida.
+   */
   private formatearFechaParaInput(fecha: any): string {
     if (!fecha) return '';
     let date: Date;
@@ -107,6 +146,13 @@ export class CrearCliente implements OnInit {
     return `${year}-${month}-${day}`;
   }
 
+  /**
+   * Guarda o actualiza el cliente en Firestore.
+   *
+   * Valida el formulario completo antes de proceder. Si está en modo edición,
+   * actualiza el cliente existente; caso contrario, crea uno nuevo. Tras la
+   * operación exitosa, navega de vuelta a la página origen (returnTo).
+   */
   async guardar() {
     if (this.clienteForm.invalid) {
       Object.keys(this.clienteForm.controls).forEach(key => {
@@ -141,17 +187,40 @@ export class CrearCliente implements OnInit {
     }
   }
 
+  /**
+   * Cancela la operación y retorna a la página de origen.
+   *
+   * Navega a la ruta especificada en el parámetro 'returnTo' o a la lista
+   * de historiales clínicos por defecto.
+   */
   cancelar() {
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo') || '/clientes/historial-clinico';
     this.router.navigate([returnTo]);
   }
 
-  // Métodos auxiliares para validación
+  /**
+   * Verifica si un campo del formulario es inválido y ha sido tocado.
+   *
+   * Útil para mostrar mensajes de error solo después de que el usuario
+   * haya interactuado con el campo.
+   *
+   * @param campo Nombre del campo a validar.
+   * @returns true si el campo es inválido y fue tocado, false en caso contrario.
+   */
   esInvalido(campo: string): boolean {
     const control = this.clienteForm.get(campo);
     return !!(control?.invalid && control?.touched);
   }
 
+  /**
+   * Genera el mensaje de error apropiado para un campo específico.
+   *
+   * Evalúa los diferentes tipos de errores de validación (required, pattern,
+   * minlength, etc.) y retorna un mensaje descriptivo y amigable para el usuario.
+   *
+   * @param campo Nombre del campo para el cual generar el mensaje de error.
+   * @returns Mensaje de error descriptivo o string vacío si no hay error.
+   */
   getMensajeError(campo: string): string {
     const control = this.clienteForm.get(campo);
     
@@ -207,7 +276,15 @@ export class CrearCliente implements OnInit {
     return '';
   }
 
-  // Validador asíncrono para cédula única (global)
+  /**
+   * Validador asíncrono para verificar la unicidad de la cédula.
+   *
+   * Consulta tanto la colección de clientes como la de usuarios para garantizar
+   * que la cédula no esté duplicada en el sistema. En modo edición, excluye
+   * el cliente actual de la búsqueda.
+   *
+   * @returns AsyncValidatorFn Función validadora asíncrona para Angular Forms.
+   */
   uniqueCedulaValidator(): AsyncValidatorFn {
     return async (control: AbstractControl): Promise<ValidationErrors | null> => {
       const value = (control.value || '').trim();
@@ -217,7 +294,15 @@ export class CrearCliente implements OnInit {
     };
   }
 
-  // Validador asíncrono para email único (global)
+  /**
+   * Validador asíncrono para verificar la unicidad del email.
+   *
+   * Consulta tanto la colección de clientes como la de usuarios para garantizar
+   * que el correo electrónico no esté duplicado. La búsqueda es case-insensitive.
+   * En modo edición, excluye el cliente actual.
+   *
+   * @returns AsyncValidatorFn Función validadora asíncrona para Angular Forms.
+   */
   uniqueEmailValidator(): AsyncValidatorFn {
     return async (control: AbstractControl): Promise<ValidationErrors | null> => {
       const value = (control.value || '').trim().toLowerCase();

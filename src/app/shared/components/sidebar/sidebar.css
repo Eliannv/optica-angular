@@ -1,3 +1,17 @@
+/**
+ * Estilos del componente Sidebar.
+ *
+ * Este archivo define los estilos para la barra lateral de navegación del sistema,
+ * incluyendo:
+ * - Layout responsive (sidebar en escritorio, drawer en móvil)
+ * - Estado colapsado/expandido con transiciones suaves
+ * - Estilos de menú principal y submenús desplegables
+ * - Animaciones de expansión en cascada para subitems
+ * - Integración con sistema de temas mediante variables CSS
+ * - Área de logout con estilos distintivos
+ * - Breakpoints para diferentes tamaños de pantalla
+ */
+
 /* CONTENEDOR */
 
 .sidebar {

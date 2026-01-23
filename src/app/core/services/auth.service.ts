@@ -1,3 +1,21 @@
+/**
+ * Gestiona la autenticación y autorización de usuarios en el sistema.
+ * Proporciona operaciones de registro, login, logout y recuperación de contraseña
+ * integradas con Firebase Authentication y Firestore.
+ *
+ * Este servicio implementa un sistema de seguridad multicapa que incluye:
+ * - Validación de estado de usuario (activo/bloqueado)
+ * - Control de acceso por sucursal
+ * - Autorización de equipos específicos mediante machine ID (solo Electron)
+ * - Verificación de conectividad antes de operaciones críticas
+ *
+ * El servicio mantiene en memoria el usuario actual autenticado y proporciona
+ * métodos de utilidad para verificar roles y permisos. Los datos de usuario se
+ * sincronizan automáticamente entre Firebase Auth y Firestore.
+ *
+ * Forma parte del módulo core y es fundamental para el control de acceso en toda
+ * la aplicación.
+ */
 import { Injectable, inject } from '@angular/core';
 import { 
   Auth, 
@@ -84,10 +102,10 @@ export class AuthService {
           }
         }
         
-        // 🔐 VALIDACIÓN DE SUCURSAL Y MACHINE ID (Nivel 2)
+        // VALIDACIÓN DE SUCURSAL Y MACHINE ID (Nivel 2)
         this.validarAccesoSucursal(userData);
 
-        // 🔐 Establecer custom claims en el token (para Firestore security rules)
+        // Establecer custom claims en el token (para Firestore security rules)
         return from(this.setCustomClaims(userData)).pipe(
           map(() => userData)
         );

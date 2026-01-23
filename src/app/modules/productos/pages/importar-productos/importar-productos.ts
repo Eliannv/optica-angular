@@ -15,6 +15,19 @@ import { Ingreso, DetalleIngreso } from '../../../../core/models/ingreso.model';
 import { Proveedor } from '../../../../core/models/proveedor.model';
 import Swal from 'sweetalert2';
 
+/**
+ * Componente para importar productos desde un archivo Excel
+ * 
+ * @description
+ * Permite importar masivamente productos desde Excel con validaciones de proveedor,
+ * detección de productos existentes/nuevos, verificación de factura única,
+ * y generación automática de ingreso. Soporta 3 pasos: Subir archivo, Preview, Procesando.
+ * 
+ * @example
+ * ```html
+ * <app-importar-productos></app-importar-productos>
+ * ```
+ */
 @Component({
   selector: 'app-importar-productos',
   standalone: true,
@@ -30,14 +43,12 @@ export class ImportarProductosComponent {
   private fb = inject(FormBuilder);
   private router = inject(Router);
 
-  // Señales
-  paso = signal<1 | 2 | 3>(1); // 1: Subir, 2: Preview, 3: Procesando
+  paso = signal<1 | 2 | 3>(1);
   archivoSeleccionado = signal<File | null>(null);
   datosImportacion = signal<DatosExcelImportacion | null>(null);
   mensajeError = signal<string>('');
   procesando = signal<boolean>(false);
   
-  // Proveedor
   proveedorExiste = signal<boolean>(false);
   proveedorExistente = signal<Proveedor | null>(null);
   mostrarFormProveedor = signal<boolean>(false);
@@ -45,7 +56,6 @@ export class ImportarProductosComponent {
   validandoNombre = false;
   validandoRuc = false;
   
-  // Validaciones para el proveedor
   validaciones = {
     codigo: { valido: false, mensaje: '' },
     nombre: { valido: false, mensaje: '' },
@@ -55,7 +65,6 @@ export class ImportarProductosComponent {
     codigoLugar: { valido: false, mensaje: '' }
   };
 
-  // Validación de factura
   validacionFactura = { valido: true, mensaje: '' };
   validandoNumeroFactura = false;
   
@@ -74,6 +83,11 @@ export class ImportarProductosComponent {
     this.inicializarFormularioProveedor();
   }
 
+  /**
+   * Valida si se puede confirmar la importación
+   * 
+   * @returns true si existen datos de importación, proveedor válido y sin errores de factura
+   */
   get puedeConfirmarImportacion(): boolean {
     if (!this.datosImportacion()) return false;
     if (!this.proveedorExiste()) return false;
@@ -83,7 +97,9 @@ export class ImportarProductosComponent {
   }
 
   /**
-   * Verificar si el formulario de proveedor es válido para guardar
+   * Verifica si el formulario de proveedor es válido para guardado
+   * 
+   * @returns true si el formulario es válido y no hay validaciones pendientes
    */
   get puedeGuardarProveedor(): boolean {
     if (this.proveedorForm.invalid) {
@@ -94,18 +110,15 @@ export class ImportarProductosComponent {
       return false;
     }
 
-    // Validar nombre (si tiene mensaje, debe ser válido)
     if (this.validaciones.nombre.mensaje && !this.validaciones.nombre.valido) {
       return false;
     }
 
-    // Validar código (si hay código ingresado, debe ser válido)
     const codigoValue = this.proveedorForm.get('codigo')?.value;
     if (codigoValue && this.validaciones.codigo.mensaje && !this.validaciones.codigo.valido) {
       return false;
     }
 
-    // Validar RUC (si tiene mensaje, debe ser válido)
     if (this.validaciones.ruc.mensaje && !this.validaciones.ruc.valido) {
       return false;
     }
@@ -114,7 +127,9 @@ export class ImportarProductosComponent {
   }
 
   /**
-   * 🔧 Inicializar formulario reactivo de proveedor
+   * Inicializa el formulario reactivo para crear un nuevo proveedor
+   * 
+   * @private
    */
   private inicializarFormularioProveedor(): void {
     this.proveedorForm = this.fb.group({
@@ -131,14 +146,18 @@ export class ImportarProductosComponent {
   }
 
   /**
-   * 📁 Seleccionar archivo
+   * Maneja la selección de archivo Excel
+   * 
+   * @param event - Evento de selección de archivo
+   * 
+   * @description
+   * Valida que la extensión sea .xlsx o .xls antes de aceptar el archivo.
    */
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
       const archivo = input.files[0];
       
-      // Validar extensión
       if (!archivo.name.match(/\.(xlsx|xls)$/i)) {
         Swal.fire({
           icon: 'error',
@@ -155,7 +174,7 @@ export class ImportarProductosComponent {
   }
 
   /**
-   * 📤 Descargar plantilla
+   * Descarga la plantilla Excel de ejemplo para importación
    */
   async descargarPlantilla(): Promise<void> {
     try {
@@ -167,7 +186,11 @@ export class ImportarProductosComponent {
   }
 
   /**
-   * ⬆️ Procesar archivo Excel
+   * Procesa el archivo Excel seleccionado
+   * 
+   * @description
+   * Lee el Excel, verifica proveedor, valida número de factura único,
+   * detecta productos existentes y muestra el preview antes de confirmar.
    */
   async procesarArchivo(): Promise<void> {
     const archivo = this.archivoSeleccionado();
@@ -185,19 +208,14 @@ export class ImportarProductosComponent {
     this.mensajeError.set('');
 
     try {
-      // 1. Leer Excel
       const datos = await this.excelService.importarProductos(archivo);
       
-      // 2. Verificar si el proveedor existe
       await this.verificarProveedor(datos.proveedor);
       
-      // 3. Verificar número de factura único
       await this.validarNumeroFactura(datos.numeroFactura);
       
-      // 4. Verificar qué productos existen
       await this.verificarProductosExistentes(datos.productos);
       
-      // 5. Mostrar preview
       this.datosImportacion.set(datos);
       this.paso.set(2);
       
@@ -209,7 +227,14 @@ export class ImportarProductosComponent {
   }
 
   /**
-   * 🔍 Verificar si el proveedor existe en el sistema
+   * Verifica si el proveedor existe en el sistema
+   * 
+   * @param nombreProveedor - Nombre del proveedor leído del Excel
+   * 
+   * @private
+   * @description
+   * Busca el proveedor por nombre (case-insensitive). Si no existe,
+   * pre-carga el nombre en el formulario para creación.
    */
   private async verificarProveedor(nombreProveedor: string): Promise<void> {
     try {
@@ -226,7 +251,6 @@ export class ImportarProductosComponent {
         this.proveedorExiste.set(false);
         this.proveedorExistente.set(null);
         this.mostrarFormProveedor.set(false);
-        // Pre-cargar el nombre en el formulario
         this.proveedorForm.patchValue({ nombre: nombreProveedor });
       }
     } catch (error) {
@@ -236,28 +260,29 @@ export class ImportarProductosComponent {
   }
 
   /**
-   * 🔍 Verificar si los productos ya existen en la BD (por CÓDIGO primero, luego MODELO + COLOR + NOMBRE)
-   * Si existen: sumar stock, reemplazar proveedor y PVP1
+   * Verifica qué productos ya existen en la base de datos
    * 
-   * IMPORTANTE: El CÓDIGO es el identificador principal
+   * @param productos - Array de productos desde Excel
+   * 
+   * @private
+   * @description
+   * Busca productos por código (prioridad) o por nombre+modelo+color.
+   * Marca como EXISTENTE o NUEVO y detecta productos desactivados.
+   * Carga TODOS los productos (activos e inactivos).
    */
   private async verificarProductosExistentes(productos: ProductoExcelPreview[]): Promise<void> {
     try {
-      // 🔹 IMPORTANTE: Obtener TODOS los productos (activos e inactivos) para verificar si están desactivados
       const productosSnapshot = await firstValueFrom(this.productosService.getProductosTodosInclusoInactivos());
 
       for (const prod of productos) {
         let productoExistente: any = null;
 
-        // 1. PRIORIDAD: Buscar por CÓDIGO (es el identificador único en el sistema)
         if (prod.codigo && prod.codigo.trim()) {
           productoExistente = (productosSnapshot || []).find(p => 
             p.codigo?.toLowerCase().trim() === prod.codigo?.toLowerCase().trim()
           );
         }
 
-        // 2. Si no encuentra por código, buscar por Nombre + Modelo + Color
-        // (por si acaso el código no coincide pero los datos descriptivos sí)
         if (!productoExistente) {
           productoExistente = (productosSnapshot || []).find(p => 
             p.nombre?.toLowerCase().trim() === prod.nombre?.toLowerCase().trim() &&
@@ -270,27 +295,19 @@ export class ImportarProductosComponent {
           prod.estado = 'EXISTENTE';
           prod.productoId = productoExistente.id;
           
-          // 🔹 Verificar si el producto está desactivado
           prod.estaDesactivado = productoExistente.activo === false;
           
-          // La cantidad del Excel es lo que se va a AGREGAR al stock
-          // No modificamos prod.cantidad, se mantiene la del Excel
           const stockExistente = productoExistente.stock || 0;
-          const cantidadAAgregar = prod.cantidad || 0; // Cantidad del Excel a agregar
+          const cantidadAAgregar = prod.cantidad || 0;
           prod.stockAnterior = stockExistente;
-          prod.stockActivoAnterior = stockExistente; // 🔹 Stock a sumar si se reactiva
-          // El nuevo stock final será: stockExistente + cantidadAAgregar
-          // Se calcula en la creación del detalle del ingreso
+          prod.stockActivoAnterior = stockExistente;
           
-          // Pre-cargar datos existentes pero permitir que se reemplacen
           prod.costo = productoExistente.costo || 0;
           prod.grupo = productoExistente.grupo || 'GAFAS';
-          prod.idInterno = productoExistente.idInterno || undefined; // 🔹 Guardar idInterno del sistema
+          prod.idInterno = productoExistente.idInterno || undefined;
           
-          // IMPORTANTE: Reemplazar proveedor si es diferente
           prod.proveedorAnterior = productoExistente.proveedor || '';
           
-          // Reemplazar PVP1 si viene en la importación
           if (prod.pvp1) {
             prod.pvp1Anterior = productoExistente.pvp1 || 0;
           } else {

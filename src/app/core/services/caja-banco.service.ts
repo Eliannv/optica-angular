@@ -1,3 +1,22 @@
+/**
+ * Gestiona el ciclo de vida completo de las cajas banco mensuales del sistema financiero.
+ * Maneja movimientos bancarios de alto nivel como transferencias de clientes, pagos con tarjeta,
+ * cierres consolidados de cajas chicas diarias y otros movimientos que no se realizan en efectivo.
+ *
+ * Este servicio implementa:
+ * - Apertura y cierre automático de cajas banco mensuales
+ * - Registro de movimientos con trazabilidad de saldos (anterior/nuevo)
+ * - Categorización de ingresos y egresos para reportes
+ * - Herencia automática de saldos entre meses
+ * - Validación de cajas ABIERTA para operaciones
+ * - Soft delete para preservar historial
+ * - Cierre automático de cajas vencidas (mayores a 1 mes)
+ *
+ * Los datos se persisten en 'cajas_banco' y 'movimientos_cajas_banco' de Firestore.
+ * Se integra estrechamente con CajaChicaService para registrar los cierres diarios.
+ *
+ * Forma parte del módulo financiero del sistema de gestión de la óptica.
+ */
 import { inject, Injectable } from '@angular/core';
 import {
   Firestore,
@@ -28,7 +47,13 @@ export class CajaBancoService {
   private firestore = inject(Firestore);
   private authService = inject(AuthService);
 
-  // 🔹 Obtener todas las cajas banco (SOLO ACTIVAS)
+  /**
+   * Recupera todas las cajas banco activas del sistema ordenadas por fecha descendente.
+   * Filtra automáticamente las cajas desactivadas (soft delete) en memoria y ejecuta
+   * validación automática para cerrar cajas vencidas (mayores a 1 mes).
+   *
+   * @returns Observable<CajaBanco[]> Stream reactivo con las cajas banco activas.
+   */
   getCajasBanco(): Observable<CajaBanco[]> {
     const cajasRef = collection(this.firestore, 'cajas_banco');
     // Obtener todas las cajas sin filtros de desigualdad para evitar requerir índices
@@ -48,7 +73,14 @@ export class CajaBancoService {
       })
     ) as Observable<CajaBanco[]>;
   }
-  // 🔹 Obtener cajas banco por mes (rango)
+  /**
+   * Recupera todas las cajas banco de un mes específico.
+   * Utiliza un rango de fechas para consultas eficientes en Firestore.
+   *
+   * @param year Año calendario (ej: 2026).
+   * @param monthIndex0 Índice del mes base 0 (0=Enero, 11=Diciembre).
+   * @returns Observable<CajaBanco[]> Stream con las cajas del mes especificado.
+   */
   getCajasBancoPorMes(year: number, monthIndex0: number): Observable<CajaBanco[]> {
     const cajasRef = collection(this.firestore, 'cajas_banco');
     const inicioMes = new Date(year, monthIndex0, 1);
@@ -62,7 +94,14 @@ export class CajaBancoService {
     return collectionData(q, { idField: 'id' }) as Observable<CajaBanco[]>;
   }
 
-  // 🔹 Obtener movimientos de caja banco por mes (global + por caja)
+  /**
+   * Recupera todos los movimientos de caja banco de un mes específico.
+   * Los resultados se ordenan por timestamp de creación descendente en el cliente.
+   *
+   * @param year Año calendario.
+   * @param monthIndex0 Índice del mes base 0.
+   * @returns Observable<MovimientoCajaBanco[]> Stream con los movimientos del mes.
+   */
   getMovimientosCajaBancoPorMes(year: number, monthIndex0: number): Observable<MovimientoCajaBanco[]> {
     const movimientosRef = collection(this.firestore, 'movimientos_cajas_banco');
     const inicioMes = new Date(year, monthIndex0, 1);
@@ -83,7 +122,7 @@ export class CajaBancoService {
     ) as Observable<MovimientoCajaBanco[]>;
   }
 
-  // 🔹 Obtener TODAS las cajas banco (incluyendo desactivadas) - para cálculos totales
+  // Obtener TODAS las cajas banco (incluyendo desactivadas) - para cálculos totales
   getCajasBancoTodas(): Observable<CajaBanco[]> {
     const cajasRef = collection(this.firestore, 'cajas_banco');
     const q = query(
@@ -93,13 +132,19 @@ export class CajaBancoService {
     return collectionData(q, { idField: 'id' }) as Observable<CajaBanco[]>;
   }
 
-  // 🔹 Obtener una caja banco por ID
+  // Obtener una caja banco por ID
   getCajaBancoById(id: string): Observable<CajaBanco> {
     const cajaDoc = doc(this.firestore, `cajas_banco/${id}`);
     return docData(cajaDoc, { idField: 'id' }) as Observable<CajaBanco>;
   }
 
-  // 🔹 Obtener la caja banco ABIERTA del mes actual
+  /**
+   * Obtiene la caja banco ABIERTA del mes actual.
+   * Realiza búsqueda por rango de fecha y filtra en memoria por estado y soft delete.
+   * Este método es crítico para operaciones que requieren una caja activa.
+   *
+   * @returns Promise<CajaBanco | null> Caja banco abierta o null si no existe.
+   */
   async getCajaBancoActivaMes(): Promise<CajaBanco | null> {
     try {
       const hoy = new Date();
@@ -141,7 +186,7 @@ export class CajaBancoService {
     }
   }
 
-  // 🔹 Verificar si existe al menos una caja banco en el sistema
+  // Verificar si existe al menos una caja banco en el sistema
   existeAlMenosUnaCajaBanco(): Observable<boolean> {
     const cajasRef = collection(this.firestore, 'cajas_banco');
     const q = query(cajasRef);
@@ -152,7 +197,19 @@ export class CajaBancoService {
     );
   }
 
-  // 🔹 Abrir una nueva caja banco (o actualizar si ya existe para el día)
+  /**
+   * Abre una nueva caja banco o actualiza una existente para el día especificado.
+   * Implementa herencia automática de saldo desde el mes anterior si no se proporciona saldo inicial.
+   *
+   * Proceso:
+   * 1. Normaliza la fecha a medianoche
+   * 2. Busca si ya existe caja para ese día (actualiza si existe)
+   * 3. Si no existe, intenta heredar saldo del mes anterior cerrado
+   * 4. Crea nueva caja con saldo inicial determinado
+   *
+   * @param caja Datos de la caja banco a crear/actualizar.
+   * @returns Promise<string> ID de la caja creada o actualizada.
+   */
   async abrirCajaBanco(caja: CajaBanco): Promise<string> {
     const cajasRef = collection(this.firestore, 'cajas_banco');
     
@@ -248,7 +305,21 @@ export class CajaBancoService {
     }
   }
 
-  // 🔹 Registrar un movimiento en caja banco
+  /**
+   * Registra un movimiento financiero en la caja banco.
+   * Valida que la caja esté ABIERTA, calcula nuevos saldos y actualiza la caja automáticamente.
+   *
+   * Flujo:
+   * 1. Si tiene caja_banco_id: Valida estado ABIERTA
+   * 2. Calcula nuevo saldo (+ ingreso / - egreso)
+   * 3. Valida que no quede en negativo
+   * 4. Registra movimiento con trazabilidad de saldos
+   * 5. Actualiza saldo_actual de la caja
+   *
+   * @param movimiento Datos del movimiento a registrar.
+   * @returns Promise<string> ID del movimiento creado.
+   * @throws Error si la caja no existe, está cerrada o hay saldo insuficiente.
+   */
   async registrarMovimiento(movimiento: MovimientoCajaBanco): Promise<string> {
     try {
       const movimientosRef = collection(this.firestore, 'movimientos_cajas_banco');
@@ -353,7 +424,14 @@ export class CajaBancoService {
     }
   }
 
-  // 🔹 Cerrar una caja banco
+  /**
+   * Cierra una caja banco cambiando su estado a CERRADA.
+   * Opcionalmente permite ajustar el monto final.
+   *
+   * @param cajaBancoId ID de la caja a cerrar.
+   * @param montoFinal Monto final opcional para ajuste de cierre.
+   * @returns Promise<void> Se resuelve cuando el cierre se completa.
+   */
   async cerrarCajaBanco(cajaBancoId: string, montoFinal?: number): Promise<void> {
     try {
       await updateDoc(doc(this.firestore, `cajas_banco/${cajaBancoId}`), {
@@ -367,7 +445,19 @@ export class CajaBancoService {
     }
   }
 
-  // 🔹 Obtener resumen de caja banco
+  /**
+   * Genera un resumen consolidado de los movimientos de una caja banco.
+   * Calcula totales por tipo, categoría y balance final para reportes y auditoría.
+   *
+   * Incluye:
+   * - Total de ingresos y egresos
+   * - Saldo final actual
+   * - Cantidad de movimientos
+   * - Desglose por categoría (cierres, transferencias, pagos, etc.)
+   *
+   * @param cajaBancoId ID de la caja (opcional, si no se provee resume todos los movimientos).
+   * @returns Promise<ResumenCajaBanco> Objeto con los totales calculados.
+   */
   async getResumenCajaBanco(cajaBancoId?: string): Promise<ResumenCajaBanco> {
     try {
       const movimientosRef = collection(this.firestore, 'movimientos_cajas_banco');
@@ -436,7 +526,7 @@ export class CajaBancoService {
     }
   }
 
-  // 🔹 Eliminar un movimiento
+  // Eliminar un movimiento
   async eliminarMovimiento(cajaBancoId: string, movimientoId: string): Promise<void> {
     try {
       const movimientoDoc = await getDoc(doc(this.firestore, `movimientos_cajas_banco/${movimientoId}`));
@@ -466,7 +556,17 @@ export class CajaBancoService {
     }
   }
 
-  // 🔹 Registrar un cierre de Caja Chica en Caja Banco
+  /**
+   * Registra el cierre de una caja chica como ingreso en la caja banco.
+   * Este método se llama automáticamente cuando se cierra una caja chica diaria.
+   *
+   * @param cajaBancoId ID de la caja banco destino.
+   * @param cajaChicaId ID de la caja chica que se cierra.
+   * @param monto Monto final de la caja chica.
+   * @param usuarioId ID del usuario que realiza el cierre.
+   * @param usuarioNombre Nombre del usuario.
+   * @returns Promise<string> ID del movimiento creado.
+   */
   async registrarCierreCajaChica(
     cajaBancoId: string,
     cajaChicaId: string,
@@ -490,7 +590,18 @@ export class CajaBancoService {
     return this.registrarMovimiento(movimiento);
   }
 
-  // 🔹 Registrar una transferencia de cliente
+  /**
+   * Registra una transferencia bancaria de cliente como ingreso en la caja banco activa del mes.
+   * Busca automáticamente la caja banco ABIERTA del mes actual.
+   *
+   * @param monto Monto transferido.
+   * @param codigoTransferencia Número de referencia de la transferencia.
+   * @param ventaId ID de la venta asociada.
+   * @param usuarioId ID del usuario que registra.
+   * @param usuarioNombre Nombre del usuario.
+   * @returns Promise<string> ID del movimiento creado.
+   * @throws Error si no hay caja banco abierta para el mes actual.
+   */
   async registrarTransferenciaCliente(
     monto: number,
     codigoTransferencia: string,
@@ -498,7 +609,7 @@ export class CajaBancoService {
     usuarioId?: string,
     usuarioNombre?: string
   ): Promise<string> {
-    // 🔹 Obtener la caja banco ABIERTA del mes actual
+    // Obtener la caja banco ABIERTA del mes actual
     const cajaBancoActiva = await this.getCajaBancoActivaMes();
     
     if (!cajaBancoActiva || !cajaBancoActiva.id) {
@@ -521,7 +632,7 @@ export class CajaBancoService {
     return this.registrarMovimiento(movimiento);
   }
 
-  // 🔹 Registrar un pago por tarjeta de cliente
+  // Registrar un pago por tarjeta de cliente
   async registrarPagoTarjeta(
     monto: number,
     ultimos4Digitos: string,
@@ -529,7 +640,7 @@ export class CajaBancoService {
     usuarioId?: string,
     usuarioNombre?: string
   ): Promise<string> {
-    // 🔹 Obtener la caja banco ABIERTA del mes actual
+    // Obtener la caja banco ABIERTA del mes actual
     const cajaBancoActiva = await this.getCajaBancoActivaMes();
     
     if (!cajaBancoActiva || !cajaBancoActiva.id) {
@@ -552,7 +663,7 @@ export class CajaBancoService {
     return this.registrarMovimiento(movimiento);
   }
 
-  // 🔹 Actualizar saldo de caja banco (para restar monto cuando se elimina caja chica)
+  // Actualizar saldo de caja banco (para restar monto cuando se elimina caja chica)
   async actualizarSaldoCajaBanco(cajaBancoId: string, nuevoSaldo: number): Promise<void> {
     try {
       await updateDoc(doc(this.firestore, `cajas_banco/${cajaBancoId}`), {
@@ -565,7 +676,7 @@ export class CajaBancoService {
     }
   }
 
-  // 🔹 Desactivar una caja banco (SOFT DELETE)
+  // Desactivar una caja banco (SOFT DELETE)
   async desactivarCajaBanco(cajaBancoId: string): Promise<void> {
     try {
       await updateDoc(doc(this.firestore, `cajas_banco/${cajaBancoId}`), {
@@ -578,7 +689,7 @@ export class CajaBancoService {
     }
   }
 
-  // 🔹 Reactivar una caja banco (reversible)
+  // Reactivar una caja banco (reversible)
   async activarCajaBanco(cajaBancoId: string): Promise<void> {
     try {
       await updateDoc(doc(this.firestore, `cajas_banco/${cajaBancoId}`), {
@@ -591,7 +702,7 @@ export class CajaBancoService {
     }
   }
 
-  // 🔹 Eliminar una caja banco completa (SOFT DELETE)
+  // Eliminar una caja banco completa (SOFT DELETE)
   async eliminarCajaBanco(cajaBancoId: string): Promise<void> {
     try {
       // 🔹 SOFT DELETE: Solo marcar como inactivo
@@ -606,7 +717,20 @@ export class CajaBancoService {
     }
   }
 
-  // 🔹 Cerrar mes completo y abrir nuevo periodo
+  /**
+   * Cierra todas las cajas banco abiertas de un mes y crea automáticamente
+   * la caja del mes siguiente heredando el saldo final.
+   *
+   * Proceso:
+   * 1. Encuentra todas las cajas ABIERTA del mes especificado
+   * 2. Cierra cada caja encontrada
+   * 3. Verifica si ya existe caja para el mes siguiente
+   * 4. Si no existe, crea nueva caja con saldo heredado
+   *
+   * @param year Año del mes a cerrar.
+   * @param monthIndex0 Índice del mes a cerrar (base 0).
+   * @returns Promise<void> Se resuelve cuando el cierre y creación se completan.
+   */
   async cerrarMesCompleto(year: number, monthIndex0: number): Promise<void> {
     try {
       // 1. Obtener todas las cajas banco del mes
@@ -687,7 +811,7 @@ export class CajaBancoService {
     return meses[index] || '';
   }
 
-  // 🔹 Asociar movimientos antiguos a cajas banco por fecha
+  // Asociar movimientos antiguos a cajas banco por fecha
   async asociarMovimientosAntiguos(cajaBancoId: string): Promise<void> {
     try {
       const cajaDoc = await getDoc(doc(this.firestore, `cajas_banco/${cajaBancoId}`));
@@ -728,7 +852,7 @@ export class CajaBancoService {
     }
   }
 
-  // 🔄 Verificar automáticamente si hay cajas ABIERTA que hayan cumplido 1 mes y cerrarlas
+  // Verificar automáticamente si hay cajas ABIERTA que hayan cumplido 1 mes y cerrarlas
   private async verificarYCerrarCajasVencidas(cajas: CajaBanco[]): Promise<void> {
     try {
       const ahora = new Date();
