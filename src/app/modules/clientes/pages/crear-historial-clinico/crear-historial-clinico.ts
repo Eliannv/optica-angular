@@ -16,7 +16,7 @@
 
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { FormBuilder, Validators, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
 import Swal from 'sweetalert2';
@@ -47,14 +47,6 @@ export class CrearHistorialClinicoComponent implements OnInit {
   mode: Mode = 'create';
   existeHistorial = false;
 
-  readonly provinciasEcuador = [
-    'Azuay', 'Bolívar', 'Cañar', 'Carchi', 'Chimborazo', 'Cotopaxi',
-    'El Oro', 'Esmeraldas', 'Galápagos', 'Guayas', 'Imbabura', 'Loja',
-    'Los Ríos', 'Manabí', 'Morona Santiago', 'Napo', 'Orellana', 'Pastaza',
-    'Pichincha', 'Santa Elena', 'Santo Domingo de los Tsáchilas',
-    'Sucumbíos', 'Tungurahua', 'Zamora Chinchipe'
-  ];
-
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -76,63 +68,50 @@ export class CrearHistorialClinicoComponent implements OnInit {
     /* =========================
        FORM HISTORIAL CLÍNICO
        ========================= */
-    // Patrón: permite solo letras, números, espacios, guiones, puntos y comas
-    const patternTexto = /^[a-zA-Z0-9\s\-.,\/ñáéíóúü]+$/i;
-    // Patrón para AVSC/AVCC: permite números y diagonal (ej: 20/29, 20/40)
-    const patternAV = /^[\d/\s]*$/;
-
     this.form = this.fb.group({
-      dp: [null],
-      add: [null],
+      dp: [''],
+      add: [''],
 
-      odEsfera: [null],
-      odCilindro: [null],
-      odEje: [null],
-      odAVSC: [null],
-      odAVCC: [null],
+      odEsfera: [''],
+      odCilindro: [''],
+      odEje: [''],
+      odAVSC: [''],
+      odAVCC: [''],
 
-      oiEsfera: [null],
-      oiCilindro: [null],
-      oiEje: [null],
-      oiAVSC: [null],
-      oiAVCC: [null],
+      oiEsfera: [''],
+      oiCilindro: [''],
+      oiEje: [''],
+      oiAVSC: [''],
+      oiAVCC: [''],
 
       de: [''],
-      altura: [null],
+      altura: [''],
       color: [''],
       observacion: [''],
 
       doctor: [''],
 
       // Medidas del armazón (montura)
-      armazonH: [null, Validators.required],
-      armazonV: [null, Validators.required],
-      armazonDM: [null, Validators.required],
-      armazonP: [null, Validators.required],
-      armazonTipo: ['', Validators.required],
-      armazonDNP_OD: [null, Validators.required],
-      armazonDNP_OI: [null, Validators.required],
-      armazonAltura: [null, Validators.required]
+      armazonH: [''],
+      armazonV: [''],
+      armazonDM: [''],
+      armazonP: [''],
+      armazonTipo: [''],
+      armazonDNP_OD: [''],
+      armazonDNP_OI: [''],
+      armazonAltura: ['']
     });
 
     /* =========================
        FORM CLIENTE
        ========================= */
     this.clienteForm = this.fb.group({
-      nombres: ['', [Validators.required, Validators.minLength(2)]],
-      apellidos: ['', [Validators.required, Validators.minLength(2)]],
-      cedula: ['', {
-        validators: [Validators.required, Validators.pattern(/^\d{10}$/)],
-        asyncValidators: [this.uniqueCedulaClienteValidator()],
-        updateOn: 'blur'
-      }],
-      email: ['', {
-        validators: [Validators.email],
-        asyncValidators: [this.uniqueEmailClienteValidator()],
-        updateOn: 'blur'
-      }],
-      telefono: ['', [Validators.required, Validators.pattern(/^0\d{9}$/)]],
-      pais: ['Ecuador'],
+      nombres: [''],
+      apellidos: [''],
+      cedula: [''],
+      email: [''],
+      telefono: [''],
+      pais: [''],
       provincia: [''],
       ciudad: [''],
       direccion: ['']
@@ -193,34 +172,8 @@ export class CrearHistorialClinicoComponent implements OnInit {
     if (this.mode === 'view') return;
 
     try {
-      // 🔧 Obtener valores del formulario
+      // 🔧 Obtener valores del formulario sin restricciones ni normalizaciones
       const data = this.form.getRawValue();
-      
-      // 🔧 Llenar campos vacíos con 0 automáticamente
-      const fieldsToDefault = ['dp', 'add', 'altura', 'odEsfera', 'odCilindro', 'odEje', 'odAVSC', 'odAVCC', 'oiEsfera', 'oiCilindro', 'oiEje', 'oiAVSC', 'oiAVCC'];
-      fieldsToDefault.forEach(field => {
-        if (data[field] === null || data[field] === undefined || data[field] === '') {
-          data[field] = 0;
-        }
-      });
-
-      // 🔧 Llenar campos de texto vacíos con valores por defecto
-      data.de = data.de || 'N/A';
-      data.color = data.color || 'N/A';
-      data.doctor = data.doctor || 'N/A';
-      data.observacion = data.observacion || '';
-
-      // ✅ Validar campos requeridos del armazón
-      if (!data.armazonH || !data.armazonV || !data.armazonDM || !data.armazonP || 
-          !data.armazonTipo || !data.armazonDNP_OD || !data.armazonDNP_OI || !data.armazonAltura) {
-        await Swal.fire({
-          icon: 'warning',
-          title: 'Campos incompletos',
-          text: 'Todos los campos de Medidas del Armazón son obligatorios.',
-          confirmButtonColor: '#3085d6'
-        });
-        return;
-      }
 
       await this.historialSrv.guardarHistorial(this.clienteId, data);
 
@@ -270,107 +223,4 @@ export class CrearHistorialClinicoComponent implements OnInit {
    * Verifica si el componente está en modo creación.
    */
   get esCreate(): boolean { return this.mode === 'create'; }
-
-  /**
-   * Determina si el botón guardar debe estar habilitado.
-   *
-   * Valida que todos los campos obligatorios (de, color, doctor y campos del armazón)
-   * estén válidos antes de permitir el guardado.
-   *
-   * @returns true si el formulario es válido, false en caso contrario.
-   */
-  canGuardar(): boolean {
-    // Solo valida los campos requeridos: de, color, doctor y campos del armazón
-    const de = this.form.get('de');
-    const color = this.form.get('color');
-    const doctor = this.form.get('doctor');
-    
-    // Validar campos del armazón
-    const armazonH = this.form.get('armazonH');
-    const armazonV = this.form.get('armazonV');
-    const armazonDM = this.form.get('armazonDM');
-    const armazonP = this.form.get('armazonP');
-    const armazonTipo = this.form.get('armazonTipo');
-    const armazonDNP_OD = this.form.get('armazonDNP_OD');
-    const armazonDNP_OI = this.form.get('armazonDNP_OI');
-    const armazonAltura = this.form.get('armazonAltura');
-    
-    return !!(de?.valid && color?.valid && doctor?.valid && 
-              armazonH?.valid && armazonV?.valid && armazonDM?.valid && 
-              armazonP?.valid && armazonTipo?.valid && armazonDNP_OD?.valid && 
-              armazonDNP_OI?.valid && armazonAltura?.valid);
-  }
-
-  /**
-   * Verifica si un campo del formulario de cliente es inválido y tocado.
-   */
-  esInvalidoCliente(campo: string): boolean {
-    const c = this.clienteForm.get(campo);
-    return !!(c && c.invalid && c.touched);
-  }
-
-  /**
-   * Verifica si un campo del formulario de historial es inválido y tocado.
-   */
-  esInvalido(campo: string): boolean {
-    const c = this.form.get(campo);
-    return !!(c && c.invalid && c.touched);
-  }
-
-  /**
-   * Genera el mensaje de error apropiado para un campo del formulario de cliente.
-   */
-  getMensajeErrorCliente(campo: string): string {
-    const c = this.clienteForm.get(campo);
-    if (!c || !c.errors) return '';
-
-    if (c.errors['required']) return 'Campo requerido';
-    if (c.errors['minlength']) return 'Muy corto';
-    if (c.errors['pattern']) return 'Formato inválido';
-    if (c.errors['email']) return 'Email inválido';
-    if (c.errors['emailTomado']) return 'Email ya registrado';
-    if (c.errors['cedulaTomada']) return 'Cédula ya registrada';
-
-    return 'Campo inválido';
-  }
-
-  /**
-   * Genera el mensaje de error apropiado para un campo del formulario de historial.
-   */
-  getMensajeError(campo: string): string {
-    const c = this.form.get(campo);
-    if (!c || !c.errors) return '';
-
-    if (c.errors['required']) return 'Campo requerido';
-    if (c.errors['minlength']) return 'Mínimo 2 caracteres';
-    if (c.errors['maxlength']) return 'Máximo 500 caracteres';
-    if (c.errors['pattern']) return 'Caracteres especiales no permitidos';
-    if (c.errors['min']) return 'Valor debe ser positivo';
-
-    return 'Campo inválido';
-  }
-
-  /**
-   * Validador asíncrono para verificar unicidad de email del cliente.
-   */
-  uniqueEmailClienteValidator() {
-    return async (control: any) => {
-      const v = (control.value || '').trim().toLowerCase();
-      if (!v) return null;
-      const existe = await this.clientesSrv.existeEmail(v, this.clienteId);
-      return existe ? { emailTomado: true } : null;
-    };
-  }
-
-  /**
-   * Validador asíncrono para verificar unicidad de cédula del cliente.
-   */
-  uniqueCedulaClienteValidator() {
-    return async (control: any) => {
-      const v = (control.value || '').trim();
-      if (!v) return null;
-      const existe = await this.clientesSrv.existeCedula(v, this.clienteId);
-      return existe ? { cedulaTomada: true } : null;
-    };
-  }
 }
