@@ -14,9 +14,10 @@
  * - SweetAlert2 para confirmaciones y notificaciones
  */
 
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators, AbstractControl, AsyncValidatorFn, ValidationErrors, FormGroup } from '@angular/forms';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { EmpleadosService } from '../../core/services/empleados.service';
 import { EnterNextDirective } from '../../shared/directives/enter-next.directive';
 import { Usuario } from '../../core/models/usuario.model';
@@ -32,6 +33,7 @@ import Swal from 'sweetalert2';
 export class EmpleadosComponent implements OnInit {
   private empleadosService = inject(EmpleadosService);
   private fb = inject(FormBuilder);
+  private cdr = inject(ChangeDetectorRef);
 
   empleados: Usuario[] = [];
   empleadosFiltrados: Usuario[] = [];
@@ -44,6 +46,14 @@ export class EmpleadosComponent implements OnInit {
   modalAbierto = false;
   empleadoSeleccionado: Usuario | null = null;
   formEditar!: FormGroup;
+
+  // Variables para validación reactiva
+  validandoCedula = false;
+  validandoEmail = false;
+  cedulaDuplicadaMsg = '';
+  emailDuplicadoMsg = '';
+  cedulaOriginal = '';
+  emailOriginal = '';
 
   machineIdActual: string | null = null;
   sucursalActual: string = 'PASAJE';
@@ -185,46 +195,143 @@ export class EmpleadosComponent implements OnInit {
     this.empleadoSeleccionado = { ...empleado };
     this.modalAbierto = true;
 
+    // Guardar valores originales para comparar cambios
+    this.cedulaOriginal = empleado.cedula || '';
+    this.emailOriginal = empleado.email || '';
+    
+    // Limpiar mensajes de validación
+    this.cedulaDuplicadaMsg = '';
+    this.emailDuplicadoMsg = '';
+    this.validandoCedula = false;
+    this.validandoEmail = false;
+
+    // Formulario sin validadores obligatorios
     this.formEditar = this.fb.group({
-      cedula: [empleado.cedula || '', {
-        validators: [
-          Validators.required,
-          Validators.pattern(/^\d{10}$/)
-        ],
-        asyncValidators: [this.uniqueCedulaValidator(empleado.id!)],
-        updateOn: 'blur'
-      }],
-      nombre: [empleado.nombre || '', [
-        Validators.required,
-        Validators.minLength(2),
-        Validators.pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
-      ]],
-      apellido: [empleado.apellido || '', [
-        Validators.required,
-        Validators.minLength(2),
-        Validators.pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
-      ]],
-      fechaNacimiento: [empleado.fechaNacimiento || '', [
-        Validators.required,
-        this.edadMinimaValidator(18)
-      ]],
-      email: [empleado.email || '', {
-        validators: [Validators.required, Validators.email],
-        asyncValidators: [this.uniqueEmailValidator(empleado.id!)],
-        updateOn: 'blur'
-      }]
+      cedula: [empleado.cedula || ''],
+      nombre: [empleado.nombre || ''],
+      apellido: [empleado.apellido || ''],
+      fechaNacimiento: [empleado.fechaNacimiento || ''],
+      email: [empleado.email || '']
     });
+
+    // Configurar validaciones reactivas solo para cédula y email
+    this.setupValidacionesReactivas();
+  }
+
+  /**
+   * Configura validaciones reactivas para cédula y email.
+   * Solo valida si los valores cambian respecto a los originales.
+   */
+  setupValidacionesReactivas(): void {
+    // Validación reactiva para cédula
+    this.formEditar.get('cedula')?.valueChanges
+      .pipe(
+        debounceTime(400),
+        distinctUntilChanged()
+      )
+      .subscribe(async (cedula: string) => {
+        this.cedulaDuplicadaMsg = '';
+        this.validandoCedula = false;
+        
+        if (!cedula || cedula.trim() === '') return;
+        
+        // Solo validar si cambió respecto al original
+        if (cedula.trim() === this.cedulaOriginal.trim()) return;
+        
+        this.validandoCedula = true;
+        this.cdr.markForCheck();
+        
+        try {
+          const existe = await this.empleadosService.existeCedula(cedula, this.empleadoSeleccionado?.id);
+          if (existe) {
+            this.cedulaDuplicadaMsg = 'Esta cédula ya existe en el sistema';
+          }
+        } catch (error) {
+          console.error('Error validando cédula:', error);
+        } finally {
+          this.validandoCedula = false;
+          this.cdr.markForCheck();
+        }
+      });
+
+    // Validación reactiva para email
+    this.formEditar.get('email')?.valueChanges
+      .pipe(
+        debounceTime(400),
+        distinctUntilChanged()
+      )
+      .subscribe(async (email: string) => {
+        this.emailDuplicadoMsg = '';
+        this.validandoEmail = false;
+        
+        if (!email || email.trim() === '') return;
+        
+        // Solo validar si cambió respecto al original
+        if (email.trim().toLowerCase() === this.emailOriginal.trim().toLowerCase()) return;
+        
+        this.validandoEmail = true;
+        this.cdr.markForCheck();
+        
+        try {
+          const existe = await this.empleadosService.existeEmail(email, this.empleadoSeleccionado?.id);
+          if (existe) {
+            this.emailDuplicadoMsg = 'Este email ya existe en el sistema';
+          }
+        } catch (error) {
+          console.error('Error validando email:', error);
+        } finally {
+          this.validandoEmail = false;
+          this.cdr.markForCheck();
+        }
+      });
+  }
+
+  /**
+   * Verifica si el formulario puede ser guardado.
+   */
+  get puedeGuardar(): boolean {
+    // Bloquear si hay duplicados
+    if (this.cedulaDuplicadaMsg || this.emailDuplicadoMsg) return false;
+    
+    // Bloquear si se está validando
+    if (this.validandoCedula || this.validandoEmail) return false;
+    
+    return true;
   }
 
   /**
    * Valida y guarda los cambios del formulario de edición.
    */
-  guardarEdicion(): void {
+  async guardarEdicion(): Promise<void> {
     if (!this.empleadoSeleccionado?.id) return;
 
-    if (this.formEditar?.invalid) {
-      this.formEditar.markAllAsTouched();
-      return;
+    const cedula = this.formEditar.get('cedula')?.value || '';
+    const email = this.formEditar.get('email')?.value || '';
+
+    // Validar cédula si cambió
+    if (cedula && cedula.trim() !== this.cedulaOriginal.trim()) {
+      const cedulaExiste = await this.empleadosService.existeCedula(cedula, this.empleadoSeleccionado.id);
+      if (cedulaExiste) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Cédula duplicada',
+          text: 'Esta cédula ya existe en el sistema'
+        });
+        return;
+      }
+    }
+
+    // Validar email si cambió
+    if (email && email.trim() !== this.emailOriginal.trim()) {
+      const emailExiste = await this.empleadosService.existeEmail(email, this.empleadoSeleccionado.id);
+      if (emailExiste) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Email duplicado',
+          text: 'Este email ya existe en el sistema'
+        });
+        return;
+      }
     }
 
     const datos = {

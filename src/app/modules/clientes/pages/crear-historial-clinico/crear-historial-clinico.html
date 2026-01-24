@@ -25,8 +25,9 @@
                 </div>
 
                 <div class="input-group">
-                    <label>Cédula</label>
+                    <label>Cédula *</label>
                     <input type="text" formControlName="cedula" placeholder="1234567890" appEnterNext>
+                    <small class="text-warning" *ngIf="cedulaDuplicadaMsg">{{ cedulaDuplicadaMsg }}</small>
                 </div>
 
                 <div class="input-group">
@@ -37,6 +38,7 @@
                 <div class="input-group">
                     <label>Email</label>
                     <input type="text" formControlName="email" placeholder="ejemplo@correo.com" appEnterNext>
+                    <small class="text-warning" *ngIf="emailDuplicadoMsg">{{ emailDuplicadoMsg }}</small>
                 </div>
 
                 <div class="input-group">
@@ -218,8 +220,9 @@
                 <button type="button" class="btn-cancel" (click)="cancelar()">
           Cancelar
         </button>
-                <button type="submit" class="btn-save">
-          Guardar Todo
+                <button type="submit" class="btn-save" [disabled]="!puedeGuardar">
+          <span *ngIf="validandoCedula || validandoEmail">Validando...</span>
+          <span *ngIf="!validandoCedula && !validandoEmail">Guardar Todo</span>
         </button>
             </div>
         </form>

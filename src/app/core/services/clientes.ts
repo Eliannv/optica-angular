@@ -165,21 +165,33 @@ export class ClientesService {
    * @returns Promise<boolean> true si la cédula ya existe, false si está disponible.
    */
   async existeCedula(cedula: string, excluirClienteId?: string): Promise<boolean> {
-    // Buscar en clientes ACTIVOS
+    console.log('🔍 existeCedula - Buscando:', cedula, 'Excluir ID:', excluirClienteId);
+    
+    // Buscar en clientes (query simple sin índice compuesto)
     const qClientes = query(
       this.clientesRef,
-      where('cedula', '==', cedula),
-      where('activo', '!=', false)
+      where('cedula', '==', cedula)
     );
     const snapClientes = await getDocs(qClientes);
-    const existeEnClientes = snapClientes.docs.some(d => d.id !== excluirClienteId);
-    if (existeEnClientes) return true;
+    
+    // Filtrar manualmente los clientes activos y excluir el actual
+    const clientesActivos = snapClientes.docs.filter(d => 
+      d.data()['activo'] !== false && d.id !== excluirClienteId
+    );
+    
+    console.log('📋 Clientes encontrados:', snapClientes.docs.length, 'Activos (excluido el actual):', clientesActivos.length);
+    
+    if (clientesActivos.length > 0) return true;
 
     // Buscar en usuarios
     const usuariosRef = collection(this.firestore, 'usuarios');
     const qUsuarios = query(usuariosRef, where('cedula', '==', cedula));
     const snapUsuarios = await getDocs(qUsuarios);
-    return !snapUsuarios.empty;
+    console.log('👤 Usuarios encontrados:', snapUsuarios.docs.length);
+    
+    const existeEnUsuarios = !snapUsuarios.empty;
+    console.log('✅ Resultado final:', existeEnUsuarios);
+    return existeEnUsuarios;
   }
 
   /**
@@ -194,28 +206,26 @@ export class ClientesService {
    * @returns Promise<boolean> true si el email ya existe, false si está disponible.
    */
   async existeEmail(email: string, excluirClienteId?: string): Promise<boolean> {
+    console.log('🔍 existeEmail - Buscando:', email, 'Excluir ID:', excluirClienteId);
+    
     const emailLower = email.toLowerCase();
     
-    // Buscar en clientes ACTIVOS (compatibilidad: algunos documentos antiguos usan 'correo')
+    // Buscar en clientes (queries simples sin índices compuestos)
     const qClientesEmail = query(
       this.clientesRef,
-      where('email', '==', email),
-      where('activo', '!=', false)
+      where('email', '==', email)
     );
     const qClientesEmailLower = query(
       this.clientesRef,
-      where('email', '==', emailLower),
-      where('activo', '!=', false)
+      where('email', '==', emailLower)
     );
     const qClientesCorreo = query(
       this.clientesRef,
-      where('correo', '==', email),
-      where('activo', '!=', false)
+      where('correo', '==', email)
     );
     const qClientesCorreoLower = query(
       this.clientesRef,
-      where('correo', '==', emailLower),
-      where('activo', '!=', false)
+      where('correo', '==', emailLower)
     );
     
     const [snapClientesEmail, snapClientesEmailLower, snapClientesCorreo, snapClientesCorreoLower] = await Promise.all([
@@ -225,13 +235,17 @@ export class ClientesService {
       getDocs(qClientesCorreoLower)
     ]);
 
-    const existeEnClientes = [
+    // Filtrar manualmente clientes activos y excluir el actual
+    const clientesEncontrados = [
       ...snapClientesEmail.docs, 
       ...snapClientesEmailLower.docs,
       ...snapClientesCorreo.docs,
       ...snapClientesCorreoLower.docs
-    ].some(d => d.id !== excluirClienteId);
-    if (existeEnClientes) return true;
+    ].filter(d => d.data()['activo'] !== false && d.id !== excluirClienteId);
+
+    console.log('📧 Clientes con email encontrados:', clientesEncontrados.length);
+    
+    if (clientesEncontrados.length > 0) return true;
 
     // Buscar en usuarios (campo estándar 'email')
     const usuariosRef = collection(this.firestore, 'usuarios');
@@ -241,6 +255,11 @@ export class ClientesService {
       getDocs(qUsuarios),
       getDocs(qUsuariosLower)
     ]);
-    return !snapUsuarios.empty || !snapUsuariosLower.empty;
+    
+    console.log('👤 Usuarios con email encontrados:', snapUsuarios.docs.length + snapUsuariosLower.docs.length);
+    
+    const existeEnUsuarios = !snapUsuarios.empty || !snapUsuariosLower.empty;
+    console.log('✅ Resultado final:', existeEnUsuarios);
+    return existeEnUsuarios;
   }
 }

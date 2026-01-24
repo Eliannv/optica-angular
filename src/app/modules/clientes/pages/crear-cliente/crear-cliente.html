@@ -6,19 +6,13 @@
             <!-- Nombres y Apellidos -->
             <div class="form-row">
                 <div class="form-group">
-                    <label for="nombres">Nombres *</label>
-                    <input type="text" id="nombres" formControlName="nombres" placeholder="Ej: Juan Carlos" [class.error]="esInvalido('nombres')" appEnterNext />
-                    <span class="error-message" *ngIf="esInvalido('nombres')">
-                        {{ getMensajeError('nombres') }}
-                    </span>
+                    <label for="nombres">Nombres</label>
+                    <input type="text" id="nombres" formControlName="nombres" placeholder="Ej: Juan Carlos" appEnterNext />
                 </div>
 
                 <div class="form-group">
-                    <label for="apellidos">Apellidos *</label>
-                    <input type="text" id="apellidos" formControlName="apellidos" placeholder="Ej: Pérez García" [class.error]="esInvalido('apellidos')" appEnterNext />
-                    <span class="error-message" *ngIf="esInvalido('apellidos')">
-                        {{ getMensajeError('apellidos') }}
-                    </span>
+                    <label for="apellidos">Apellidos</label>
+                    <input type="text" id="apellidos" formControlName="apellidos" placeholder="Ej: Pérez García" appEnterNext />
                 </div>
             </div>
 
@@ -26,29 +20,26 @@
             <div class="form-row">
                 <div class="form-group">
                     <label for="cedula">Cédula *</label>
-                    <input type="text" id="cedula" formControlName="cedula" placeholder="Ej: 1234567890" maxlength="10" [class.error]="esInvalido('cedula')" appEnterNext />
-                    <span class="error-message" *ngIf="esInvalido('cedula')">
-                        {{ getMensajeError('cedula') }}
-                    </span>
+                    <input type="text" id="cedula" formControlName="cedula" placeholder="Ej: 1234567890" maxlength="10" appEnterNext />
+                    @if (cedulaDuplicadaMsg) {
+                    <span class="warning-message">{{ cedulaDuplicadaMsg }}</span>
+                    }
                 </div>
 
                 <div class="form-group">
-                    <label for="telefono">Teléfono *</label>
-                    <input type="text" id="telefono" formControlName="telefono" placeholder="Ej: 0987654321" maxlength="10" [class.error]="esInvalido('telefono')" appEnterNext />
-                    <span class="error-message" *ngIf="esInvalido('telefono')">
-                        {{ getMensajeError('telefono') }}
-                    </span>
+                    <label for="telefono">Teléfono</label>
+                    <input type="text" id="telefono" formControlName="telefono" placeholder="Ej: 0987654321" maxlength="10" appEnterNext />
                 </div>
             </div>
 
             <!-- Email y Fecha de Nacimiento -->
             <div class="form-row">
                 <div class="form-group">
-                    <label for="email">Correo Electrónico *</label>
-                    <input type="email" id="email" formControlName="email" placeholder="Ej: cliente@ejemplo.com" [class.error]="esInvalido('email')" appEnterNext />
-                    <span class="error-message" *ngIf="esInvalido('email')">
-                        {{ getMensajeError('email') }}
-                    </span>
+                    <label for="email">Correo Electrónico (escribir N/A si no tiene)</label>
+                    <input type="text" id="email" formControlName="email" placeholder="ejemplo@correo.com o N/A" appEnterNext />
+                    @if (emailDuplicadoMsg) {
+                    <span class="warning-message">{{ emailDuplicadoMsg }}</span>
+                    }
                 </div>
 
                 <div class="form-group">
@@ -60,42 +51,30 @@
             <!-- País, Provincia y Ciudad -->
             <div class="form-row">
                 <div class="form-group">
-                    <label for="pais">País *</label>
-                    <input type="text" id="pais" formControlName="pais" readonly [class.error]="esInvalido('pais')" appEnterNext />
-                    <span class="error-message" *ngIf="esInvalido('pais')">
-                        {{ getMensajeError('pais') }}
-                    </span>
+                    <label for="pais">País</label>
+                    <input type="text" id="pais" formControlName="pais" readonly appEnterNext />
                 </div>
 
                 <div class="form-group">
-                    <label for="provincia">Provincia *</label>
-                    <select id="provincia" formControlName="provincia" [class.error]="esInvalido('provincia')" appEnterNext>
+                    <label for="provincia">Provincia</label>
+                    <select id="provincia" formControlName="provincia" appEnterNext>
                         <option value="">Seleccione una provincia</option>
                         <option *ngFor="let provincia of provinciasEcuador" [value]="provincia">
                             {{ provincia }}
                         </option>
                     </select>
-                    <span class="error-message" *ngIf="esInvalido('provincia')">
-                        {{ getMensajeError('provincia') }}
-                    </span>
                 </div>
 
                 <div class="form-group">
-                    <label for="ciudad">Ciudad *</label>
-                    <input type="text" id="ciudad" formControlName="ciudad" placeholder="Ej: Quito" [class.error]="esInvalido('ciudad')" appEnterNext />
-                    <span class="error-message" *ngIf="esInvalido('ciudad')">
-                        {{ getMensajeError('ciudad') }}
-                    </span>
+                    <label for="ciudad">Ciudad</label>
+                    <input type="text" id="ciudad" formControlName="ciudad" placeholder="Ej: Quito" appEnterNext />
                 </div>
             </div>
 
             <!-- Dirección -->
             <div class="form-group">
-                <label for="direccion">Dirección *</label>
-                <textarea id="direccion" formControlName="direccion" placeholder="Ej: Av. Principal y Calle Secundaria" rows="3" [class.error]="esInvalido('direccion')" appEnterNext></textarea>
-                <span class="error-message" *ngIf="esInvalido('direccion')">
-                    {{ getMensajeError('direccion') }}
-                </span>
+                <label for="direccion">Dirección</label>
+                <textarea id="direccion" formControlName="direccion" placeholder="Ej: Av. Principal y Calle Secundaria" rows="3" appEnterNext></textarea>
             </div>
 
             <!-- Botones -->
@@ -103,8 +82,12 @@
                 <button type="button" class="btn btn-secondary" (click)="cancelar()">
                     Cancelar
                 </button>
-                <button type="submit" class="btn btn-primary" [disabled]="clienteForm.invalid">
-                    {{ clienteIdEdicion ? 'Actualizar Cliente' : 'Guardar Cliente' }}
+                <button type="submit" class="btn btn-primary" [disabled]="!puedeGuardar">
+                    @if (validandoCedula || validandoEmail) {
+                    <span>Validando...</span>
+                    } @else {
+                    <span>{{ clienteIdEdicion ? 'Actualizar Cliente' : 'Guardar Cliente' }}</span>
+                    }
                 </button>
             </div>
         </form>

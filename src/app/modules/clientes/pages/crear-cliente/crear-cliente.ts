@@ -14,10 +14,11 @@
  * - Directiva de navegación por teclado (Enter)
  */
 
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, AbstractControl, AsyncValidatorFn, ValidationErrors } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule } from '@angular/forms';
+import { debounceTime, distinctUntilChanged } from 'rxjs';
 import Swal from 'sweetalert2';
 import { Cliente } from '../../../../core/models/cliente.model';
 import { ClientesService } from '../../../../core/services/clientes';
@@ -36,6 +37,18 @@ export class CrearCliente implements OnInit {
   clienteForm!: FormGroup;
   clienteIdEdicion: string | null = null;
 
+  // Mensajes de advertencia para validación reactiva
+  cedulaDuplicadaMsg = '';
+  emailDuplicadoMsg = '';
+
+  // Valores originales para detectar cambios reales
+  cedulaOriginal = '';
+  emailOriginal = '';
+
+  // Estados de validación
+  validandoCedula = false;
+  validandoEmail = false;
+
   readonly provinciasEcuador = [
     'Azuay', 'Bolívar', 'Cañar', 'Carchi', 'Chimborazo', 'Cotopaxi', 
     'El Oro', 'Esmeraldas', 'Galápagos', 'Guayas', 'Imbabura', 'Loja', 
@@ -48,7 +61,8 @@ export class CrearCliente implements OnInit {
     private fb: FormBuilder,
     private clientesService: ClientesService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private cdr: ChangeDetectorRef
   ) {}
 
   /**
@@ -62,31 +76,27 @@ export class CrearCliente implements OnInit {
   ngOnInit() {
     this.clienteIdEdicion = this.route.snapshot.queryParamMap.get('clienteId');
     
+    // Formulario sin validaciones obligatorias
     this.clienteForm = this.fb.group({
-      nombres: ['', [Validators.required, Validators.minLength(2), Validators.pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)]],
-      apellidos: ['', [Validators.required, Validators.minLength(2), Validators.pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)]],
-      cedula: ['', {
-        validators: [Validators.required, Validators.pattern(/^\d{10}$/)],
-        asyncValidators: [this.uniqueCedulaValidator()],
-        updateOn: 'blur'
-      }],
-      telefono: ['', [Validators.required, Validators.pattern(/^0\d{9}$/)]],
-      email: ['', {
-        validators: [Validators.required, Validators.email],
-        asyncValidators: [this.uniqueEmailValidator()],
-        updateOn: 'blur'
-      }],
+      nombres: [''],
+      apellidos: [''],
+      cedula: [''],
+      telefono: [''],
+      email: [''],
       fechaNacimiento: [''],
-      direccion: ['', [Validators.required, Validators.minLength(5)]],
-      pais: ['Ecuador', [Validators.required]],
-      provincia: ['', [Validators.required]],
-      ciudad: ['', [Validators.required, Validators.minLength(2)]]
+      direccion: [''],
+      pais: ['Ecuador'],
+      provincia: [''],
+      ciudad: ['']
     });
 
     // Si estamos editando, cargar datos del cliente
     if (this.clienteIdEdicion) {
       this.cargarClienteParaEditar();
     }
+
+    // Configurar validaciones reactivas
+    this.setupValidacionesReactivas();
   }
 
   /**
@@ -112,9 +122,9 @@ export class CrearCliente implements OnInit {
           provincia: cliente.provincia,
           ciudad: cliente.ciudad
         });
-        // Marcar cédula y email como válidos (ya existen)
-        this.clienteForm.get('cedula')?.updateValueAndValidity({ emitEvent: false });
-        this.clienteForm.get('email')?.updateValueAndValidity({ emitEvent: false });
+        // Guardar valores originales
+        this.cedulaOriginal = cliente.cedula || '';
+        this.emailOriginal = cliente.email || '';
       }
     } catch (error) {
       console.error('Error al cargar cliente:', error);
@@ -147,6 +157,91 @@ export class CrearCliente implements OnInit {
   }
 
   /**
+   * Configura validaciones reactivas para cédula y email.
+   */
+  private setupValidacionesReactivas() {
+    // Validación reactiva de cédula
+    this.clienteForm.get('cedula')?.valueChanges
+      .pipe(
+        debounceTime(400),
+        distinctUntilChanged()
+      )
+      .subscribe(async (cedula: string) => {
+        this.cedulaDuplicadaMsg = '';
+        this.validandoCedula = false;
+        
+        if (!cedula || cedula.trim() === '') return;
+        
+        if (cedula.trim() === this.cedulaOriginal.trim()) return;
+        
+        this.validandoCedula = true;
+        this.cdr.markForCheck();
+        
+        try {
+          const existe = await this.clientesService.existeCedula(cedula, this.clienteIdEdicion || undefined);
+          if (existe) {
+            this.cedulaDuplicadaMsg = 'Esta cédula ya existe en el sistema';
+          }
+        } catch (error) {
+          console.error('Error validando cédula:', error);
+        } finally {
+          this.validandoCedula = false;
+          this.cdr.markForCheck();
+        }
+      });
+
+    // Validación reactiva de email
+    this.clienteForm.get('email')?.valueChanges
+      .pipe(
+        debounceTime(400),
+        distinctUntilChanged()
+      )
+      .subscribe(async (email: string) => {
+        this.emailDuplicadoMsg = '';
+        this.validandoEmail = false;
+        
+        if (!email || email.trim() === '') return;
+        
+        // Permitir "N/A" como valor válido si no tiene email
+        if (email.trim().toUpperCase() === 'N/A') return;
+        
+        if (email.trim().toLowerCase() === this.emailOriginal.trim().toLowerCase()) return;
+        
+        this.validandoEmail = true;
+        this.cdr.markForCheck();
+        
+        try {
+          const existe = await this.clientesService.existeEmail(email, this.clienteIdEdicion || undefined);
+          if (existe) {
+            this.emailDuplicadoMsg = 'Este email ya existe en el sistema';
+          }
+        } catch (error) {
+          console.error('Error validando email:', error);
+        } finally {
+          this.validandoEmail = false;
+          this.cdr.markForCheck();
+        }
+      });
+  }
+
+  /**
+   * Verifica si el formulario puede ser guardado.
+   */
+  get puedeGuardar(): boolean {
+    // Bloquear si cédula está vacía
+    const cedula = this.clienteForm.get('cedula')?.value;
+    if (!cedula || cedula.trim() === '') return false;
+    
+    // Bloquear si hay duplicados
+    if (this.cedulaDuplicadaMsg || this.emailDuplicadoMsg) return false;
+    
+    // Bloquear si se está validando
+    if (this.validandoCedula || this.validandoEmail) return false;
+    
+    return true;
+  }
+
+  /**
    * Guarda o actualiza el cliente en Firestore.
    *
    * Valida el formulario completo antes de proceder. Si está en modo edición,
@@ -154,11 +249,45 @@ export class CrearCliente implements OnInit {
    * operación exitosa, navega de vuelta a la página origen (returnTo).
    */
   async guardar() {
-    if (this.clienteForm.invalid) {
-      Object.keys(this.clienteForm.controls).forEach(key => {
-        this.clienteForm.get(key)?.markAsTouched();
+    const cedula = this.clienteForm.get('cedula')?.value || '';
+    const email = this.clienteForm.get('email')?.value || '';
+
+    // Validar cédula (siempre obligatoria)
+    if (!cedula || cedula.trim() === '') {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Cédula requerida',
+        text: 'La cédula es un campo obligatorio'
       });
       return;
+    }
+
+    // Validar cédula si cambió
+    if (cedula.trim() !== this.cedulaOriginal.trim()) {
+      const cedulaExiste = await this.clientesService.existeCedula(cedula, this.clienteIdEdicion || undefined);
+      if (cedulaExiste) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Cédula duplicada',
+          text: 'Esta cédula ya existe en el sistema'
+        });
+        return;
+      }
+    }
+
+    // Validar email si cambió y no es "N/A"
+    if (email && email.trim() !== '' && email.trim().toUpperCase() !== 'N/A') {
+      if (email.trim().toLowerCase() !== this.emailOriginal.trim().toLowerCase()) {
+        const emailExiste = await this.clientesService.existeEmail(email, this.clienteIdEdicion || undefined);
+        if (emailExiste) {
+          await Swal.fire({
+            icon: 'error',
+            title: 'Email duplicado',
+            text: 'Este email ya existe en el sistema'
+          });
+          return;
+        }
+      }
     }
 
     const cliente: Cliente = {
@@ -196,120 +325,6 @@ export class CrearCliente implements OnInit {
   cancelar() {
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo') || '/clientes/historial-clinico';
     this.router.navigate([returnTo]);
-  }
-
-  /**
-   * Verifica si un campo del formulario es inválido y ha sido tocado.
-   *
-   * Útil para mostrar mensajes de error solo después de que el usuario
-   * haya interactuado con el campo.
-   *
-   * @param campo Nombre del campo a validar.
-   * @returns true si el campo es inválido y fue tocado, false en caso contrario.
-   */
-  esInvalido(campo: string): boolean {
-    const control = this.clienteForm.get(campo);
-    return !!(control?.invalid && control?.touched);
-  }
-
-  /**
-   * Genera el mensaje de error apropiado para un campo específico.
-   *
-   * Evalúa los diferentes tipos de errores de validación (required, pattern,
-   * minlength, etc.) y retorna un mensaje descriptivo y amigable para el usuario.
-   *
-   * @param campo Nombre del campo para el cual generar el mensaje de error.
-   * @returns Mensaje de error descriptivo o string vacío si no hay error.
-   */
-  getMensajeError(campo: string): string {
-    const control = this.clienteForm.get(campo);
-    
-    if (control?.hasError('required')) {
-      return 'Este campo es requerido';
-    }
-    
-    if (campo === 'nombres' || campo === 'apellidos') {
-      if (control?.hasError('minlength')) {
-        return 'Debe tener al menos 2 caracteres';
-      }
-      if (control?.hasError('pattern')) {
-        return 'Solo se permiten letras y espacios';
-      }
-    }
-    
-    if (campo === 'cedula') {
-      if (control?.hasError('pattern')) {
-        return 'La cédula debe tener 10 dígitos';
-      }
-      if (control?.hasError('cedulaTomada')) {
-        return 'Esta cédula ya está registrada en el sistema';
-      }
-    }
-    
-    if (campo === 'telefono') {
-      if (control?.hasError('pattern')) {
-        return 'El teléfono debe iniciar con 0 y tener 10 dígitos';
-      }
-    }
-    
-    if (campo === 'email') {
-      if (control?.hasError('email')) {
-        return 'Ingrese un correo electrónico válido';
-      }
-      if (control?.hasError('emailTomado')) {
-        return 'Este correo ya está registrado en el sistema';
-      }
-    }
-    
-    if (campo === 'direccion') {
-      if (control?.hasError('minlength')) {
-        return 'La dirección debe tener al menos 5 caracteres';
-      }
-    }
-    
-    if (campo === 'ciudad') {
-      if (control?.hasError('minlength')) {
-        return 'La ciudad debe tener al menos 2 caracteres';
-      }
-    }
-    
-    return '';
-  }
-
-  /**
-   * Validador asíncrono para verificar la unicidad de la cédula.
-   *
-   * Consulta tanto la colección de clientes como la de usuarios para garantizar
-   * que la cédula no esté duplicada en el sistema. En modo edición, excluye
-   * el cliente actual de la búsqueda.
-   *
-   * @returns AsyncValidatorFn Función validadora asíncrona para Angular Forms.
-   */
-  uniqueCedulaValidator(): AsyncValidatorFn {
-    return async (control: AbstractControl): Promise<ValidationErrors | null> => {
-      const value = (control.value || '').trim();
-      if (!value) return null;
-      const existe = await this.clientesService.existeCedula(value, this.clienteIdEdicion || undefined);
-      return existe ? { cedulaTomada: true } : null;
-    };
-  }
-
-  /**
-   * Validador asíncrono para verificar la unicidad del email.
-   *
-   * Consulta tanto la colección de clientes como la de usuarios para garantizar
-   * que el correo electrónico no esté duplicado. La búsqueda es case-insensitive.
-   * En modo edición, excluye el cliente actual.
-   *
-   * @returns AsyncValidatorFn Función validadora asíncrona para Angular Forms.
-   */
-  uniqueEmailValidator(): AsyncValidatorFn {
-    return async (control: AbstractControl): Promise<ValidationErrors | null> => {
-      const value = (control.value || '').trim().toLowerCase();
-      if (!value) return null;
-      const existe = await this.clientesService.existeEmail(value, this.clienteIdEdicion || undefined);
-      return existe ? { emailTomado: true } : null;
-    };
   }
 }
 

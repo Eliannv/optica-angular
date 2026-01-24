@@ -18,7 +18,7 @@ import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, debounceTime, distinctUntilChanged } from 'rxjs';
 import Swal from 'sweetalert2';
 
 import { HistorialClinicoService } from '../../../../core/services/historial-clinico.service';
@@ -46,6 +46,18 @@ export class CrearHistorialClinicoComponent implements OnInit {
 
   mode: Mode = 'create';
   existeHistorial = false;
+
+  // Mensajes de advertencia para validación reactiva
+  cedulaDuplicadaMsg = '';
+  emailDuplicadoMsg = '';
+
+  // Valores originales para detectar cambios reales
+  cedulaOriginal = '';
+  emailOriginal = '';
+
+  // Estados de validación
+  validandoCedula = false;
+  validandoEmail = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -128,6 +140,9 @@ export class CrearHistorialClinicoComponent implements OnInit {
 
     if (this.cliente) {
       this.clienteForm.patchValue(this.cliente);
+      // Guardar valores originales para detectar cambios
+      this.cedulaOriginal = this.cliente.cedula || '';
+      this.emailOriginal = this.cliente.email || '';
     }
 
     const qpMode = (this.route.snapshot.queryParamMap.get('mode') || '').toLowerCase();
@@ -157,7 +172,110 @@ export class CrearHistorialClinicoComponent implements OnInit {
       this.clienteForm.disable({ emitEvent: false });
     }
 
+    // Configurar validaciones reactivas para cédula y email
+    this.setupValidacionesReactivas();
+
     this.loading = false;
+  }
+
+  /**
+   * Configura validaciones reactivas para cédula y email.
+   * 
+   * Escucha cambios en los campos de cédula y email del formulario de cliente,
+   * y valida de forma asíncrona si ya existen en el sistema (en clientes o usuarios).
+   * Solo valida si el valor cambió realmente respecto al original.
+   */
+  private setupValidacionesReactivas() {
+    if (this.mode === 'view') return; // No validar en modo solo lectura
+    
+    // Variable para rastrear si el usuario ha tocado el campo
+    let cedulaTocada = false;
+    let emailTocado = false;
+
+    // Validación reactiva de cédula
+    const cedulaControl = this.clienteForm.get('cedula');
+    
+    // Detectar cuando el usuario hace focus en el campo
+    cedulaControl?.valueChanges
+      .pipe(
+        debounceTime(400),
+        distinctUntilChanged()
+      )
+      .subscribe(async (cedula: string) => {
+        this.cedulaDuplicadaMsg = '';
+        this.validandoCedula = false;
+        
+        if (!cedula || cedula.trim() === '') {
+          cedulaTocada = false;
+          return;
+        }
+        
+        // Marcar que el usuario está interactuando con el campo
+        cedulaTocada = true;
+        
+        // Solo validar si cambió respecto al original
+        if (cedula.trim() === this.cedulaOriginal.trim()) {
+          cedulaTocada = false;
+          return;
+        }
+        
+        console.log('🔍 Validando cédula:', cedula, 'Original:', this.cedulaOriginal);
+        this.validandoCedula = true;
+        
+        try {
+          const existe = await this.clientesSrv.existeCedula(cedula, this.clienteId);
+          console.log('📋 Resultado validación cédula:', existe);
+          if (existe) {
+            this.cedulaDuplicadaMsg = 'Esta cédula ya existe en el sistema';
+          }
+        } catch (error) {
+          console.error('❌ Error validando cédula:', error);
+        } finally {
+          this.validandoCedula = false;
+        }
+      });
+
+    // Validación reactiva de email
+    const emailControl = this.clienteForm.get('email');
+    
+    emailControl?.valueChanges
+      .pipe(
+        debounceTime(400),
+        distinctUntilChanged()
+      )
+      .subscribe(async (email: string) => {
+        this.emailDuplicadoMsg = '';
+        this.validandoEmail = false;
+        
+        if (!email || email.trim() === '') {
+          emailTocado = false;
+          return;
+        }
+        
+        // Marcar que el usuario está interactuando con el campo
+        emailTocado = true;
+        
+        // Solo validar si cambió respecto al original
+        if (email.trim().toLowerCase() === this.emailOriginal.trim().toLowerCase()) {
+          emailTocado = false;
+          return;
+        }
+        
+        console.log('🔍 Validando email:', email, 'Original:', this.emailOriginal);
+        this.validandoEmail = true;
+        
+        try {
+          const existe = await this.clientesSrv.existeEmail(email, this.clienteId);
+          console.log('📧 Resultado validación email:', existe);
+          if (existe) {
+            this.emailDuplicadoMsg = 'Este email ya existe en el sistema';
+          }
+        } catch (error) {
+          console.error('❌ Error validando email:', error);
+        } finally {
+          this.validandoEmail = false;
+        }
+      });
   }
 
   /**
@@ -170,6 +288,47 @@ export class CrearHistorialClinicoComponent implements OnInit {
    */
   async guardar() {
     if (this.mode === 'view') return;
+
+    const cedula = this.clienteForm.get('cedula')?.value || '';
+    const email = this.clienteForm.get('email')?.value || '';
+
+    // Validar cédula (siempre obligatoria)
+    if (!cedula || cedula.trim() === '') {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Cédula requerida',
+        text: 'La cédula es un campo obligatorio'
+      });
+      return;
+    }
+
+    // Validar cédula si cambió
+    if (cedula.trim() !== this.cedulaOriginal.trim()) {
+      const cedulaExiste = await this.clientesSrv.existeCedula(cedula, this.clienteId);
+      if (cedulaExiste) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Cédula duplicada',
+          text: 'Esta cédula ya existe en el sistema'
+        });
+        return;
+      }
+    }
+
+    // Validar email si cambió y no es "N/A"
+    if (email && email.trim() !== '' && email.trim().toUpperCase() !== 'N/A') {
+      if (email.trim().toLowerCase() !== this.emailOriginal.trim().toLowerCase()) {
+        const emailExiste = await this.clientesSrv.existeEmail(email, this.clienteId);
+        if (emailExiste) {
+          await Swal.fire({
+            icon: 'error',
+            title: 'Email duplicado',
+            text: 'Este email ya existe en el sistema'
+          });
+          return;
+        }
+      }
+    }
 
     try {
       // 🔧 Obtener valores del formulario sin restricciones ni normalizaciones
@@ -207,6 +366,27 @@ export class CrearHistorialClinicoComponent implements OnInit {
    */
   cancelar() {
     this.router.navigate(['/clientes/historial-clinico']);
+  }
+
+  /**
+   * Verifica si el formulario puede ser guardado.
+   * Se bloquea si hay duplicados de cédula/email o se está validando.
+   */
+  get puedeGuardar(): boolean {
+    // No bloquear en modo view
+    if (this.mode === 'view') return false;
+    
+    // Bloquear si cédula está vacía
+    const cedula = this.clienteForm.get('cedula')?.value;
+    if (!cedula || cedula.trim() === '') return false;
+    
+    // Bloquear si hay duplicados
+    if (this.cedulaDuplicadaMsg || this.emailDuplicadoMsg) return false;
+    
+    // Bloquear si se está validando
+    if (this.validandoCedula || this.validandoEmail) return false;
+    
+    return true;
   }
 
   /**
