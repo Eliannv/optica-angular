@@ -33,6 +33,9 @@ export interface Producto {
   /** Cantidad disponible en inventario */
   stock?: number;
 
+  /** Tipo de control de stock: NORMAL (suma stock) | ILIMITADO (no suma stock, solo cálculo de costos) */
+  tipo_control_stock?: 'NORMAL' | 'ILIMITADO';
+
   /** Costo unitario de adquisición del producto */
   costo?: number;
 

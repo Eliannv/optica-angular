@@ -43,14 +43,56 @@ export class VerIngresoComponent implements OnDestroy {
     });
 
     // Cargar detalles del ingreso desde la subcolección
-    this.subDetalles = this.ingresosSrv.getDetallesIngreso(id).subscribe(detalles => {
-      this.productos = detalles;
+    this.subDetalles = this.ingresosSrv.getDetallesIngreso(id)
+      .pipe(
+        switchMap(detalles => {
+          if (!detalles || detalles.length === 0) {
+            return of([]); // No hay detalles, retornar array vacío
+          }
 
-      // 🔄 Fallback: si no hay subcolección de detalles (p.ej. registros importados)
-      if (!detalles || detalles.length === 0) {
-        this.cargarDesdeMovimientos(id);
-      }
-    });
+          // Enriquecer cada detalle con datos del producto si tiene productoId
+          const detallesEnriquecidos$ = detalles.map(detalle => {
+            if (detalle.productoId) {
+              // Buscar el producto completo para obtener idInterno y otros datos
+              return this.productosSrv.getProductoById(detalle.productoId).pipe(
+                take(1),
+                map(producto => {
+                  if (producto) {
+                    return {
+                      ...detalle,
+                      idInterno: producto.idInterno,
+                      // Si faltan datos en el detalle, completarlos del producto
+                      nombre: detalle.nombre || producto.nombre,
+                      modelo: detalle.modelo || producto.modelo,
+                      color: detalle.color || producto.color,
+                      grupo: detalle.grupo || producto.grupo,
+                    };
+                  }
+                  return detalle; // Si no se encuentra el producto, retornar el detalle original
+                })
+              );
+            } else {
+              // Si no tiene productoId, retornar el detalle tal cual
+              return of(detalle);
+            }
+          });
+
+          return forkJoin(detallesEnriquecidos$);
+        })
+      )
+      .subscribe(detalles => {
+        // Ordenar productos por idInterno ascendente
+        this.productos = detalles.sort((a, b) => {
+          const idA = (a as any).idInterno || 0;
+          const idB = (b as any).idInterno || 0;
+          return idA - idB;
+        });
+
+        // 🔄 Fallback: si no hay subcolección de detalles (p.ej. registros importados)
+        if (!detalles || detalles.length === 0) {
+          this.cargarDesdeMovimientos(id);
+        }
+      });
   }
 
   private cargarDesdeMovimientos(ingresoId: string) {
@@ -89,7 +131,12 @@ export class VerIngresoComponent implements OnDestroy {
         })
       )
       .subscribe(detalles => {
-        this.productos = detalles;
+        // Ordenar productos por idInterno ascendente
+        this.productos = detalles.sort((a, b) => {
+          const idA = (a as any).idInterno || 0;
+          const idB = (b as any).idInterno || 0;
+          return idA - idB;
+        });
       });
   }
 
@@ -99,6 +146,13 @@ export class VerIngresoComponent implements OnDestroy {
 
   imprimirIngreso() {
     if (!this.ingreso || !this.productos) return;
+
+    // Ordenar productos por idInterno ascendente para impresión
+    const productosOrdenados = [...this.productos].sort((a, b) => {
+      const idA = (a as any).idInterno || 0;
+      const idB = (b as any).idInterno || 0;
+      return idA - idB;
+    });
 
     // Obtener fecha formateada
     const fecha = this.ingreso.fecha?.toDate ? this.ingreso.fecha.toDate() : new Date(this.ingreso.fecha);
@@ -331,7 +385,7 @@ export class VerIngresoComponent implements OnDestroy {
                 </tr>
               </thead>
               <tbody>
-                ${this.productos.map(p => `
+                ${productosOrdenados.map(p => `
                   <tr>
                     <td>${p.idInterno || '-'}</td>
                     <td>${p.nombre || '-'}</td>

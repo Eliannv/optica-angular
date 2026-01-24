@@ -200,16 +200,19 @@ export class ProductosService {
     const idInterno = await this.getNextIdInterno();
 
     // Stock ilimitado para grupo LUNAS
-    const esLunas = (producto as any)?.grupo === 'LUNAS';
+    const esIlimitado = (producto as any)?.grupo === 'LUNAS';
+    const tipoControlStock = esIlimitado ? 'ILIMITADO' : 'NORMAL';
 
     return addDoc(this.productosRef, {
       ...producto,
       idInterno,
+      tipo_control_stock: tipoControlStock,
       activo: true, // 🔹 Nuevo producto siempre activo
       createdAt: new Date(),
       updatedAt: new Date(),
-      stock: esLunas ? 0 : (producto.stock || 0),
-      ...(esLunas ? { stockIlimitado: true } : {}),
+      stock: esIlimitado ? 0 : (producto.stock || 0),
+      // Mantener stockIlimitado para compatibilidad con datos legacy
+      ...(esIlimitado ? { stockIlimitado: true } : {}),
     });
   }
 
@@ -272,9 +275,10 @@ export class ProductosService {
       }
       const data = snap.data() as any;
 
-      // No descontar stock si es stock ilimitado (grupo LUNAS)
-      if (data?.grupo === 'LUNAS' || data?.stockIlimitado === true) {
-        // No actualizamos stock
+      // No descontar stock si es stock ilimitado (grupo LUNAS o tipo_control_stock ILIMITADO)
+      const tipoControl = data?.tipo_control_stock || (data?.stockIlimitado ? 'ILIMITADO' : 'NORMAL');
+      if (tipoControl === 'ILIMITADO') {
+        // Productos con stock ilimitado no descuentan
         return;
       }
       const stockActual = Number(data?.stock || 0);

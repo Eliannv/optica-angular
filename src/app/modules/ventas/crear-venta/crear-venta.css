@@ -123,10 +123,22 @@
     border: 1px solid rgba(46, 204, 113, 0.25);
 }
 
+.badge-warning {
+    background: rgba(243, 156, 18, 0.15);
+    color: #f39c12;
+    border: 1px solid rgba(243, 156, 18, 0.25);
+}
+
 .badge-danger {
     background: rgba(231, 76, 60, 0.15);
     color: #e74c3c;
     border: 1px solid rgba(231, 76, 60, 0.25);
+}
+
+.badge-info {
+    background: rgba(52, 152, 219, 0.15);
+    color: #3498db;
+    border: 1px solid rgba(52, 152, 219, 0.25);
 }
 
 
@@ -224,6 +236,220 @@
 
 .clear-btn:hover {
     background: var(--bg-active);
+}
+
+/* ============================================
+   BOTONES DE ACCIÓN (Filtros y Recientes)
+============================================ */
+
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.btn-action {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-action:hover {
+    background: var(--bg-hover);
+    border-color: var(--input-focus-border);
+}
+
+.btn-action.active {
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    border-color: var(--btn-primary-bg);
+}
+
+.btn-action svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* ============================================
+   PANEL DE FILTROS COLAPSABLE
+============================================ */
+
+.filters-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.filter-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 150px;
+    position: relative;
+    padding-right: 28px;
+}
+
+.filter-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 90px;
+}
+
+.filter-select {
+    padding: 0.5rem;
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-md);
+    background: var(--input-bg);
+    color: var(--input-text);
+    font-size: 0.875rem;
+    outline: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    width: 100%;
+}
+
+.filter-select:focus {
+    border-color: var(--input-focus-border);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+}
+
+.filter-select option {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.filter-clear {
+    position: absolute;
+    right: 4px;
+    top: 28px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+    transition: opacity var(--transition-fast);
+}
+
+.filter-clear:hover {
+    opacity: 1;
+    color: #e74c3c;
+}
+
+/* Duplicado eliminado */
+
+.btn-clear-all {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #e74c3c;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: #e74c3c;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    margin-left: auto;
+}
+
+.btn-clear-all:hover {
+    background: #e74c3c;
+    color: white;
+}
+
+.btn-clear-all svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* ============================================
+   FILTROS (SELECT) - Legacy (deprecated)
+============================================ */
+
+.form-select {
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-md);
+    background: var(--input-bg);
+    color: var(--input-text);
+    outline: none;
+    transition: all var(--transition-fast);
+    cursor: pointer;
+}
+
+.form-select:focus {
+    border-color: var(--input-focus-border);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+}
+
+.form-select option {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.btn-link {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity var(--transition-fast);
+}
+
+.btn-link:hover {
+    opacity: 1;
+}
+
+.btn-outline-danger {
+    border: 1px solid #e74c3c;
+    background: transparent;
+    color: #e74c3c;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-outline-danger:hover {
+    background: #e74c3c;
+    color: white;
 }
 
 

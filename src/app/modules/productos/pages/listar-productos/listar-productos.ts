@@ -337,6 +337,13 @@ export class ListarProductos implements OnInit {
       ? this.productosFiltrados 
       : this.productos;
     
+    // Ordenar productos por idInterno ascendente antes de exportar
+    const productosOrdenados = [...productosExportar].sort((a, b) => {
+      const idA = (a as any).idInterno || 0;
+      const idB = (b as any).idInterno || 0;
+      return idA - idB;
+    });
+    
     const meses = [
       'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
       'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
@@ -349,7 +356,7 @@ export class ListarProductos implements OnInit {
     
     const nombreArchivo = `EXPORTACIÓN PRODUCTOS PASAJE ${mesActual}-${new UpperCasePipe().transform(nombreAdministrador)}`;
     
-    this.excelService.exportarProductos(productosExportar, nombreArchivo);
+    this.excelService.exportarProductos(productosOrdenados, nombreArchivo);
   }
 
   /**

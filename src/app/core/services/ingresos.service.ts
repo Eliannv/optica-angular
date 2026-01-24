@@ -229,15 +229,24 @@ export class IngresosService {
     // IMPORTANTE: Siempre usar ingreso.proveedor (el nombre), NO el proveedorId
     const proveedorIngreso = ingreso?.proveedor || '';
 
+    // PASO 1: Crear productos nuevos y asignar productoId a TODOS los detalles
     for (const detalle of detalles) {
       if (detalle.tipo === 'NUEVO') {
-        // Crear producto nuevo
+        // Crear producto nuevo y asignar el productoId al detalle
         const productoId = await this.crearProductoDesdeIngreso(
           ingresoId,
           detalle
         );
         detalle.productoId = productoId;
+        console.log('✅ Producto nuevo creado con ID:', productoId, 'para:', detalle.nombre);
       } else if (detalle.tipo === 'EXISTENTE' && detalle.productoId) {
+        console.log('✅ Producto existente con ID:', detalle.productoId, 'para:', detalle.nombre);
+      }
+    }
+
+    // PASO 2: Actualizar productos existentes y registrar movimientos
+    for (const detalle of detalles) {
+      if (detalle.tipo === 'EXISTENTE' && detalle.productoId) {
         // Actualizar datos del producto existente si es necesario
         const productoDoc = doc(this.firestore, `productos/${detalle.productoId}`);
         const productoSnap = await getDoc(productoDoc);
@@ -278,12 +287,14 @@ export class IngresosService {
           
           // Actualizar stock del producto existente
           // IMPORTANTE: Si estaba desactivado, ya tiene el stock guardado, solo suma la nueva cantidad
-          const esLunas = detalle.grupo === 'LUNAS' || (productoData as any)?.stockIlimitado === true;
-          if (!esLunas) {
+          // Solo actualizar stock si el tipo de control es NORMAL (no ILIMITADO)
+          const tipoControl = productoData.tipo_control_stock || ((productoData as any)?.stockIlimitado ? 'ILIMITADO' : 'NORMAL');
+          if (tipoControl === 'NORMAL') {
             const stockActual = productoData.stock || 0;
             const nuevoStock = stockActual + detalle.cantidad;
             actualizaciones.stock = nuevoStock;
           }
+          // Si es ILIMITADO: cantidad se usa SOLO para calcular subtotal, NO se suma al stock
           
           // Actualizar observación: CONCATENAR con el anterior, NO reemplazar
           if (detalle.observacion !== undefined && detalle.observacion !== null && detalle.observacion !== '') {
@@ -299,7 +310,7 @@ export class IngresosService {
         }
       }
 
-      // Registrar movimiento de stock
+      // Registrar movimiento de stock (ahora todos los detalles tienen productoId)
       if (detalle.productoId) {
         await this.registrarMovimiento({
           productoId: detalle.productoId,
@@ -317,7 +328,7 @@ export class IngresosService {
       totalFactura += (detalle.costoUnitario || 0) * detalle.cantidad;
     }
 
-    // Guardar detalles en subcolección
+    // PASO 3: Guardar detalles en subcolección (ahora todos tienen productoId asignado)
     for (const detalle of detalles) {
       const detalleRef = doc(collection(this.firestore, `ingresos/${ingresoId}/detalles`));
       
@@ -331,7 +342,13 @@ export class IngresosService {
       };
 
       // Añadir campos opcionales solo si tienen valor
-      if (detalle.productoId) detalleData.productoId = detalle.productoId;
+      // CRÍTICO: Ahora SIEMPRE debe haber productoId (ya sea de producto nuevo o existente)
+      if (detalle.productoId) {
+        detalleData.productoId = detalle.productoId;
+      } else {
+        console.warn('⚠️ Detalle sin productoId:', detalle.nombre);
+      }
+      
       if (detalle.modelo) detalleData.modelo = detalle.modelo;
       if (detalle.color) detalleData.color = detalle.color;
       if (detalle.grupo) detalleData.grupo = detalle.grupo;
@@ -344,7 +361,7 @@ export class IngresosService {
       if (detalle.iva) detalleData.iva = detalle.iva; // Agregar IVA del detalle
       if (detalle.stockInicial) detalleData.stockInicial = detalle.stockInicial;
       
-      console.log('💾 Guardando detalle:', { nombre: detalle.nombre, observacion: detalle.observacion, detalleData });
+      console.log('💾 Guardando detalle con ID:', detalleData.productoId, '| nombre:', detalle.nombre);
       batch.set(detalleRef, detalleData);
     }
 
@@ -398,7 +415,8 @@ export class IngresosService {
     const ingreso = ingresoSnap.data() as Ingreso;
 
     // Construir objeto sin valores undefined (Firestore no admite undefined)
-    const esLunas = (detalle.grupo === 'LUNAS');
+    const esIlimitado = (detalle.grupo === 'LUNAS');
+    const tipoControlStock = esIlimitado ? 'ILIMITADO' : 'NORMAL';
     
     // Usar idInterno del detalle si viene del Excel, sino generar automáticamente
     const productoIdInterno = detalle.idInterno || idInterno;
@@ -406,7 +424,8 @@ export class IngresosService {
     const nuevoProducto: any = {
       idInterno: productoIdInterno,
       nombre: detalle.nombre,
-      stock: esLunas ? 0 : detalle.cantidad,
+      stock: esIlimitado ? 0 : detalle.cantidad,
+      tipo_control_stock: tipoControlStock,
       proveedor: ingreso?.proveedor || '', // 🔹 Usar proveedor (nombre), NO proveedorId
       ingresoId: ingresoId,
       activo: true, // 🔹 Producto siempre activo al crearse desde ingreso
@@ -418,7 +437,8 @@ export class IngresosService {
     if (detalle.modelo) nuevoProducto.modelo = detalle.modelo;
     if (detalle.color) nuevoProducto.color = detalle.color;
     if (detalle.grupo) nuevoProducto.grupo = detalle.grupo;
-    if (esLunas) nuevoProducto.stockIlimitado = true;
+    // Mantener stockIlimitado para compatibilidad con datos legacy
+    if (esIlimitado) nuevoProducto.stockIlimitado = true;
     if (detalle.costoUnitario !== undefined) nuevoProducto.costo = detalle.costoUnitario;
     if (detalle.pvp1 !== undefined) nuevoProducto.pvp1 = detalle.pvp1;
     
@@ -428,7 +448,11 @@ export class IngresosService {
     return productoRef.id;
   }
 
-  // Actualizar stock de producto existente
+  /**
+   * Actualiza el stock de un producto existente.
+   * Solo suma stock si tipo_control_stock es NORMAL.
+   * Para productos ILIMITADOS (ej: LUNAS), solo actualiza costo sin modificar stock.
+   */
   private async actualizarStockProducto(
     productoId: string,
     cantidad: number,
@@ -440,14 +464,18 @@ export class IngresosService {
 
     if (productoSnap.exists()) {
       const producto = productoSnap.data() as Producto;
-      const esLunas = (producto as any)?.grupo === 'LUNAS' || (producto as any)?.stockIlimitado === true;
+      // Determinar tipo de control: usar tipo_control_stock o fallback a lógica legacy
+      const tipoControl = producto.tipo_control_stock || ((producto as any)?.stockIlimitado ? 'ILIMITADO' : 'NORMAL');
 
-      // Si es LUNAS, no modificar stock; solo actualizar costo si aplica
       const updateData: any = { updatedAt: new Date() };
-      if (!esLunas) {
+      
+      // Solo actualizar stock si el control es NORMAL
+      if (tipoControl === 'NORMAL') {
         const nuevoStock = (producto.stock || 0) + cantidad;
         updateData.stock = nuevoStock;
       }
+      // Para productos ILIMITADOS: cantidad se usa SOLO para calcular costo total, NO para stock
+      
       if (costoUnitario !== undefined) {
         updateData.costo = costoUnitario;
       }

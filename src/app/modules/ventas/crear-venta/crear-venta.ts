@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -23,7 +23,12 @@ import { Factura } from '../../../core/models/factura.model';
   templateUrl: './crear-venta.html',
   styleUrls: ['./crear-venta.css'],
 })
-export class CrearVentaComponent implements OnInit {
+export class CrearVentaComponent implements OnInit, OnDestroy {
+  // Listener para navegación con teclado global
+  @HostListener('document:keydown', ['$event'])
+  handleKeyboardEvent(event: KeyboardEvent) {
+    this.onDocumentKeydown(event);
+  }
   clienteId = '';
   cliente: any = null;
   historial: any = null;
@@ -33,7 +38,16 @@ export class CrearVentaComponent implements OnInit {
   productosFiltrados: any[] = [];
   selectedIndex = -1; // Para navegación con flechas
   productoSeleccionado: any = null; // Producto actualmente seleccionado
-  ordenamientoProductos: string = 'reciente'; // 'reciente' o 'codigo'
+  ordenamientoProductos: string = 'codigo'; // 'reciente' o 'codigo' - Por defecto ordenar por idInterno (código)
+  
+  // Filtros adicionales
+  mostrarFiltros: boolean = false; // Panel de filtros colapsable
+  mostrarRecientes: boolean = false; // Toggle para mostrar últimos vendidos
+  grupoSeleccionado: string = '';
+  proveedorSeleccionado: string = '';
+  tipoStockSeleccionado: string = ''; // '', 'NORMAL', 'ILIMITADO'
+  gruposDisponibles: string[] = [];
+  proveedoresDisponibles: string[] = [];
 
   items: any[] = []; // (tu ItemVenta ya lo usas pero aquí guardas nombre/tipo/total también)
 
@@ -143,31 +157,78 @@ export class CrearVentaComponent implements OnInit {
 
     this.productosSrv.getProductos().subscribe((data: any[]) => {
       this.productos = data || [];
+      this.extraerGruposYProveedores();
       this.filtrarProductos();
     });
 
     this.loading = false;
   }
 
+  /**
+   * Extrae grupos y proveedores únicos de los productos para los filtros
+   */
+  extraerGruposYProveedores() {
+    const grupos = new Set<string>();
+    const proveedores = new Set<string>();
+    
+    this.productos.forEach(p => {
+      if (p.grupo) grupos.add(p.grupo);
+      if (p.proveedor) proveedores.add(p.proveedor);
+    });
+    
+    this.gruposDisponibles = Array.from(grupos).sort();
+    this.proveedoresDisponibles = Array.from(proveedores).sort();
+  }
+
   filtrarProductos() {
     const t = (this.filtro || '').trim().toLowerCase();
-    if (!t) {
-      this.productosFiltrados = [...this.productos];
-      this.selectedIndex = -1;
-      this.aplicarOrdenamiento();
-      return;
+    let filtrados = [...this.productos];
+    
+    // Filtro por grupo
+    if (this.grupoSeleccionado) {
+      filtrados = filtrados.filter(p => 
+        (p.grupo || '').toUpperCase() === this.grupoSeleccionado.toUpperCase()
+      );
     }
-    this.productosFiltrados = this.productos.filter(p => {
-      const n = (p.nombre || '').toLowerCase();
-      const tipo = (p.tipo || p.categoria || '').toLowerCase();
-      const modelo = (p.modelo || '').toLowerCase();
-      const color = (p.color || '').toLowerCase();
-      const codigo = (p.codigo || '').toLowerCase();
-      const idInterno = (p.idInterno || '').toString().toLowerCase();
-      return n.includes(t) || tipo.includes(t) || modelo.includes(t) || color.includes(t) || codigo.includes(t) || idInterno.includes(t);
-    });
+    
+    // Filtro por proveedor
+    if (this.proveedorSeleccionado) {
+      filtrados = filtrados.filter(p => 
+        (p.proveedor || '').toUpperCase() === this.proveedorSeleccionado.toUpperCase()
+      );
+    }
+    
+    // Filtro por tipo de stock
+    if (this.tipoStockSeleccionado) {
+      filtrados = filtrados.filter(p => {
+        const tipoControl = (p as any).tipo_control_stock || ((p as any).stockIlimitado ? 'ILIMITADO' : 'NORMAL');
+        return tipoControl === this.tipoStockSeleccionado;
+      });
+    }
+    
+    // Filtro por término de búsqueda
+    if (t) {
+      filtrados = filtrados.filter(p => {
+        const n = (p.nombre || '').toLowerCase();
+        const tipo = (p.tipo || p.categoria || '').toLowerCase();
+        const modelo = (p.modelo || '').toLowerCase();
+        const color = (p.color || '').toLowerCase();
+        const codigo = (p.codigo || '').toLowerCase();
+        const idInterno = (p.idInterno || '').toString().toLowerCase();
+        return n.includes(t) || tipo.includes(t) || modelo.includes(t) || color.includes(t) || codigo.includes(t) || idInterno.includes(t);
+      });
+    }
+    
+    this.productosFiltrados = filtrados;
     this.selectedIndex = -1;
+    
+    // Aplicar ordenamiento
     this.aplicarOrdenamiento();
+    
+    // Si "Recientes" está activo, limitar a los primeros 20 después de ordenar
+    if (this.mostrarRecientes) {
+      this.productosFiltrados = this.productosFiltrados.slice(0, 20);
+    }
   }
 
   aplicarOrdenamiento() {
@@ -179,8 +240,9 @@ export class CrearVentaComponent implements OnInit {
       });
     } else if (this.ordenamientoProductos === 'reciente') {
       this.productosFiltrados.sort((a, b) => {
-        const fechaA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const fechaB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        // Usar updatedAt para mostrar productos recientemente modificados
+        const fechaA = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+        const fechaB = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
         return fechaB - fechaA; // Descendente (más reciente primero)
       });
     }
@@ -191,6 +253,81 @@ export class CrearVentaComponent implements OnInit {
     this.filtrarProductos();
   }
 
+  /**
+   * Toggle para mostrar/ocultar panel de filtros
+   */
+  toggleFiltros() {
+    this.mostrarFiltros = !this.mostrarFiltros;
+  }
+
+  /**
+   * Toggle para mostrar productos recientes (últimos 20 agregados/modificados)
+   * Cambia automáticamente el ordenamiento a 'reciente' y limita a 20 resultados
+   */
+  toggleRecientes() {
+    this.mostrarRecientes = !this.mostrarRecientes;
+    
+    // Si activa Recientes, cambiar ordenamiento a 'reciente'
+    if (this.mostrarRecientes) {
+      this.ordenamientoProductos = 'reciente';
+    } else {
+      // Al desactivar, volver a ordenamiento por código
+      this.ordenamientoProductos = 'codigo';
+    }
+    
+    this.filtrarProductos();
+  }
+
+  /**
+   * Limpia el filtro de grupo y recarga productos
+   */
+  limpiarFiltroGrupo() {
+    this.grupoSeleccionado = '';
+    this.filtrarProductos();
+  }
+
+  /**
+   * Limpia el filtro de proveedor y recarga productos
+   */
+  limpiarFiltroProveedor() {
+    this.proveedorSeleccionado = '';
+    this.filtrarProductos();
+  }
+
+  /**
+   * Limpia el filtro de tipo de stock y recarga productos
+   */
+  limpiarFiltroStock() {
+    this.tipoStockSeleccionado = '';
+    this.filtrarProductos();
+  }
+
+  /**
+   * Limpia todos los filtros
+   */
+  limpiarTodosFiltros() {
+    this.grupoSeleccionado = '';
+    this.proveedorSeleccionado = '';
+    this.tipoStockSeleccionado = '';
+    this.filtro = '';
+    this.mostrarRecientes = false;
+    this.filtrarProductos();
+  }
+
+
+  /**
+   * Maneja el clic en un producto: establece selección y agrega al carrito
+   * Mantiene el índice para permitir navegación con flechas desde ese punto
+   */
+  onProductoClick(producto: any, index: number) {
+    // Establecer el índice del producto clickeado
+    this.selectedIndex = index;
+    // Agregar el producto al carrito
+    this.agregarProducto(producto);
+    // Limpiar el filtro de búsqueda
+    this.filtro = '';
+    // NO resetear selectedIndex para permitir navegación con flechas desde este producto
+  }
 
   // Navegación con teclado en búsqueda
   onSearchKeydown(event: KeyboardEvent) {
@@ -200,9 +337,11 @@ export class CrearVentaComponent implements OnInit {
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       this.selectedIndex = Math.min(this.selectedIndex + 1, filtrados.length - 1);
+      this.scrollToSelectedProduct();
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
+      this.scrollToSelectedProduct();
     } else if (event.key === 'Enter') {
       event.preventDefault();
       // Si no hay elemento seleccionado aún, seleccionar el primero
@@ -212,6 +351,55 @@ export class CrearVentaComponent implements OnInit {
       if (p) this.agregarProducto(p);
       // Mantener el índice para que presionar Enter repetidas veces
       // agregue más cantidad del mismo producto
+    }
+  }
+
+  /**
+   * Hace scroll automático al producto seleccionado en la lista
+   */
+  scrollToSelectedProduct() {
+    // Esperar al siguiente ciclo de Angular para que el DOM se actualice
+    setTimeout(() => {
+      const selectedElement = document.querySelector('.producto-item.producto-selected');
+      if (selectedElement) {
+        selectedElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest'
+        });
+      }
+    }, 0);
+  }
+
+  /**
+   * Navegación global con teclado (incluso sin usar el input de búsqueda)
+   * Se activa con flechas arriba/abajo y Enter desde cualquier parte
+   */
+  onDocumentKeydown(event: KeyboardEvent) {
+    // Solo actuar si NO estamos en un input, textarea o select
+    const target = event.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+      return;
+    }
+
+    const filtrados = this.productosFiltrados;
+    if (filtrados.length === 0) return;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      // Si no hay selección, empezar desde el primero
+      if (this.selectedIndex < 0) this.selectedIndex = 0;
+      else this.selectedIndex = Math.min(this.selectedIndex + 1, filtrados.length - 1);
+      this.scrollToSelectedProduct();
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      // Si no hay selección, empezar desde el primero
+      if (this.selectedIndex < 0) this.selectedIndex = 0;
+      else this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
+      this.scrollToSelectedProduct();
+    } else if (event.key === 'Enter' && this.selectedIndex >= 0) {
+      event.preventDefault();
+      const p = filtrados[this.selectedIndex];
+      if (p) this.agregarProducto(p);
     }
   }
 
@@ -256,21 +444,28 @@ agregarProducto(p: any) {
     precioConIva = precioSinIva;
   }
   
-  const stockDisponible = Number(p.stock || 0);
+  // Determinar tipo de control de stock (NORMAL o ILIMITADO)
+  const tipoControl = (p as any).tipo_control_stock || ((p as any).stockIlimitado ? 'ILIMITADO' : 'NORMAL');
+  const esStockIlimitado = tipoControl === 'ILIMITADO';
+  const stockDisponible = esStockIlimitado ? Number.POSITIVE_INFINITY : Number(p.stock || 0);
 
-  // Si no hay stock, no permitir agregar
-  if (!isFinite(stockDisponible) || stockDisponible <= 0) {
-    Swal.fire({
-      icon: 'warning',
-      title: 'Sin stock',
-      text: `El producto "${p.nombre}" no tiene stock disponible.`,
-    });
-    return;
+  // Solo validar stock si el producto NO es ILIMITADO (ej: no es LUNAS)
+  if (!esStockIlimitado) {
+    // Si no hay stock disponible, no permitir agregar
+    if (!isFinite(stockDisponible) || stockDisponible <= 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Sin stock',
+        text: `El producto "${p.nombre}" no tiene stock disponible.`,
+      });
+      return;
+    }
   }
 
   const existing = this.items.find(i => i.productoId === id);
   if (existing) {
-    if (existing.cantidad >= stockDisponible) {
+    // Solo validar stock máximo si NO es ilimitado
+    if (!esStockIlimitado && existing.cantidad >= stockDisponible) {
       Swal.fire({
         icon: 'warning',
         title: 'Stock insuficiente',
@@ -311,6 +506,36 @@ private toNumber(v: any): number {
 
 
 
+
+  /**
+   * Retorna clase CSS para indicador de stock según disponibilidad
+   * Verde: stock > 10, Amarillo: stock 1-10, Rojo: stock 0, Azul: ILIMITADO
+   */
+  getStockBadgeClass(p: any): string {
+    const tipoControl = (p as any).tipo_control_stock || ((p as any).stockIlimitado ? 'ILIMITADO' : 'NORMAL');
+    
+    if (tipoControl === 'ILIMITADO') {
+      return 'badge-info'; // Azul para stock ilimitado
+    }
+    
+    const stock = Number(p.stock || 0);
+    if (stock > 10) return 'badge-success'; // Verde
+    if (stock > 0) return 'badge-warning';  // Amarillo
+    return 'badge-danger';                   // Rojo
+  }
+
+  /**
+   * Retorna texto descriptivo del stock
+   */
+  getStockText(p: any): string {
+    const tipoControl = (p as any).tipo_control_stock || ((p as any).stockIlimitado ? 'ILIMITADO' : 'NORMAL');
+    
+    if (tipoControl === 'ILIMITADO') {
+      return '∞'; // Símbolo infinito para stock ilimitado
+    }
+    
+    return String(p.stock || 0);
+  }
 
   cambiarCantidad(it: any, cantidad: number) {
     const max = Number(it?.stockDisponible ?? Number.POSITIVE_INFINITY);
@@ -640,5 +865,9 @@ private cleanUndefined(obj: any): any {
 
   volver() {
     this.router.navigate(['/clientes/historial-clinico']);
+  }
+
+  ngOnDestroy() {
+    // Limpieza si es necesaria (el @HostListener se limpia automáticamente)
   }
 }
