@@ -22,14 +22,12 @@
     <div class="t-bold t-small">MEDIDAS</div>
 
     <div class="t-small">
-        <b>OD</b><br> Esf {{ historial.odEsfera ? (historial.odEsfera | number:'1.2-2') : '-' }} Cil {{ historial.odCilindro ? (historial.odCilindro | number:'1.2-2') : '-' }} Eje {{ historial.odEje ? (historial.odEje | number:'1.2-2') : '-' }}<br> AVSC
-        {{ historial.odAVSC ? (historial.odAVSC | number:'1.2-2') : '-' }} AVCC {{ historial.odAVCC ? (historial.odAVCC | number:'1.2-2') : '-' }}
+        <b>OD</b><br> Esf {{ formatValue(historial.odEsfera) }} Cil {{ formatValue(historial.odCilindro) }} Eje {{ formatValue(historial.odEje) }}<br> ACSV {{ formatValue(historial.odAVSC) }} AVCC {{ formatValue(historial.odAVCC) }}
     </div>
 
 
     <div class="t-small" style="margin-top:4px">
-        <b>OI</b><br> Esf {{ historial.oiEsfera ? (historial.oiEsfera | number:'1.2-2') : '-' }} Cil {{ historial.oiCilindro ? (historial.oiCilindro | number:'1.2-2') : '-' }} Eje {{ historial.oiEje ? (historial.oiEje | number:'1.2-2') : '-' }}<br> AVSC
-        {{ historial.oiAVSC ? (historial.oiAVSC | number:'1.2-2') : '-' }} AVCC {{ historial.oiAVCC ? (historial.oiAVCC | number:'1.2-2') : '-' }}
+        <b>OI</b><br> Esf {{ formatValue(historial.oiEsfera) }} Cil {{ formatValue(historial.oiCilindro) }} Eje {{ formatValue(historial.oiEje) }}<br> ACSV {{ formatValue(historial.oiAVSC) }} AVCC {{ formatValue(historial.oiAVCC) }}
     </div>
 
     <div class="t-hr"></div>
@@ -57,37 +55,39 @@
 
     <div class="t-hr"></div>
 
-    <!-- MEDIDAS DEL ARMAZÓN -->
-    <div class="t-bold t-small">MEDIDAS DEL ARMAZÓN</div>
+    <!-- MEDIDAS DEL ARMAZÓN (Solo si ADD > 0) -->
+    <ng-container *ngIf="historial.add !== null && historial.add !== undefined && historial.add > 0">
+        <div class="t-bold t-small">MEDIDAS DEL ARMAZÓN</div>
 
-    <div class="t-small" style="margin-top:4px">
-        <div *ngIf="historial.armazonH">
-            <b>H (Ancho):</b> {{ historial.armazonH | number:'1.1-1' }} mm
+        <div class="t-small" style="margin-top:4px">
+            <div *ngIf="historial.armazonH !== null && historial.armazonH !== undefined">
+                <b>H (Ancho):</b> {{ historial.armazonH | number:'1.1-1' }} mm
+            </div>
+            <div *ngIf="historial.armazonV !== null && historial.armazonV !== undefined">
+                <b>V (Alto):</b> {{ historial.armazonV | number:'1.1-1' }} mm
+            </div>
+            <div *ngIf="historial.armazonDM !== null && historial.armazonDM !== undefined">
+                <b>DM (Diag. Mayor):</b> {{ historial.armazonDM | number:'1.1-1' }} mm
+            </div>
+            <div *ngIf="historial.armazonP !== null && historial.armazonP !== undefined">
+                <b>P (Puente):</b> {{ historial.armazonP | number:'1.1-1' }} mm
+            </div>
+            <div *ngIf="historial.armazonTipo">
+                <b>Tipo:</b> {{ historial.armazonTipo }}
+            </div>
+            <div *ngIf="historial.armazonDNP_OD !== null && historial.armazonDNP_OD !== undefined">
+                <b>DNP OD:</b> {{ historial.armazonDNP_OD | number:'1.1-1' }} mm
+            </div>
+            <div *ngIf="historial.armazonDNP_OI !== null && historial.armazonDNP_OI !== undefined">
+                <b>DNP OI:</b> {{ historial.armazonDNP_OI | number:'1.1-1' }} mm
+            </div>
+            <div *ngIf="historial.armazonAltura !== null && historial.armazonAltura !== undefined">
+                <b>Altura:</b> {{ historial.armazonAltura | number:'1.1-1' }} mm
+            </div>
         </div>
-        <div *ngIf="historial.armazonV">
-            <b>V (Alto):</b> {{ historial.armazonV | number:'1.1-1' }} mm
-        </div>
-        <div *ngIf="historial.armazonDM">
-            <b>DM (Diag. Mayor):</b> {{ historial.armazonDM | number:'1.1-1' }} mm
-        </div>
-        <div *ngIf="historial.armazonP">
-            <b>P (Puente):</b> {{ historial.armazonP | number:'1.1-1' }} mm
-        </div>
-        <div *ngIf="historial.armazonTipo">
-            <b>Tipo:</b> {{ historial.armazonTipo }}
-        </div>
-        <div *ngIf="historial.armazonDNP_OD">
-            <b>DNP OD:</b> {{ historial.armazonDNP_OD | number:'1.1-1' }} mm
-        </div>
-        <div *ngIf="historial.armazonDNP_OI">
-            <b>DNP OI:</b> {{ historial.armazonDNP_OI | number:'1.1-1' }} mm
-        </div>
-        <div *ngIf="historial.armazonAltura">
-            <b>Altura:</b> {{ historial.armazonAltura | number:'1.1-1' }} mm
-        </div>
-    </div>
 
-    <div class="t-hr"></div>
+        <div class="t-hr"></div>
+    </ng-container>
 
     <!-- Observaciones -->
     <div class="t-small" *ngIf="historial.observacion">

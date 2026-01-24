@@ -175,4 +175,26 @@ export class HistorialPrintComponent implements OnInit {
 
     return sorted[0] || null;
   }
+
+  /**
+   * Formatea un valor numérico para la impresión.
+   * 
+   * Maneja valores null, undefined, strings vacíos, y convierte a número con formato.
+   * 
+   * @param value Valor a formatear.
+   * @returns String formateado con 2 decimales o '-' si no hay valor.
+   */
+  formatValue(value: any): string {
+    if (value === null || value === undefined || value === '' || value === 'N/A') {
+      return '-';
+    }
+    
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    
+    if (isNaN(numValue)) {
+      return '-';
+    }
+    
+    return numValue.toFixed(2);
+  }
 }
