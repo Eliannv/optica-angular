@@ -479,6 +479,7 @@ agregarProducto(p: any) {
   } else {
       this.items.push({
         codigo: p.codigo || '',
+      idInterno: p.idInterno || '',
       productoId: id,
       nombre: p.nombre,
       tipo: p.tipo || p.categoria || p.grupo,
@@ -607,7 +608,8 @@ const factura: any = {
     cantidad: i.cantidad,
     precioUnitario: i.precioUnitario,
     total: i.total,
-          codigo: i.codigo, // Agregar el código aquí
+    codigo: i.codigo,
+    idInterno: i.idInterno
   })),
 
   subtotal: +this.subtotal.toFixed(2),

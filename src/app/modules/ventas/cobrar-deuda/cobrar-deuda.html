@@ -195,14 +195,14 @@
     <ng-container *ngIf="ticketPago.items?.length">
         <div class="t-table-head t-small">
             <span>COD</span>
-            <span>DESCRIPCIÓN</span>
+            <span>NOMBRE</span>
             <span>CANT</span>
             <span>P.U</span>
             <span>P.T</span>
         </div>
 
         <div class="t-table-row t-small" *ngFor="let it of ticketPago.items">
-            <span class="t-cell">{{ it.codigo || it.productoId }}</span>
+            <span class="t-cell">{{ it.idInterno || it.codigo || it.productoId }}</span>
             <span class="t-cell t-cut">{{ it.nombre }}</span>
             <span class="t-cell t-right">{{ it.cantidad }}</span>
             <span class="t-cell t-right">{{ it.precioUnitario | number:'1.2-2' }}</span>

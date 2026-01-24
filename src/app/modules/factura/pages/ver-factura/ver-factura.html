@@ -124,14 +124,14 @@
 
         <div class="t-table-head t-small">
             <span>COD</span>
-            <span>DESCRIPCIÓN</span>
+            <span>NOMBRE</span>
             <span>CANT</span>
             <span>P.U</span>
             <span>P.T</span>
         </div>
 
         <div class="t-table-row t-small" *ngFor="let it of factura.items; let i = index">
-            <span class="t-cell">{{ it.codigo || it.productoId || i + 1 }}</span>
+            <span class="t-cell">{{ it.idInterno || it.codigo || (i + 1) }}</span>
             <span class="t-cell t-cut">{{ it.nombre }}</span>
             <span class="t-cell t-right">{{ it.cantidad }}</span>
             <span class="t-cell t-right">{{ it.precioUnitario | number:'1.2-2' }}</span>
@@ -170,6 +170,7 @@
 
         <div class="t-hr"></div>
 
+        <div class="t-center t-small">*IVA incluido en los precios</div>
         <div class="t-center t-small">Gracias por su compra</div>
         <div class="t-center t-small">Conserve su factura</div>
 
