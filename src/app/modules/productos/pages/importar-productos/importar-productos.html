@@ -366,8 +366,8 @@
                                     <td>
                                         <input type="number" class="form-input-sm" [(ngModel)]="prod.costo" step="0.01" min="0" placeholder="0.00" title="Costo unitario del producto" required>
                                     </td>
-                                    <td class="text-end precio">
-                                        <strong>${{ prod.pvp1.toFixed(2) }}</strong>
+                                    <td>
+                                        <input type="number" class="form-input-sm" [(ngModel)]="prod.pvp1" step="0.01" min="0" placeholder="0.00" title="Precio de venta del producto" required>
                                     </td>
                                 </tr>
                                 }

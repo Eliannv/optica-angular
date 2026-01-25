@@ -211,8 +211,6 @@ export class ProductosService {
       createdAt: new Date(),
       updatedAt: new Date(),
       stock: esIlimitado ? 0 : (producto.stock || 0),
-      // Mantener stockIlimitado para compatibilidad con datos legacy
-      ...(esIlimitado ? { stockIlimitado: true } : {}),
     });
   }
 
@@ -257,7 +255,7 @@ export class ProductosService {
 
   /**
    * Descuenta stock de un producto usando transacción atómica de Firestore.
-   * No aplica descuento a productos con stock ilimitado (grupo LUNAS).
+   * No aplica descuento a productos con tipo_control_stock ILIMITADO.
    *
    * @param id ID del producto.
    * @param cantidad Cantidad a descontar (positivo).
@@ -275,8 +273,8 @@ export class ProductosService {
       }
       const data = snap.data() as any;
 
-      // No descontar stock si es stock ilimitado (grupo LUNAS o tipo_control_stock ILIMITADO)
-      const tipoControl = data?.tipo_control_stock || (data?.stockIlimitado ? 'ILIMITADO' : 'NORMAL');
+      // No descontar stock si es tipo_control_stock ILIMITADO
+      const tipoControl = data?.tipo_control_stock || 'NORMAL';
       if (tipoControl === 'ILIMITADO') {
         // Productos con stock ilimitado no descuentan
         return;

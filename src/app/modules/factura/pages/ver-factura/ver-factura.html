@@ -23,8 +23,9 @@
             <div class="ver-factura-body">
                 <!-- INFO CLIENTE -->
                 <div class="info-section">
-                    <h4 class="section-title">Información del Cliente</h4>
-                    <div class="info-grid">
+                    <h4 class="section-title">Información de la factura</h4>
+                    <div class="info-grid-2rows">
+                        <!-- FILA 1: Cliente, Método, Fecha -->
                         <div class="info-item">
                             <span class="info-label">Cliente</span>
                             <strong class="info-value">{{ factura.clienteNombre }}</strong>
@@ -38,6 +39,23 @@
                             <span class="info-value">
                 {{ factura.fecha?.toDate ? (factura.fecha.toDate() | date:'dd/MM/yyyy HH:mm') : (factura.fecha | date:'dd/MM/yyyy HH:mm') }}
               </span>
+                        </div>
+                        <!-- FILA 2: Subtotal, Descuento%, Total -->
+                        <div class="info-item">
+                            <span class="info-label">Subtotal</span>
+                            <strong class="info-value" style="color: #6c757d;">${{ (factura.subtotal + factura.descuentoMonto).toFixed(2) }}</strong>
+                        </div>
+                        <div class="info-item" *ngIf="factura.descuentoPorcentaje > 0">
+                            <span class="info-label">Descuento</span>
+                            <strong class="info-value" style="color: #e74c3c;">{{ factura.descuentoPorcentaje }}% (${{ factura.descuentoMonto.toFixed(2) }})</strong>
+                        </div>
+                        <div class="info-item" *ngIf="factura.descuentoPorcentaje === undefined || factura.descuentoPorcentaje <= 0">
+                            <span class="info-label">&nbsp;</span>
+                            <span class="info-value">&nbsp;</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Total a Pagar</span>
+                            <strong class="info-value" style="color: #007bff; font-size: 1.1em;">${{ factura.total.toFixed(2) }}</strong>
                         </div>
                     </div>
                 </div>
@@ -66,37 +84,35 @@
                 </div>
 
                 <!-- ITEMS / PRODUCTOS -->
-                <div class="items-section">
+                <div class="productos-section">
                     <h4 class="section-title">Productos</h4>
-                    <div class="items-list">
-                        <div class="item-row" *ngFor="let it of factura.items">
-                            <div class="item-info">
-                                <div class="item-nombre">{{ it.nombre }}</div>
-                                <div class="item-tipo">{{ it.tipo }}</div>
-                            </div>
-                            <div class="item-cantidad">
-                                <span>{{ it.cantidad }} × ${{ it.precioUnitario.toFixed(2) }}</span>
-                            </div>
-                            <div class="item-total">
-                                <strong>${{ it.total.toFixed(2) }}</strong>
-                            </div>
-                        </div>
+                    <div class="table-wrapper" *ngIf="factura.items && factura.items.length > 0">
+                        <table class="productos-table">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Nombre</th>
+                                    <th>Tipo</th>
+                                    <th>Cantidad</th>
+                                    <th>P. Unitario</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr *ngFor="let it of factura.items">
+                                    <td><span class="badge-codigo">{{ it.idInterno || it.codigo || '-' }}</span></td>
+                                    <td><strong>{{ it.nombre }}</strong></td>
+                                    <td><span class="badge-tipo-producto">{{ it.tipo || '-' }}</span></td>
+                                    <td class="text-center"><strong>{{ it.cantidad }}</strong></td>
+                                    <td class="text-right">${{ (it.precioUnitario || 0).toFixed(2) }}</td>
+                                    <td class="text-right"><strong class="precio">${{ (it.total || 0).toFixed(2) }}</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-                </div>
-
-                <!-- TOTALES -->
-                <div class="totales-section">
-                    <div class="total-row">
-                        <span>Subtotal</span>
-                        <strong>${{ factura.subtotal.toFixed(2) }}</strong>
-                    </div>
-                    <div class="total-row">
-                        <span>IVA (15%)</span>
-                        <strong>${{ factura.iva.toFixed(2) }}</strong>
-                    </div>
-                    <div class="total-row total-final">
-                        <span>Total a Pagar</span>
-                        <strong>${{ factura.total.toFixed(2) }}</strong>
+                    <div class="empty-state" *ngIf="!factura.items || factura.items.length === 0">
+                        <p class="empty-icon">📦</p>
+                        <p>No hay productos en esta factura</p>
                     </div>
                 </div>
             </div>
@@ -108,7 +124,7 @@
 
         <div class="t-center t-bold">ÓPTICA MACÍAS</div>
         <div class="t-center t-small">RUC: 0999999999001</div>
-        <div class="t-center t-small">Machala - Ecuador</div>
+        <div class="t-center t-small">Pasaje - Ecuador</div>
 
         <div class="t-hr"></div>
 
@@ -142,11 +158,11 @@
 
         <div class="t-kv t-small">
             <span>Subtotal</span>
-            <span>{{ factura.subtotal | number:'1.2-2' }}</span>
+            <span>{{ (factura.subtotal + factura.descuentoMonto) | number:'1.2-2' }}</span>
         </div>
-        <div class="t-kv t-small">
-            <span>IVA</span>
-            <span>{{ factura.iva | number:'1.2-2' }}</span>
+        <div class="t-kv t-small" *ngIf="factura.descuentoPorcentaje > 0">
+            <span>Descuento ({{ factura.descuentoPorcentaje }}%)</span>
+            <span>{{ factura.descuentoMonto | number:'1.2-2' }}</span>
         </div>
         <div class="t-kv t-bold">
             <span>TOTAL</span>

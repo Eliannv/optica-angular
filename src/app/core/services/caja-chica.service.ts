@@ -140,7 +140,6 @@ export class CajaChicaService {
       map((cajas: any[]) => (cajas || []).filter(c => c.activo !== false))
     ) as Observable<CajaChica[]>;
   }
-
   /**
    * Obtiene la caja chica abierta para el día actual.
    * Implementa estrategia de doble validación: localStorage + Firestore.
@@ -187,17 +186,11 @@ export class CajaChicaService {
       }
 
       // 2. SI NO ESTÁ EN LOCALSTORAGE: Buscar en Firestore
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-      
-      const mañana = new Date(hoy);
-      mañana.setDate(mañana.getDate() + 1);
-
+      // IMPORTANTE: Buscar TODAS las cajas abiertas (sin restricción de fecha)
+      // porque queremos detectar y cerrar las vencidas
       const cajasRef = collection(this.firestore, 'cajas_chicas');
       const q = query(
         cajasRef,
-        where('fecha', '>=', hoy),
-        where('fecha', '<', mañana),
         where('estado', '==', 'ABIERTA')
       );
 
@@ -214,10 +207,18 @@ export class CajaChicaService {
           }
           
           data.id = doc.id;
+
+          // Validar que sea de HOY después de pasar la detección
+          const hoy = new Date();
+          hoy.setHours(0, 0, 0, 0);
+          const fechaCaja = new Date(data.fecha);
+          fechaCaja.setHours(0, 0, 0, 0);
           
-          // Guardar en localStorage para futuras validaciones
-          localStorage.setItem('cajaChicaAbierta', doc.id);
-          return data;
+          if (fechaCaja.getTime() === hoy.getTime()) {
+            // Guardar en localStorage para futuras validaciones
+            localStorage.setItem('cajaChicaAbierta', doc.id);
+            return data;
+          }
         }
       }
       
@@ -341,17 +342,10 @@ export class CajaChicaService {
       }
 
       // 2. SI NO ESTÁ EN LOCALSTORAGE: Buscar en Firestore
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-      
-      const mañana = new Date(hoy);
-      mañana.setDate(mañana.getDate() + 1);
-
+      // IMPORTANTE: Buscar TODAS las cajas abiertas (sin restricción de fecha)
       const cajasRef = collection(this.firestore, 'cajas_chicas');
       const q = query(
         cajasRef,
-        where('fecha', '>=', hoy),
-        where('fecha', '<', mañana),
         where('estado', '==', 'ABIERTA')
       );
 
@@ -366,10 +360,20 @@ export class CajaChicaService {
           if (data.activo === false) {
             continue;
           }
+
+          data.id = doc.id;
+
+          // Validar que sea de HOY después de pasar detección
+          const hoy = new Date();
+          hoy.setHours(0, 0, 0, 0);
+          const fechaCaja = new Date(data.fecha);
+          fechaCaja.setHours(0, 0, 0, 0);
           
-          // Encontramos una caja abierta válida, guardarla en localStorage
-          localStorage.setItem('cajaChicaAbierta', doc.id);
-          return true;
+          if (fechaCaja.getTime() === hoy.getTime()) {
+            // Encontramos una caja abierta válida, guardarla en localStorage
+            localStorage.setItem('cajaChicaAbierta', doc.id);
+            return true;
+          }
         }
       }
       

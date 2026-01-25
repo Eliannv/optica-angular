@@ -126,27 +126,34 @@
 
 .info-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.info-grid-2rows {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-top: 1rem;
 }
 
 .info-item {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.5rem;
 }
 
 .info-label {
-    font-size: 0.75rem;
-    opacity: 0.7;
-    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--text-secondary);
 }
 
 .info-value {
-    font-size: 0.95rem;
+    font-size: 1rem;
     color: var(--text-primary);
 }
 
@@ -200,8 +207,15 @@
 
 
 /* ============================================
-   ITEMS SECTION
+   ITEMS SECTION (ANTIGUO - REMOVER)
 ============================================ */
+
+.items-section {
+    padding: 1.25rem;
+    border-radius: var(--radius-lg);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+}
 
 .items-list {
     display: flex;
@@ -248,10 +262,117 @@
 }
 
 .item-total {
-    font-size: 1.05rem;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--primary-color);
-    white-space: nowrap;
+}
+
+
+/* ============================================
+   PRODUCTOS SECTION (NUEVO ESTILO CON TABLA)
+============================================ */
+
+.productos-section {
+    padding: 1.25rem;
+    border-radius: var(--radius-lg);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    margin-top: 0.75rem;
+}
+
+.productos-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.productos-table thead {
+    background: var(--table-header-bg);
+}
+
+.productos-table th {
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-primary);
+    opacity: 0.9;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.productos-table tbody tr {
+    border-bottom: 1px solid var(--border-light);
+    transition: all var(--transition-fast);
+}
+
+.productos-table tbody tr:hover {
+    background: var(--table-row-hover);
+}
+
+.productos-table td {
+    padding: 1rem;
+    color: var(--text-primary);
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.badge-codigo {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--radius-sm);
+    background: rgba(155, 89, 182, 0.1);
+    color: #8e44ad;
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+}
+
+.badge-tipo-producto {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--radius-sm);
+    background: rgba(230, 126, 34, 0.1);
+    color: #e67e22;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.precio {
+    color: var(--color-success);
+    font-weight: 600;
+}
+
+.empty-state {
+    padding: 2rem 1.5rem;
+    text-align: center;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    margin-top: 0.75rem;
+}
+
+.empty-icon {
+    font-size: 3rem;
+    margin: 0 0 0.5rem 0;
+    opacity: 0.5;
+}
+
+.empty-state p {
+    margin: 0;
 }
 
 
@@ -261,32 +382,43 @@
 
 .totales-section {
     background: var(--bg-tertiary);
+    padding: 1.25rem;
+    border-radius: var(--radius-lg);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
 }
 
 .total-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.5rem 0;
-    font-size: 0.95rem;
-    color: var(--text-primary);
+    padding: 0.75rem 0;
+    font-size: 1rem;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.total-row:last-child {
+    border-bottom: none;
+}
+
+.total-row span {
+    color: var(--text-secondary);
 }
 
 .total-row strong {
-    font-size: 1.05rem;
+    color: var(--text-primary);
 }
 
 .total-final {
-    margin-top: 0.5rem;
-    padding-top: 1rem;
+    margin-top: 1rem;
+    padding-top: 1.5rem;
     border-top: 2px solid var(--border-color);
-    font-size: 1.1rem;
+    font-size: 1.25rem;
     font-weight: 700;
-    color: var(--primary-color);
 }
 
-.total-final strong {
-    font-size: 1.4rem;
+.total-final span {
+    color: var(--text-primary);
 }
 
 

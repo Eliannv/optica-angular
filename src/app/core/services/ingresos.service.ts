@@ -288,7 +288,7 @@ export class IngresosService {
           // Actualizar stock del producto existente
           // IMPORTANTE: Si estaba desactivado, ya tiene el stock guardado, solo suma la nueva cantidad
           // Solo actualizar stock si el tipo de control es NORMAL (no ILIMITADO)
-          const tipoControl = productoData.tipo_control_stock || ((productoData as any)?.stockIlimitado ? 'ILIMITADO' : 'NORMAL');
+          const tipoControl = productoData.tipo_control_stock || 'NORMAL';
           if (tipoControl === 'NORMAL') {
             const stockActual = productoData.stock || 0;
             const nuevoStock = stockActual + detalle.cantidad;
@@ -397,7 +397,7 @@ export class IngresosService {
   /**
    * Crea un nuevo producto automáticamente desde un detalle de ingreso.
    * Genera ID interno, asigna proveedor del ingreso y establece valores iniciales.
-   * Productos del grupo LUNAS se marcan con stockIlimitado=true.
+   * Productos del grupo LUNAS se marcan con tipo_control_stock='ILIMITADO'.
    *
    * @param ingresoId ID del ingreso origen.
    * @param detalle Datos del detalle que contiene la información del producto.
@@ -437,8 +437,6 @@ export class IngresosService {
     if (detalle.modelo) nuevoProducto.modelo = detalle.modelo;
     if (detalle.color) nuevoProducto.color = detalle.color;
     if (detalle.grupo) nuevoProducto.grupo = detalle.grupo;
-    // Mantener stockIlimitado para compatibilidad con datos legacy
-    if (esIlimitado) nuevoProducto.stockIlimitado = true;
     if (detalle.costoUnitario !== undefined) nuevoProducto.costo = detalle.costoUnitario;
     if (detalle.pvp1 !== undefined) nuevoProducto.pvp1 = detalle.pvp1;
     
@@ -464,8 +462,8 @@ export class IngresosService {
 
     if (productoSnap.exists()) {
       const producto = productoSnap.data() as Producto;
-      // Determinar tipo de control: usar tipo_control_stock o fallback a lógica legacy
-      const tipoControl = producto.tipo_control_stock || ((producto as any)?.stockIlimitado ? 'ILIMITADO' : 'NORMAL');
+      // Determinar tipo de control: usar tipo_control_stock
+      const tipoControl = producto.tipo_control_stock || 'NORMAL';
 
       const updateData: any = { updatedAt: new Date() };
       

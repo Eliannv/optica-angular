@@ -24,6 +24,7 @@ import { ClientesService } from '../../../../core/services/clientes';
 import { HistorialClinicoService } from '../../../../core/services/historial-clinico.service';
 import { FacturasService } from '../../../../core/services/facturas';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
+import { AuthService } from '../../../../core/services/auth.service';
 
 import { Cliente } from '../../../../core/models/cliente.model';
 import { HistoriaClinica } from '../../../../core/models/historia-clinica.model';
@@ -59,12 +60,21 @@ export class HistorialClinicoComponent implements OnInit {
   mostrarModal = false;
   cargandoHistorial = false;
 
+  /**
+   * Verifica si el usuario actual es administrador.
+   * Solo administradores pueden eliminar clientes.
+   */
+  get esAdmin(): boolean {
+    return this.authService.isAdmin();
+  }
+
   constructor(
     private readonly router: Router,
     private readonly clientesSrv: ClientesService,
     private readonly historialSrv: HistorialClinicoService,
     private readonly facturasSrv: FacturasService,
-    private readonly cajasChicaService: CajaChicaService
+    private readonly cajasChicaService: CajaChicaService,
+    private readonly authService: AuthService
   ) {}
 
   /**

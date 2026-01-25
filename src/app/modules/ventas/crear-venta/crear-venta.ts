@@ -201,7 +201,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     // Filtro por tipo de stock
     if (this.tipoStockSeleccionado) {
       filtrados = filtrados.filter(p => {
-        const tipoControl = (p as any).tipo_control_stock || ((p as any).stockIlimitado ? 'ILIMITADO' : 'NORMAL');
+        const tipoControl = (p as any).tipo_control_stock || 'NORMAL';
         return tipoControl === this.tipoStockSeleccionado;
       });
     }
@@ -445,7 +445,7 @@ agregarProducto(p: any) {
   }
   
   // Determinar tipo de control de stock (NORMAL o ILIMITADO)
-  const tipoControl = (p as any).tipo_control_stock || ((p as any).stockIlimitado ? 'ILIMITADO' : 'NORMAL');
+  const tipoControl = (p as any).tipo_control_stock || 'NORMAL';
   const esStockIlimitado = tipoControl === 'ILIMITADO';
   const stockDisponible = esStockIlimitado ? Number.POSITIVE_INFINITY : Number(p.stock || 0);
 
@@ -513,7 +513,7 @@ private toNumber(v: any): number {
    * Verde: stock > 10, Amarillo: stock 1-10, Rojo: stock 0, Azul: ILIMITADO
    */
   getStockBadgeClass(p: any): string {
-    const tipoControl = (p as any).tipo_control_stock || ((p as any).stockIlimitado ? 'ILIMITADO' : 'NORMAL');
+    const tipoControl = (p as any).tipo_control_stock || 'NORMAL';
     
     if (tipoControl === 'ILIMITADO') {
       return 'badge-info'; // Azul para stock ilimitado
@@ -529,7 +529,7 @@ private toNumber(v: any): number {
    * Retorna texto descriptivo del stock
    */
   getStockText(p: any): string {
-    const tipoControl = (p as any).tipo_control_stock || ((p as any).stockIlimitado ? 'ILIMITADO' : 'NORMAL');
+    const tipoControl = (p as any).tipo_control_stock || 'NORMAL';
     
     if (tipoControl === 'ILIMITADO') {
       return '∞'; // Símbolo infinito para stock ilimitado
@@ -578,18 +578,25 @@ async guardarEImprimir() {
   this.guardando = true;
 
   try {
-    // ✅ Verificar stock en tiempo real antes de guardar
+    // ✅ Verificar stock en tiempo real antes de guardar (solo productos con stock NORMAL)
     for (const it of this.items) {
       const prodActual: any = await firstValueFrom(this.productosSrv.getProductoById(it.productoId));
-      const disponible = Number(prodActual?.stock || 0);
-      if (disponible < it.cantidad) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Stock insuficiente',
-          text: `"${it.nombre}" ➜ disponible: ${disponible}, requerido: ${it.cantidad}.`,
-        });
-        this.guardando = false;
-        return;
+      
+      // Determinar el tipo de control de stock (compatible con datos legacy)
+      const tipoControl = prodActual?.tipo_control_stock || 'NORMAL';
+      
+      // Solo validar stock si es NORMAL (no ilimitado)
+      if (tipoControl === 'NORMAL') {
+        const disponible = Number(prodActual?.stock || 0);
+        if (disponible < it.cantidad) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Stock insuficiente',
+            text: `"${it.nombre}" ➜ disponible: ${disponible}, requerido: ${it.cantidad}.`,
+          });
+          this.guardando = false;
+          return;
+        }
       }
     }
 

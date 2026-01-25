@@ -123,7 +123,9 @@ export class ExcelService {
             const nombre = (fila[2] || '').toString().trim(); // C
             const modelo = (fila[3] || '').toString().trim(); // D
             const color = (fila[4] || '').toString().trim(); // E
-            const pvp1Str = (fila[5] || '').toString().replace('$', '').trim(); // F
+            const costoStr = (fila[5] || '').toString().replace('$', '').trim(); // F
+            const costo = this.parsearNumero(costoStr);
+            const pvp1Str = (fila[6] || '').toString().replace('$', '').trim(); // G (antes era F)
             const pvp1 = this.parsearNumero(pvp1Str);
             
             // Validar que al menos tenga nombre o código
@@ -138,7 +140,7 @@ export class ExcelService {
               pvp1,
               iva: 0,
               estado: 'NUEVO', // Se determinará después al verificar contra BD
-              costo: 0,
+              costo: costo, // Ahora lee el costo del Excel
               grupo: 'GAFAS', // Valor por defecto
               observacion: ''
             });
@@ -162,29 +164,31 @@ export class ExcelService {
   }
 
   /**
-   * Exportar productos a Excel (sin grupo ni costo)
+   * Exportar productos a Excel (ahora incluye COSTO)
    */
   exportarProductos(productos: Producto[], nombreArchivo: string = 'productos'): void {
-    // Preparar datos para exportar (sin GRUPO ni COSTO)
+    // Preparar datos para exportar (ahora incluye COSTO)
     const datosExport = productos.map(p => ({
       'CANTIDAD': p.stock || 0, // Stock del producto
       'CÓDIGO SIST': p.idInterno || '', // ID interno (código sistema)
       'PRODUCTO': p.nombre || '',
       'DETALLE VARILLA': p.modelo || '',
       'MATERIA / COLOR': p.color || '',
+      'COSTO': p.costo ? `$ ${p.costo.toFixed(2)}` : '$ 0.00', // NUEVO: Agregar costo
       'V/PUBLICO': p.pvp1 ? `$ ${p.pvp1.toFixed(2)}` : '$ 0.00'
     }));
 
     // Crear hoja de cálculo
     const worksheet = XLSX.utils.json_to_sheet(datosExport);
     
-    // Ajustar ancho de columnas
+    // Ajustar ancho de columnas (agregamos una más para COSTO)
     const columnWidths = [
       { wch: 10 }, // CANTIDAD
       { wch: 12 }, // CÓDIGO SIST
       { wch: 25 }, // PRODUCTO
       { wch: 30 }, // DETALLE VARILLA
       { wch: 30 }, // MATERIA / COLOR
+      { wch: 12 }, // COSTO
       { wch: 12 }, // V/PUBLICO
     ];
     worksheet['!cols'] = columnWidths;

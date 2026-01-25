@@ -302,17 +302,25 @@ export class ImportarProductosComponent {
           prod.stockAnterior = stockExistente;
           prod.stockActivoAnterior = stockExistente;
           
-          prod.costo = productoExistente.costo || 0;
+          // 🔹 IMPORTANTE: Mantener costo del Excel si es diferente al existente
+          // Solo usar costo existente si el Excel no tiene costo
+          if (!prod.costo || prod.costo <= 0) {
+            prod.costo = productoExistente.costo || 0;
+          }
+          // Si el Excel tiene costo, se mantiene (para poder reemplazar el costo existente)
+          
           prod.grupo = productoExistente.grupo || 'GAFAS';
           prod.idInterno = productoExistente.idInterno || undefined;
           
           prod.proveedorAnterior = productoExistente.proveedor || '';
           
-          if (prod.pvp1) {
-            prod.pvp1Anterior = productoExistente.pvp1 || 0;
-          } else {
+          // 🔹 IMPORTANTE: Mantener PVP del Excel si es diferente al existente
+          // Solo usar PVP existente si el Excel no tiene PVP
+          if (!prod.pvp1 || prod.pvp1 <= 0) {
             prod.pvp1 = productoExistente.pvp1 || 0;
           }
+          // Si el Excel tiene PVP, se mantiene (para poder reemplazar el PVP existente)
+          prod.pvp1Anterior = productoExistente.pvp1 || 0;
           
           prod.observacion = productoExistente.observacion || '';
         }
