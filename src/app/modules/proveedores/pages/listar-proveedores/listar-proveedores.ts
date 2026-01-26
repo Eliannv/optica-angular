@@ -225,14 +225,15 @@ export class ListarProveedores implements OnInit {
   async verFacturasProveedor(proveedor: Proveedor, event: any) {
     event.stopPropagation();
     
-    if (!proveedor.nombre) return;
+    // Usar código del proveedor (que no cambia) en lugar del nombre
+    if (!proveedor.codigo) return;
     
     this.proveedorSeleccionado = proveedor;
     this.ingresosCargando = true;
     this.mostrarModalFacturas = true;
 
     try {
-      this.ingresosService.getIngresosPorProveedor(proveedor.nombre).subscribe(
+      this.ingresosService.getIngresosPorProveedorCodigo(proveedor.codigo).subscribe(
         ingresos => {
           this.ingresosPorProveedor = ingresos;
           this.ingresosCargando = false;

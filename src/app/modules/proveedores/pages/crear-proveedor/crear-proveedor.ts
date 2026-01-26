@@ -210,15 +210,27 @@ export class CrearProveedor implements OnInit {
    * Consulta Firestore para verificar que no exista otro proveedor con el mismo nombre.
    */
   async validarNombre(): Promise<void> {
+    // Si el campo está vacío, limpiar validación
     if (!this.proveedor.nombre || this.proveedor.nombre.trim() === '') {
       this.validaciones.nombre.valido = false;
       this.validaciones.nombre.mensaje = '';
       return;
     }
 
+    // Si estamos editando Y el valor NO cambió del original, no hacer nada
+    if (this.esEdicion && this.proveedor.nombre === this.nombreOriginal) {
+      this.validaciones.nombre.valido = false;
+      this.validaciones.nombre.mensaje = '';
+      return;
+    }
+
+    // A partir de aquí, el valor SÍ cambió (o es modo creación), validar
     this.validandoNombre = true;
     try {
-      const existe = await this.proveedoresService.nombreExists(this.proveedor.nombre);
+      const existe = await this.proveedoresService.nombreExists(
+        this.proveedor.nombre,
+        this.esEdicion ? this.proveedorIdOriginal || undefined : undefined
+      );
       if (existe) {
         this.validaciones.nombre.valido = false;
         this.validaciones.nombre.mensaje = 'Ya existe un proveedor con este nombre';
@@ -270,9 +282,20 @@ export class CrearProveedor implements OnInit {
       return;
     }
 
+    // Si estamos editando Y el RUC NO cambió del original, no hacer nada
+    if (this.esEdicion && this.proveedor.ruc === this.rucOriginal) {
+      this.validaciones.ruc.valido = false;
+      this.validaciones.ruc.mensaje = '';
+      return;
+    }
+
+    // A partir de aquí, el RUC SÍ cambió (o es modo creación), validar en Firestore
     this.validandoRuc = true;
     try {
-      const existe = await this.proveedoresService.rucExists(ruc);
+      const existe = await this.proveedoresService.rucExists(
+        ruc,
+        this.esEdicion ? this.proveedorIdOriginal || undefined : undefined
+      );
       if (existe) {
         this.validaciones.ruc.valido = false;
         this.validaciones.ruc.mensaje = 'Este RUC ya está registrado';

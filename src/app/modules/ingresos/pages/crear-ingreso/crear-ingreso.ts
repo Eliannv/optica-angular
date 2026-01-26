@@ -455,8 +455,9 @@ export class CrearIngresoComponent implements OnInit {
     );
 
     this.proveedorSeleccionado = prov || null;
-    // Guardar nombre visible; conservar id/código opcionalmente
+    // Guardar nombre y código del proveedor
     this.ingreso.proveedor = prov?.nombre || codigo;
+    this.ingreso.proveedorCodigo = prov?.codigo; // Guardar código para futuras búsquedas
     (this.ingreso as any).proveedorId = prov?.id || prov?.codigo || undefined;
     this.busquedaProveedor.set('');
   }
@@ -861,8 +862,9 @@ export class CrearIngresoComponent implements OnInit {
         await Swal.fire({ icon: 'success', title: 'Proveedor creado', timer: 1500, showConfirmButton: false });
       }
       
-      // Asignar el nombre del nuevo proveedor al ingreso (no guardar proveedorId para evitar confusión)
+      // Asignar el nombre y código del nuevo proveedor al ingreso
       this.ingreso.proveedor = nuevoProveedor.nombre;
+      this.ingreso.proveedorCodigo = nuevoProveedor.codigo; // Guardar código para futuras búsquedas
       
       // Recargar proveedores
       this.cargarProveedores();
@@ -974,6 +976,7 @@ export class CrearIngresoComponent implements OnInit {
     );
     if (prov) {
       this.ingreso.proveedor = prov.nombre;
+      this.ingreso.proveedorCodigo = prov.codigo; // Guardar código para futuras búsquedas
       // NO guardar proveedorId para evitar confusión - usar solo el nombre en proveedor
     }
 

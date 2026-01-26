@@ -556,11 +556,21 @@ export class IngresosService {
     return collectionData(q, { idField: 'id' }) as Observable<MovimientoStock[]>;
   }
 
-  // Obtener ingresos por nombre de proveedor
+  // Obtener ingresos por nombre de proveedor (deprecated - usar getIngresosPorProveedorCodigo)
   getIngresosPorProveedor(proveedorNombre: string): Observable<Ingreso[]> {
     const q = query(
       this.ingresosRef,
       where('proveedor', '==', proveedorNombre),
+      orderBy('createdAt', 'desc')
+    );
+    return collectionData(q, { idField: 'id' }) as Observable<Ingreso[]>;
+  }
+
+  // Obtener ingresos por código de proveedor (evita problemas al editar nombre)
+  getIngresosPorProveedorCodigo(proveedorCodigo: string): Observable<Ingreso[]> {
+    const q = query(
+      this.ingresosRef,
+      where('proveedorCodigo', '==', proveedorCodigo),
       orderBy('createdAt', 'desc')
     );
     return collectionData(q, { idField: 'id' }) as Observable<Ingreso[]>;

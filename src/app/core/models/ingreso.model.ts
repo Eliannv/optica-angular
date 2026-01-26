@@ -18,6 +18,9 @@ export interface Ingreso {
   /** Nombre del proveedor que emitió la factura */
   proveedor: string;
 
+  /** Código del proveedor (no se edita, usado para filtros) */
+  proveedorCodigo?: string;
+
   /** Identificador del proveedor en la base de datos (opcional) */
   proveedorId?: string;
 

@@ -370,6 +370,7 @@ export class ImportarProductosComponent {
       // 1. Crear ingreso
       const nuevoIngreso: Ingreso = {
         proveedor: datos.proveedor,
+        proveedorCodigo: this.proveedorExistente()?.codigo, // Guardar código del proveedor para futuras búsquedas
         numeroFactura: datos.numeroFactura,
         fecha: datos.fecha,
         tipoCompra: 'CONTADO',
