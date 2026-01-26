@@ -97,7 +97,7 @@ export class FacturasService {
    * deudaTotal = suma de saldoPendiente de facturas PENDIENTES del cliente
    * pendientes = cantidad de facturas pendientes
    */
-  async getResumenDeuda(clienteId: string): Promise<{ deudaTotal: number; pendientes: number }> {
+  async getResumenDeuda(clienteId: string): Promise<{ deudaTotal: number; pendientes: number; creditosActivos: number; creditoPersonalActivo: boolean }> {
     const q = query(
       this.facturasRef,
       where('clienteId', '==', clienteId),
@@ -107,19 +107,30 @@ export class FacturasService {
     const snap = await getDocs(q);
     let deudaTotal = 0;
     let pendientes = 0;
+    let creditosActivos = 0;
 
     snap.forEach(d => {
       const data: any = d.data();
       const saldo = Number(data?.saldoPendiente || 0);
+      const esCreditoPersonal = Boolean(
+        data?.esCredito ||
+        (data?.tipoVenta && String(data.tipoVenta).toUpperCase() === 'CREDITO') ||
+        (data?.estadoCredito && String(data.estadoCredito).toUpperCase() === 'ACTIVO')
+      );
       if (saldo > 0) {
         deudaTotal += saldo;
         pendientes++;
+        if (esCreditoPersonal) {
+          creditosActivos++;
+        }
       }
     });
 
     return {
       deudaTotal: +deudaTotal.toFixed(2),
-      pendientes
+      pendientes,
+      creditosActivos,
+      creditoPersonalActivo: creditosActivos > 0
     };
   }
 

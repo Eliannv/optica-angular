@@ -51,8 +51,10 @@ export class HistorialClinicoComponent implements OnInit {
   Math = Math;
 
   cargando = true;
-  deudas: Record<string, { deudaTotal: number; pendientes: number }> = {};
+  deudas: Record<string, { deudaTotal: number; pendientes: number; creditosActivos: number; creditoPersonalActivo: boolean }> = {};
   filtroEstado: 'todos' | 'deudores' | 'conHistorial' | 'sinHistorial' = 'todos';
+  filtroCredito: 'todos' | 'conCredito' | 'sinCredito' = 'todos';
+  ordenarPor: 'fecha' | 'credito' = 'fecha';
   cajaChicaAbierta = false;
 
   clienteSeleccionado: ClienteUI | null = null;
@@ -168,11 +170,12 @@ export class HistorialClinicoComponent implements OnInit {
         this.deudas[c.id] = res;
       } catch (e) {
         console.error('Error deuda cliente', c.id, e);
-        this.deudas[c.id] = { deudaTotal: 0, pendientes: 0 };
+        this.deudas[c.id] = { deudaTotal: 0, pendientes: 0, creditosActivos: 0, creditoPersonalActivo: false };
       }
     });
 
     await Promise.all(tasks);
+    this.aplicarFiltro();
   }
 
   /**
@@ -219,7 +222,14 @@ export class HistorialClinicoComponent implements OnInit {
       base = base.filter(c => !c.tieneHistorial);
     }
 
-    // 3) Ordenar por más reciente (por si cambió por filtrado)
+    // 3) Filtro crédito personal
+    if (this.filtroCredito === 'conCredito') {
+      base = base.filter(c => !!this.deudas[c.id]?.creditoPersonalActivo);
+    } else if (this.filtroCredito === 'sinCredito') {
+      base = base.filter(c => !this.deudas[c.id]?.creditoPersonalActivo);
+    }
+
+    // 4) Ordenar (por defecto más reciente; opcional: crédito personal primero)
     const getCreatedMs = (c: any): number => {
       const v = c?.createdAt;
       if (!v) return 0;
@@ -230,7 +240,14 @@ export class HistorialClinicoComponent implements OnInit {
       } catch {}
       return 0;
     };
-    this.clientesFiltrados = base.sort((a, b) => getCreatedMs(b) - getCreatedMs(a));
+    const sortByFecha = (a: ClienteUI, b: ClienteUI) => getCreatedMs(b) - getCreatedMs(a);
+    const sortByCredito = (a: ClienteUI, b: ClienteUI) => {
+      const aCredito = this.deudas[a.id]?.creditoPersonalActivo ? 1 : 0;
+      const bCredito = this.deudas[b.id]?.creditoPersonalActivo ? 1 : 0;
+      if (aCredito !== bCredito) return bCredito - aCredito; // Sí primero
+      return sortByFecha(a, b);
+    };
+    this.clientesFiltrados = base.sort(this.ordenarPor === 'credito' ? sortByCredito : sortByFecha);
 
     this.totalClientes = this.clientesFiltrados.length;
     this.paginaActual = 1; // Resetear a la primera página al filtrar
@@ -545,6 +562,10 @@ export class HistorialClinicoComponent implements OnInit {
         confirmButtonText: 'Entendido'
       });
     }
+  }
+
+  tieneCreditoPersonal(clienteId: string): boolean {
+    return !!this.deudas[clienteId]?.creditoPersonalActivo;
   }
 
   /**

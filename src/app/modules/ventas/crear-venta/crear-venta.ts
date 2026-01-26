@@ -62,6 +62,9 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   codigoTransferencia = ''; // Código de transferencia bancaria
   ultimosCuatroTarjeta = ''; // Últimos 4 dígitos de la tarjeta
 
+  // ✅ CRÉDITO PERSONAL
+  esCredito = false; // Checkbox para venta a crédito personal
+
   loading = true;
   guardando = false;
 
@@ -575,6 +578,16 @@ private toNumber(v: any): number {
 async guardarEImprimir() {
   if (!this.items.length || this.guardando) return;
 
+  // ✅ VALIDACIÓN: Si NO es crédito personal, requiere abono > 0
+  if (!this.esCredito && this.abono <= 0) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Abono requerido',
+      text: 'Debe ingresar un abono mayor a 0. Si desea vender a crédito personal, active esa opción.'
+    });
+    return;
+  }
+
   this.guardando = true;
 
   try {
@@ -600,45 +613,49 @@ async guardarEImprimir() {
       }
     }
 
-    const abonado = Math.min(Math.max(0, Number(this.abono || 0)), this.total);
-const saldoPendiente = +(this.total - abonado).toFixed(2);
+    // ✅ CALCULAR ABONO Y SALDO PENDIENTE
+    const abonado = this.esCredito ? Math.max(0, Number(this.abono || 0)) : Math.min(Math.max(0, Number(this.abono || 0)), this.total);
+    const saldoPendiente = +(this.total - abonado).toFixed(2);
 
-const factura: any = {
-  clienteId: this.clienteId,
-  clienteNombre: `${this.cliente?.nombres || ''} ${this.cliente?.apellidos || ''}`.trim(),
-  historialSnapshot: this.historial || null,
+    // ✅ CREAR FACTURA CON DATOS DE CRÉDITO
+    const factura: any = {
+      clienteId: this.clienteId,
+      clienteNombre: `${this.cliente?.nombres || ''} ${this.cliente?.apellidos || ''}`.trim(),
+      historialSnapshot: this.historial || null,
 
-  items: this.items.map((i: any) => ({
-    productoId: i.productoId,
-    nombre: i.nombre,
-    tipo: i.tipo,
-    cantidad: i.cantidad,
-    precioUnitario: i.precioUnitario,
-    total: i.total,
-    codigo: i.codigo,
-    idInterno: i.idInterno
-  })),
+      items: this.items.map((i: any) => ({
+        productoId: i.productoId,
+        nombre: i.nombre,
+        tipo: i.tipo,
+        cantidad: i.cantidad,
+        precioUnitario: i.precioUnitario,
+        total: i.total,
+        codigo: i.codigo,
+        idInterno: i.idInterno
+      })),
 
-  subtotal: +this.subtotal.toFixed(2),
-  descuentoPorcentaje: this.descuentoPorcentaje,
-  descuentoMonto: +this.descuentoMonto.toFixed(2),
-  iva: +this.iva.toFixed(2),
-  total: +this.total.toFixed(2),
+      subtotal: +this.subtotal.toFixed(2),
+      descuentoPorcentaje: this.descuentoPorcentaje,
+      descuentoMonto: +this.descuentoMonto.toFixed(2),
+      iva: +this.iva.toFixed(2),
+      total: +this.total.toFixed(2),
 
-  metodoPago: this.metodoPago,
-  codigoTransferencia: this.metodoPago === 'Transferencia' ? this.codigoTransferencia : undefined,
-  fecha: new Date(),
-  usuarioId: 'admin',
+      metodoPago: this.metodoPago,
+      codigoTransferencia: this.metodoPago === 'Transferencia' ? this.codigoTransferencia : undefined,
+      fecha: new Date(),
+      usuarioId: 'admin',
 
-  // ✅ NUEVO
-  tipoVenta: saldoPendiente > 0 ? 'CREDITO' : 'CONTADO',
-  abonado: +abonado.toFixed(2),
-  saldoPendiente,
-  estadoPago: saldoPendiente > 0 ? 'PENDIENTE' : 'PAGADA',
-};
+      // ✅ NUEVO: DATOS DE CRÉDITO PERSONAL
+      esCredito: this.esCredito,
+      tipoVenta: this.esCredito ? 'CREDITO' : 'CONTADO',
+      abonado: +abonado.toFixed(2),
+      saldoPendiente,
+      estadoPago: saldoPendiente > 0 ? 'PENDIENTE' : 'PAGADA',
+      estadoCredito: this.esCredito && saldoPendiente > 0 ? 'ACTIVO' : 'CANCELADO'
+    };
 
     const facturaLimpia = this.cleanUndefined(factura);
-const ref = await this.facturasSrv.crearFactura(facturaLimpia);
+    const ref = await this.facturasSrv.crearFactura(facturaLimpia);
 
     // ✅ REGISTRAR AUTOMÁTICAMENTE EN CAJA CHICA O CAJA BANCO
     const usuario = this.authService.getCurrentUser();

@@ -50,7 +50,7 @@
                         </svg>
                         Filtros
                     </button>
-                    
+
                     <button class="btn-action" [class.active]="mostrarRecientes" (click)="toggleRecientes()" title="Mostrar productos recientes">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
@@ -207,11 +207,23 @@
                             <small class="muted">Últimos 4 dígitos de la tarjeta de crédito/débito</small>
                         </div>
 
-                        <!-- ✅ ABONO -->
+                        <!-- ✅ CRÉDITO PERSONAL -->
+                        <div class="metodo-pago" style="border: 2px solid #ff9800; padding: 12px; border-radius: 6px; background-color: #fff3e0;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0;">
+                                <input type="checkbox" [(ngModel)]="esCredito" style="width: 18px; height: 18px; cursor: pointer;" />
+                                <span style="font-weight: 600; color: #ff9800;">📋 Venta a Crédito Personal</span>
+                            </label>
+                            <small class="muted" *ngIf="esCredito" style="display: block; margin-top: 8px; color: #f57c00;">
+                                ✓ El cliente se llevará el lente con deuda pendiente. Podrá abonar después.
+                            </small>
+                        </div>
+
+                        <!-- ✅ ABONO (mostrar diferente si es crédito) -->
                         <div class="metodo-pago">
-                            <label>Abono (paga hoy)</label>
+                            <label>{{ esCredito ? 'Abono inicial (opcional)' : 'Abono (paga hoy)' }}</label>
                             <input type="number" min="0" class="search-input" [(ngModel)]="abono" (ngModelChange)="recalcularAbono()" placeholder="0.00" />
-                            <small class="muted">Si es menor al total, quedará saldo pendiente.</small>
+                            <small class="muted" *ngIf="!esCredito">Si es menor al total, quedará saldo pendiente.</small>
+                            <small class="muted" *ngIf="esCredito" style="color: #ff9800;">Si no ingresa abono, el total quedará como deuda pendiente.</small>
                         </div>
 
                         <div class="total-row">
@@ -262,6 +274,10 @@
         <div><b>Fecha:</b> {{ facturaParaImprimir.fecha | date:'dd/MM/yyyy HH:mm' }}</div>
         <div><b>Cliente:</b> {{ facturaParaImprimir.clienteNombre }}</div>
         <div><b>Método pago:</b> {{ facturaParaImprimir.metodoPago }}</div>
+        <!-- ✅ INDICADOR DE CRÉDITO PERSONAL -->
+        <div *ngIf="facturaParaImprimir.esCredito" class="t-small" style="margin-top: 4px; padding-top: 4px;">
+            VENTA A CRÉDITO PERSONAL
+        </div>
     </div>
 
     <div class="t-hr"></div>
@@ -321,6 +337,11 @@
 
     <div class="t-hr"></div>
     <div class="t-center t-small">*IVA incluido en los precios</div>
+
+    <!-- ✅ NOTA DE CRÉDITO PERSONAL -->
+    <div class="t-small" *ngIf="facturaParaImprimir.esCredito" style="margin: 6px 0;">
+        CLIENTE SE LLEVÓ EL LENTE CON DEUDA<br> Saldo pendiente: ${{ facturaParaImprimir.saldoPendiente | number:'1.2-2' }}
+    </div>
 
     <div class="t-center t-small">Gracias por su compra</div>
     <div class="t-center t-small">Conserve su factura</div>

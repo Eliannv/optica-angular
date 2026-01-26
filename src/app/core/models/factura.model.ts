@@ -91,6 +91,30 @@ export interface Factura {
 
   /** Identificador del usuario que generó la factura */
   usuarioId: string;
+
+  /** Indica si es una venta a crédito personal */
+  esCredito?: boolean;
+
+  /** Monto abonado en la venta (puede ser 0 en crédito personal) */
+  abonado?: number;
+
+  /** Saldo pendiente de pago (total - abonado) */
+  saldoPendiente?: number;
+
+  /** Estado del crédito: 'ACTIVO' o 'CANCELADO' */
+  estadoCredito?: 'ACTIVO' | 'CANCELADO';
+
+  /** Tipo de venta: 'CONTADO' o 'CREDITO' */
+  tipoVenta?: 'CONTADO' | 'CREDITO';
+
+  /** Estado del pago: 'PAGADA' o 'PENDIENTE' */
+  estadoPago?: 'PAGADA' | 'PENDIENTE';
+
+  /** Porcentaje de descuento aplicado */
+  descuentoPorcentaje?: number;
+
+  /** Monto del descuento aplicado */
+  descuentoMonto?: number;
 }
 
 /**

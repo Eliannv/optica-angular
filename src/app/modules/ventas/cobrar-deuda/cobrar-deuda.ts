@@ -36,6 +36,9 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
   abono = 0;
   saldoNuevo = 0;
 
+  // ✅ CONTROL DE CRÉDITO PERSONAL
+  esCreditoPersonal = false; // Checkbox para marcar si es crédito personal
+
   pagando = false;
   sub?: Subscription;
 
@@ -157,6 +160,8 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     this.metodoPago = 'Efectivo';
     this.codigoTransferencia = '';
     this.ultimosCuatroTarjeta = '';
+    // ✅ Cargar estado de crédito personal si aplica
+    this.esCreditoPersonal = f?.esCredito || false;
     this.recalcularSaldoNuevo();
   }
 
@@ -191,12 +196,30 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
       const saldoNuevo = +(total - abonadoNuevo).toFixed(2);
       const estadoPago = saldoNuevo <= 0 ? 'PAGADA' : 'PENDIENTE';
 
-      await this.facturasSrv.actualizarPagoFactura(f.id, {
+      // ✅ ACTUALIZAR ESTADO DEL CRÉDITO Y OTROS CAMPOS
+      const actualizacion: any = {
         abonado: abonadoNuevo,
         saldoPendiente: Math.max(0, saldoNuevo),
         estadoPago,
         metodoPago: this.metodoPago,
-      });
+      };
+
+      // ✅ SI EL USUARIO MARCÓ CRÉDITO PERSONAL, GUARDAR ESE ESTADO
+      if (this.esCreditoPersonal) {
+        actualizacion.esCredito = true;
+        // Si es crédito personal y el saldo se cancela completamente
+        if (saldoNuevo <= 0) {
+          actualizacion.estadoCredito = 'CANCELADO';
+        } else {
+          actualizacion.estadoCredito = 'ACTIVO';
+        }
+      } else {
+        // Si el usuario NO marca crédito, asegurar que se registre como normal
+        actualizacion.esCredito = false;
+        actualizacion.estadoCredito = 'CANCELADO'; // No aplica estado de crédito
+      }
+
+      await this.facturasSrv.actualizarPagoFactura(f.id, actualizacion);
 
       // ✅ enriquecer ítems con código real si falta
       const items = Array.isArray(f.items) ? [...f.items] : [];
@@ -222,6 +245,7 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
         abonoRealizado: abonoReal,
         abonadoNuevo,
         saldoNuevo: Math.max(0, saldoNuevo),
+        esCreditoPersonal: this.esCreditoPersonal, // ✅ Usar lo que el usuario seleccionó
         items,
       };
 

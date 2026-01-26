@@ -34,6 +34,21 @@
                     </select>
                 </div>
 
+                <div class="search-wrapper" style="max-width: 240px;">
+                    <select class="search-input" [(ngModel)]="filtroCredito" (ngModelChange)="aplicarFiltro()">
+                        <option value="todos">Crédito personal: Todos</option>
+                        <option value="conCredito">Solo con crédito personal</option>
+                        <option value="sinCredito">Sin crédito personal</option>
+                    </select>
+                </div>
+
+                <div class="search-wrapper" style="max-width: 240px;">
+                    <select class="search-input" [(ngModel)]="ordenarPor" (ngModelChange)="aplicarFiltro()">
+                        <option value="fecha">Orden: Más recientes</option>
+                        <option value="credito">Orden: Crédito personal (Sí primero)</option>
+                    </select>
+                </div>
+
                 <button class="btn btn-primary" (click)="crearCliente()">
           + Nuevo
         </button>
@@ -56,6 +71,8 @@
                             <th>Teléfono</th>
                             <th>Estado Historial</th>
 
+                            <th>Crédito Personal</th>
+
                             <!-- ✅ NUEVO -->
                             <th>Deuda</th>
 
@@ -75,6 +92,8 @@
                   {{ c.tieneHistorial ? 'Con historial' : 'Sin historial' }}
                 </span>
                             </td>
+
+                            <td>{{ tieneCreditoPersonal(c.id) ? 'Sí' : 'No' }}</td>
 
                             <!-- ✅ NUEVO: Deuda -->
                             <td>

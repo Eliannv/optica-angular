@@ -48,7 +48,13 @@
                 <div class="productos-list" *ngIf="pendientes.length">
                     <button class="producto-item" type="button" *ngFor="let f of pendientes" (click)="seleccionarFactura(f)">
             <div class="producto-info">
-              <div class="producto-nombre">Factura #{{ f.id }}</div>
+              <div class="producto-nombre">
+                Factura #{{ f.id }}
+                <!-- ✅ INDICADOR DE CRÉDITO PERSONAL -->
+                <span *ngIf="f.esCredito" style="display: inline-block; background-color: #ff9800; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 8px; font-weight: bold;">
+                  📋 CRÉDITO
+                </span>
+              </div>
               <div class="producto-categoria">
                 Fecha:
                 <ng-container *ngIf="f.fecha?.toDate; else fechaNormal">
@@ -89,7 +95,13 @@
                     <div class="carrito-items" style="max-height: 28vh;">
                         <div class="carrito-item">
                             <div class="item-info">
-                                <div class="item-nombre">Factura #{{ facturaSeleccionada.id }}</div>
+                                <div class="item-nombre">
+                                    Factura #{{ facturaSeleccionada.id }}
+                                    <!-- ✅ INDICADOR DE CRÉDITO PERSONAL -->
+                                    <span *ngIf="facturaSeleccionada.esCredito" style="display: inline-block; background-color: #ff9800; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 8px; font-weight: bold;">
+                                        📋 CRÉDITO
+                                    </span>
+                                </div>
                                 <div class="item-tipo">
                                     Total: ${{ (facturaSeleccionada.total || 0) | number:'1.2-2' }}
                                 </div>
@@ -140,6 +152,17 @@
                         <div class="total-row" *ngIf="abono > (facturaSeleccionada?.saldoPendiente || 0)">
                             <span>Vuelto</span>
                             <strong style="color: #28a745;">${{ (abono - (facturaSeleccionada?.saldoPendiente || 0)).toFixed(2) }}</strong>
+                        </div>
+
+                        <!-- ✅ CRÉDITO PERSONAL - CONTROL SIEMPRE DISPONIBLE -->
+                        <div class="metodo-pago" *ngIf="facturaSeleccionada">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0; padding: 8px;">
+                                <input type="checkbox" [(ngModel)]="esCreditoPersonal" style="width: 16px; height: 16px; cursor: pointer; flex-shrink: 0;" />
+                                <span style="font-weight: 500; flex: 1;">📋 Crédito Personal</span>
+                                <span style="font-size: 11px; color: #999; white-space: nowrap;" *ngIf="esCreditoPersonal">
+                                    {{saldoNuevo > 0 ? '(Activo)' : '(Cancelado)'}}
+                                </span>
+                            </label>
                         </div>
 
                         <div class="metodo-pago">
@@ -218,6 +241,7 @@
         <div><b>Fecha:</b> {{ ticketPago.fecha | date:'dd/MM/yyyy HH:mm' }}</div>
         <div><b>Cliente:</b> {{ ticketPago.clienteNombre }}</div>
         <div><b>Método pago:</b> {{ ticketPago.metodoPago }}</div>
+        <div *ngIf="ticketPago.esCreditoPersonal">CRÉDITO PERSONAL</div>
     </div>
 
     <div class="t-hr"></div>
@@ -247,11 +271,6 @@
     <div class="t-kv t-bold">
         <span>SALDO</span>
         <span>{{ ticketPago.saldoNuevo | number:'1.2-2' }}</span>
-    </div>
-
-    <div class="t-kv t-small" *ngIf="ticketPago.abonoRealizado > ticketPago.saldoNuevo">
-        <span>Vuelto</span>
-        <span>{{ (ticketPago.abonoRealizado - ticketPago.saldoNuevo) | number:'1.2-2' }}</span>
     </div>
 
     <div class="t-center t-small" style="margin-top: 6px;">
