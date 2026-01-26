@@ -52,10 +52,13 @@ export class HistorialClinicoComponent implements OnInit {
 
   cargando = true;
   deudas: Record<string, { deudaTotal: number; pendientes: number; creditosActivos: number; creditoPersonalActivo: boolean }> = {};
-  filtroEstado: 'todos' | 'deudores' | 'conHistorial' | 'sinHistorial' = 'todos';
+  filtroEstado: 'todos' | 'conHistorial' | 'sinHistorial' = 'todos';
   filtroCredito: 'todos' | 'conCredito' | 'sinCredito' = 'todos';
   ordenarPor: 'fecha' | 'credito' = 'fecha';
   cajaChicaAbierta = false;
+
+  // Panel de filtros
+  mostrarPanelFiltros = false;
 
   clienteSeleccionado: ClienteUI | null = null;
   historialClinico: HistoriaClinica | null = null;
@@ -194,6 +197,39 @@ export class HistorialClinicoComponent implements OnInit {
   }
 
   /**
+   * Alterna la visibilidad del panel de filtros.
+   */
+  togglePanelFiltros(): void {
+    this.mostrarPanelFiltros = !this.mostrarPanelFiltros;
+  }
+
+  /**
+   * Cierra el panel de filtros.
+   */
+  cerrarPanelFiltros(): void {
+    this.mostrarPanelFiltros = false;
+  }
+
+  /**
+   * Aplica los filtros seleccionados y cierra el panel.
+   */
+  aplicarFiltrosYCerrar(): void {
+    this.aplicarFiltro();
+    this.cerrarPanelFiltros();
+  }
+
+  /**
+   * Limpia todos los filtros (mantiene búsqueda) y cierra el panel.
+   */
+  limpiarFiltros(): void {
+    this.filtroEstado = 'todos';
+    this.filtroCredito = 'todos';
+    this.ordenarPor = 'fecha';
+    this.aplicarFiltro();
+    this.cerrarPanelFiltros();
+  }
+
+  /**
    * Aplica filtros múltiples a la lista de clientes.
    *
    * Combina filtrado por texto (nombre, cédula, teléfono) con filtros de estado
@@ -214,9 +250,7 @@ export class HistorialClinicoComponent implements OnInit {
         });
 
     // 2) Filtro estado
-    if (this.filtroEstado === 'deudores') {
-      base = base.filter(c => (this.deudas[c.id]?.deudaTotal || 0) > 0);
-    } else if (this.filtroEstado === 'conHistorial') {
+    if (this.filtroEstado === 'conHistorial') {
       base = base.filter(c => !!c.tieneHistorial);
     } else if (this.filtroEstado === 'sinHistorial') {
       base = base.filter(c => !c.tieneHistorial);

@@ -1,18 +1,20 @@
 <div class="hc-wrapper">
     <div class="card">
 
-        <!-- HEADER -->
+        <!-- HEADER - UNA SOLA FILA -->
         <div class="card-header">
-            <div class="header-content">
+            <div class="header-row">
+                <!-- Título -->
                 <h3 class="card-title">Historial Clínico</h3>
 
-                <div class="search-wrapper">
+                <!-- Búsqueda -->
+                <div class="search-wrapper search-wrapper--compact">
                     <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8"></circle>
             <path d="m21 21-4.35-4.35"></path>
           </svg>
 
-                    <input type="text" class="search-input" placeholder="Buscar cliente por nombre, cédula o teléfono..." [(ngModel)]="terminoBusqueda" (input)="buscarClientes()" />
+                    <input type="text" class="search-input" placeholder="Buscar cliente" [(ngModel)]="terminoBusqueda" (input)="buscarClientes()" />
 
                     <button *ngIf="terminoBusqueda" class="clear-btn" (click)="limpiarBusqueda()" title="Limpiar búsqueda">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
@@ -24,36 +26,75 @@
           </button>
                 </div>
 
-                <!-- Filtro estado -->
-                <div class="search-wrapper" style="max-width: 260px;">
-                    <select class="search-input" [(ngModel)]="filtroEstado" (ngModelChange)="aplicarFiltro()">
-                        <option value="todos">Todos</option>
-                        <option value="deudores">Clientes deudores</option>
-                        <option value="conHistorial">Con historial</option>
-                        <option value="sinHistorial">Sin historial</option>
-                    </select>
+                <!-- Botón Filtros con Panel Desplegable -->
+                <div class="filter-button-wrapper">
+                    <button class="btn btn-filter" [class.btn-filter--active]="mostrarPanelFiltros" (click)="togglePanelFiltros()" title="Abrir filtros avanzados">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+          </svg>
+          Filtros
+        </button>
+
+                    <!-- Panel Desplegable de Filtros -->
+                    <div class="filter-panel" *ngIf="mostrarPanelFiltros">
+                        <div class="filter-panel__header">
+                            <h4 class="filter-panel__title">Filtrar resultados</h4>
+                            <button class="btn-close-panel" (click)="cerrarPanelFiltros()" title="Cerrar panel">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+                        </div>
+
+                        <div class="filter-panel__body">
+                            <!-- Estado del Historial -->
+                            <div class="filter-group">
+                                <label class="filter-label">Estado del Historial</label>
+                                <select class="filter-select" [(ngModel)]="filtroEstado">
+                    <option value="todos">Todos</option>
+                    <option value="conHistorial">Con historial</option>
+                    <option value="sinHistorial">Sin historial</option>
+                </select>
+                            </div>
+
+                            <!-- Crédito Personal -->
+                            <div class="filter-group">
+                                <label class="filter-label">Crédito Personal</label>
+                                <select class="filter-select" [(ngModel)]="filtroCredito">
+                    <option value="todos">Todos</option>
+                    <option value="conCredito">Solo con crédito personal</option>
+                    <option value="sinCredito">Sin crédito personal</option>
+                </select>
+                            </div>
+                        </div>
+
+                        <div class="filter-panel__footer">
+                            <button class="btn btn-secondary btn-sm" (click)="limpiarFiltros()">
+                  Limpiar filtros
+                </button>
+                            <button class="btn btn-primary btn-sm" (click)="aplicarFiltrosYCerrar()">
+                  Aplicar filtros
+                </button>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="search-wrapper" style="max-width: 240px;">
-                    <select class="search-input" [(ngModel)]="filtroCredito" (ngModelChange)="aplicarFiltro()">
-                        <option value="todos">Crédito personal: Todos</option>
-                        <option value="conCredito">Solo con crédito personal</option>
-                        <option value="sinCredito">Sin crédito personal</option>
-                    </select>
-                </div>
-
-                <div class="search-wrapper" style="max-width: 240px;">
-                    <select class="search-input" [(ngModel)]="ordenarPor" (ngModelChange)="aplicarFiltro()">
+                <!-- Ordenar -->
+                <div class="sort-wrapper">
+                    <select class="search-input search-input--sort" [(ngModel)]="ordenarPor" (ngModelChange)="aplicarFiltro()" title="Ordenar resultados">
                         <option value="fecha">Orden: Más recientes</option>
                         <option value="credito">Orden: Crédito personal (Sí primero)</option>
                     </select>
                 </div>
 
+                <!-- Botón Nuevo -->
                 <button class="btn btn-primary" (click)="crearCliente()">
           + Nuevo
         </button>
             </div>
 
+            <!-- Resultado de búsqueda (opcional) -->
             <div class="search-results" *ngIf="terminoBusqueda">
                 <span class="text-muted">{{ totalClientes }} resultado(s) encontrado(s)</span>
             </div>
