@@ -105,7 +105,7 @@
                 Factura #{{ f.id }}
                 <!-- ✅ INDICADOR DE CRÉDITO PERSONAL -->
                 <span *ngIf="f.esCredito" style="display: inline-block; background-color: #ff9800; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 8px; font-weight: bold;">
-                  📋 CRÉDITO
+                  CRÉDITO
                 </span>
               </div>
               <div class="producto-categoria">
@@ -152,7 +152,7 @@
                                     Factura #{{ facturaSeleccionada.id }}
                                     <!-- ✅ INDICADOR DE CRÉDITO PERSONAL -->
                                     <span *ngIf="facturaSeleccionada.esCredito" style="display: inline-block; background-color: #ff9800; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 8px; font-weight: bold;">
-                                        📋 CRÉDITO
+                                        CRÉDITO
                                     </span>
                                 </div>
                                 <div class="item-tipo">
@@ -211,7 +211,7 @@
                         <div class="metodo-pago" *ngIf="facturaSeleccionada">
                             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0; padding: 8px;">
                                 <input type="checkbox" [(ngModel)]="esCreditoPersonal" style="width: 16px; height: 16px; cursor: pointer; flex-shrink: 0;" />
-                                <span style="font-weight: 500; flex: 1;">📋 Crédito Personal</span>
+                                <span style="font-weight: 500; flex: 1;">Crédito Personal</span>
                                 <span style="font-size: 11px; color: #999; white-space: nowrap;" *ngIf="esCreditoPersonal">
                                     {{saldoNuevo > 0 ? '(Activo)' : '(Cancelado)'}}
                                 </span>

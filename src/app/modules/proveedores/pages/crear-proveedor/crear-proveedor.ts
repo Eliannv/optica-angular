@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { Proveedor } from '../../../../core/models/proveedor.model';
 import { ProveedoresService } from '../../../../core/services/proveedores';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -53,6 +53,7 @@ export class CrearProveedor implements OnInit {
   codigoExiste = false;
   validandoNombre = false;
   validandoRuc = false;
+  guardando = false;
   esEdicion = false;
   proveedorIdOriginal: string | null = null;
   nombreOriginal: string = '';
@@ -61,7 +62,9 @@ export class CrearProveedor implements OnInit {
   constructor(
     private proveedoresService: ProveedoresService,
     private router: Router,
-    private activatedRoute: ActivatedRoute
+    private activatedRoute: ActivatedRoute,
+    private cdr: ChangeDetectorRef,
+    private ngZone: NgZone
   ) {}
 
   /**
@@ -120,6 +123,11 @@ export class CrearProveedor implements OnInit {
    * @returns true si todos los campos obligatorios y validaciones están correctas
    */
   get puedeGuardar(): boolean {
+    // No guardar mientras se está guardando
+    if (this.guardando) {
+      return false;
+    }
+
     if (!this.proveedor.nombre || !this.proveedor.ruc) {
       return false;
     }
@@ -180,15 +188,18 @@ export class CrearProveedor implements OnInit {
     if (!this.proveedor.codigo || this.proveedor.codigo.trim() === '') {
       this.validaciones.codigo.valido = false;
       this.validaciones.codigo.mensaje = '';
+      this.validandoCodigo = false;
       return;
     }
 
     if (!this.validarFormatoCodigo(this.proveedor.codigo)) {
       this.validaciones.codigo.valido = false;
       this.validaciones.codigo.mensaje = 'Debe contener al menos 1 letra y 4 números';
+      this.validandoCodigo = false;
       return;
     }
 
+    this.validandoCodigo = true;
     try {
       const existe = await this.proveedoresService.codigoExists(this.proveedor.codigo);
       if (existe) {
@@ -200,6 +211,8 @@ export class CrearProveedor implements OnInit {
       }
     } catch (error) {
       console.error('Error al validar código:', error);
+    } finally {
+      this.validandoCodigo = false;
     }
   }
 
@@ -214,6 +227,7 @@ export class CrearProveedor implements OnInit {
     if (!this.proveedor.nombre || this.proveedor.nombre.trim() === '') {
       this.validaciones.nombre.valido = false;
       this.validaciones.nombre.mensaje = '';
+      this.validandoNombre = false;
       return;
     }
 
@@ -221,28 +235,39 @@ export class CrearProveedor implements OnInit {
     if (this.esEdicion && this.proveedor.nombre === this.nombreOriginal) {
       this.validaciones.nombre.valido = false;
       this.validaciones.nombre.mensaje = '';
+      this.validandoNombre = false;
       return;
     }
 
     // A partir de aquí, el valor SÍ cambió (o es modo creación), validar
     this.validandoNombre = true;
-    try {
-      const existe = await this.proveedoresService.nombreExists(
-        this.proveedor.nombre,
-        this.esEdicion ? this.proveedorIdOriginal || undefined : undefined
-      );
-      if (existe) {
-        this.validaciones.nombre.valido = false;
-        this.validaciones.nombre.mensaje = 'Ya existe un proveedor con este nombre';
-      } else {
-        this.validaciones.nombre.valido = true;
-        this.validaciones.nombre.mensaje = 'Nombre disponible';
+    
+    this.ngZone.runOutsideAngular(async () => {
+      try {
+        const existe = await this.proveedoresService.nombreExists(
+          this.proveedor.nombre,
+          this.esEdicion ? this.proveedorIdOriginal || undefined : undefined
+        );
+        
+        this.ngZone.run(() => {
+          if (existe) {
+            this.validaciones.nombre.valido = false;
+            this.validaciones.nombre.mensaje = 'Ya existe un proveedor con este nombre';
+          } else {
+            this.validaciones.nombre.valido = true;
+            this.validaciones.nombre.mensaje = 'Nombre disponible';
+          }
+          this.validandoNombre = false;
+          this.cdr.detectChanges();
+        });
+      } catch (error) {
+        console.error('Error al validar nombre:', error);
+        this.ngZone.run(() => {
+          this.validandoNombre = false;
+          this.cdr.detectChanges();
+        });
       }
-    } catch (error) {
-      console.error('Error al validar nombre:', error);
-    } finally {
-      this.validandoNombre = false;
-    }
+    });
   }
 
   /**
@@ -258,12 +283,14 @@ export class CrearProveedor implements OnInit {
     if (!ruc || ruc.trim() === '') {
       this.validaciones.ruc.valido = false;
       this.validaciones.ruc.mensaje = '';
+      this.validandoRuc = false;
       return;
     }
 
     if (!/^\d{13}$/.test(ruc)) {
       this.validaciones.ruc.valido = false;
       this.validaciones.ruc.mensaje = 'El RUC debe tener exactamente 13 dígitos';
+      this.validandoRuc = false;
       return;
     }
 
@@ -271,6 +298,7 @@ export class CrearProveedor implements OnInit {
     if (provincia < 1 || provincia > 24) {
       this.validaciones.ruc.valido = false;
       this.validaciones.ruc.mensaje = 'Código de provincia inválido (primeros 2 dígitos)';
+      this.validandoRuc = false;
       return;
     }
 
@@ -279,6 +307,7 @@ export class CrearProveedor implements OnInit {
     if (!(tercerDigito === 9 || tercerDigito === 6 || (tercerDigito >= 0 && tercerDigito <= 5))) {
       this.validaciones.ruc.valido = false;
       this.validaciones.ruc.mensaje = 'Tercer dígito de RUC inválido';
+      this.validandoRuc = false;
       return;
     }
 
@@ -286,29 +315,39 @@ export class CrearProveedor implements OnInit {
     if (this.esEdicion && this.proveedor.ruc === this.rucOriginal) {
       this.validaciones.ruc.valido = false;
       this.validaciones.ruc.mensaje = '';
+      this.validandoRuc = false;
       return;
     }
 
     // A partir de aquí, el RUC SÍ cambió (o es modo creación), validar en Firestore
     this.validandoRuc = true;
-    try {
-      const existe = await this.proveedoresService.rucExists(
-        ruc,
-        this.esEdicion ? this.proveedorIdOriginal || undefined : undefined
-      );
-      if (existe) {
-        this.validaciones.ruc.valido = false;
-        this.validaciones.ruc.mensaje = 'Este RUC ya está registrado';
-        return;
+    
+    this.ngZone.runOutsideAngular(async () => {
+      try {
+        const existe = await this.proveedoresService.rucExists(
+          ruc,
+          this.esEdicion ? this.proveedorIdOriginal || undefined : undefined
+        );
+        
+        this.ngZone.run(() => {
+          if (existe) {
+            this.validaciones.ruc.valido = false;
+            this.validaciones.ruc.mensaje = 'Este RUC ya está registrado';
+          } else {
+            this.validaciones.ruc.valido = true;
+            this.validaciones.ruc.mensaje = 'RUC válido';
+          }
+          this.validandoRuc = false;
+          this.cdr.detectChanges();
+        });
+      } catch (error) {
+        console.error('Error al validar RUC:', error);
+        this.ngZone.run(() => {
+          this.validandoRuc = false;
+          this.cdr.detectChanges();
+        });
       }
-
-      this.validaciones.ruc.valido = true;
-      this.validaciones.ruc.mensaje = 'RUC válido';
-    } catch (error) {
-      console.error('Error al validar RUC:', error);
-    } finally {
-      this.validandoRuc = false;
-    }
+    });
   }
 
   /**
@@ -438,6 +477,9 @@ export class CrearProveedor implements OnInit {
     }
 
     try {
+      this.guardando = true;
+      this.cdr.detectChanges();
+      
       if (this.esEdicion && this.proveedorIdOriginal) {
         await this.proveedoresService.updateProveedor(this.proveedorIdOriginal, this.proveedor);
         await Swal.fire({ icon: 'success', title: 'Proveedor actualizado', timer: 1500, showConfirmButton: false });
@@ -451,6 +493,8 @@ export class CrearProveedor implements OnInit {
       console.error('Error al guardar proveedor:', error);
       const titulo = this.esEdicion ? 'No se pudo actualizar' : 'No se pudo crear';
       await Swal.fire({ icon: 'error', title: titulo, text: error?.message || 'Error al guardar el proveedor' });
+      this.guardando = false;
+      this.cdr.detectChanges();
     }
   }
 

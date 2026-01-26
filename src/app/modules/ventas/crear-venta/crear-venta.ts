@@ -52,7 +52,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   items: any[] = []; // (tu ItemVenta ya lo usas pero aquí guardas nombre/tipo/total también)
 
   ivaPct = 0.15;
-  descuentoPorcentaje = 0; // Descuento por porcentaje
+  private _descuentoPorcentaje = 0;
   descuentoMonto = 0; // Monto del descuento calculado
   subtotal = 0;
   iva = 0;
@@ -70,8 +70,34 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
 
   // para ticket
   facturaParaImprimir: any = null;
-  abono = 0;
+  private _abono = 0;
   saldoPendiente = 0;
+  
+  // Getter y Setter para descuentoPorcentaje (limpia "0" inicial)
+  get descuentoPorcentaje(): number {
+    return this._descuentoPorcentaje;
+  }
+  set descuentoPorcentaje(value: any) {
+    // Si es string que empieza con "0" pero tiene más dígitos, limpiar
+    if (typeof value === 'string' && value.startsWith('0') && value.length > 1) {
+      this._descuentoPorcentaje = Number(value);
+    } else {
+      this._descuentoPorcentaje = Number(value || 0);
+    }
+  }
+
+  // Getter y Setter para abono (limpia "0" inicial)
+  get abono(): number {
+    return this._abono;
+  }
+  set abono(value: any) {
+    // Si es string que empieza con "0" pero tiene más dígitos, limpiar
+    if (typeof value === 'string' && value.startsWith('0') && value.length > 1) {
+      this._abono = Number(value);
+    } else {
+      this._abono = Number(value || 0);
+    }
+  }
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -407,15 +433,76 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   }
 
   recalcularAbono() {
-    const a = Math.max(0, Number(this.abono || 0));
+    // El setter ya limpia el "0" inicial automáticamente
+    const a = Math.max(0, this._abono);
     // no permitir que el abono supere el total
-    this.abono = Math.min(a, this.total);
-    this.saldoPendiente = +(this.total - this.abono).toFixed(2);
+    this._abono = Math.min(a, this.total);
+    this.saldoPendiente = +(this.total - this._abono).toFixed(2);
+  }
+
+  // ✅ Navegación por Enter entre inputs
+  onInputEnter(event: Event, inputType: string, itemIndex?: number) {
+    const keyboardEvent = event as KeyboardEvent;
+    keyboardEvent.preventDefault();
+    
+    if (inputType === 'cantidad') {
+      // Si es cantidad de un item, ir al siguiente item o al descuento
+      if (itemIndex !== undefined && itemIndex < this.items.length - 1) {
+        // Enfoca el siguiente item - usa querySelectorAll para obtener todos los inputs de cantidad
+        setTimeout(() => {
+          const cantidadInputs = document.querySelectorAll('.item-cantidad input');
+          const nextInput = cantidadInputs[itemIndex + 1] as HTMLInputElement;
+          if (nextInput) nextInput.focus();
+        }, 0);
+      } else {
+        // Ir al descuento (último producto o único)
+        setTimeout(() => {
+          const descuentoInput = document.querySelector('input[min="0"][max="100"][placeholder="0"]') as HTMLInputElement;
+          if (descuentoInput) descuentoInput.focus();
+        }, 0);
+      }
+    } else if (inputType === 'descuento') {
+      // Del descuento al método de pago
+      setTimeout(() => {
+        const metodoPagoSelect = document.querySelector('.select-pago') as HTMLSelectElement;
+        if (metodoPagoSelect) metodoPagoSelect.focus();
+      }, 0);
+    } else if (inputType === 'metodo') {
+      // Del método de pago: chequear qué opción está seleccionada
+      setTimeout(() => {
+        if (this.metodoPago === 'Transferencia') {
+          // Ir al input de transferencia
+          const transferInput = document.querySelector('input[placeholder*="TRF"]') as HTMLInputElement;
+          if (transferInput) transferInput.focus();
+        } else if (this.metodoPago === 'Tarjeta') {
+          // Ir al input de tarjeta
+          const tarjetaInput = document.querySelector('input[maxlength="4"]') as HTMLInputElement;
+          if (tarjetaInput) tarjetaInput.focus();
+        } else {
+          // Si es Efectivo, ir directo a Abono
+          const abonoInput = document.querySelector('input[type="number"][placeholder="0.00"]') as HTMLInputElement;
+          if (abonoInput) abonoInput.focus();
+        }
+      }, 0);
+    } else if (inputType === 'transferencia' || inputType === 'tarjeta') {
+      // De transferencia o tarjeta → Abono
+      setTimeout(() => {
+        const abonoInput = document.querySelector('input[type="number"][placeholder="0.00"]') as HTMLInputElement;
+        if (abonoInput) abonoInput.focus();
+      }, 0);
+    } else if (inputType === 'abono') {
+      // Del abono al botón guardar
+      setTimeout(() => {
+        const btnGuardar = document.querySelector('.btn-primary') as HTMLButtonElement;
+        if (btnGuardar && !btnGuardar.disabled) btnGuardar.focus();
+      }, 0);
+    }
   }
 
   cambiarDescuento() {
+    // El setter ya limpia el "0" inicial automáticamente
     // Validar que el descuento no sea negativo ni mayor a 100
-    this.descuentoPorcentaje = Math.max(0, Math.min(100, Number(this.descuentoPorcentaje || 0)));
+    this._descuentoPorcentaje = Math.max(0, Math.min(100, this._descuentoPorcentaje));
     this.recalcular();
     this.recalcularAbono(); // Recalcular saldo pendiente con el nuevo total
   }
@@ -497,6 +584,7 @@ agregarProducto(p: any) {
   }
 
   this.recalcular();
+  this.recalcularAbono(); // Actualizar saldo pendiente cuando se agrega producto
 }
 private toNumber(v: any): number {
   if (typeof v === 'number') return isFinite(v) ? v : 0;
@@ -559,11 +647,13 @@ private toNumber(v: any): number {
     it.total = it.cantidad * it.precioUnitario;
     it.totalSinIva = it.cantidad * it.precioUnitarioSinIva;
     this.recalcular();
+    this.recalcularAbono(); // Actualizar saldo pendiente
   }
 
   quitar(it: any) {
     this.items = this.items.filter((x: any) => x !== it);
     this.recalcular();
+    this.recalcularAbono(); // Actualizar saldo pendiente
   }
 
   recalcular() {

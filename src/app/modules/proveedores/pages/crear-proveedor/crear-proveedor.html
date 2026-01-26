@@ -150,8 +150,11 @@
             </form>
         </div>
         <div class="card-footer d-flex justify-between">
-            <button class="btn btn-secondary" (click)="cancelar()">Cancelar</button>
-            <button class="btn btn-primary" (click)="guardar()" [disabled]="!puedeGuardar">Guardar Proveedor</button>
+            <button class="btn btn-secondary" (click)="cancelar()" [disabled]="guardando">Cancelar</button>
+            <button class="btn btn-primary d-inline-flex align-items-center gap-2" (click)="guardar()" [disabled]="!puedeGuardar">
+                <span *ngIf="guardando" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                {{ guardando ? 'Guardando...' : 'Guardar Proveedor' }}
+            </button>
         </div>
     </div>
 </div>

@@ -91,7 +91,7 @@
                         </div>
 
                         <button *ngIf="grupoSeleccionado || proveedorSeleccionado || tipoStockSeleccionado" class="btn-clear-all" (click)="limpiarTodosFiltros()" title="Limpiar todos los filtros">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                             Limpiar todo
                         </button>
                     </div>
@@ -142,7 +142,7 @@
 
                             <div class="item-cantidad">
                                 <label>Cant.</label>
-                                <input type="number" min="1" [max]="it.stockDisponible" [ngModel]="it.cantidad" (ngModelChange)="cambiarCantidad(it, $event)" />
+                                <input #cantInput type="number" min="1" [max]="it.stockDisponible" [ngModel]="it.cantidad" (ngModelChange)="cambiarCantidad(it, $event)" (keydown.enter)="onInputEnter($event, 'cantidad', items.indexOf(it))" />
                                 <span class="precio-unit">× ${{ it.precioUnitario.toFixed(2) }}</span>
                             </div>
 
@@ -165,7 +165,7 @@
                         <div class="metodo-pago">
                             <label>Descuento (%)</label>
                             <div style="display: flex; gap: 0.5rem;">
-                                <input type="number" min="0" max="100" class="search-input" [(ngModel)]="descuentoPorcentaje" (ngModelChange)="cambiarDescuento()" placeholder="0" style="flex: 1;" />
+                                <input #descuentoInput type="number" min="0" max="100" class="search-input" [(ngModel)]="descuentoPorcentaje" (ngModelChange)="cambiarDescuento()" (keydown.enter)="onInputEnter($event, 'descuento')" placeholder="0" style="flex: 1;" />
                                 <span class="descuento-display"><strong>${{ descuentoMonto.toFixed(2) }}</strong></span>
                             </div>
                             <small class="muted">Descuento a aplicar sobre el subtotal</small>
@@ -186,7 +186,7 @@
 
                         <div class="metodo-pago">
                             <label>Método de Pago</label>
-                            <select class="select-pago" [(ngModel)]="metodoPago">
+                            <select #metodoPagoSelect class="select-pago" [(ngModel)]="metodoPago" (keydown.enter)="onInputEnter($event, 'metodo')">
                 <option value="Efectivo">💵 Efectivo</option>
                 <option value="Transferencia">🏦 Transferencia</option>
                 <option value="Tarjeta">💳 Tarjeta</option>
@@ -196,14 +196,14 @@
                         <!-- ✅ CÓDIGO DE TRANSFERENCIA (solo si es transferencia) -->
                         <div class="metodo-pago" *ngIf="metodoPago === 'Transferencia'">
                             <label>Código de Transferencia</label>
-                            <input type="text" class="search-input" [(ngModel)]="codigoTransferencia" placeholder="Ej: TRF-20260112-001" />
+                            <input #transferenciInput type="text" class="search-input" [(ngModel)]="codigoTransferencia" (keydown.enter)="onInputEnter($event, 'transferencia')" placeholder="Ej: TRF-20260112-001" />
                             <small class="muted">Número o referencia de la transferencia bancaria</small>
                         </div>
 
                         <!-- ✅ ÚLTIMOS 4 DÍGITOS DE TARJETA (solo si es tarjeta) -->
                         <div class="metodo-pago" *ngIf="metodoPago === 'Tarjeta'">
                             <label>Últimos 4 Dígitos de la Tarjeta</label>
-                            <input type="text" class="search-input" [(ngModel)]="ultimosCuatroTarjeta" placeholder="Ej: 1234" maxlength="4" />
+                            <input #tarjetaInput type="text" class="search-input" [(ngModel)]="ultimosCuatroTarjeta" (keydown.enter)="onInputEnter($event, 'tarjeta')" placeholder="Ej: 1234" maxlength="4" />
                             <small class="muted">Últimos 4 dígitos de la tarjeta de crédito/débito</small>
                         </div>
 
@@ -211,17 +211,17 @@
                         <div class="metodo-pago" style="border: 2px solid #ff9800; padding: 12px; border-radius: 6px; background-color: #fff3e0;">
                             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0;">
                                 <input type="checkbox" [(ngModel)]="esCredito" style="width: 18px; height: 18px; cursor: pointer;" />
-                                <span style="font-weight: 600; color: #ff9800;">📋 Venta a Crédito Personal</span>
+                                <span style="font-weight: 600; color: #ff9800;">Venta a Crédito Personal</span>
                             </label>
                             <small class="muted" *ngIf="esCredito" style="display: block; margin-top: 8px; color: #f57c00;">
-                                ✓ El cliente se llevará el lente con deuda pendiente. Podrá abonar después.
+                                El cliente se llevará el lente con deuda pendiente. Podrá abonar después.
                             </small>
                         </div>
 
                         <!-- ✅ ABONO (mostrar diferente si es crédito) -->
                         <div class="metodo-pago">
                             <label>{{ esCredito ? 'Abono inicial (opcional)' : 'Abono (paga hoy)' }}</label>
-                            <input type="number" min="0" class="search-input" [(ngModel)]="abono" (ngModelChange)="recalcularAbono()" placeholder="0.00" />
+                            <input #abonoInput type="number" min="0" class="search-input" [(ngModel)]="abono" (ngModelChange)="recalcularAbono()" (keydown.enter)="onInputEnter($event, 'abono')" placeholder="0.00" />
                             <small class="muted" *ngIf="!esCredito">Si es menor al total, quedará saldo pendiente.</small>
                             <small class="muted" *ngIf="esCredito" style="color: #ff9800;">Si no ingresa abono, el total quedará como deuda pendiente.</small>
                         </div>
@@ -237,11 +237,12 @@
                         </div>
 
                         <!-- BOTONES DE ACCIÓN -->
-                        <div style="display: flex; gap: 10px; margin-top: 20px;">
-                            <button class="btn-secondary" type="button" (click)="volver()" style="flex: 1;">
+                        <div style="display: flex; gap: 10px; margin-top: 20px; align-items: center;">
+                            <div style="flex: 1;"></div>
+                            <button class="btn-secondary" type="button" (click)="volver()">
                                 <span>← Volver</span>
                             </button>
-                            <button class="btn-primary" type="button" [disabled]="guardando || !items.length" (click)="guardarEImprimir()" style="flex: 1;">
+                            <button #btnGuardar class="btn-primary" type="button" [disabled]="guardando || !items.length" (click)="guardarEImprimir()" (keydown.enter)="guardarEImprimir()" style="min-width: 200px;">
                                 <span>{{ guardando ? 'Guardando...' : 'Guardar + Imprimir' }}</span>
                             </button>
                         </div>
