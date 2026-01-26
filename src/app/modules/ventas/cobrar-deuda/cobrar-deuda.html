@@ -41,12 +41,65 @@
                     <span class="items-count" *ngIf="pendientes.length">{{ pendientes.length }} pendiente(s)</span>
                 </div>
 
+                <!-- ✅ BÚSQUEDA Y FILTROS -->
+                <div class="search-container">
+                    <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="6" cy="6" r="5"></circle>
+                        <path d="m11 11 5 5"></path>
+                    </svg>
+                    <input 
+                        type="text" 
+                        class="search-input" 
+                        [(ngModel)]="filtroFactura" 
+                        (keydown)="onSearchKeydown($event)"
+                        placeholder="Buscar por #factura..." />
+                </div>
+
+                <!-- FILTROS COLAPSABLES -->
+                <div class="filters-row">
+                    <div class="filter-item">
+                        <label class="filter-label">Fecha:</label>
+                        <input 
+                            type="date" 
+                            class="search-input filter-input" 
+                            [(ngModel)]="filtroFecha" />
+                    </div>
+
+                    <div class="filter-item">
+                        <label class="filter-label">Tipo:</label>
+                        <select class="search-input filter-input" [(ngModel)]="filtroCredito">
+                            <option value="todos">Todas</option>
+                            <option value="conCredito">Con Crédito</option>
+                            <option value="sinCredito">Sin Crédito</option>
+                        </select>
+                    </div>
+
+                    <button 
+                        class="btn-clear-all" 
+                        type="button" 
+                        *ngIf="filtroFactura || filtroFecha || filtroCredito !== 'todos'"
+                        (click)="limpiarFiltros()"
+                        title="Limpiar todos los filtros">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                        Limpiar todo
+                    </button>
+                </div>
+
                 <div class="empty-state" *ngIf="!pendientes.length">
                     <span>✅ No hay deudas pendientes</span>
                 </div>
 
-                <div class="productos-list" *ngIf="pendientes.length">
-                    <button class="producto-item" type="button" *ngFor="let f of pendientes" (click)="seleccionarFactura(f)">
+                <div class="empty-state" *ngIf="pendientes.length && !facturasFiltradas.length">
+                    <span>❌ No hay facturas que coincidan con los filtros</span>
+                </div>
+
+                <div class="productos-list" *ngIf="facturasFiltradas.length">
+                    <button 
+                        class="producto-item" 
+                        type="button" 
+                        *ngFor="let f of facturasFiltradas; let i = index" 
+                        (click)="seleccionarFactura(f)"
+                        [class.producto-selected]="selectedIndex === i">
             <div class="producto-info">
               <div class="producto-nombre">
                 Factura #{{ f.id }}
@@ -65,12 +118,12 @@
                 </ng-template>
               </div>
               <div class="producto-categoria">
-                Abonado: ${{ (f.abonado || 0) | number:'1.2-2' }} | Saldo: <b>${{ (f.saldoPendiente || 0) | number:'1.2-2' }}</b>
+                Original: ${{ (f.total || 0) | number:'1.2-2' }}
               </div>
             </div>
 
             <div class="producto-precio">
-              ${{ (f.total || 0) | number:'1.2-2' }}
+              ${{ (f.saldoPendiente || 0) | number:'1.2-2' }}
             </div>
           </button>
                 </div>

@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -44,6 +44,48 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
 
   // ✅ ticket
   ticketPago: any = null;
+
+  // ✅ FILTROS Y BÚSQUEDA
+  filtroFactura = ''; // Búsqueda por número de factura
+  filtroFecha = ''; // Filtro por fecha (YYYY-MM-DD)
+  filtroCredito: 'todos' | 'conCredito' | 'sinCredito' = 'todos'; // Filtro por tipo de crédito
+  selectedIndex = -1; // Índice de factura seleccionada con teclado
+
+  // Getters para facturas filtradas
+  get facturasFiltradas(): any[] {
+    return this.pendientes.filter(f => {
+      // Filtro por número de factura
+      if (this.filtroFactura.trim()) {
+        const numero = f.id?.toString().toLowerCase() || '';
+        if (!numero.includes(this.filtroFactura.toLowerCase())) {
+          return false;
+        }
+      }
+
+      // Filtro por fecha
+      if (this.filtroFecha.trim()) {
+        const fechaFactura = f.fecha?.toDate ? f.fecha.toDate() : new Date(f.fecha);
+        // Convertir ambas fechas a YYYY-MM-DD para comparar sin timezone
+        const facturaIso = fechaFactura.getFullYear().toString().padStart(4, '0') + '-' +
+                          (fechaFactura.getMonth() + 1).toString().padStart(2, '0') + '-' +
+                          fechaFactura.getDate().toString().padStart(2, '0');
+        const filtroIso = this.filtroFecha.trim(); // Ya viene en formato YYYY-MM-DD
+        if (facturaIso !== filtroIso) {
+          return false;
+        }
+      }
+
+      // Filtro por crédito
+      if (this.filtroCredito === 'conCredito' && !f.esCredito) {
+        return false;
+      }
+      if (this.filtroCredito === 'sinCredito' && f.esCredito) {
+        return false;
+      }
+
+      return true;
+    });
+  }
 
   constructor(
     private route: ActivatedRoute,
@@ -154,7 +196,85 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     this.sub?.unsubscribe();
   }
 
-  seleccionarFactura(f: any) {
+  // ✅ BÚSQUEDA Y FILTROS
+  limpiarFiltros() {
+    this.filtroFactura = '';
+    this.filtroFecha = '';
+    this.filtroCredito = 'todos';
+    this.selectedIndex = -1;
+    this.facturaSeleccionada = null;
+  }
+
+  // ✅ NAVEGACIÓN CON TECLADO (como en crear-venta)
+  onSearchKeydown(event: KeyboardEvent) {
+    const filtradas = this.facturasFiltradas;
+    if (filtradas.length === 0) return;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.selectedIndex = Math.min(this.selectedIndex + 1, filtradas.length - 1);
+      this.scrollToSelectedFactura();
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
+      this.scrollToSelectedFactura();
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      // Si no hay selección, seleccionar la primera
+      if (this.selectedIndex < 0 && filtradas.length > 0) {
+        this.selectedIndex = 0;
+      }
+      // Seleccionar la factura en el índice actual
+      if (this.selectedIndex >= 0 && this.selectedIndex < filtradas.length) {
+        const f = filtradas[this.selectedIndex];
+        if (f) {
+          this.facturaSeleccionada = f;
+          this.abono = 0;
+          this.metodoPago = 'Efectivo';
+          this.codigoTransferencia = '';
+          this.ultimosCuatroTarjeta = '';
+          this.esCreditoPersonal = f?.esCredito || false;
+          this.recalcularSaldoNuevo();
+        }
+      }
+    }
+  }
+
+  // ✅ NAVEGACIÓN GLOBAL CON TECLADO
+  @HostListener('document:keydown', ['$event'])
+  onDocumentKeydown(event: KeyboardEvent) {
+    // Solo si el usuario está en el componente
+    const filtradas = this.facturasFiltradas;
+    if (!filtradas || filtradas.length === 0) return;
+
+    // ArrowDown y ArrowUp funcionan en cualquier parte
+    if (event.key === 'ArrowDown' && (event.target as HTMLElement)?.tagName !== 'TEXTAREA') {
+      if ((event.target as HTMLElement)?.tagName !== 'INPUT' || (event.target as any)?.type === 'date' || (event.target as any)?.type === 'select-one') {
+        event.preventDefault();
+        this.selectedIndex = Math.min(this.selectedIndex + 1, filtradas.length - 1);
+        this.scrollToSelectedFactura();
+      }
+    } else if (event.key === 'ArrowUp' && (event.target as HTMLElement)?.tagName !== 'TEXTAREA') {
+      if ((event.target as HTMLElement)?.tagName !== 'INPUT' || (event.target as any)?.type === 'date' || (event.target as any)?.type === 'select-one') {
+        event.preventDefault();
+        this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
+        this.scrollToSelectedFactura();
+      }
+    }
+  }
+
+  // ✅ AUTO-SCROLL A LA FACTURA SELECCIONADA
+  private scrollToSelectedFactura() {
+    setTimeout(() => {
+      const elementos = document.querySelectorAll('.producto-item');
+      if (this.selectedIndex >= 0 && this.selectedIndex < elementos.length) {
+        const elemento = elementos[this.selectedIndex] as HTMLElement;
+        elemento.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 0);
+  }
+
+  seleccionarFactura(f: any, desdeKeyboard = false) {
     this.facturaSeleccionada = f;
     this.abono = 0;
     this.metodoPago = 'Efectivo';
@@ -163,6 +283,10 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     // ✅ Cargar estado de crédito personal si aplica
     this.esCreditoPersonal = f?.esCredito || false;
     this.recalcularSaldoNuevo();
+    // Solo recalcular índice si se hizo click (no desde keyboard)
+    if (!desdeKeyboard) {
+      this.selectedIndex = this.facturasFiltradas.findIndex(x => x.id === f.id);
+    }
   }
 
   onChangeAbono(value: any) {
@@ -383,6 +507,17 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
           });
         }
       }
+
+      // ✅ MOSTRAR SWAL DE ÉXITO Y REGRESAR A HISTORIAL
+      await Swal.fire({
+        icon: 'success',
+        title: '¡Deuda Cobrada!',
+        text: `Se registró el abono de $${abonoReal.toFixed(2)} correctamente.`,
+        confirmButtonText: 'Aceptar'
+      });
+
+      // Regresar a historial-clinico
+      this.router.navigate(['/clientes/historial-clinico']);
 
     } catch (e: any) {
       console.error(e);
