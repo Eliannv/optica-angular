@@ -229,13 +229,17 @@ export class IngresosService {
     // IMPORTANTE: Siempre usar ingreso.proveedor (el nombre), NO el proveedorId
     const proveedorIngreso = ingreso?.proveedor || '';
 
+    // 🔹 NUEVO: Rastrear IDs asignados en este lote para evitar colisiones
+    const idsAsignadosEnEsteLote = new Set<number>();
+
     // PASO 1: Crear productos nuevos y asignar productoId a TODOS los detalles
     for (const detalle of detalles) {
       if (detalle.tipo === 'NUEVO') {
         // Crear producto nuevo y asignar el productoId al detalle
         const productoId = await this.crearProductoDesdeIngreso(
           ingresoId,
-          detalle
+          detalle,
+          idsAsignadosEnEsteLote
         );
         detalle.productoId = productoId;
         console.log('✅ Producto nuevo creado con ID:', productoId, 'para:', detalle.nombre);
@@ -405,9 +409,40 @@ export class IngresosService {
    */
   private async crearProductoDesdeIngreso(
     ingresoId: string,
-    detalle: DetalleIngreso
+    detalle: DetalleIngreso,
+    idsAsignadosEnEsteLote?: Set<number>
   ): Promise<string> {
-    const idInterno = await this.productosService.getNextIdInterno();
+    // 🔹 NUEVO: Si no hay Set, crear uno vacío (compatibilidad hacia atrás)
+    if (!idsAsignadosEnEsteLote) {
+      idsAsignadosEnEsteLote = new Set();
+    }
+
+    let idInterno: number;
+    
+    if (detalle.idInterno && detalle.idInterno > 0) {
+      // Usar idInterno del Excel si existe y NO está duplicado en este lote
+      if (!idsAsignadosEnEsteLote.has(detalle.idInterno)) {
+        idInterno = detalle.idInterno;
+        idsAsignadosEnEsteLote.add(idInterno);
+      } else {
+        // 🔹 COLISIÓN: El idInterno ya se usó en este lote, asignar uno nuevo del contador
+        idInterno = await this.productosService.getNextIdInterno();
+        // Asegurar que el nuevo ID tampoco esté en el lote
+        while (idsAsignadosEnEsteLote.has(idInterno)) {
+          idInterno = await this.productosService.getNextIdInterno();
+        }
+        idsAsignadosEnEsteLote.add(idInterno);
+        console.log(`⚠️ Colisión de ID ${detalle.idInterno} en lote. Asignando ${idInterno}`);
+      }
+    } else {
+      // Sin idInterno en detalle, asignar del contador
+      idInterno = await this.productosService.getNextIdInterno();
+      // Asegurar que no esté en el lote
+      while (idsAsignadosEnEsteLote.has(idInterno)) {
+        idInterno = await this.productosService.getNextIdInterno();
+      }
+      idsAsignadosEnEsteLote.add(idInterno);
+    }
     
     // Obtener el ingreso para extraer el proveedor
     const ingresoDoc = doc(this.firestore, `ingresos/${ingresoId}`);
@@ -418,11 +453,8 @@ export class IngresosService {
     const esIlimitado = (detalle.grupo === 'LUNAS');
     const tipoControlStock = esIlimitado ? 'ILIMITADO' : 'NORMAL';
     
-    // Usar idInterno del detalle si viene del Excel, sino generar automáticamente
-    const productoIdInterno = detalle.idInterno || idInterno;
-    
     const nuevoProducto: any = {
-      idInterno: productoIdInterno,
+      idInterno: idInterno,
       nombre: detalle.nombre,
       stock: esIlimitado ? 0 : detalle.cantidad,
       tipo_control_stock: tipoControlStock,
@@ -443,6 +475,15 @@ export class IngresosService {
     if (detalle.observacion !== undefined && detalle.observacion !== null) nuevoProducto.observacion = detalle.observacion;
 
     const productoRef = await addDoc(this.productosRef, nuevoProducto as Producto);
+    
+    // 🔹 IMPORTANTE: Actualizar el counter después de crear el producto
+    try {
+      const counterDoc = doc(this.firestore, 'counters/productos');
+      await setDoc(counterDoc, { lastId: idInterno + 1 }, { merge: true });
+    } catch (error) {
+      console.warn('⚠️ No se pudo actualizar el contador, pero el producto fue creado:', productoRef.id);
+    }
+    
     return productoRef.id;
   }
 

@@ -266,32 +266,27 @@ export class ImportarProductosComponent {
    * 
    * @private
    * @description
-   * Busca productos por código (prioridad) o por nombre+modelo+color.
-   * Marca como EXISTENTE o NUEVO y detecta productos desactivados.
-   * Carga TODOS los productos (activos e inactivos).
+   * La combinación única de un producto es: nombre + modelo + color
+   * 1. Busca primero por esta combinación
+   * 2. Si existe, es producto EXISTENTE - mantiene el ID del sistema (no del Excel)
+   * 3. Si no existe, es producto NUEVO - puede usar el idInterno del Excel SOLO si no está duplicado
+   *    en el sistema con diferente modelo/color. Si está duplicado, resetea el código para que
+   *    se asigne un nuevo ID al momento de guardar.
    */
   private async verificarProductosExistentes(productos: ProductoExcelPreview[]): Promise<void> {
     try {
       const productosSnapshot = await firstValueFrom(this.productosService.getProductosTodosInclusoInactivos());
 
       for (const prod of productos) {
-        let productoExistente: any = null;
-
-        if (prod.codigo && prod.codigo.trim()) {
-          productoExistente = (productosSnapshot || []).find(p => 
-            p.codigo?.toLowerCase().trim() === prod.codigo?.toLowerCase().trim()
-          );
-        }
-
-        if (!productoExistente) {
-          productoExistente = (productosSnapshot || []).find(p => 
-            p.nombre?.toLowerCase().trim() === prod.nombre?.toLowerCase().trim() &&
-            (p.modelo?.toLowerCase().trim() === prod.modelo?.toLowerCase().trim() || (!p.modelo && !prod.modelo)) &&
-            (p.color?.toLowerCase().trim() === prod.color?.toLowerCase().trim() || (!p.color && !prod.color))
-          );
-        }
+        // PASO 1: Buscar por combinación única: nombre + modelo + color
+        let productoExistente: any = (productosSnapshot || []).find(p => 
+          p.nombre?.toLowerCase().trim() === prod.nombre?.toLowerCase().trim() &&
+          (p.modelo?.toLowerCase().trim() === prod.modelo?.toLowerCase().trim() || (!p.modelo && !prod.modelo)) &&
+          (p.color?.toLowerCase().trim() === prod.color?.toLowerCase().trim() || (!p.color && !prod.color))
+        );
 
         if (productoExistente && productoExistente.id) {
+          // ✅ PRODUCTO EXISTENTE: Encontrado por nombre+modelo+color
           prod.estado = 'EXISTENTE';
           prod.productoId = productoExistente.id;
           
@@ -307,7 +302,6 @@ export class ImportarProductosComponent {
           if (!prod.costo || prod.costo <= 0) {
             prod.costo = productoExistente.costo || 0;
           }
-          // Si el Excel tiene costo, se mantiene (para poder reemplazar el costo existente)
           
           prod.grupo = productoExistente.grupo || 'GAFAS';
           prod.idInterno = productoExistente.idInterno || undefined;
@@ -315,14 +309,37 @@ export class ImportarProductosComponent {
           prod.proveedorAnterior = productoExistente.proveedor || '';
           
           // 🔹 IMPORTANTE: Mantener PVP del Excel si es diferente al existente
-          // Solo usar PVP existente si el Excel no tiene PVP
           if (!prod.pvp1 || prod.pvp1 <= 0) {
             prod.pvp1 = productoExistente.pvp1 || 0;
           }
-          // Si el Excel tiene PVP, se mantiene (para poder reemplazar el PVP existente)
           prod.pvp1Anterior = productoExistente.pvp1 || 0;
           
           prod.observacion = productoExistente.observacion || '';
+        } else {
+          // ❌ PRODUCTO NUEVO: No encontrado por nombre+modelo+color
+          // PASO 2: Verificar si el idInterno del Excel ya existe con diferente modelo/color
+          const codigoExcel = prod.codigo ? parseInt(prod.codigo) : null;
+          
+          if (codigoExcel !== null && codigoExcel > 0) {
+            const yaExisteConDiferentesAtributos = (productosSnapshot || []).some(p => 
+              p.idInterno === codigoExcel &&
+              (
+                p.nombre?.toLowerCase().trim() !== prod.nombre?.toLowerCase().trim() ||
+                (p.modelo?.toLowerCase().trim() !== prod.modelo?.toLowerCase().trim() && 
+                 !((!p.modelo && !prod.modelo))) ||
+                (p.color?.toLowerCase().trim() !== prod.color?.toLowerCase().trim() && 
+                 !((!p.color && !prod.color)))
+              )
+            );
+            
+            if (yaExisteConDiferentesAtributos) {
+              // 🔹 El idInterno del Excel EXISTE pero con diferente producto
+              // RESETEAR código para que se asigne uno nuevo del contador AL GUARDAR
+              // (NO asignar aquí para evitar consumir IDs si se cancela)
+              prod.codigo = '';
+            }
+            // Si NO existe con diferentes atributos, mantener el código del Excel
+          }
         }
       }
     } catch (error) {
