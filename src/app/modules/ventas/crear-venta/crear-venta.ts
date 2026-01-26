@@ -621,6 +621,7 @@ async guardarEImprimir() {
     const factura: any = {
       clienteId: this.clienteId,
       clienteNombre: `${this.cliente?.nombres || ''} ${this.cliente?.apellidos || ''}`.trim(),
+      clienteTelefono: this.cliente?.telefono || '',
       historialSnapshot: this.historial || null,
 
       items: this.items.map((i: any) => ({

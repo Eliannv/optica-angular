@@ -5,6 +5,7 @@ import { Subscription } from 'rxjs';
 import { FacturasService } from '../../../../core/services/facturas';
 import { firstValueFrom } from 'rxjs';
 import { ProductosService } from '../../../../core/services/productos';
+import { ClientesService } from '../../../../core/services/clientes';
 
 /**
  * Componente VerFacturaComponent - Visualización de detalles de factura individual.
@@ -71,6 +72,8 @@ export class VerFacturaComponent implements OnDestroy {
    */
   factura: any = null;
 
+  clienteTelefono: string = '';
+
   /**
    * Indicador de estado de carga.
    * true: Mostrando spinner, esperando que Observable emita
@@ -127,11 +130,18 @@ export class VerFacturaComponent implements OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private facturasSrv: FacturasService,
-    private productosSrv: ProductosService
+    private productosSrv: ProductosService,
+    private clientesSrv: ClientesService
   ) {
     const id = this.route.snapshot.paramMap.get('id')!;
     this.sub = this.facturasSrv.getFacturaById(id).subscribe(f => {
       this.factura = f;
+      // Cargar teléfono del cliente
+      if (f?.clienteId) {
+        this.clientesSrv.getClienteById(f.clienteId).subscribe((cliente: any) => {
+          this.clienteTelefono = cliente?.telefono || '';
+        });
+      }
       this.loading = false;
     });
   }

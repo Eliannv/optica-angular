@@ -123,7 +123,7 @@
     <div class="ticket">
 
         <div class="t-center t-bold">ÓPTICA MACÍAS</div>
-        <div class="t-center t-small">RUC: 0999999999001</div>
+        <div class="t-center t-small">RUC: 0912477528001</div>
         <div class="t-center t-small">Pasaje - Ecuador</div>
 
         <div class="t-hr"></div>
@@ -133,6 +133,7 @@
             <div><b>Fecha:</b> {{ factura.fecha?.toDate ? (factura.fecha.toDate() | date:'dd/MM/yyyy HH:mm') : (factura.fecha | date:'dd/MM/yyyy HH:mm') }}
             </div>
             <div><b>Cliente:</b> {{ factura.clienteNombre }}</div>
+            <div *ngIf="clienteTelefono"><b>Tel:</b> {{ clienteTelefono }}</div>
             <div><b>Método pago:</b> {{ factura.metodoPago }}</div>
         </div>
 

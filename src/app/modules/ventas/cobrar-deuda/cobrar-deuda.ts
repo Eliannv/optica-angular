@@ -24,6 +24,7 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
 
   clienteId = '';
   clienteNombre = '';
+  clienteTelefono = '';
 
   pendientes: any[] = [];
   deudaTotal = 0;
@@ -168,6 +169,7 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     try {
       const cli = await firstValueFrom(this.clientesSrv.getClienteById(this.clienteId));
       this.clienteNombre = `${cli?.nombres || ''} ${cli?.apellidos || ''}`.trim();
+      this.clienteTelefono = cli?.telefono || '';
 
       this.sub = this.facturasSrv.getPendientesPorCliente(this.clienteId).subscribe(list => {
         this.pendientes = list || [];
@@ -363,6 +365,7 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
         facturaId: f.id,
         fecha: new Date(),
         clienteNombre: this.clienteNombre,
+        clienteTelefono: this.clienteTelefono,
         metodoPago: this.metodoPago,
         totalFactura: total,
         abonadoAnterior,

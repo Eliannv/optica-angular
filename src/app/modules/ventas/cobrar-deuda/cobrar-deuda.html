@@ -262,7 +262,7 @@
 <div class="ticket" *ngIf="ticketPago">
 
     <div class="t-center t-bold">ÓPTICA MACÍAS</div>
-    <div class="t-center t-small">RUC: 0999999999001</div>
+    <div class="t-center t-small">RUC: 0912477528001</div>
     <div class="t-center t-small">Pasaje - Ecuador</div>
 
     <div class="t-hr"></div>
@@ -293,6 +293,7 @@
         <div><b>FACTURA No:</b> {{ ticketPago.facturaId }}</div>
         <div><b>Fecha:</b> {{ ticketPago.fecha | date:'dd/MM/yyyy HH:mm' }}</div>
         <div><b>Cliente:</b> {{ ticketPago.clienteNombre }}</div>
+        <div *ngIf="ticketPago.clienteTelefono"><b>Tel:</b> {{ ticketPago.clienteTelefono }}</div>
         <div><b>Método pago:</b> {{ ticketPago.metodoPago }}</div>
         <div *ngIf="ticketPago.esCreditoPersonal">CRÉDITO PERSONAL</div>
     </div>
