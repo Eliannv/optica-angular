@@ -108,10 +108,7 @@ export class CrearHistorialClinicoComponent implements OnInit {
       armazonV: [''],
       armazonDM: [''],
       armazonP: [''],
-      armazonTipo: [''],
-      armazonDNP_OD: [''],
-      armazonDNP_OI: [''],
-      armazonAltura: ['']
+      armazonTipo: ['']
     });
 
     /* =========================

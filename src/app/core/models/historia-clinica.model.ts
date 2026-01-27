@@ -88,15 +88,6 @@ export interface HistoriaClinica {
   /** Tipo de montaje (ej: Completo, Ranurado, Al Aire) */
   armazonTipo?: string;
 
-  /** Distancia Naso-Pupilar del ojo derecho */
-  armazonDNP_OD?: number | null;
-
-  /** Distancia Naso-Pupilar del ojo izquierdo */
-  armazonDNP_OI?: number | null;
-
-  /** Altura del armazón desde el centro del aro */
-  armazonAltura?: number | null;
-
   /** Fecha de creación del registro en Firestore */
   createdAt?: any;
 

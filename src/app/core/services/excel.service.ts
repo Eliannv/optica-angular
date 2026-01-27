@@ -1,12 +1,18 @@
 /**
- * Proporciona funcionalidades de importación y exportación de datos mediante archivos Excel.
+ * Servicio unificado para operaciones con archivos Excel usando ExcelJS.
+ * 
+ * === FUNCIONALIDADES ===
+ * 1. PRODUCTOS: Importación y exportación de productos y plantillas de ingresos
+ * 2. HISTORIAL CLÍNICO: Exportación de pedidos manteniendo formato original
+ * 
+ * === LIBRERÍA UTILIZADA ===
+ * - ExcelJS: Librería unificada para todas las operaciones Excel
+ *   Preserva formato original, ofrece APIs completas para lectura/escritura
+ *   y mejor compatibilidad TypeScript que XLSX
+ * 
+ * === PRODUCTOS ===
  * Especializado en la importación de ingresos de productos desde plantillas Excel estandarizadas,
  * parseando automáticamente encabezados, productos y datos fiscales.
- *
- * Este servicio utiliza la librería XLSX para leer archivos .xlsx/.xls y extrae información
- * estructurada como proveedor, número de factura, fecha y lista de productos con sus
- * atributos (cantidad, código, nombre, modelo, color, PVP).
- *
  * El formato de Excel esperado sigue una estructura específica documentada en el sistema,
  * con encabezados en filas fijas y productos a partir de la fila 6.
  *
@@ -14,8 +20,11 @@
  */
 import { Injectable } from '@angular/core';
 import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
 import { Producto } from '../models/producto.model';
 import { DetalleIngreso } from '../models/ingreso.model';
+import { HistoriaClinica } from '../models/historia-clinica.model';
+import { Cliente } from '../models/cliente.model';
 
 export interface DatosExcelImportacion {
   proveedor: string;
@@ -62,143 +71,179 @@ export class ExcelService {
   constructor() { }
 
   /**
-   * Importar productos desde Excel
+   * Importar productos desde Excel usando ExcelJS
    * Lee el archivo y retorna datos estructurados para preview
    */
   async importarProductos(file: File): Promise<DatosExcelImportacion> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
+    try {
+      console.log('📂 Iniciando importación de productos con ExcelJS...');
       
-      reader.onload = (e: any) => {
-        try {
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-          
-          // Leer la primera hoja
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          
-          // Leer la fecha directamente de la celda C4
-          const celdaFecha = firstSheet['C4'];
-          let fechaRaw: any = '';
-          
-          if (celdaFecha) {
-            // Si es una celda de tipo fecha (tipo 'd'), usar directamente el valor
-            if (celdaFecha.t === 'd') {
-              fechaRaw = celdaFecha.v; // Es un objeto Date
-            } else if (celdaFecha.t === 'n') {
-              // Si es numérico, es serial de Excel
-              fechaRaw = celdaFecha.v;
-            } else {
-              // Si es texto, usar el texto formateado
-              fechaRaw = celdaFecha.w || celdaFecha.v || '';
-            }
+      const data = await file.arrayBuffer();
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(data);
+      
+      const worksheet = workbook.getWorksheet(1);
+      if (!worksheet) {
+        throw new Error('No se encontró la primera hoja de trabajo');
+      }
+      
+      console.log('🗂️ Leyendo datos de la hoja:', worksheet.name);
+      
+      // Leer la fecha de la celda C4
+      const celdaFecha = worksheet.getCell('C4');
+      let fechaRaw: any = '';
+      
+      if (celdaFecha.value) {
+        fechaRaw = celdaFecha.value;
+      }
+      
+      console.log('📅 Celda C4:', celdaFecha.value);
+      console.log('📅 Fecha extraída:', fechaRaw, typeof fechaRaw);
+      const fecha = this.parsearFecha(fechaRaw);
+      console.log('📅 Fecha final:', fecha);
+      
+      // Convertir worksheet a array de arrays para mantener compatibilidad
+      const jsonData: string[][] = [];
+      worksheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+        const rowData: string[] = [];
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          // Convertir el valor de la celda a string
+          const cellValue = cell.value;
+          if (cellValue === null || cellValue === undefined) {
+            rowData[colNumber - 1] = '';
+          } else if (cellValue instanceof Date) {
+            rowData[colNumber - 1] = cellValue.toLocaleDateString('es-ES');
+          } else {
+            rowData[colNumber - 1] = cellValue.toString();
           }
-          
-          console.log('📅 Celda C4:', celdaFecha);
-          console.log('📅 Fecha extraída:', fechaRaw, typeof fechaRaw);
-          const fecha = this.parsearFecha(fechaRaw);
-          console.log('📅 Fecha final:', fecha);
-          
-          const jsonData: any[] = XLSX.utils.sheet_to_json(firstSheet, { 
-            header: 1,
-            raw: false,
-            defval: ''
-          });
+        });
+        jsonData.push(rowData);
+      });
 
-          // Parsear datos del encabezado
-          const proveedor = this.extraerValor(jsonData, 2, 2) || ''; // C3
-          const numeroFactura = this.extraerValor(jsonData, 3, 4) || ''; // E4
+      // Parsear datos del encabezado
+      const proveedor = this.extraerValor(jsonData, 2, 2) || ''; // C3
+      const numeroFactura = this.extraerValor(jsonData, 3, 4) || ''; // E4
 
-          // Parsear productos (a partir de la fila 6, índice 5)
-          const productos: ProductoExcelPreview[] = [];
-          
-          for (let i = 5; i < jsonData.length; i++) {
-            const fila = jsonData[i];
-            
-            // Verificar que la fila tenga datos
-            if (!fila || fila.length === 0) continue;
-            
-            const cantidad = this.parsearNumero(fila[0]); // A
-            const codigo = (fila[1] || '').toString().trim(); // B
-            const nombre = (fila[2] || '').toString().trim(); // C
-            const modelo = (fila[3] || '').toString().trim(); // D
-            const color = (fila[4] || '').toString().trim(); // E
-            const costoStr = (fila[5] || '').toString().replace('$', '').trim(); // F
-            const costo = this.parsearNumero(costoStr);
-            const pvp1Str = (fila[6] || '').toString().replace('$', '').trim(); // G (antes era F)
-            const pvp1 = this.parsearNumero(pvp1Str);
-            
-            // Validar que al menos tenga nombre o código
-            if (!nombre && !codigo) continue;
-            
-            productos.push({
-              cantidad,
-              codigo,
-              nombre,
-              modelo,
-              color,
-              pvp1,
-              iva: 0,
-              estado: 'NUEVO', // Se determinará después al verificar contra BD
-              costo: costo, // Ahora lee el costo del Excel
-              grupo: 'GAFAS', // Valor por defecto
-              observacion: ''
-            });
-          }
+      // Parsear productos (a partir de la fila 6, índice 5)
+      const productos: ProductoExcelPreview[] = [];
+      
+      for (let i = 5; i < jsonData.length; i++) {
+        const fila = jsonData[i];
+        
+        // Verificar que la fila tenga datos
+        if (!fila || fila.length === 0) continue;
+        
+        const cantidad = this.parsearNumero(fila[0]); // A
+        const codigo = (fila[1] || '').toString().trim(); // B
+        const nombre = (fila[2] || '').toString().trim(); // C
+        const modelo = (fila[3] || '').toString().trim(); // D
+        const color = (fila[4] || '').toString().trim(); // E
+        const costoStr = (fila[5] || '').toString().replace('$', '').trim(); // F
+        const costo = this.parsearNumero(costoStr);
+        const pvp1Str = (fila[6] || '').toString().replace('$', '').trim(); // G (antes era F)
+        const pvp1 = this.parsearNumero(pvp1Str);
+        
+        // Validar que al menos tenga nombre o código
+        if (!nombre && !codigo) continue;
+        
+        productos.push({
+          cantidad,
+          codigo,
+          nombre,
+          modelo,
+          color,
+          pvp1,
+          iva: 0,
+          estado: 'NUEVO', // Se determinará después al verificar contra BD
+          costo: costo, // Ahora lee el costo del Excel
+          grupo: 'GAFAS', // Valor por defecto
+          observacion: ''
+        });
+      }
 
-          resolve({
-            proveedor,
-            numeroFactura,
-            fecha,
-            productos
-          });
-          
-        } catch (error) {
-          reject(new Error('Error al procesar el archivo Excel: ' + error));
-        }
+      return {
+        proveedor,
+        numeroFactura,
+        fecha,
+        productos
       };
       
-      reader.onerror = () => reject(new Error('Error al leer el archivo'));
-      reader.readAsArrayBuffer(file);
-    });
+    } catch (error) {
+      console.error('❌ Error al procesar archivo Excel:', error);
+      throw new Error('Error al procesar el archivo Excel: ' + error);
+    }
   }
 
+  // =====================================================================
+  // MÉTODOS PARA PRODUCTOS - IMPORTACIÓN/EXPORTACIÓN CON EXCELJS
+  // =====================================================================
+
   /**
-   * Exportar productos a Excel (ahora incluye COSTO)
+   * Exporta una lista de productos a un archivo Excel usando ExcelJS.
    */
-  exportarProductos(productos: Producto[], nombreArchivo: string = 'productos'): void {
-    // Preparar datos para exportar (ahora incluye COSTO)
-    const datosExport = productos.map(p => ({
-      'CANTIDAD': p.stock || 0, // Stock del producto
-      'CÓDIGO SIST': p.idInterno || '', // ID interno (código sistema)
-      'PRODUCTO': p.nombre || '',
-      'DETALLE VARILLA': p.modelo || '',
-      'MATERIA / COLOR': p.color || '',
-      'COSTO': p.costo ? `$ ${p.costo.toFixed(2)}` : '$ 0.00', // NUEVO: Agregar costo
-      'V/PUBLICO': p.pvp1 ? `$ ${p.pvp1.toFixed(2)}` : '$ 0.00'
-    }));
+  async exportarProductos(productos: Producto[], nombreArchivo: string = 'productos'): Promise<void> {
+    try {
+      console.log('📦 Iniciando exportación de productos con ExcelJS...');
 
-    // Crear hoja de cálculo
-    const worksheet = XLSX.utils.json_to_sheet(datosExport);
-    
-    // Ajustar ancho de columnas (agregamos una más para COSTO)
-    const columnWidths = [
-      { wch: 10 }, // CANTIDAD
-      { wch: 12 }, // CÓDIGO SIST
-      { wch: 25 }, // PRODUCTO
-      { wch: 30 }, // DETALLE VARILLA
-      { wch: 30 }, // MATERIA / COLOR
-      { wch: 12 }, // COSTO
-      { wch: 12 }, // V/PUBLICO
-    ];
-    worksheet['!cols'] = columnWidths;
+      // Crear nuevo workbook con ExcelJS
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('PRODUCTOS');
 
-    // Crear libro
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'EXPORTACIÓN');
+      // Configurar encabezados
+      const headers = ['CANTIDAD', 'CÓDIGO SIST', 'PRODUCTO', 'DETALLE VARILLA', 'MATERIA / COLOR', 'COSTO', 'V/PUBLICO'];
+      worksheet.addRow(headers);
 
-    // Generar archivo y descargar con nombre personalizado
-    XLSX.writeFile(workbook, `${nombreArchivo}.xlsx`);
+      // Configurar estilo de encabezados
+      const headerRow = worksheet.getRow(1);
+      headerRow.font = { bold: true };
+      headerRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' }
+      };
+
+      // Agregar datos de productos
+      productos.forEach(producto => {
+        worksheet.addRow([
+          producto.stock || 0,
+          producto.idInterno || '',
+          producto.nombre || '',
+          producto.modelo || '',
+          producto.color || '',
+          producto.costo ? `$ ${producto.costo.toFixed(2)}` : '$ 0.00',
+          producto.pvp1 ? `$ ${producto.pvp1.toFixed(2)}` : '$ 0.00'
+        ]);
+      });
+
+      // Configurar ancho de columnas
+      worksheet.getColumn(1).width = 12; // CANTIDAD
+      worksheet.getColumn(2).width = 15; // CÓDIGO SIST
+      worksheet.getColumn(3).width = 30; // PRODUCTO
+      worksheet.getColumn(4).width = 30; // DETALLE VARILLA
+      worksheet.getColumn(5).width = 30; // MATERIA / COLOR
+      worksheet.getColumn(6).width = 15; // COSTO
+      worksheet.getColumn(7).width = 15; // V/PUBLICO
+
+      // Generar y descargar archivo
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${nombreArchivo}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+
+      console.log('✅ Productos exportados exitosamente con ExcelJS');
+
+    } catch (error) {
+      console.error('❌ Error al exportar productos:', error);
+      throw error;
+    }
   }
 
   /**
@@ -366,5 +411,291 @@ export class ExcelService {
     // Fallback: fecha actual
     console.warn('⚠️ No se pudo parsear la fecha, usando fecha actual');
     return new Date();
+  }
+
+  // =====================================================================
+  // MÉTODOS PARA HISTORIAL CLÍNICO - EXPORTACIÓN DE PEDIDOS A EXCEL
+  // =====================================================================
+
+  /**
+   * Exporta el historial clínico como pedido de Excel preservando formato original.
+   * Utiliza ExcelJS para mantener todos los estilos, bordes y formatos de la plantilla.
+   * 
+   * @param cliente Información del cliente
+   * @param historial Historial clínico con los datos a llenar
+   */
+  async exportarHistorialClinicoPedido(cliente: Cliente, historial: HistoriaClinica): Promise<void> {
+    try {
+      console.log('🚀 Iniciando exportación de historial clínico con ExcelJS...');
+      
+      // Cargar la plantilla original como ArrayBuffer
+      const templateBuffer = await this.cargarPlantillaPedidoComoBuffer();
+      
+      // Crear workbook de ExcelJS desde el buffer
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(templateBuffer);
+      
+      // Obtener la primera hoja
+      const worksheet = workbook.getWorksheet(1);
+      if (!worksheet) {
+        throw new Error('No se encontró la hoja de trabajo en la plantilla');
+      }
+      
+      console.log('✅ Plantilla de pedido cargada con ExcelJS');
+      
+      // Llenar los datos preservando formato
+      this.llenarDatosHistorialClinico(worksheet, cliente, historial);
+      
+      // Generar el nombre del archivo
+      const fecha = new Date().toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }).replace(/\//g, '-');
+      
+      const nombreCliente = this.limpiarNombreArchivoPedido(
+        `${cliente.nombres} ${cliente.apellidos}`.trim()
+      );
+      
+      const fileName = `pedido_${nombreCliente}_${fecha}.xlsx`;
+      
+      // Exportar con ExcelJS (preserva formato original)
+      const buffer = await workbook.xlsx.writeBuffer();
+      
+      // Descargar el archivo
+      const blob = new Blob([buffer], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      
+      console.log('✅ Pedido de historial clínico generado exitosamente');
+      
+    } catch (error) {
+      console.error('❌ Error al exportar pedido de historial clínico:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      throw new Error(`Error al generar el archivo Excel: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Descarga la plantilla original de pedido sin modificar.
+   * Utiliza fetch directo para preservar completamente el formato original.
+   */
+  async descargarPlantillaPedido(): Promise<void> {
+    try {
+      console.log('🔽 Iniciando descarga de plantilla de pedido original...');
+      
+      let blob: Blob | null = null;
+      
+      // Descargar archivo original vía fetch (preserva formato original)
+      const rutasIntento = [
+        '/formato_pedidos_michael.xlsx',           // Ruta absoluta desde public (dev)
+        './formato_pedidos_michael.xlsx',         // Ruta relativa (Electron empaquetado)
+        '../formato_pedidos_michael.xlsx',        // Ruta relativa (backup)
+      ];
+      
+      let ultimoError: Error | null = null;
+      
+      // Intentar cada ruta
+      for (const ruta of rutasIntento) {
+        try {
+          console.log(`🔍 Intentando descargar desde: ${ruta}`);
+          const response = await fetch(ruta, { 
+            method: 'GET',
+            cache: 'no-cache' 
+          });
+          
+          if (response.ok) {
+            blob = await response.blob();
+            
+            // Validar que es un archivo válido
+            if (blob.size > 0) {
+              console.log(`✅ Archivo descargado correctamente desde: ${ruta} (${blob.size} bytes)`);
+              break;
+            }
+          }
+        } catch (error) {
+          ultimoError = error as Error;
+          console.log(`❌ Error intentando ${ruta}:`, ultimoError.message);
+          continue;
+        }
+      }
+      
+      // Si no se encontró en ninguna ruta
+      if (!blob || blob.size === 0) {
+        throw new Error(`No se pudo descargar la plantilla desde ninguna ruta. Último error: ${ultimoError?.message || 'Desconocido'}`);
+      }
+
+      // Crear link de descarga con el blob (preserva formato original)
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'formato_pedidos_michael.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Liberar la memoria del URL
+      URL.revokeObjectURL(link.href);
+      
+      console.log('✅ Plantilla de pedido descargada exitosamente');
+      
+    } catch (error) {
+      console.error('❌ Error al descargar plantilla de pedido:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      throw new Error(`Error al descargar la plantilla: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Carga la plantilla de pedido como ArrayBuffer para ExcelJS.
+   */
+  private async cargarPlantillaPedidoComoBuffer(): Promise<ArrayBuffer> {
+    const rutasIntento = [
+      '/formato_pedidos_michael.xlsx',           // Ruta absoluta desde public (dev)
+      './formato_pedidos_michael.xlsx',         // Ruta relativa (Electron empaquetado)
+      '../formato_pedidos_michael.xlsx',        // Ruta relativa (backup)
+    ];
+    
+    let ultimoError: Error | null = null;
+    
+    for (const ruta of rutasIntento) {
+      try {
+        console.log(`🔍 Cargando plantilla desde: ${ruta}`);
+        const response = await fetch(ruta, { 
+          method: 'GET',
+          cache: 'no-cache' 
+        });
+        
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer();
+          
+          if (arrayBuffer.byteLength > 0) {
+            console.log(`✅ Plantilla cargada desde: ${ruta} (${arrayBuffer.byteLength} bytes)`);
+            return arrayBuffer;
+          }
+        }
+      } catch (error) {
+        ultimoError = error as Error;
+        console.log(`❌ Error cargando desde ${ruta}:`, ultimoError.message);
+        continue;
+      }
+    }
+    
+    throw new Error(`No se pudo cargar la plantilla. Último error: ${ultimoError?.message || 'Desconocido'}`);
+  }
+
+  /**
+   * Llena las celdas específicas del pedido usando ExcelJS preservando formato.
+   */
+  private llenarDatosHistorialClinico(worksheet: ExcelJS.Worksheet, cliente: Cliente, historial: HistoriaClinica): void {
+    console.log('🎨 Llenando datos de historial clínico con ExcelJS...');
+    
+    // Fecha actual en D1
+    const fechaActual = new Date().toLocaleDateString('es-ES');
+    worksheet.getCell('D1').value = fechaActual;
+
+    // OD - Ojo Derecho
+    if (historial.odEsfera !== null && historial.odEsfera !== undefined) {
+      worksheet.getCell('C3').value = historial.odEsfera;
+    }
+
+    if (historial.odCilindro !== null && historial.odCilindro !== undefined) {
+      worksheet.getCell('D3').value = historial.odCilindro;
+    }
+
+    if (historial.odEje !== null && historial.odEje !== undefined) {
+      worksheet.getCell('E3').value = historial.odEje;
+    }
+
+    // OI - Ojo Izquierdo
+    if (historial.oiEsfera !== null && historial.oiEsfera !== undefined) {
+      worksheet.getCell('C4').value = historial.oiEsfera;
+    }
+
+    if (historial.oiCilindro !== null && historial.oiCilindro !== undefined) {
+      worksheet.getCell('D4').value = historial.oiCilindro;
+    }
+
+    if (historial.oiEje !== null && historial.oiEje !== undefined) {
+      worksheet.getCell('E4').value = historial.oiEje;
+    }
+
+    // ADD en C5
+    if (historial.add !== null && historial.add !== undefined) {
+      worksheet.getCell('C5').value = historial.add;
+    }
+
+    // DP en H3
+    if (historial.dp !== null && historial.dp !== undefined) {
+      worksheet.getCell('H3').value = historial.dp;
+    }
+
+    // ALT (Altura) en H4
+    if (historial.altura !== null && historial.altura !== undefined) {
+      worksheet.getCell('H4').value = historial.altura;
+    }
+
+    // Medidas del armazón
+    // H (Ancho del aro) en J2
+    if (historial.armazonH !== null && historial.armazonH !== undefined) {
+      worksheet.getCell('J2').value = historial.armazonH;
+    }
+
+    // V (Alto del aro) en J3
+    if (historial.armazonV !== null && historial.armazonV !== undefined) {
+      worksheet.getCell('J3').value = historial.armazonV;
+    }
+
+    // DM en J4
+    if (historial.armazonDM !== null && historial.armazonDM !== undefined) {
+      worksheet.getCell('J4').value = historial.armazonDM;
+    }
+
+    // P (Puente) en J5
+    if (historial.armazonP !== null && historial.armazonP !== undefined) {
+      worksheet.getCell('J5').value = historial.armazonP;
+    }
+
+    // DE (tipo de lente) en C6
+    if (historial.de) {
+      worksheet.getCell('C6').value = historial.de;
+    }
+
+    // Tipo de Armazón en L3
+    if (historial.armazonTipo) {
+      worksheet.getCell('L3').value = historial.armazonTipo;
+    }
+
+    // Nombre del cliente en Q4
+    const nombreCompleto = `${cliente.nombres} ${cliente.apellidos}`.trim();
+    if (nombreCompleto) {
+      worksheet.getCell('Q4').value = nombreCompleto;
+    }
+
+    console.log('✅ Datos de historial clínico llenados exitosamente');
+  }
+
+  /**
+   * Limpia el nombre del cliente para usarlo como nombre de archivo de pedido.
+   */
+  private limpiarNombreArchivoPedido(nombre: string): string {
+    return nombre
+      .toLowerCase()
+      .replace(/[áàäâ]/g, 'a')
+      .replace(/[éèëê]/g, 'e')
+      .replace(/[íìïî]/g, 'i')
+      .replace(/[óòöô]/g, 'o')
+      .replace(/[úùüû]/g, 'u')
+      .replace(/ñ/g, 'n')
+      .replace(/[^a-z0-9]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
   }
 }

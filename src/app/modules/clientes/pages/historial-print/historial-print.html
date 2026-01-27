@@ -75,15 +75,6 @@
             <div *ngIf="historial.armazonTipo">
                 <b>Tipo:</b> {{ historial.armazonTipo }}
             </div>
-            <div *ngIf="historial.armazonDNP_OD !== null && historial.armazonDNP_OD !== undefined">
-                <b>DNP OD:</b> {{ historial.armazonDNP_OD | number:'1.1-1' }} mm
-            </div>
-            <div *ngIf="historial.armazonDNP_OI !== null && historial.armazonDNP_OI !== undefined">
-                <b>DNP OI:</b> {{ historial.armazonDNP_OI | number:'1.1-1' }} mm
-            </div>
-            <div *ngIf="historial.armazonAltura !== null && historial.armazonAltura !== undefined">
-                <b>Altura:</b> {{ historial.armazonAltura | number:'1.1-1' }} mm
-            </div>
         </div>
 
         <div class="t-hr"></div>

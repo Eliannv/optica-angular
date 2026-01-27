@@ -38,11 +38,11 @@
         "@angular/router": "^20.2.0",
         "@popperjs/core": "^2.11.8",
         "bootstrap": "^5.3.8",
+        "exceljs": "^4.4.0",
         "firebase-admin": "^13.6.0",
         "rxjs": "~7.8.0",
         "sweetalert2": "^11.26.17",
         "tslib": "^2.3.0",
-        "xlsx": "^0.18.5",
         "zone.js": "~0.15.0"
     },
     "devDependencies": {

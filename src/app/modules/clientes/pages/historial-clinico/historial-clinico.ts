@@ -25,6 +25,7 @@ import { HistorialClinicoService } from '../../../../core/services/historial-cli
 import { FacturasService } from '../../../../core/services/facturas';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { ExcelService } from '../../../../core/services/excel.service';
 
 import { Cliente } from '../../../../core/models/cliente.model';
 import { HistoriaClinica } from '../../../../core/models/historia-clinica.model';
@@ -79,7 +80,8 @@ export class HistorialClinicoComponent implements OnInit {
     private readonly historialSrv: HistorialClinicoService,
     private readonly facturasSrv: FacturasService,
     private readonly cajasChicaService: CajaChicaService,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    private readonly excelService: ExcelService
   ) {}
 
   /**
@@ -153,6 +155,86 @@ export class HistorialClinicoComponent implements OnInit {
   imprimirHistorial(clienteId: string): void {
   this.router.navigate(['/historial-print', clienteId]);
 }
+
+  /**
+   * Exporta el historial clínico del cliente a Excel usando la plantilla predefinida.
+   *
+   * @param clienteId Identificador del cliente cuyo historial se exportará.
+   */
+  async exportarExcel(clienteId: string): Promise<void> {
+    try {
+      // Buscar el cliente
+      const cliente = this.clientes.find(c => c.id === clienteId);
+      if (!cliente) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Cliente no encontrado'
+        });
+        return;
+      }
+
+      // Obtener el historial clínico
+      const historialSnapshot = await this.historialSrv.obtenerHistorial(clienteId);
+
+      if (!historialSnapshot.exists()) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Sin historial',
+          text: 'Este cliente no tiene historial clínico registrado'
+        });
+        return;
+      }
+
+      const historial = historialSnapshot.data() as HistoriaClinica;
+
+      // Exportar a Excel usando ExcelJS (preserva formato original)
+      await this.excelService.exportarHistorialClinicoPedido(cliente, historial);
+
+      // Mostrar mensaje de éxito
+      Swal.fire({
+        icon: 'success',
+        title: '¡Exportado!',
+        text: 'El pedido ha sido exportado a Excel exitosamente',
+        timer: 2000,
+        showConfirmButton: false
+      });
+
+    } catch (error) {
+      console.error('Error al exportar Excel:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Hubo un problema al generar el archivo Excel'
+      });
+    }
+  }
+
+  /**
+   * Descarga la plantilla original de Excel sin modificaciones.
+   */
+  async descargarPlantilla(): Promise<void> {
+    try {
+      await this.excelService.descargarPlantillaPedido();
+
+      // Mostrar mensaje de éxito
+      Swal.fire({
+        icon: 'success',
+        title: '¡Descargado!',
+        text: 'La plantilla original ha sido descargada exitosamente',
+        timer: 2000,
+        showConfirmButton: false
+      });
+
+    } catch (error) {
+      console.error('Error al descargar plantilla:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Hubo un problema al descargar la plantilla'
+      });
+    }
+  }
 
 
   /**
