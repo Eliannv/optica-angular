@@ -52,5 +52,9 @@
 
 <!-- Vista de autenticación sin layout (login, registro, recuperación) -->
 <ng-template #authView>
-    <router-outlet></router-outlet>
+    <!-- Mostrar splash mientras se verifica la sesión (evita flash del login) -->
+    <app-splash-screen *ngIf="showSplash || isCheckingAuth"></app-splash-screen>
+    
+    <!-- Solo mostrar login cuando terminó de verificar auth -->
+    <router-outlet *ngIf="!isCheckingAuth"></router-outlet>
 </ng-template>

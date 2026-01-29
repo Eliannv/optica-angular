@@ -576,3 +576,69 @@ a {
         font-size: 0.85rem;
     }
 }
+
+
+/* --- ESTILOS PARA CHECKBOX "RECUÉRDAME" --- */
+
+.checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    margin-top: 0.3rem;
+
+    input[type="checkbox"] {
+        display: none;
+
+        &:checked + .checkbox-container .checkmark {
+            background-color: #FF8C00;
+            border-color: #FF8C00;
+        }
+
+        &:checked + .checkbox-container .checkmark::after {
+            display: block;
+        }
+    }
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.875rem;
+    color: #555;
+    gap: 8px;
+
+    .checkmark {
+        flex-shrink: 0;
+        height: 20px;
+        width: 20px;
+        background-color: #fff;
+        border: 2px solid #ccc;
+        border-radius: 3px;
+        transition: all 0.2s ease;
+        position: relative;
+
+        &::after {
+    content: "";
+    position: absolute;
+    display: none;
+    width: 6px;
+    height: 12px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -60%) rotate(45deg);
+}
+    }
+
+    &:hover .checkmark {
+        border-color: #FF8C00;
+    }
+
+    .checkbox-label {
+        line-height: 1.4;
+    }
+}

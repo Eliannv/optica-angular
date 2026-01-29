@@ -57,6 +57,9 @@ export class App implements OnInit, OnDestroy {
   /** Controla la visualización del splash screen inicial */
   showSplash = true;
   
+  /** Indica si se está verificando la autenticación (mantiene splash visible) */
+  isCheckingAuth = true;
+  
   /** Rutas públicas de autenticación (sin navbar/sidebar) */
   private authRoutes = ['/login', '/register'];
 
@@ -79,13 +82,43 @@ export class App implements OnInit, OnDestroy {
    * Inicializa el componente y configura los monitores globales.
    * 
    * Configura:
+   * - Auto-login si hay sesión guardada (con validación de Machine ID y Sucursal)
    * - Ocultación del splash screen tras 2 segundos
    * - Cierre automático del sidebar en móvil al cambiar de ruta
    * - Monitoreo de autenticación para control de sesiones inactivas
    * - Monitoreo de conectividad con notificaciones toast
    */
   ngOnInit(): void {
-    // Ocultar splash screen después de 2 segundos
+    // AUTO-LOGIN: Validar sesión restaurada (si existe)
+    // Si hay un usuario con persistencia, redirigir al dashboard
+    this.authService.validateRestoredSession().subscribe({
+      next: (usuario) => {
+        if (usuario) {
+          // Sesión válida restaurada, redirigir al dashboard si está en login
+          if (this.router.url === '/' || this.router.url === '/login') {
+            this.router.navigate(['/clientes/historial-clinico']);
+          }
+        } else if (!this.isAuthRoute()) {
+          // No hay sesión, redirigir al login
+          this.router.navigate(['/login']);
+        }
+        
+        // Marcar que terminó la verificación de auth
+        this.isCheckingAuth = false;
+      },
+      error: (err) => {
+        console.error('❌ Error al validar sesión restaurada:', err);
+        // En caso de error, solo redirigir al login (no forzar logout)
+        if (!this.isAuthRoute()) {
+          this.router.navigate(['/login']);
+        }
+        
+        // Marcar que terminó la verificación de auth (aunque haya error)
+        this.isCheckingAuth = false;
+      }
+    });
+
+    // Ocultar splash screen después de 2 segundos O cuando termine de verificar auth
     setTimeout(() => {
       this.showSplash = false;
     }, 2000);

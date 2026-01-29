@@ -26,6 +26,7 @@
     display: block;
     margin-bottom: 1rem;
     animation: pulse 2s ease-in-out infinite;
+    color: #fff;
 }
 
 .logo-title {

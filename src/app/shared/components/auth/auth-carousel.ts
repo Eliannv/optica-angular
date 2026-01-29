@@ -87,6 +87,7 @@ export class AuthCarousel implements OnInit, OnDestroy {
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(6)]],
+      rememberMe: [false] // Checkbox para persistencia de sesión
     });
 
     // Formulario de registro
@@ -234,9 +235,10 @@ export class AuthCarousel implements OnInit, OnDestroy {
     }
 
     this.isLoading = true;
-    const { email, password } = this.loginForm.value;
+    const { email, password, rememberMe } = this.loginForm.value;
 
-    this.authService.login(email, password).subscribe({
+    // Llamar al login con el flag de remember me
+    this.authService.login(email, password, rememberMe).subscribe({
       next: (usuario) => {
         this.isLoading = false;
         

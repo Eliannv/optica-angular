@@ -73,6 +73,15 @@
                     </div>
                 </div>
 
+                <!-- Checkbox Recuérdame -->
+                <div class="form-group checkbox-wrapper" style="margin-top: 0.5rem;">
+                    <input type="checkbox" id="rememberMe" formControlName="rememberMe">
+                    <label for="rememberMe" class="checkbox-container">
+                        <span class="checkmark"></span>
+                        <span class="checkbox-label">Recuérdame (mantener sesión activa)</span>
+                    </label>
+                </div>
+
                 <button class="auth-btn" type="submit" [disabled]="loginForm.invalid || isLoading">
                     <span *ngIf="!isLoading">Ingresar</span>
                     <span *ngIf="isLoading">Ingresando...</span>

@@ -24,7 +24,10 @@ import {
   signOut, 
   sendPasswordResetEmail,
   authState,
-  User as FirebaseUser
+  User as FirebaseUser,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence
 } from '@angular/fire/auth';
 import { 
   Firestore, 
@@ -74,14 +77,24 @@ export class AuthService {
 
   /**
    * Iniciar sesión con email y contraseña
+   * @param email Email del usuario
+   * @param password Contraseña del usuario
+   * @param rememberMe Si es true, mantiene la sesión activa (persistencia local)
    */
-  login(email: string, password: string): Observable<Usuario> {
+  login(email: string, password: string, rememberMe: boolean = false): Observable<Usuario> {
     // Verificar conexión a internet
     if (!navigator.onLine) {
       throw new Error('OFFLINE: No hay conexión a internet. Verifica tu red e intenta nuevamente.');
     }
 
-    return from(signInWithEmailAndPassword(this.auth, email, password)).pipe(
+    // Configurar persistencia ANTES de hacer login
+    // - browserLocalPersistence: mantiene sesión aunque cierre el navegador/app
+    // - browserSessionPersistence: sesión solo durante la pestaña/app actual
+    const persistence = rememberMe ? browserLocalPersistence : browserSessionPersistence;
+    console.log('🔑 Remember Me:', rememberMe, '| Persistencia:', persistence.type);
+    
+    return from(setPersistence(this.auth, persistence)).pipe(
+      switchMap(() => signInWithEmailAndPassword(this.auth, email, password)),
       switchMap(credential => {
         // Obtener los datos del usuario desde Firestore
         return this.getUserData(credential.user.uid);
@@ -136,6 +149,45 @@ export class AuthService {
       console.error('Error al actualizar custom claims:', error);
       // No fallar el login si hay error aquí
     }
+  }
+
+  /**
+   * Validar sesión restaurada (auto-login)
+   * Espera a que Firebase Auth cargue el estado de persistencia y verifica si hay un usuario válido
+   * @returns Observable con el usuario si es válido, null si no hay sesión
+   */
+  validateRestoredSession(): Observable<Usuario | null> {
+    console.log('🔍 Validando sesión restaurada...');
+    
+    // IMPORTANTE: Usar authState en lugar de currentUser
+    // authState espera a que Firebase Auth cargue el estado de persistencia
+    // antes de emitir un valor (evita el problema de timing)
+    return this.authState$.pipe(
+      switchMap(firebaseUser => {
+        if (!firebaseUser) {
+          console.log('⚠️ No hay sesión activa');
+          return of(null);
+        }
+
+        console.log('🔍 Usuario encontrado en Firebase Auth:', firebaseUser.email);
+        
+        return this.getUserData(firebaseUser.uid).pipe(
+          map(userData => {
+            if (!userData) {
+              console.log('⚠️ Usuario no encontrado en Firestore');
+              return null;
+            }
+
+            // En sesión restaurada, NO validar Machine ID/Sucursal
+            // Solo validar que el usuario exista en Firestore
+            // La validación de máquina se hará solo en login manual
+            this.currentUserData = userData;
+            console.log('✅ Sesión restaurada exitosamente para:', userData.email);
+            return userData;
+          })
+        );
+      })
+    );
   }
 
   /**
