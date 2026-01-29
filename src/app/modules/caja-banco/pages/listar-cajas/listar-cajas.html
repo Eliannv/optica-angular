@@ -3,8 +3,17 @@
         <div class="caja-header">
             <div class="header-content">
                 <h1 class="caja-title">Caja Banco</h1>
-                <!-- Mostrar botón solo si NO hay cajas banco (primera vez) -->
-                <button *ngIf="cajas.length === 0" class="btn-primary" (click)="crearCajaBanco()">+ Crear Caja Banco</button>
+                <!-- Botón para crear nuevas cajas banco (solo si NO hay caja abierta) -->
+                <button 
+                    *ngIf="!tieneCajaAbierta" 
+                    class="btn-primary" 
+                    (click)="crearCajaBanco()">
+                    + Crear Caja Banco
+                </button>
+                <div *ngIf="tieneCajaAbierta" class="info-message">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+                    Cierra la caja abierta para crear una nueva
+                </div>
             </div>
         </div>
 
@@ -65,6 +74,9 @@
                                         <div class="action-buttons">
                                             <button *ngIf="caja.id" class="btn-action btn-action-primary" (click)="verDetalles(caja.id)" title="Ver detalle">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eye-icon lucide-eye"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            </button>
+                                            <button *ngIf="caja.id && caja.estado === 'ABIERTA' && (caja.saldo_actual === 0 || caja.saldo_inicial === 0)" class="btn-action btn-action-danger" (click)="eliminarCajaBanco(caja)" title="Eliminar caja vacía">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                                             </button>
                                         </div>
                                     </td>

@@ -17,11 +17,13 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { Router } from '@angular/router';
 import { CajaBanco, MovimientoCajaBanco } from '../../../../core/models/caja-banco.model';
 import { CajaChica } from '../../../../core/models/caja-chica.model';
 import { combineLatest } from 'rxjs';
 import Swal from 'sweetalert2';
+import { normalizarFecha } from '../../../../core/utils/fecha-helpers';
 
 @Component({
   selector: 'app-listar-cajas',
@@ -35,6 +37,9 @@ export class ListarCajasComponent implements OnInit {
 
   /** Servicio de cajas chicas */
   private cajaChicaService = inject(CajaChicaService);
+
+  /** Servicio de autenticación */
+  private authService = inject(AuthService);
 
   /** Router para navegación */
   private router = inject(Router);
@@ -50,6 +55,17 @@ export class ListarCajasComponent implements OnInit {
 
   /** Estado de carga de datos */
   cargando = false;
+
+  /** Flag para prevenir múltiples creaciones simultáneas */
+  private procesandoCreacion = false;
+
+  /**
+   * Verifica si existe alguna caja banco ABIERTA.
+   * Usado para ocultar el botón de crear nueva caja.
+   */
+  get tieneCajaAbierta(): boolean {
+    return this.cajas.some(caja => caja.estado === 'ABIERTA' && caja.activo !== false);
+  }
 
   /**
    * Objeto con totales calculados del sistema.
@@ -169,20 +185,51 @@ export class ListarCajasComponent implements OnInit {
   /**
    * Abre un diálogo modal para crear una nueva caja banco.
    *
+   * NUEVO COMPORTAMIENTO:
+   * - Permite seleccionar fecha manual (histórica o actual)
+   * - La caja banco representa TODO el mes de la fecha seleccionada
+   * - Hereda automáticamente el saldo del periodo anterior si no se especifica
+   *
    * Solicita al usuario:
-   * - Saldo inicial (en USD)
+   * - Fecha (manual, default: hoy)
+   * - Saldo inicial (en USD, opcional - hereda automáticamente)
    * - Observación opcional (detalles sobre la apertura)
    *
-   * La nueva caja se crea con estado 'ABIERTA' y fecha actual.
+   * La nueva caja se crea con estado 'ABIERTA' para el periodo de la fecha seleccionada.
    *
    * @returns {Promise<void>} Se resuelve cuando se completa la creación
    */
   async crearCajaBanco(): Promise<void> {
+    // Prevenir múltiples clics
+    if (this.procesandoCreacion) {
+      console.warn('⚠️ Ya hay una creación en proceso');
+      return;
+    }
+
+    const hoy = new Date();
+    const maxFecha = hoy.toISOString().split('T')[0];
+    
     const { value: formValues } = await Swal.fire({
       title: 'Crear Nueva Caja Banco',
       iconHtml: '🏦',
       html: `
         <div style="text-align: left;">
+          <!-- Fecha -->
+          <div style="margin-bottom: 1rem;">
+            <label for="fecha" style="display: block; margin-bottom: 0.4rem; font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">
+              Fecha del Periodo *
+            </label>
+            <input 
+              id="fecha" 
+              type="date" 
+              class="swal2-input" 
+              value="${maxFecha}"
+              max="${maxFecha}"
+              style="width: 100%; padding: 0.6rem; border: 2px solid var(--border-color); border-radius: 6px; font-size: 0.95rem; box-sizing: border-box; margin: 0;"
+            />
+            <small style="display: block; margin-top: 0.2rem; color: var(--text-tertiary); font-size: 0.8rem;">La caja representará TODO el mes de esta fecha</small>
+          </div>
+          
           <!-- Saldo Inicial -->
           <div style="margin-bottom: 1rem;">
             <label for="saldo_inicial" style="display: block; margin-bottom: 0.4rem; font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">
@@ -192,13 +239,13 @@ export class ListarCajasComponent implements OnInit {
               id="saldo_inicial" 
               type="number" 
               class="swal2-input" 
-              placeholder="0.00" 
-              value="0"
+              placeholder="Auto (hereda del periodo anterior)"
+              value=""
               step="0.01"
               min="0"
               style="width: 100%; padding: 0.6rem; border: 2px solid var(--border-color); border-radius: 6px; font-size: 0.95rem; box-sizing: border-box; margin: 0;"
             />
-            <small style="display: block; margin-top: 0.2rem; color: var(--text-tertiary); font-size: 0.8rem;">Monto de apertura</small>
+            <small style="display: block; margin-top: 0.2rem; color: var(--text-tertiary); font-size: 0.8rem;">Dejar vacío para heredar automáticamente del periodo anterior</small>
           </div>
 
           <!-- Observación -->
@@ -219,7 +266,7 @@ export class ListarCajasComponent implements OnInit {
           <!-- Info adicional -->
           <div style="padding: 0.75rem; background: var(--bg-tertiary); border-radius: 6px; border-left: 4px solid var(--info-color);">
             <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">
-              ℹ️ <strong>Primera caja del mes.</strong> Verifica el saldo inicial.
+              ℹ️ <strong>Caja histórica.</strong> Puedes crear cajas para periodos pasados o presentes.
             </p>
           </div>
         </div>
@@ -231,43 +278,79 @@ export class ListarCajasComponent implements OnInit {
       confirmButtonColor: 'var(--btn-primary-bg)',
       cancelButtonColor: 'var(--btn-secondary-bg)',
       preConfirm: () => {
+        const fechaInput = (document.getElementById('fecha') as HTMLInputElement)?.value;
         const saldoInput = (document.getElementById('saldo_inicial') as HTMLInputElement)?.value;
         const observacion = (document.getElementById('observacion') as HTMLTextAreaElement)?.value;
 
-        const saldo = parseFloat(saldoInput || '0');
-        if (isNaN(saldo) || saldo < 0) {
-          Swal.showValidationMessage('El saldo inicial debe ser un número válido y mayor o igual a 0');
+        if (!fechaInput) {
+          Swal.showValidationMessage('La fecha es requerida');
           return false;
         }
 
-        return { saldo_inicial: saldo, observacion };
+        // Validar que la fecha no sea futura
+        const fechaSeleccionada = new Date(fechaInput + 'T00:00:00');
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        
+        if (fechaSeleccionada.getTime() > hoy.getTime()) {
+          Swal.showValidationMessage('No se pueden crear cajas banco con fechas futuras');
+          return false;
+        }
+
+        // Saldo es opcional - si está vacío, se heredará automáticamente
+        let saldo: number | undefined = undefined;
+        if (saldoInput && saldoInput.trim() !== '') {
+          saldo = parseFloat(saldoInput);
+          if (isNaN(saldo) || saldo < 0) {
+            Swal.showValidationMessage('El saldo inicial debe ser un número válido y mayor o igual a 0');
+            return false;
+          }
+        }
+
+        // Usar normalizarFecha para evitar problemas de timezone
+        return { fecha: normalizarFecha(fechaInput), saldo_inicial: saldo, observacion };
       }
     });
 
     if (!formValues) return;
 
+    // Activar flag de procesamiento
+    this.procesandoCreacion = true;
+
     try {
+      // Obtener usuario actual
+      const usuario = await this.authService.getCurrentUser();
+      
       const nuevaCaja = {
-        saldo_inicial: formValues.saldo_inicial,
-        saldo_actual: formValues.saldo_inicial,
+        fecha: formValues.fecha,
+        saldo_inicial: formValues.saldo_inicial, // undefined = herencia automática del periodo anterior
+        saldo_actual: formValues.saldo_inicial, // undefined = se calculará en el servicio
         estado: 'ABIERTA' as const,
-        usuario_id: '',
-        usuario_nombre: 'Sistema',
-        observacion: formValues.observacion || '',
-        fecha: new Date()
+        usuario_id: usuario?.id || '',
+        usuario_nombre: usuario?.nombre || 'Sistema',
+        observacion: formValues.observacion || ''
       };
+
+      console.log('📤 Enviando nueva caja al servicio:', {
+        fecha: nuevaCaja.fecha.toISOString(),
+        saldo_inicial: nuevaCaja.saldo_inicial,
+        tipo_saldo_inicial: typeof nuevaCaja.saldo_inicial,
+        es_undefined: nuevaCaja.saldo_inicial === undefined
+      });
 
       await this.cajaBancoService.abrirCajaBanco(nuevaCaja);
 
+      const periodo = formValues.fecha.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+      
       Swal.fire({
         icon: 'success',
         title: '¡Caja Banco Creada!',
         html: `
           <div style="text-align: center;">
-            <p style="margin: 0 0 0.75rem 0; color: var(--text-secondary); font-size: 0.95rem;">Creada exitosamente</p>
+            <p style="margin: 0 0 0.75rem 0; color: var(--text-secondary); font-size: 0.95rem;">Periodo: <strong>${periodo}</strong></p>
             <div style="background: var(--bg-tertiary); padding: 0.75rem; border-radius: 8px;">
-              <p style="margin: 0; font-size: 1.4rem; font-weight: bold; color: var(--success-color);">$${formValues.saldo_inicial.toFixed(2)}</p>
-              <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">Saldo Inicial</p>
+              <p style="margin: 0; font-size: 1.4rem; font-weight: bold; color: var(--success-color);">✓</p>
+              <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">Caja creada con éxito</p>
             </div>
           </div>
         `,
@@ -276,13 +359,16 @@ export class ListarCajasComponent implements OnInit {
       });
 
       this.cargarCajas();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al crear caja banco:', error);
       Swal.fire({
         icon: 'error',
         title: 'Error al crear caja',
-        text: 'No se pudo crear la caja banco. Intenta de nuevo.'
+        text: error?.message || 'No se pudo crear la caja banco. Intenta de nuevo.'
       });
+    } finally {
+      // Liberar flag de procesamiento
+      this.procesandoCreacion = false;
     }
   }
 

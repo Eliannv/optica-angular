@@ -1,0 +1,18 @@
+/* Mensaje informativo cuando hay caja abierta */
+.info-message {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1rem;
+    background: #dbeafe;
+    color: #1e40af;
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.info-message svg {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+}

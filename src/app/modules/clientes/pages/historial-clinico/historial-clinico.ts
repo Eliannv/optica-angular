@@ -93,10 +93,17 @@ export class HistorialClinicoComponent implements OnInit {
    */
   async ngOnInit(): Promise<void> {
     await this.cargarClientes();
-    // ✅ NUEVO: validar caja chica abierta
-    const validacion = await this.cajasChicaService.validarCajaChicaHoy();
-    this.cajaChicaAbierta = validacion.valida && validacion.tipo === 'ABIERTA';
+    await this.validarCajaChica();
     this.cargando = false;
+  }
+
+  /**
+   * Valida si existe alguna caja chica ABIERTA (histórica o actual).
+   * Actualiza la propiedad cajaChicaAbierta.
+   */
+  private async validarCajaChica(): Promise<void> {
+    const validacion = await this.cajasChicaService.validarCajaAbierta();
+    this.cajaChicaAbierta = validacion.valida;
   }
 
   /**
@@ -495,50 +502,24 @@ export class HistorialClinicoComponent implements OnInit {
    * @param clienteId Identificador del cliente para el cual crear la venta.
    */
   async crearRecibo(clienteId: string): Promise<void> {
-    // 🔒 VALIDACIÓN: Verificar estado detallado de caja chica
+    // 🔒 VALIDACIÓN: Verificar que exista alguna caja chica ABIERTA
     try {
-      const validacion = await this.cajasChicaService.validarCajaChicaHoy();
+      const validacion = await this.cajasChicaService.validarCajaAbierta();
       
       // ✅ Caja ABIERTA - Permitir entrada
-      if (validacion.valida && validacion.tipo === 'ABIERTA') {
+      if (validacion.valida) {
         this.router.navigate(['/ventas/crear'], {
           queryParams: { clienteId }
         });
         return;
       }
       
-      // ❌ Caja CERRADA - Mostrar error específico
-      if (validacion.tipo === 'CERRADA') {
-        let fechaDisplay = 'hoy';
-        if (validacion.caja?.fecha) {
-          try {
-            const fecha = validacion.caja.fecha instanceof Date ? validacion.caja.fecha : (validacion.caja.fecha as any).toDate?.() || new Date(validacion.caja.fecha);
-            if (!isNaN(fecha.getTime())) {
-              fechaDisplay = fecha.toLocaleDateString('es-ES');
-            }
-          } catch (e) {
-            fechaDisplay = 'hoy';
-          }
-        }
-        await Swal.fire({
-          icon: 'error',
-          title: 'Caja Chica Cerrada',
-          text: `La caja chica de ${fechaDisplay} ya fue cerrada. No se pueden crear ventas con una caja cerrada.`,
-          confirmButtonText: 'Abrir Nueva Caja Chica',
-          allowOutsideClick: false,
-          allowEscapeKey: false
-        }).then(() => {
-          this.router.navigate(['/caja-chica']);
-        });
-        return;
-      }
-      
-      // ❌ NO EXISTE caja para hoy
+      // ❌ NO existe caja ABIERTA
       await Swal.fire({
         icon: 'error',
-        title: 'Caja Chica No Encontrada',
-        text: 'No hay una caja chica abierta para hoy. Debe crear una caja chica antes de poder registrar ventas.',
-        confirmButtonText: 'Crear Caja Chica',
+        title: 'Caja Chica Requerida',
+        text: 'Debe tener al menos una caja chica ABIERTA para crear ventas (puede ser de cualquier fecha).',
+        confirmButtonText: 'Ir a Caja Chica',
         allowOutsideClick: false,
         allowEscapeKey: false
       }).then(() => {
@@ -566,50 +547,24 @@ export class HistorialClinicoComponent implements OnInit {
    * @param clienteId Identificador del cliente para cobrar deuda.
    */
   async cobrarDeuda(clienteId: string): Promise<void> {
-    // 🔒 VALIDACIÓN: Verificar estado detallado de caja chica
+    // 🔒 VALIDACIÓN: Verificar que exista alguna caja chica ABIERTA
     try {
-      const validacion = await this.cajasChicaService.validarCajaChicaHoy();
+      const validacion = await this.cajasChicaService.validarCajaAbierta();
       
       // ✅ Caja ABIERTA - Permitir entrada
-      if (validacion.valida && validacion.tipo === 'ABIERTA') {
+      if (validacion.valida) {
         this.router.navigate(['/ventas/deuda'], {
           queryParams: { clienteId }
         });
         return;
       }
       
-      // ❌ Caja CERRADA - Mostrar error específico
-      if (validacion.tipo === 'CERRADA') {
-        let fechaDisplay = 'hoy';
-        if (validacion.caja?.fecha) {
-          try {
-            const fecha = validacion.caja.fecha instanceof Date ? validacion.caja.fecha : (validacion.caja.fecha as any).toDate?.() || new Date(validacion.caja.fecha);
-            if (!isNaN(fecha.getTime())) {
-              fechaDisplay = fecha.toLocaleDateString('es-ES');
-            }
-          } catch (e) {
-            fechaDisplay = 'hoy';
-          }
-        }
-        await Swal.fire({
-          icon: 'error',
-          title: 'Caja Chica Cerrada',
-          text: `La caja chica de ${fechaDisplay} ya fue cerrada. No se pueden registrar abonos con una caja cerrada.`,
-          confirmButtonText: 'Abrir Nueva Caja Chica',
-          allowOutsideClick: false,
-          allowEscapeKey: false
-        }).then(() => {
-          this.router.navigate(['/caja-chica']);
-        });
-        return;
-      }
-      
-      // ❌ NO EXISTE caja para hoy
+      // ❌ NO existe caja ABIERTA
       await Swal.fire({
         icon: 'error',
-        title: 'Caja Chica No Encontrada',
-        text: 'No hay una caja chica abierta para hoy. Debe crear una caja chica antes de poder registrar abonos.',
-        confirmButtonText: 'Crear Caja Chica',
+        title: 'Caja Chica Requerida',
+        text: 'Debe tener al menos una caja chica ABIERTA para cobrar deudas (puede ser de cualquier fecha).',
+        confirmButtonText: 'Ir a Caja Chica',
         allowOutsideClick: false,
         allowEscapeKey: false
       }).then(() => {

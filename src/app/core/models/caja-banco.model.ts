@@ -44,6 +44,12 @@ export interface CajaBanco {
 
   /** Fecha y hora en que se cerró la caja banco */
   cerrado_en?: any;
+
+  /** Identificador del usuario que cerró la caja */
+  cerrado_por_id?: string;
+
+  /** Nombre completo del usuario que cerró la caja */
+  cerrado_por_nombre?: string;
 }
 
 /**

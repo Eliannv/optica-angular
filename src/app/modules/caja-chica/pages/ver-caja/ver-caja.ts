@@ -311,6 +311,24 @@ export class VerCajaComponent implements OnInit {
   }
 
   /**
+   * Formatea una fecha con hora en formato DD/MM/YYYY, HH:MM.
+   *
+   * @param fecha Timestamp de Firestore, Date o valor parseble a Date
+   * @returns Fecha formateada "DD/MM/YYYY, HH:MM" o '-' si es inválida
+   */
+  formatoFechaHora(fecha: any): string {
+    if (!fecha) return '-';
+    const date = fecha.toDate ? fecha.toDate() : new Date(fecha);
+    return date.toLocaleDateString('es-ES', { 
+      year: 'numeric', 
+      month: '2-digit', 
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  /**
    * Retorna la clase CSS Bootstrap para el badge de tipo de movimiento.
    *
    * Mapeo:

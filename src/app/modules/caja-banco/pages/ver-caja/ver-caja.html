@@ -11,7 +11,12 @@
                         (click)="registrarMovimiento()">
                         + Registrar Movimiento
                     </button>
-                    <!-- Botón Cerrar Mes removido - cierre automático después de 1 mes -->
+                    <button 
+                        *ngIf="caja?.estado === 'ABIERTA'"
+                        class="btn btn-warning" 
+                        (click)="cerrarCaja()">
+                        🔒 Cerrar Caja
+                    </button>
                     <button class="btn btn-primary " (click)="imprimirMensualActual()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-printer-icon lucide-printer"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg> Reemprimir</button>
                 </div>
             </div>
@@ -24,18 +29,30 @@
                     <div class="info-card">
                         <h3>Información General</h3>
                         <div class="info-row">
+                            <span class="label">Fecha de Creación:</span>
+                            <span class="value">{{ formatoFechaHora(caja.createdAt) }}</span>
+                        </div>
+                        <div class="info-row">
                             <span class="label">Fecha de Apertura:</span>
-                            <span class="value">{{ formatoFecha(caja.fecha) }}</span>
+                            <span class="value">{{ formatoFechaHora(caja.fecha) }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Abierta por:</span>
+                            <span class="value">{{ caja.usuario_nombre || '-' }}</span>
+                        </div>
+                        <div class="info-row" *ngIf="caja.estado === 'CERRADA' && caja.cerrado_en">
+                            <span class="label">Fecha de Cierre:</span>
+                            <span class="value">{{ formatoFechaHora(caja.cerrado_en) }}</span>
+                        </div>
+                        <div class="info-row" *ngIf="caja.estado === 'CERRADA' && caja.cerrado_por_nombre">
+                            <span class="label">Cerrada por:</span>
+                            <span class="value">{{ caja.cerrado_por_nombre }}</span>
                         </div>
                         <div class="info-row">
                             <span class="label">Estado:</span>
                             <span class="badge" [ngClass]="caja.estado === 'ABIERTA' ? 'badge-success' : 'badge-danger'">
                 {{ caja.estado }}
               </span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">Usuario:</span>
-                            <span class="value">{{ caja.usuario_nombre || '-' }}</span>
                         </div>
                         <div class="info-row" *ngIf="caja.observacion">
                             <span class="label">Observación:</span>

@@ -50,7 +50,7 @@
                     {{ caja.estado }}
                   </span>
                                 </td>
-                                <td>{{ caja.usuario_nombre || '-' }}</td>
+                                <td>{{ caja.estado === 'CERRADA' ? (caja.cerrado_por_nombre || '-') : (caja.usuario_nombre || '-') }}</td>
                                 <td class="text-right">
                                     <div class="action-buttons">
                                         <button class="btn-ver" (click)="verDetalles(caja.id!)" title="Ver detalles">

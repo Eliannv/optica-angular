@@ -26,18 +26,30 @@
                 <div class="info-card">
                     <h3>Información General</h3>
                     <div class="info-row">
+                        <span class="label">Fecha de Creación:</span>
+                        <span class="value">{{ formatoFechaHora(caja.createdAt) }}</span>
+                    </div>
+                    <div class="info-row">
                         <span class="label">Fecha de Apertura:</span>
-                        <span class="value">{{ formatoFecha(caja.fecha) }}</span>
+                        <span class="value">{{ formatoFechaHora(caja.fecha) }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Abierta por:</span>
+                        <span class="value">{{ caja.usuario_nombre || '-' }}</span>
+                    </div>
+                    <div class="info-row" *ngIf="caja.estado === 'CERRADA' && caja.cerrado_en">
+                        <span class="label">Fecha de Cierre:</span>
+                        <span class="value">{{ formatoFechaHora(caja.cerrado_en) }}</span>
+                    </div>
+                    <div class="info-row" *ngIf="caja.estado === 'CERRADA' && caja.cerrado_por_nombre">
+                        <span class="label">Cerrada por:</span>
+                        <span class="value">{{ caja.cerrado_por_nombre }}</span>
                     </div>
                     <div class="info-row">
                         <span class="label">Estado:</span>
                         <span class="badge" [ngClass]="caja.estado === 'ABIERTA' ? 'badge-success' : 'badge-danger'">
               {{ caja.estado }}
             </span>
-                    </div>
-                    <div class="info-row">
-                        <span class="label">Usuario:</span>
-                        <span class="value">{{ caja.usuario_nombre || '-' }}</span>
                     </div>
                     <div class="info-row" *ngIf="caja.observacion">
                         <span class="label">Observación:</span>

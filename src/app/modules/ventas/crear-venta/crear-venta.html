@@ -219,21 +219,43 @@
                         </div>
 
                         <!-- ✅ ABONO (mostrar diferente si es crédito) -->
-                        <div class="metodo-pago">
-                            <label>{{ esCredito ? 'Abono inicial (opcional)' : 'Abono (paga hoy)' }}</label>
-                            <input #abonoInput type="number" min="0" class="search-input" [(ngModel)]="abono" (ngModelChange)="recalcularAbono()" (keydown.enter)="onInputEnter($event, 'abono')" placeholder="0.00" />
-                            <small class="muted" *ngIf="!esCredito">Si es menor al total, quedará saldo pendiente.</small>
+                        <div class="metodo-pago" style="background-color: #e8f5e9; border: 2px solid #4caf50; padding: 12px; border-radius: 6px;">
+                            <label style="font-weight: 600; color: #2e7d32;">
+                                {{ esCredito ? '💰 Abono inicial (opcional)' : '💵 Abono (paga hoy)' }}
+                            </label>
+                            <input 
+                                #abonoInput 
+                                type="number" 
+                                min="0" 
+                                class="search-input" 
+                                [(ngModel)]="abono" 
+                                (ngModelChange)="recalcularAbono()" 
+                                (keydown.enter)="onInputEnter($event, 'abono')" 
+                                placeholder="0.00"
+                                style="font-size: 1.1rem; font-weight: 600; border: 2px solid #4caf50;"
+                            />
+                            <small class="muted" *ngIf="!esCredito" style="color: #388e3c;">Si es menor al total, quedará saldo pendiente.</small>
                             <small class="muted" *ngIf="esCredito" style="color: #ff9800;">Si no ingresa abono, el total quedará como deuda pendiente.</small>
+                            
+                            <!-- VUELTO CALCULADO (solo si metodoPago es Efectivo y hay abono) -->
+                            <div *ngIf="metodoPago === 'Efectivo' && abono > 0" style="margin-top: 12px; padding: 10px; background-color: #fff; border-radius: 4px; border-left: 4px solid #ff9800;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-weight: 600; color: #f57c00;">🔄 VUELTO A ENTREGAR:</span>
+                                    <span 
+                                        style="font-size: 1.3rem; font-weight: 700;" 
+                                        [style.color]="vuelto >= 0 ? '#4caf50' : '#f44336'">
+                                        ${{ vuelto | number:'1.2-2' }}
+                                    </span>
+                                </div>
+                                <small *ngIf="vuelto < 0" style="color: #f44336; display: block; margin-top: 4px;">
+                                    ⚠️ El monto recibido es menor al total a pagar
+                                </small>
+                            </div>
                         </div>
 
                         <div class="total-row">
                             <span>Saldo pendiente</span>
                             <strong>${{ saldoPendiente.toFixed(2) }}</strong>
-                        </div>
-
-                        <div class="total-row" *ngIf="abono > total">
-                            <span>Vuelto</span>
-                            <strong style="color: #28a745;">${{ (abono - total).toFixed(2) }}</strong>
                         </div>
 
                         <!-- BOTONES DE ACCIÓN -->

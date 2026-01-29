@@ -10,14 +10,23 @@
 
         <!-- FORMULARIO -->
         <form [formGroup]="form" (ngSubmit)="abrirCaja()" class="form-body">
-            <!-- FECHA - Solo lectura, es la fecha actual del día -->
+            <!-- FECHA - Editable para permitir creación histórica -->
             <div class="form-group">
                 <label for="fecha">Fecha de Apertura *</label>
-                <div class="fecha-display">
-                    <span class="fecha-value">{{ form.get('fecha')?.value | date:'dd/MM/yyyy' }}</span>
-                    <small class="fecha-hint">(Fecha del día actual)</small>
-                </div>
-                <input id="fecha" type="hidden" formControlName="fecha" />
+                <input 
+                    id="fecha" 
+                    type="date" 
+                    formControlName="fecha" 
+                    class="form-control"
+                    [max]="fechaMaxima"
+                    [disabled]="esOperador"
+                    [class.error]="form.get('fecha')?.touched && form.get('fecha')?.invalid"
+                />
+                <small class="fecha-hint" *ngIf="!esOperador">Selecciona la fecha de la caja chica (no se permiten fechas futuras)</small>
+                <small class="fecha-hint" *ngIf="esOperador">Solo puedes crear cajas para el día de hoy</small>
+                <ng-container *ngIf="form.get('fecha')?.touched && form.get('fecha')?.invalid">
+                    <span class="error-text">La fecha es requerida</span>
+                </ng-container>
             </div>
 
             <!-- MONTO INICIAL -->

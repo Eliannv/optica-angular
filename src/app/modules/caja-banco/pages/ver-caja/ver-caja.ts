@@ -189,6 +189,24 @@ export class VerCajaComponent implements OnInit {
   }
 
   /**
+   * Formatea una fecha con hora en formato DD/MM/YYYY, HH:MM.
+   *
+   * @param fecha - Timestamp de Firestore o Date
+   * @returns {string} Fecha y hora formateadas
+   */
+  formatoFechaHora(fecha: any): string {
+    if (!fecha) return '-';
+    const date = fecha.toDate ? fecha.toDate() : new Date(fecha);
+    return date.toLocaleDateString('es-ES', { 
+      year: 'numeric', 
+      month: '2-digit', 
+      day: '2-digit', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  }
+
+  /**
    * Formatea una fecha con hora para mostrar en la UI.
    *
    * @param fecha - Objeto Date, Firestore Timestamp o string
@@ -227,6 +245,59 @@ export class VerCajaComponent implements OnInit {
     this.router.navigate(['/caja-banco/registrar-movimiento'], {
       state: { cajaId: this.cajaId }
     });
+  }
+
+  /**
+   * Cierra la caja banco actual.
+   * Muestra confirmación antes de proceder.
+   */
+  async cerrarCaja(): Promise<void> {
+    if (!this.caja || this.caja.estado !== 'ABIERTA') {
+      return;
+    }
+
+    const periodo = this.formatoFecha(this.caja.fecha);
+    
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: '¿Cerrar Caja Banco?',
+      html: `
+        <p>Estás a punto de cerrar la caja banco de <strong>${periodo}</strong></p>
+        <p>Saldo actual: <strong>${this.formatoMoneda(this.caja.saldo_actual)}</strong></p>
+        <p class="text-muted" style="font-size: 0.9rem; margin-top: 1rem;">
+          Una vez cerrada, no podrás registrar más movimientos en esta caja.
+        </p>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Sí, Cerrar Caja',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await this.cajaBancoService.cerrarCajaBanco(this.cajaId);
+        
+        await Swal.fire({
+          icon: 'success',
+          title: 'Caja Cerrada',
+          text: 'La caja banco se cerró correctamente.',
+          timer: 2000,
+          showConfirmButton: false
+        });
+
+        // Recargar datos para actualizar el estado
+        this.cargarDatos();
+      } catch (error: any) {
+        console.error('Error al cerrar caja:', error);
+        await Swal.fire({
+          icon: 'error',
+          title: 'Error al Cerrar',
+          text: error?.message || 'No se pudo cerrar la caja banco. Intenta nuevamente.'
+        });
+      }
+    }
   }
 
   /**

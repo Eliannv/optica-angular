@@ -42,6 +42,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import Swal from 'sweetalert2';
+import { normalizarFecha } from '../../../../core/utils/fecha-helpers';
 
 @Component({
   selector: 'app-abrir-caja',
@@ -63,6 +64,22 @@ export class AbrirCajaComponent implements OnInit, OnDestroy {
   maxFecha = '';
   private procesando = false;
 
+  /** Referencia al control de monto para usar en template */
+  get montoControl() {
+    return this.form.get('monto_inicial');
+  }
+
+  /** Fecha máxima permitida (hoy) en formato YYYY-MM-DD */
+  get fechaMaxima(): string {
+    const hoy = new Date();
+    return hoy.toISOString().split('T')[0];
+  }
+
+  /** Verifica si el usuario actual es operador (no puede seleccionar fechas) */
+  get esOperador(): boolean {
+    return !this.authService.isAdmin();
+  }
+
   ngOnInit(): void {
     this.inicializarFormulario();
   }
@@ -76,30 +93,37 @@ export class AbrirCajaComponent implements OnInit, OnDestroy {
    * Inicializa el formulario reactivo con estructura y validaciones.
    *
    * Campos:
-   * - fecha: Date (default: hoy a medianoche, solo lectura)
+   * - fecha: string en formato YYYY-MM-DD (default: hoy, editable por usuario para historial)
    * - monto_inicial: number (requerido, mínimo 0)
    * - observacion: string (opcional)
    *
+   * NUEVO COMPORTAMIENTO:
+   * - Fecha es EDITABLE (permite crear cajas históricas)
+   * - Por defecto usa la fecha actual en formato ISO para compatibilidad con input[type=date]
+   * - Usuario puede seleccionar cualquier fecha pasada o presente
+   *
    * Efectos secundarios:
    * - Limpia localStorage de referencia anterior (cajaChicaAbierta)
-   * - Establece maxFecha en formato ISO para restricción HTML input[type=date]
-   * - Normaliza fecha a medianoche (setHours 0,0,0,0)
-   *
-   * Nota: La fecha es fija (no es editable por usuario) y se calcula al init.
    *
    * @returns void
    */
   inicializarFormulario(): void {
+    // Usar string ISO para evitar problemas de timezone con input[type=date]
     const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    this.maxFecha = hoy.toISOString().split('T')[0];
+    const fechaISO = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+    
     localStorage.removeItem('cajaChicaAbierta');
 
     this.form = this.formBuilder.group({
-      fecha: [hoy, Validators.required],
+      fecha: [fechaISO, Validators.required],
       monto_inicial: ['', [Validators.required, Validators.min(0)]],
       observacion: ['']
     });
+
+    // SEGURIDAD: Si es operador, deshabilitar el campo de fecha
+    if (this.esOperador) {
+      this.form.get('fecha')?.disable();
+    }
   }
 
   /**
@@ -119,6 +143,35 @@ export class AbrirCajaComponent implements OnInit, OnDestroy {
    */
   abrirCaja(): void {
     if (this.cargando) return;
+    
+    // Si es operador, forzar fecha actual (seguridad adicional)
+    if (this.esOperador) {
+      const hoy = new Date();
+      const fechaISO = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+      // Habilitar temporalmente, actualizar y deshabilitar de nuevo
+      this.form.get('fecha')?.enable();
+      this.form.patchValue({ fecha: fechaISO });
+      this.form.get('fecha')?.disable();
+    }
+    
+    // Validar que la fecha no sea futura (usar getRawValue para obtener valor incluso si está deshabilitado)
+    const fechaSeleccionada = this.form.getRawValue().fecha;
+    if (fechaSeleccionada) {
+      const fechaNorm = new Date(fechaSeleccionada + 'T00:00:00');
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      
+      if (fechaNorm.getTime() > hoy.getTime()) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Fecha inválida',
+          text: 'No se pueden crear cajas chicas con fechas futuras.',
+          confirmButtonText: 'Aceptar'
+        });
+        return;
+      }
+    }
+    
     this.cargando = true;
 
     this.cajaBancoService.existeAlMenosUnaCajaBanco()
@@ -334,7 +387,7 @@ export class AbrirCajaComponent implements OnInit, OnDestroy {
   private crearCaja(): void {
     const usuario = this.authService.getCurrentUser();
     const montoParse = parseFloat(this.form.get('monto_inicial')?.value);
-    const fecha = this.normalizarFecha();
+    const fecha = this.normalizarFechaFormulario();
 
     const nuevaCaja = {
       fecha,
@@ -354,70 +407,24 @@ export class AbrirCajaComponent implements OnInit, OnDestroy {
 
   /**
    * Normaliza la fecha del formulario a medianoche (00:00:00) en zona horaria local.
-   *
-   * Maneja múltiples tipos de entrada:
-   * 1. Fecha instanceof Date → clona y normaliza
-   * 2. String (YYYY-MM-DD o DD/MM/YYYY) → parsea con parsearFechaString()
-   * 3. Otros tipos (null, undefined) → usa new Date() actual
-   *
-   * Siempre retorna Date normalizada a medianoche para consistencia en Firestore.
-   * Esto evita problemas con comparaciones de fechas que incluyan hora.
+   * Usa el helper global normalizarFecha que maneja correctamente strings ISO.
+   * Usa getRawValue() para obtener el valor incluso si el campo está deshabilitado.
    *
    * @returns Date normalizada a 00:00:00 en zona local
    */
-  private normalizarFecha(): Date {
-    const fechaValue = this.form.get('fecha')?.value;
-    let fecha: Date;
-
-    if (fechaValue instanceof Date) {
-      fecha = new Date(fechaValue);
-      fecha.setHours(0, 0, 0, 0);
-    } else if (typeof fechaValue === 'string') {
-      fecha = this.parsearFechaString(fechaValue);
-    } else {
-      fecha = new Date();
-      fecha.setHours(0, 0, 0, 0);
+  private normalizarFechaFormulario(): Date {
+    // Usar getRawValue() para obtener el valor incluso si está deshabilitado
+    const fechaControl = this.form.get('fecha');
+    const fechaValue = fechaControl?.value || this.form.getRawValue().fecha;
+    
+    if (!fechaValue) {
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      return hoy;
     }
-
-    return fecha;
-  }
-
-  /**
-   * Parsea una cadena de fecha en dos formatos soportados.
-   *
-   * Formatos reconocidos:
-   * 1. YYYY-MM-DD (ISO): Más común en input[type=date] HTML
-   * 2. DD/MM/YYYY: Formato común en inputsHTML tradicionales
-   *
-   * Lógica:
-   * - Detecta formato por presencia de '-' o '/'
-   * - Separa componentes y valida rangos manualmente
-   * - Fallback: new Date() si formato no es reconocido
-   *
-   * Retorno:
-   * - Siempre retorna Date normalizada a medianoche
-   *
-   * Nota: No valida corrección de fecha (ej: 32/13 sería creado como Date inválida).
-   * El validador del navegador (input type=date) previene esto en la mayoría de casos.
-   *
-   * @param fechaString String con fecha en formato "YYYY-MM-DD" o "DD/MM/YYYY"
-   * @returns Date parseada y normalizada a medianoche (00:00:00)
-   */
-  private parsearFechaString(fechaString: string): Date {
-    let fecha: Date;
-
-    if (fechaString.includes('-')) {
-      const [year, month, day] = fechaString.split('-');
-      fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 0, 0, 0, 0);
-    } else if (fechaString.includes('/')) {
-      const [day, month, year] = fechaString.split('/');
-      fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 0, 0, 0, 0);
-    } else {
-      fecha = new Date();
-      fecha.setHours(0, 0, 0, 0);
-    }
-
-    return fecha;
+    
+    // Usar helper global que maneja correctamente timezone
+    return normalizarFecha(fechaValue);
   }
 
   /**
@@ -522,13 +529,6 @@ export class AbrirCajaComponent implements OnInit, OnDestroy {
       text: 'No se pudo verificar la existencia de una Caja Banco. Inténtelo nuevamente.',
       confirmButtonText: 'Aceptar'
     });
-  }
-
-  /**
-   * Retorna el control del monto inicial del formulario.
-   */
-  get montoControl() {
-    return this.form.get('monto_inicial');
   }
 
   /**

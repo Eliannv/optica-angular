@@ -34,6 +34,7 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
   metodoPago = 'Efectivo';
   codigoTransferencia = ''; // Código de transferencia bancaria
   ultimosCuatroTarjeta = ''; // Últimos 4 dígitos de la tarjeta
+  montoRecibido = 0; // 💵 Cuánto dinero entrega el cliente (solo visual)
   abono = 0;
   saldoNuevo = 0;
 
@@ -48,6 +49,17 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
 
   // ✅ FILTROS Y BÚSQUEDA
   filtroFactura = ''; // Búsqueda por número de factura
+
+  /**
+   * Calcula el vuelto automáticamente
+   * Vuelto = Abono - Saldo Pendiente (solo si abono es mayor)
+   */
+  get vuelto(): number {
+    if (this.metodoPago !== 'Efectivo') return 0;
+    const abonoActual = Number(this.abono || 0);
+    const saldoActual = this.facturaSeleccionada?.saldoPendiente || 0;
+    return Math.max(0, abonoActual - saldoActual);
+  }
   filtroFecha = ''; // Filtro por fecha (YYYY-MM-DD)
   filtroCredito: 'todos' | 'conCredito' | 'sinCredito' = 'todos'; // Filtro por tipo de crédito
   selectedIndex = -1; // Índice de factura seleccionada con teclado
@@ -100,46 +112,21 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
   ) {}
 
   async ngOnInit() {
-    // 🔒 VALIDACIÓN CRÍTICA: Verificar estado detallado de caja chica para hoy
+    // 🔒 VALIDACIÓN CRÍTICA: Verificar que exista alguna caja chica ABIERTA
     try {
-      const validacion = await this.cajaChicaService.validarCajaChicaHoy();
+      const validacion = await this.cajaChicaService.validarCajaAbierta();
       
       // ✅ Caja ABIERTA - Permitir entrada
-      if (validacion.valida && validacion.tipo === 'ABIERTA') {
+      if (validacion.valida) {
         // Continuamos con la carga normal
       } 
-      // ❌ Caja CERRADA - Bloquear con mensaje específico
-      else if (validacion.tipo === 'CERRADA') {
-        let fechaDisplay = 'hoy';
-        if (validacion.caja?.fecha) {
-          try {
-            const fecha = validacion.caja.fecha instanceof Date ? validacion.caja.fecha : (validacion.caja.fecha as any).toDate?.() || new Date(validacion.caja.fecha);
-            if (!isNaN(fecha.getTime())) {
-              fechaDisplay = fecha.toLocaleDateString('es-ES');
-            }
-          } catch (e) {
-            fechaDisplay = 'hoy';
-          }
-        }
-        await Swal.fire({
-          icon: 'error',
-          title: 'Caja Chica Cerrada',
-          text: `La caja chica de ${fechaDisplay} ya fue cerrada. No se pueden registrar abonos con una caja cerrada.`,
-          confirmButtonText: 'Abrir Nueva Caja Chica',
-          allowOutsideClick: false,
-          allowEscapeKey: false
-        }).then(() => {
-          this.router.navigate(['/caja-chica']);
-        });
-        return;
-      }
-      // ❌ NO EXISTE caja para hoy - Bloquear con indicación de crear
+      // ❌ NO existe caja ABIERTA
       else {
         await Swal.fire({
           icon: 'error',
-          title: 'Caja Chica No Encontrada',
-          text: 'No hay una caja chica abierta para hoy. Debe crear una caja chica antes de poder registrar abonos.',
-          confirmButtonText: 'Crear Caja Chica',
+          title: 'Caja Chica Requerida',
+          text: 'Debe tener al menos una caja chica ABIERTA para cobrar deudas (puede ser de cualquier fecha).',
+          confirmButtonText: 'Ir a Caja Chica',
           allowOutsideClick: false,
           allowEscapeKey: false
         }).then(() => {
@@ -292,16 +279,15 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
   }
 
   onChangeAbono(value: any) {
-    const saldo = Number(this.facturaSeleccionada?.saldoPendiente || 0);
     const n = Math.max(0, Number(value || 0));
-    this.abono = Math.min(n, saldo);
+    this.abono = n; // Permitir cualquier cantidad en todos los métodos de pago
     this.recalcularSaldoNuevo();
   }
 
   private recalcularSaldoNuevo() {
     const saldo = Number(this.facturaSeleccionada?.saldoPendiente || 0);
-    this.saldoNuevo = +(saldo - this.abono).toFixed(2);
-    if (this.saldoNuevo < 0) this.saldoNuevo = 0;
+    // ✅ Saldo nuevo nunca debe ser negativo (si abono > saldo, saldo nuevo = 0)
+    this.saldoNuevo = Math.max(0, +(saldo - this.abono).toFixed(2));
   }
 
   async registrarAbono() {
@@ -443,11 +429,12 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
       // 💰 Registrar automáticamente en Caja Chica si el pago es en efectivo
       if (this.metodoPago === 'Efectivo' && abonoReal > 0) {
         try {
-          const cajaAbiertaId = localStorage.getItem('cajaChicaAbierta');
-          if (cajaAbiertaId) {
+          // Buscar cualquier caja ABIERTA (histórica o actual)
+          const caja = await this.cajaChicaService.getCajaAbierta();
+          if (caja?.id) {
             const usuario = this.authService.getCurrentUser();
             const movimiento = {
-              caja_chica_id: cajaAbiertaId,
+              caja_chica_id: caja.id,
               fecha: new Date(),
               tipo: 'INGRESO' as const,
               descripcion: `Pago de deuda - ${this.clienteNombre} - Factura #${f.id}`,
@@ -458,7 +445,7 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
               (movimiento as any).usuario_id = usuario.id;
               (movimiento as any).usuario_nombre = usuario.nombre || 'Usuario';
             }
-            await this.cajaChicaService.registrarMovimiento(cajaAbiertaId, movimiento);
+            await this.cajaChicaService.registrarMovimiento(caja.id, movimiento);
             console.log('✅ Pago de deuda registrado en Caja Chica:', abonoReal);
           }
         } catch (err) {

@@ -4,13 +4,15 @@
  * cierres consolidados de cajas chicas diarias y otros movimientos que no se realizan en efectivo.
  *
  * Este servicio implementa:
- * - Apertura y cierre automático de cajas banco mensuales
+ * - Apertura y cierre de cajas banco mensuales (manual o automático)
+ * - Creación histórica: permite crear cajas con fechas pasadas
+ * - Asociación por periodo (mes/año) en lugar de día exacto
  * - Registro de movimientos con trazabilidad de saldos (anterior/nuevo)
  * - Categorización de ingresos y egresos para reportes
- * - Herencia automática de saldos entre meses
+ * - Herencia automática de saldos entre periodos cronológicos
  * - Validación de cajas ABIERTA para operaciones
  * - Soft delete para preservar historial
- * - Cierre automático de cajas vencidas (mayores a 1 mes)
+ * - Búsqueda eficiente de caja banco por periodo
  *
  * Los datos se persisten en 'cajas_banco' y 'movimientos_cajas_banco' de Firestore.
  * Se integra estrechamente con CajaChicaService para registrar los cierres diarios.
@@ -39,6 +41,14 @@ import { map, switchMap } from 'rxjs/operators';
 import { firstValueFrom } from 'rxjs';
 import { CajaBanco, MovimientoCajaBanco, ResumenCajaBanco } from '../models/caja-banco.model';
 import { AuthService } from './auth.service';
+import { 
+  normalizarFecha, 
+  obtenerPeriodo, 
+  mismoPeriodo, 
+  rangoPeriodo,
+  periodoAnterior,
+  Periodo
+} from '../utils/fecha-helpers';
 
 @Injectable({
   providedIn: 'root',
@@ -66,8 +76,9 @@ export class CajaBancoService {
         // Filtrar cajas activas en memoria
         const cajasActivas = (cajas || []).filter(c => c.activo !== false);
         
-        // 🔄 Verificar automáticamente si hay cajas que deben cerrarse (después de 1 mes)
-        this.verificarYCerrarCajasVencidas(cajasActivas);
+        // ❌ CIERRE AUTOMÁTICO DESHABILITADO - Ahora el cierre es MANUAL
+        // El usuario debe cerrar las cajas manualmente cuando lo decida
+        // this.verificarYCerrarCajasVencidas(cajasActivas);
         
         return cajasActivas;
       })
@@ -139,6 +150,47 @@ export class CajaBancoService {
   }
 
   /**
+   * Obtiene CUALQUIER caja banco ABIERTA (sin importar el periodo/mes).
+   * Útil para registrar movimientos cuando se trabaja con cajas históricas.
+   * 
+   * @returns Promise<CajaBanco | null> Primera caja ABIERTA encontrada (más reciente) o null.
+   */
+  async getCajaBancoAbierta(): Promise<CajaBanco | null> {
+    try {
+      const cajasRef = collection(this.firestore, 'cajas_banco');
+      const q = query(
+        cajasRef,
+        where('estado', '==', 'ABIERTA')
+      );
+
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        // Filtrar manualmente las cajas activas y ordenar por fecha
+        const cajasActivas = snapshot.docs
+          .map(doc => {
+            const data = doc.data() as CajaBanco;
+            data.id = doc.id;
+            return data;
+          })
+          .filter(caja => caja.activo !== false)
+          .sort((a, b) => {
+            const fechaA = a.fecha instanceof Date ? a.fecha : (a.fecha as any).toDate?.() || new Date(a.fecha);
+            const fechaB = b.fecha instanceof Date ? b.fecha : (b.fecha as any).toDate?.() || new Date(b.fecha);
+            return fechaB.getTime() - fechaA.getTime(); // Descendente (más reciente primero)
+          });
+        
+        return cajasActivas.length > 0 ? cajasActivas[0] : null;
+      }
+      
+      return null;
+    } catch (err) {
+      console.error('Error al obtener caja banco abierta:', err);
+      return null;
+    }
+  }
+
+  /**
    * Obtiene la caja banco ABIERTA del mes actual.
    * Realiza búsqueda por rango de fecha y filtra en memoria por estado y soft delete.
    * Este método es crítico para operaciones que requieren una caja activa.
@@ -146,22 +198,34 @@ export class CajaBancoService {
    * @returns Promise<CajaBanco | null> Caja banco abierta o null si no existe.
    */
   async getCajaBancoActivaMes(): Promise<CajaBanco | null> {
+    const hoy = new Date();
+    const periodo = obtenerPeriodo(hoy);
+    return this.getCajaBancoPorPeriodo(periodo.year, periodo.monthIndex0);
+  }
+
+  /**
+   * Obtiene la caja banco ABIERTA de un periodo específico (mes/año).
+   * Permite buscar cajas históricas por periodo, no solo del mes actual.
+   * 
+   * @param year Año del periodo.
+   * @param monthIndex0 Mes del periodo (base 0: 0=Enero, 11=Diciembre).
+   * @returns Promise<CajaBanco | null> Caja banco abierta del periodo o null.
+   */
+  async getCajaBancoPorPeriodo(year: number, monthIndex0: number): Promise<CajaBanco | null> {
     try {
-      const hoy = new Date();
-      const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-      const inicioSiguienteMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 1);
+      const { inicio, fin } = rangoPeriodo(year, monthIndex0);
 
       const cajasRef = collection(this.firestore, 'cajas_banco');
       const q = query(
         cajasRef,
-        where('fecha', '>=', inicioMes),
-        where('fecha', '<', inicioSiguienteMes)
+        where('fecha', '>=', inicio),
+        where('fecha', '<', fin)
       );
 
       const snapshot = await getDocs(q);
       
       if (snapshot.empty) {
-        console.warn('⚠️ No hay caja banco para este mes');
+        console.warn(`⚠️ No hay caja banco para el periodo ${year}-${monthIndex0 + 1}`);
         return null;
       }
 
@@ -174,14 +238,14 @@ export class CajaBancoService {
         .filter(c => c.activo !== false && c.estado === 'ABIERTA');
 
       if (cajasValidas.length === 0) {
-        console.warn('⚠️ No hay caja banco ABIERTA para este mes');
+        console.warn(`⚠️ No hay caja banco ABIERTA para el periodo ${year}-${monthIndex0 + 1}`);
         return null;
       }
 
       // Retornar la primera caja abierta encontrada (usualmente solo hay una por mes)
       return cajasValidas[0];
     } catch (error) {
-      console.error('Error obteniendo caja banco activa del mes:', error);
+      console.error('Error obteniendo caja banco por periodo:', error);
       throw error;
     }
   }
@@ -198,110 +262,187 @@ export class CajaBancoService {
   }
 
   /**
-   * Abre una nueva caja banco o actualiza una existente para el día especificado.
-   * Implementa herencia automática de saldo desde el mes anterior si no se proporciona saldo inicial.
+   * Abre una nueva caja banco con fecha manual (histórica o actual).
+   * Implementa herencia automática de saldo desde el periodo anterior cerrado cronológicamente.
+   *
+   * NUEVO COMPORTAMIENTO:
+   * - Acepta cualquier fecha (pasada, presente)
+   * - La caja representa TODO el mes/año de la fecha
+   * - Busca la última caja banco CERRADA cronológicamente anterior
+   * - Hereda automáticamente el saldo final como saldo inicial
+   * - Permite override manual del saldo inicial si se proporciona
    *
    * Proceso:
-   * 1. Normaliza la fecha a medianoche
-   * 2. Busca si ya existe caja para ese día (actualiza si existe)
-   * 3. Si no existe, intenta heredar saldo del mes anterior cerrado
-   * 4. Crea nueva caja con saldo inicial determinado
+   * 1. Normaliza la fecha a medianoche (día 1 del mes)
+   * 2. Valida que no exista caja ABIERTA para ese periodo
+   * 3. Busca la última caja cerrada cronológicamente anterior
+   * 4. Hereda saldo o usa el proporcionado manualmente
+   * 5. Crea la caja banco para ese periodo
    *
-   * @param caja Datos de la caja banco a crear/actualizar.
-   * @returns Promise<string> ID de la caja creada o actualizada.
+   * @param caja Datos de la caja banco (fecha manual requerida).
+   * @returns Promise<string> ID de la caja creada.
    */
   async abrirCajaBanco(caja: CajaBanco): Promise<string> {
     const cajasRef = collection(this.firestore, 'cajas_banco');
     
-    // Normalizar la fecha a medianoche
+    // Normalizar la fecha a medianoche del día 1 del mes
     const fecha = caja.fecha || new Date();
-    const fechaNormalizada = new Date(fecha);
-    fechaNormalizada.setHours(0, 0, 0, 0);
+    const fechaNormalizada = normalizarFecha(fecha);
+    const periodo = obtenerPeriodo(fechaNormalizada);
     
-    // Buscar si ya existe una caja para este día
-    const inicioDia = new Date(fechaNormalizada);
-    const finDia = new Date(fechaNormalizada);
-    finDia.setDate(finDia.getDate() + 1);
-
-    const qMismoDia = query(
-      cajasRef,
-      where('fecha', '>=', inicioDia),
-      where('fecha', '<', finDia)
+    // Usar día 1 del mes con la HORA ACTUAL (para trazabilidad histórica)
+    const ahora = new Date();
+    const fechaCajaBanco = new Date(
+      periodo.year, 
+      periodo.monthIndex0, 
+      1, 
+      ahora.getHours(), 
+      ahora.getMinutes(), 
+      ahora.getSeconds(), 
+      ahora.getMilliseconds()
     );
-    const snapMismoDia = await getDocs(qMismoDia);
-
-    // Si ya existe, actualizar; si no, crear
-    if (!snapMismoDia.empty) {
-      const cajaExistente = snapMismoDia.docs[0];
-      await updateDoc(doc(this.firestore, `cajas_banco/${cajaExistente.id}`), {
-        saldo_actual: caja.saldo_actual ?? caja.saldo_inicial ?? 0,
-        estado: caja.estado || 'ABIERTA',
-        usuario_nombre: caja.usuario_nombre,
-        observacion: caja.observacion || '',
-        updatedAt: Timestamp.now(),
-      });
-      return cajaExistente.id;
+    
+    console.log(`📅 Creando caja banco para periodo: ${periodo.year}-${periodo.monthIndex1.toString().padStart(2, '0')}`);
+    
+    // VALIDACIÓN 1: Verificar que NO haya ninguna caja banco ABIERTA
+    const qCajasAbiertas = query(
+      cajasRef,
+      where('estado', '==', 'ABIERTA')
+    );
+    const snapCajasAbiertas = await getDocs(qCajasAbiertas);
+    
+    const cajasAbiertas = snapCajasAbiertas.docs.filter(doc => {
+      const c = doc.data() as CajaBanco;
+      return c.activo !== false;
+    });
+    
+    if (cajasAbiertas.length > 0) {
+      const cajaAbierta = cajasAbiertas[0].data() as CajaBanco;
+      const periodoAbierto = obtenerPeriodo(cajaAbierta.fecha);
+      throw new Error(`Ya existe una caja banco ABIERTA para el periodo ${periodoAbierto.year}-${periodoAbierto.monthIndex1.toString().padStart(2, '0')}. Debes cerrarla antes de crear una nueva.`);
+    }
+    
+    // VALIDACIÓN 2: Verificar que NO exista ya una caja para este periodo específico (ABIERTA o CERRADA)
+    const { inicio, fin } = rangoPeriodo(periodo.year, periodo.monthIndex0);
+    const qMismoPeriodo = query(
+      cajasRef,
+      where('fecha', '>=', inicio),
+      where('fecha', '<', fin)
+    );
+    const snapMismoPeriodo = await getDocs(qMismoPeriodo);
+    
+    // Buscar TODAS las cajas activas del mismo periodo
+    const cajasExistentes = snapMismoPeriodo.docs.filter(doc => {
+      const c = doc.data() as CajaBanco;
+      return c.activo !== false;
+    });
+    
+    if (cajasExistentes.length > 0) {
+      const estadoCaja = cajasExistentes[0].data() as CajaBanco;
+      throw new Error(`Ya existe una caja banco para el periodo ${periodo.year}-${periodo.monthIndex1.toString().padStart(2, '0')} (Estado: ${estadoCaja.estado})`);
+    }
+    
+    // Determinar saldo_inicial:
+    // 1. Si se proporciona explícitamente (y es > 0), usarlo (creación inicial/manual)
+    // 2. Si no, buscar la última caja CERRADA cronológicamente anterior
+    let saldoInicial: number | undefined = undefined;
+    
+    // Solo usar saldo_inicial si es un número válido > 0 o exactamente 0 (inicio sin fondos)
+    if (caja.saldo_inicial !== undefined && caja.saldo_inicial !== null && typeof caja.saldo_inicial === 'number') {
+      saldoInicial = caja.saldo_inicial;
+      console.log(`💵 Usando saldo inicial manual: ${saldoInicial}`);
     } else {
-      // Determinar saldo_inicial:
-      // 1. Si se proporciona explícitamente, usarlo
-      // 2. Si no, buscar la caja anterior cerrada (auto-herencia)
-      let saldoInicial = caja.saldo_inicial !== undefined && caja.saldo_inicial !== null 
-        ? caja.saldo_inicial 
-        : undefined;
-      
-      // Si no se proporciono saldo_inicial, intentar heredar del mes anterior
-      if (saldoInicial === undefined) {
-        const mesAnterior = new Date(fechaNormalizada);
-        mesAnterior.setMonth(mesAnterior.getMonth() - 1);
-        
-        const inicioMesAnterior = new Date(mesAnterior.getFullYear(), mesAnterior.getMonth(), 1);
-        const inicioMesActual = new Date(fechaNormalizada.getFullYear(), fechaNormalizada.getMonth(), 1);
-        
-        const qMesAnterior = query(
-          cajasRef,
-          where('fecha', '>=', inicioMesAnterior),
-          where('fecha', '<', inicioMesActual),
-          where('estado', '==', 'CERRADA')
-        );
-        
-        const snapMesAnterior = await getDocs(qMesAnterior);
-        if (!snapMesAnterior.empty) {
-          // Obtener la caja más reciente del mes anterior (cerrada)
-          const cajasOrdenadas = snapMesAnterior.docs
-            .map(doc => doc.data() as CajaBanco)
-            .sort((a, b) => {
-              const timeA = (a.fecha as any).toMillis?.() || 0;
-              const timeB = (b.fecha as any).toMillis?.() || 0;
-              return timeB - timeA;
-            });
-          
-          if (cajasOrdenadas.length > 0) {
-            saldoInicial = cajasOrdenadas[0].saldo_actual || 0;
-          }
-        }
-      }
-      
-      // Si aún no hay saldo, usar 0
-      if (saldoInicial === undefined) {
-        saldoInicial = 0;
-      }
-      
-      // Crear nueva caja
-      const nuevaCaja: CajaBanco = {
-        fecha: fechaNormalizada,
-        saldo_inicial: saldoInicial,
-        saldo_actual: saldoInicial,
-        estado: caja.estado || 'ABIERTA',
-        usuario_id: caja.usuario_id,
-        usuario_nombre: caja.usuario_nombre,
-        observacion: caja.observacion || '',
-        activo: true,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      };
+      // Buscar herencia de periodo anterior
+      console.log('🔍 Buscando saldo de periodo anterior...');
+      saldoInicial = await this.obtenerSaldoInicialDesdePeriodoAnterior(fechaCajaBanco);
+    }
+    
+    // Si aún no hay saldo (primera caja del sistema), usar 0
+    if (saldoInicial === undefined || saldoInicial === null) {
+      saldoInicial = 0;
+    }
+    
+    console.log(`💰 Saldo inicial determinado: ${saldoInicial}`);
+    
+    // Crear nueva caja banco para el periodo
+    const nuevaCaja: CajaBanco = {
+      fecha: fechaCajaBanco,
+      saldo_inicial: saldoInicial,
+      saldo_actual: saldoInicial,
+      estado: caja.estado || 'ABIERTA',
+      usuario_id: caja.usuario_id,
+      usuario_nombre: caja.usuario_nombre,
+      observacion: caja.observacion || '',
+      activo: true,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    };
 
-      const docRef = await addDoc(cajasRef, nuevaCaja);
-      return docRef.id;
+    const docRef = await addDoc(cajasRef, nuevaCaja);
+    console.log(`✅ Caja banco creada exitosamente con ID: ${docRef.id}`);
+    
+    return docRef.id;
+  }
+
+  /**
+   * Obtiene el saldo final de la última caja banco CERRADA cronológicamente anterior a una fecha.
+   * Busca en TODAS las cajas banco cerradas y retorna el saldo de la más reciente.
+   * 
+   * @param fechaReferencia Fecha de referencia para buscar periodos anteriores.
+   * @returns Promise<number | undefined> Saldo final de la caja anterior o undefined.
+   */
+  private async obtenerSaldoInicialDesdePeriodoAnterior(fechaReferencia: Date): Promise<number | undefined> {
+    try {
+      const cajasRef = collection(this.firestore, 'cajas_banco');
+      
+      console.log(`🔍 Buscando cajas cerradas anteriores a ${fechaReferencia.toISOString()}`);
+      
+      // Obtener TODAS las cajas banco (sin filtros complejos para evitar problemas de índice)
+      const q = query(cajasRef, where('estado', '==', 'CERRADA'));
+      const snapshot = await getDocs(q);
+      
+      console.log(`📋 Encontradas ${snapshot.size} cajas cerradas en total`);
+      
+      if (snapshot.empty) {
+        console.log('ℹ️ No hay cajas banco cerradas. Es la primera caja.');
+        return undefined;
+      }
+      
+      // Filtrar manualmente: activas, anteriores a fechaReferencia, ordenar cronológicamente
+      const cajasAnteriores = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as CajaBanco))
+        .filter(c => {
+          const esActiva = c.activo !== false;
+          const fechaCaja = normalizarFecha(c.fecha);
+          const esAnterior = fechaCaja.getTime() < fechaReferencia.getTime();
+          
+          console.log(`  📦 Caja ${c.id}: ${fechaCaja.toISOString().split('T')[0]} - Activa: ${esActiva}, Anterior: ${esAnterior}, Saldo: ${c.saldo_actual}`);
+          
+          return esActiva && esAnterior;
+        })
+        .sort((a, b) => {
+          const fechaA = normalizarFecha(a.fecha);
+          const fechaB = normalizarFecha(b.fecha);
+          return fechaB.getTime() - fechaA.getTime(); // Descendente (más reciente primero)
+        });
+      
+      console.log(`✔️ ${cajasAnteriores.length} cajas cerradas válidas encontradas`);
+      
+      if (cajasAnteriores.length > 0) {
+        const cajaAnterior = cajasAnteriores[0];
+        const periodoAnterior = obtenerPeriodo(cajaAnterior.fecha);
+        const saldoHeredado = cajaAnterior.saldo_actual ?? 0;
+        
+        console.log(`✅ Heredando saldo de periodo anterior: ${periodoAnterior.year}-${periodoAnterior.monthIndex1.toString().padStart(2, '0')} (${normalizarFecha(cajaAnterior.fecha).toISOString().split('T')[0]}) → ${saldoHeredado} USD`);
+        
+        return saldoHeredado;
+      }
+      
+      console.log('⚠️ No se encontraron cajas anteriores válidas');
+      return undefined;
+    } catch (error) {
+      console.error('❌ Error obteniendo saldo de periodo anterior:', error);
+      return undefined;
     }
   }
 
@@ -434,9 +575,14 @@ export class CajaBancoService {
    */
   async cerrarCajaBanco(cajaBancoId: string, montoFinal?: number): Promise<void> {
     try {
+      // Obtener usuario actual
+      const usuarioActual = this.authService.getCurrentUser();
+      
       await updateDoc(doc(this.firestore, `cajas_banco/${cajaBancoId}`), {
         estado: 'CERRADA',
         cerrado_en: Timestamp.now(),
+        cerrado_por_id: usuarioActual?.id || '',
+        cerrado_por_nombre: usuarioActual?.nombre || 'Usuario',
         updatedAt: Timestamp.now(),
         ...(montoFinal !== undefined && { saldo_actual: montoFinal }),
       });
@@ -591,8 +737,8 @@ export class CajaBancoService {
   }
 
   /**
-   * Registra una transferencia bancaria de cliente como ingreso en la caja banco activa del mes.
-   * Busca automáticamente la caja banco ABIERTA del mes actual.
+   * Registra una transferencia bancaria de cliente como ingreso en cualquier caja banco ABIERTA.
+   * Busca automáticamente la caja banco ABIERTA más reciente (puede ser histórica).
    *
    * @param monto Monto transferido.
    * @param codigoTransferencia Número de referencia de la transferencia.
@@ -600,7 +746,7 @@ export class CajaBancoService {
    * @param usuarioId ID del usuario que registra.
    * @param usuarioNombre Nombre del usuario.
    * @returns Promise<string> ID del movimiento creado.
-   * @throws Error si no hay caja banco abierta para el mes actual.
+   * @throws Error si no hay ninguna caja banco abierta.
    */
   async registrarTransferenciaCliente(
     monto: number,
@@ -609,11 +755,11 @@ export class CajaBancoService {
     usuarioId?: string,
     usuarioNombre?: string
   ): Promise<string> {
-    // Obtener la caja banco ABIERTA del mes actual
-    const cajaBancoActiva = await this.getCajaBancoActivaMes();
+    // Obtener CUALQUIER caja banco ABIERTA (histórica o actual)
+    const cajaBancoActiva = await this.getCajaBancoAbierta();
     
     if (!cajaBancoActiva || !cajaBancoActiva.id) {
-      throw new Error('No hay una caja banco abierta para este mes. No se puede registrar la transferencia.');
+      throw new Error('No hay ninguna caja banco abierta. No se puede registrar la transferencia.');
     }
 
     const movimiento: MovimientoCajaBanco = {
@@ -640,11 +786,11 @@ export class CajaBancoService {
     usuarioId?: string,
     usuarioNombre?: string
   ): Promise<string> {
-    // Obtener la caja banco ABIERTA del mes actual
-    const cajaBancoActiva = await this.getCajaBancoActivaMes();
+    // Obtener CUALQUIER caja banco ABIERTA (histórica o actual)
+    const cajaBancoActiva = await this.getCajaBancoAbierta();
     
     if (!cajaBancoActiva || !cajaBancoActiva.id) {
-      throw new Error('No hay una caja banco abierta para este mes. No se puede registrar el pago por tarjeta.');
+      throw new Error('No hay ninguna caja banco abierta. No se puede registrar el pago por tarjeta.');
     }
 
     const movimiento: MovimientoCajaBanco = {

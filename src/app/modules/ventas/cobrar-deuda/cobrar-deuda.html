@@ -170,7 +170,7 @@
                                 <label class="form-label">Abono</label>
                                 <div class="input-with-currency">
                                     <span class="currency-prefix">$</span>
-                                    <input class="form-control input-with-prefix" type="number" min="0" max="{{ facturaSeleccionada.saldoPendiente || 0 }}" step="0.01" [ngModel]="abono" (ngModelChange)="onChangeAbono($event)" placeholder="0.00" />
+                                    <input class="form-control input-with-prefix" type="number" min="0" step="0.01" [ngModel]="abono" (ngModelChange)="onChangeAbono($event)" placeholder="0.00" />
                                 </div>
                                 <span class="max-amount-hint">
                   Máx: ${{ (facturaSeleccionada.saldoPendiente || 0) | number:'1.2-2' }}
@@ -202,11 +202,6 @@
                             <strong>${{ saldoNuevo.toFixed(2) }}</strong>
                         </div>
 
-                        <div class="total-row" *ngIf="abono > (facturaSeleccionada?.saldoPendiente || 0)">
-                            <span>Vuelto</span>
-                            <strong style="color: #28a745;">${{ (abono - (facturaSeleccionada?.saldoPendiente || 0)).toFixed(2) }}</strong>
-                        </div>
-
                         <!-- ✅ CRÉDITO PERSONAL - CONTROL SIEMPRE DISPONIBLE -->
                         <div class="metodo-pago" *ngIf="facturaSeleccionada">
                             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0; padding: 8px;">
@@ -227,6 +222,16 @@
               </select>
                         </div>
 
+                        <!-- 💵 VUELTO A ENTREGAR (solo si es efectivo y abono > saldo) -->
+                        <div class="metodo-pago" *ngIf="metodoPago === 'Efectivo' && vuelto > 0" style="background-color: #e8f5e9; border: 2px solid #4caf50; padding: 12px; border-radius: 6px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-weight: 600; color: #2e7d32;">🔄 VUELTO A ENTREGAR:</span>
+                                <span style="font-size: 1.5rem; font-weight: 700; color: #4caf50;">
+                                    ${{ vuelto | number:'1.2-2' }}
+                                </span>
+                            </div>
+                        </div>
+
                         <!-- ✅ CÓDIGO DE TRANSFERENCIA (solo si es transferencia) -->
                         <div class="metodo-pago" *ngIf="metodoPago === 'Transferencia'">
                             <label>Código de Transferencia</label>
@@ -241,11 +246,11 @@
                             <small class="muted">Últimos 4 dígitos de la tarjeta de crédito/débito</small>
                         </div>
 
-                        <div class="total-row" *ngIf="saldoNuevo <= 0">
+                        <div class="total-row" *ngIf="saldoNuevo <= 0" style="margin-top: 20px;">
                             <span>Estado</span>
                             <strong class="badge badge-success">✅ Pagada</strong>
                         </div>
-                        <div class="total-row" *ngIf="saldoNuevo > 0">
+                        <div class="total-row" *ngIf="saldoNuevo > 0" style="margin-top: 20px;">
                             <span>Estado</span>
                             <strong class="badge badge-danger">⚠ Pendiente</strong>
                         </div>

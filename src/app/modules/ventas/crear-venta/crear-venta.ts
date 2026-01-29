@@ -61,6 +61,9 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   metodoPago = 'Efectivo';
   codigoTransferencia = ''; // Código de transferencia bancaria
   ultimosCuatroTarjeta = ''; // Últimos 4 dígitos de la tarjeta
+  
+  // 💵 VUELTO (solo visual para efectivo)
+  montoRecibido = 0; // Cuánto dinero entrega el cliente
 
   // ✅ CRÉDITO PERSONAL
   esCredito = false; // Checkbox para venta a crédito personal
@@ -84,6 +87,17 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     } else {
       this._descuentoPorcentaje = Number(value || 0);
     }
+  }
+
+  /**
+   * Calcula el vuelto automáticamente
+   * Vuelto = Abono - Total (solo si el abono es mayor)
+   */
+  get vuelto(): number {
+    if (this.metodoPago !== 'Efectivo') return 0;
+    const abonoActual = Number(this.abono || 0);
+    const totalAPagar = this.total;
+    return Math.max(0, abonoActual - totalAPagar);
   }
 
   // Getter y Setter para abono (limpia "0" inicial)
@@ -111,46 +125,21 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   ) {}
 
   async ngOnInit() {
-    // 🔒 VALIDACIÓN CRÍTICA: Verificar estado detallado de caja chica para hoy
+    // 🔒 VALIDACIÓN CRÍTICA: Verificar que exista alguna caja chica ABIERTA
     try {
-      const validacion = await this.cajaChicaService.validarCajaChicaHoy();
+      const validacion = await this.cajaChicaService.validarCajaAbierta();
       
       // ✅ Caja ABIERTA - Permitir entrada
-      if (validacion.valida && validacion.tipo === 'ABIERTA') {
+      if (validacion.valida) {
         // Continuamos con la carga normal
       } 
-      // ❌ Caja CERRADA - Bloquear con mensaje específico
-      else if (validacion.tipo === 'CERRADA') {
-        let fechaDisplay = 'hoy';
-        if (validacion.caja?.fecha) {
-          try {
-            const fecha = validacion.caja.fecha instanceof Date ? validacion.caja.fecha : (validacion.caja.fecha as any).toDate?.() || new Date(validacion.caja.fecha);
-            if (!isNaN(fecha.getTime())) {
-              fechaDisplay = fecha.toLocaleDateString('es-ES');
-            }
-          } catch (e) {
-            fechaDisplay = 'hoy';
-          }
-        }
-        await Swal.fire({
-          icon: 'error',
-          title: 'Caja Chica Cerrada',
-          text: `La caja chica de ${fechaDisplay} ya fue cerrada. No se pueden crear ventas con una caja cerrada.`,
-          confirmButtonText: 'Abrir Nueva Caja Chica',
-          allowOutsideClick: false,
-          allowEscapeKey: false
-        }).then(() => {
-          this.router.navigate(['/caja-chica']);
-        });
-        return;
-      }
-      // ❌ NO EXISTE caja para hoy - Bloquear con indicación de crear
+      // ❌ NO existe caja ABIERTA
       else {
         await Swal.fire({
           icon: 'error',
-          title: 'Caja Chica No Encontrada',
-          text: 'No hay una caja chica abierta para hoy. Debe crear una caja chica antes de poder registrar ventas.',
-          confirmButtonText: 'Crear Caja Chica',
+          title: 'Caja Chica Requerida',
+          text: 'Debe tener al menos una caja chica ABIERTA para crear ventas (puede ser de cualquier fecha).',
+          confirmButtonText: 'Ir a Caja Chica',
           allowOutsideClick: false,
           allowEscapeKey: false
         }).then(() => {
@@ -435,9 +424,17 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   recalcularAbono() {
     // El setter ya limpia el "0" inicial automáticamente
     const a = Math.max(0, this._abono);
-    // no permitir que el abono supere el total
-    this._abono = Math.min(a, this.total);
-    this.saldoPendiente = +(this.total - this._abono).toFixed(2);
+    
+    // ✅ CAMBIO: Permitir que el abono sea mayor al total (para calcular vuelto)
+    // Solo limitar si NO es crédito Y NO es efectivo (evitar errores en transferencia/tarjeta)
+    if (!this.esCredito && this.metodoPago !== 'Efectivo') {
+      this._abono = Math.min(a, this.total);
+    } else {
+      this._abono = a; // Permitir cualquier valor para efectivo
+    }
+    
+    // ✅ Saldo pendiente nunca debe ser negativo (si abono > total, saldo = 0)
+    this.saldoPendiente = Math.max(0, +(this.total - this._abono).toFixed(2));
   }
 
   // ✅ Navegación por Enter entre inputs
@@ -755,11 +752,11 @@ async guardarEImprimir() {
     if (this.metodoPago === 'Efectivo' && abonado > 0) {
       // 💵 Venta en EFECTIVO → Registrar en Caja Chica (solo lo que se pagó)
       try {
-        // Obtener de localStorage la caja abierta
-        const cajaAbiertaId = localStorage.getItem('cajaChicaAbierta');
-        if (cajaAbiertaId) {
+        // Buscar cualquier caja ABIERTA (histórica o actual)
+        const caja = await this.cajaChicaService.getCajaAbierta();
+        if (caja?.id) {
           const movimiento: any = {
-            caja_chica_id: cajaAbiertaId,
+            caja_chica_id: caja.id,
             fecha: new Date(),
             tipo: 'INGRESO' as const,
             descripcion: `Venta #${facturaId} - ${this.cliente?.nombres || 'Cliente'}`,
@@ -772,7 +769,7 @@ async guardarEImprimir() {
             movimiento.usuario_nombre = usuario.nombre || 'Usuario';
           }
           
-          await this.cajaChicaService.registrarMovimiento(cajaAbiertaId, movimiento);
+          await this.cajaChicaService.registrarMovimiento(caja.id, movimiento);
           console.log('✅ Venta registrada en Caja Chica:', abonado);
         } else {
           console.warn('⚠️ No hay Caja Chica abierta. Abre una caja primero.');
@@ -783,14 +780,16 @@ async guardarEImprimir() {
     } else if (this.metodoPago === 'Transferencia' && this.codigoTransferencia.trim()) {
       // 🏦 Venta por TRANSFERENCIA → Registrar en Caja Banco
       try {
+        // Registrar el monto realmente pagado (abono), no el total de la venta
+        const montoPagado = this._abono > 0 ? this._abono : this.total;
         await this.cajaBancoService.registrarTransferenciaCliente(
-          this.total,
+          montoPagado,
           this.codigoTransferencia,
           facturaId,
           usuario?.id || '',
           usuario?.nombre || 'Usuario'
         );
-        console.log('✅ Transferencia registrada en Caja Banco');
+        console.log(`✅ Transferencia registrada en Caja Banco: ${montoPagado} USD`);
       } catch (err) {
         console.error('❌ Error registrando transferencia en Caja Banco:', err);
         Swal.fire({
@@ -803,14 +802,16 @@ async guardarEImprimir() {
     } else if (this.metodoPago === 'Tarjeta' && this.ultimosCuatroTarjeta.trim()) {
       // 💳 Venta por TARJETA → Registrar en Caja Banco
       try {
+        // Registrar el monto realmente pagado (abono), no el total de la venta
+        const montoPagado = this._abono > 0 ? this._abono : this.total;
         await this.cajaBancoService.registrarPagoTarjeta(
-          this.total,
+          montoPagado,
           this.ultimosCuatroTarjeta,
           facturaId,
           usuario?.id || '',
           usuario?.nombre || 'Usuario'
         );
-        console.log('✅ Pago por tarjeta registrado en Caja Banco');
+        console.log(`✅ Pago por tarjeta registrado en Caja Banco: ${montoPagado} USD`);
       } catch (err) {
         console.error('❌ Error registrando pago por tarjeta en Caja Banco:', err);
         Swal.fire({
@@ -827,12 +828,18 @@ async guardarEImprimir() {
       try {
         await this.productosSrv.descontarStock(it.productoId, it.cantidad);
       } catch (err) {
-        console.error('Error descontando stock', err);
-        Swal.fire({
-          icon: 'error',
-          title: 'Stock no actualizado',
-          text: `Ocurrió un problema al actualizar el stock del producto "${it.nombre}". Por favor verifica manualmente.`,
-        });
+        // Solo mostrar error si NO es un producto con stock ilimitado
+        const prodActual: any = await firstValueFrom(this.productosSrv.getProductoById(it.productoId));
+        const tipoControl = prodActual?.tipo_control_stock || 'NORMAL';
+        
+        if (tipoControl !== 'ILIMITADO') {
+          console.error('Error descontando stock', err);
+          Swal.fire({
+            icon: 'error',
+            title: 'Stock no actualizado',
+            text: `Ocurrió un problema al actualizar el stock del producto "${it.nombre}". Por favor verifica manualmente.`,
+          });
+        }
       }
     }
 
@@ -852,10 +859,12 @@ async guardarEImprimir() {
       fecha: convertirTimestamp(factura.fecha)
     };
 
-    // Imprimir sin mostrar vista previa
-    setTimeout(() => this.imprimirTicket(), 0);
+    // Esperar a que Angular renderice el DOM del ticket antes de imprimir
+    setTimeout(() => {
+      this.imprimirTicket();
+    }, 200);
 
-    // ✅ Mostrar mensaje de éxito y redirigir
+    // ✅ Mostrar mensaje de éxito y redirigir (después de dar tiempo a la impresión)
     setTimeout(() => {
       Swal.fire({
         icon: 'success',

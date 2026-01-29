@@ -70,28 +70,25 @@ export const cajaChicaGuard: CanActivateFn = async (route, state) => {
   const router = inject(Router);
   const cajaChicaService = inject(CajaChicaService);
 
-  // Verificar si hay una caja chica abierta en localStorage (validación rápida)
-  let cajaChicaAbierta = localStorage.getItem('cajaChicaAbierta');
+  // ✅ NUEVO: Validar si existe CUALQUIER caja ABIERTA (no solo del día actual)
+  // Esto permite ventas con cajas históricas
+  const validacion = await cajaChicaService.validarCajaAbierta();
   
-  // Si localStorage no tiene ID, buscar en Firestore (validación definitiva)
-  if (!cajaChicaAbierta) {
-    const existeEnFirestore = await cajaChicaService.existeCajaAbiertaHoy();
-    if (!existeEnFirestore) {
-      // Mostrar alerta informativa con opción de ir a caja chica
-      Swal.fire({
-        icon: 'error',
-        title: 'Caja Chica Requerida',
-        text: 'Debe crear primero la caja chica de este día para empezar con una nueva venta',
-        confirmButtonText: 'Ir a Caja Chica',
-        allowOutsideClick: false,
-        allowEscapeKey: false
-      }).then((result) => {
-        if (result.isConfirmed) {
-          router.navigate(['/caja-chica']);
-        }
-      });
-      return false;
-    }
+  if (!validacion.valida) {
+    // Mostrar alerta informativa con opción de ir a caja chica
+    Swal.fire({
+      icon: 'error',
+      title: 'Caja Chica Requerida',
+      text: 'Debe tener al menos una caja chica ABIERTA para realizar ventas (puede ser de cualquier fecha)',
+      confirmButtonText: 'Ir a Caja Chica',
+      allowOutsideClick: false,
+      allowEscapeKey: false
+    }).then((result) => {
+      if (result.isConfirmed) {
+        router.navigate(['/caja-chica']);
+      }
+    });
+    return false;
   }
 
   return true;
