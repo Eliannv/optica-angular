@@ -62,7 +62,11 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   codigoTransferencia = ''; // Código de transferencia bancaria
   ultimosCuatroTarjeta = ''; // Últimos 4 dígitos de la tarjeta
   
-  // 💵 VUELTO (solo visual para efectivo)
+  // � FECHA Y HORA DE PAGO
+  horaPago = ''; // Hora del pago (HH:mm) - para todos los métodos
+  fechaPago = ''; // Fecha del pago (YYYY-MM-DD) - solo para transferencia/tarjeta
+  
+  // �💵 VUELTO (solo visual para efectivo)
   montoRecibido = 0; // Cuánto dinero entrega el cliente
 
   // ✅ CRÉDITO PERSONAL
@@ -125,7 +129,10 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   ) {}
 
   async ngOnInit() {
-    // 🔒 VALIDACIÓN CRÍTICA: Verificar que exista alguna caja chica ABIERTA
+    // � Inicializar fecha y hora por defecto
+    this.inicializarFechaHora();
+    
+    // �🔒 VALIDACIÓN CRÍTICA: Verificar que exista alguna caja chica ABIERTA
     try {
       const validacion = await this.cajaChicaService.validarCajaAbierta();
       
@@ -626,6 +633,25 @@ private toNumber(v: any): number {
     return String(p.stock || 0);
   }
 
+  /**
+   * Inicializa los campos de fecha y hora con valores actuales
+   */
+  inicializarFechaHora(): void {
+    const ahora = new Date();
+    
+    // Formato HH:mm:ss para hora
+    const horas = ahora.getHours().toString().padStart(2, '0');
+    const minutos = ahora.getMinutes().toString().padStart(2, '0');
+    const segundos = ahora.getSeconds().toString().padStart(2, '0');
+    this.horaPago = `${horas}:${minutos}:${segundos}`;
+    
+    // Formato YYYY-MM-DD para fecha
+    const año = ahora.getFullYear();
+    const mes = (ahora.getMonth() + 1).toString().padStart(2, '0');
+    const dia = ahora.getDate().toString().padStart(2, '0');
+    this.fechaPago = `${año}-${mes}-${dia}`;
+  }
+
   cambiarCantidad(it: any, cantidad: number) {
     const max = Number(it?.stockDisponible ?? Number.POSITIVE_INFINITY);
     let c = Math.max(1, Number(cantidad || 1));
@@ -704,6 +730,67 @@ async guardarEImprimir() {
     const abonado = this.esCredito ? Math.max(0, Number(this.abono || 0)) : Math.min(Math.max(0, Number(this.abono || 0)), this.total);
     const saldoPendiente = +(this.total - abonado).toFixed(2);
 
+    // 🕐 CONSTRUIR FECHA FINAL CON HORA
+    let fechaFinal: Date;
+    
+    console.log('🔍 DEBUG - Método de pago:', this.metodoPago);
+    console.log('🔍 DEBUG - horaPago:', this.horaPago);
+    console.log('🔍 DEBUG - fechaPago:', this.fechaPago);
+    
+    if (this.metodoPago === 'Efectivo') {
+      // Para efectivo: usar fecha de caja chica + hora seleccionada
+      try {
+        const cajaAbierta = await this.cajaChicaService.getCajaAbierta();
+        console.log('📅 Caja abierta obtenida:', cajaAbierta);
+        
+        if (cajaAbierta?.fecha) {
+          // Convertir correctamente Timestamp de Firestore a Date
+          let fechaCaja: Date;
+          if ((cajaAbierta.fecha as any).toDate) {
+            // Es un Timestamp de Firestore
+            fechaCaja = (cajaAbierta.fecha as any).toDate();
+          } else if (cajaAbierta.fecha instanceof Date) {
+            fechaCaja = cajaAbierta.fecha;
+          } else {
+            fechaCaja = new Date(cajaAbierta.fecha);
+          }
+          
+          console.log('📅 Fecha de caja convertida:', fechaCaja);
+          console.log('🕐 Hora de pago seleccionada:', this.horaPago);
+          
+          fechaFinal = this.combinarFechaHora(fechaCaja, this.horaPago);
+          console.log('✅ Fecha final EFECTIVO combinada:', fechaFinal);
+        } else {
+          console.warn('⚠️ No hay fecha en caja, usando fecha actual');
+          fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
+        }
+      } catch (err) {
+        console.error('❌ Error obteniendo fecha de caja chica:', err);
+        fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
+      }
+    } else {
+      // Para transferencia/tarjeta: usar fecha y hora seleccionadas
+      console.log('💳 Usando fecha/hora seleccionadas manualmente');
+      fechaFinal = this.combinarFechaHora(this.fechaPago, this.horaPago);
+      console.log('✅ Fecha final TRANSFERENCIA/TARJETA combinada:', fechaFinal);
+    }
+    
+    console.log('🎯 FECHA FINAL QUE SE GUARDARÁ:', fechaFinal);
+    
+    // Validar que fechaFinal sea válida
+    if (!fechaFinal || !(fechaFinal instanceof Date) || isNaN(fechaFinal.getTime())) {
+      console.error('❌ ERROR: fechaFinal no es válida:', fechaFinal);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error de fecha',
+        text: 'La fecha de la venta no es válida. Por favor intenta de nuevo.'
+      });
+      this.guardando = false;
+      return;
+    }
+    
+    console.log('✅ Fecha validada (Date):', fechaFinal);
+
     // ✅ CREAR FACTURA CON DATOS DE CRÉDITO
     const factura: any = {
       clienteId: this.clienteId,
@@ -730,7 +817,7 @@ async guardarEImprimir() {
 
       metodoPago: this.metodoPago,
       codigoTransferencia: this.metodoPago === 'Transferencia' ? this.codigoTransferencia : undefined,
-      fecha: new Date(),
+      fecha: fechaFinal,  // Firestore convertirá Date a Timestamp automáticamente
       usuarioId: 'admin',
 
       // ✅ NUEVO: DATOS DE CRÉDITO PERSONAL
@@ -742,7 +829,15 @@ async guardarEImprimir() {
       estadoCredito: this.esCredito && saldoPendiente > 0 ? 'ACTIVO' : 'CANCELADO'
     };
 
+    console.log('📄 FACTURA A GUARDAR:', factura);
+    console.log('📄 Fecha en factura:', factura.fecha);
+    console.log('📄 Tipo de fecha:', typeof factura.fecha, factura.fecha instanceof Date);
+    
     const facturaLimpia = this.cleanUndefined(factura);
+    console.log('📄 FACTURA LIMPIA:', facturaLimpia);
+    console.log('📄 Fecha en factura limpia:', facturaLimpia.fecha);
+    console.log('📄 Tipo de fecha limpia:', typeof facturaLimpia.fecha);
+    
     const ref = await this.facturasSrv.crearFactura(facturaLimpia);
 
     // ✅ REGISTRAR AUTOMÁTICAMENTE EN CAJA CHICA O CAJA BANCO
@@ -757,7 +852,7 @@ async guardarEImprimir() {
         if (caja?.id) {
           const movimiento: any = {
             caja_chica_id: caja.id,
-            fecha: new Date(),
+            fecha: fechaFinal,
             tipo: 'INGRESO' as const,
             descripcion: `Venta #${facturaId} - ${this.cliente?.nombres || 'Cliente'}`,
             monto: abonado,
@@ -893,6 +988,9 @@ async guardarEImprimir() {
 private cleanUndefined(obj: any): any {
   if (obj === null || obj === undefined) return null;
 
+  // No procesar Date - devolverlo tal cual
+  if (obj instanceof Date) return obj;
+
   if (Array.isArray(obj)) {
     return obj.map(v => this.cleanUndefined(v));
   }
@@ -987,6 +1085,43 @@ private cleanUndefined(obj: any): any {
     } else {
       w.onload = () => setTimeout(triggerPrint, 150);
     }
+  }
+
+  /**
+   * Combina una fecha con una hora para crear un Date válido
+   * @param fecha - Fecha como string (YYYY-MM-DD) o Date
+   * @param hora - Hora como string (HH:mm:ss)
+   * @returns Date con fecha y hora combinadas
+   */
+  combinarFechaHora(fecha: string | Date, hora: string): Date {
+    let fechaBase: Date;
+    
+    if (typeof fecha === 'string') {
+      // Parsear string YYYY-MM-DD y crear Date con hora 00:00:00 local
+      const partes = fecha.split('-');
+      const año = parseInt(partes[0]);
+      const mes = parseInt(partes[1]) - 1; // Meses 0-indexed en Date
+      const dia = parseInt(partes[2]);
+      fechaBase = new Date(año, mes, dia, 0, 0, 0, 0);
+    } else {
+      // Clonar Date y resetear hora a 00:00:00
+      fechaBase = new Date(fecha);
+      fechaBase.setHours(0, 0, 0, 0);
+    }
+    
+    // Parsear hora HH:mm:ss
+    const partesHora = hora.split(':');
+    const horas = parseInt(partesHora[0] || '0');
+    const minutos = parseInt(partesHora[1] || '0');
+    const segundos = parseInt(partesHora[2] || '0');
+    
+    // Establecer la hora específica (esto NO causa conversión de zona horaria)
+    fechaBase.setHours(horas, minutos, segundos, 0);
+    
+    console.log(`🔧 combinarFechaHora entrada: fecha=${fecha}, hora=${hora}`);
+    console.log(`🔧 combinarFechaHora resultado: ${fechaBase.toLocaleString()} (${fechaBase.toISOString()})`);
+    
+    return fechaBase;
   }
 
   volver() {

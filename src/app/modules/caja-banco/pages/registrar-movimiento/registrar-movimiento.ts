@@ -93,6 +93,10 @@ export class RegistrarMovimientoComponent implements OnInit {
 
   /** Saldo restante del proveedor después de pago */
   deudaRestante = 0;
+  
+  // 🕐 Fecha y hora del movimiento
+  fechaMovimiento = ''; // Fecha del movimiento (YYYY-MM-DD)
+  horaMovimiento = ''; // Hora del movimiento (HH:mm:ss)
 
   /** Categorías disponibles para ingresos */
   categorias_ingresos = ['CIERRE_CAJA_CHICA', 'TRANSFERENCIA_CLIENTE', 'OTRO_INGRESO'];
@@ -113,6 +117,9 @@ export class RegistrarMovimientoComponent implements OnInit {
    * 4. Carga listas de clientes, empleados y proveedores
    */
   ngOnInit(): void {
+    // 🕐 Inicializar fecha y hora por defecto
+    this.inicializarFechaHora();
+    
     // Capturar el cajaId del estado del router - usar sessionStorage como fallback
     const navigation = this.router.getCurrentNavigation();
     if (navigation?.extras.state?.['cajaId']) {
@@ -151,12 +158,28 @@ export class RegistrarMovimientoComponent implements OnInit {
    * - Cambio de monto: recalcula deuda restante (si aplica)
    */
   inicializarFormulario(): void {
+    const ahora = new Date();
+    
+    // Formato HH:mm:ss para hora
+    const horas = ahora.getHours().toString().padStart(2, '0');
+    const minutos = ahora.getMinutes().toString().padStart(2, '0');
+    const segundos = ahora.getSeconds().toString().padStart(2, '0');
+    const horaActual = `${horas}:${minutos}:${segundos}`;
+    
+    // Formato YYYY-MM-DD para fecha
+    const año = ahora.getFullYear();
+    const mes = (ahora.getMonth() + 1).toString().padStart(2, '0');
+    const dia = ahora.getDate().toString().padStart(2, '0');
+    const fechaActual = `${año}-${mes}-${dia}`;
+
     this.formulario = this.fb.group({
       tipo: ['INGRESO', Validators.required],
       categoria: ['CIERRE_CAJA_CHICA', Validators.required],
       descripcion: ['', [Validators.required, Validators.minLength(5)]],
       monto: [0, [Validators.required, Validators.min(0.01)]],
-      referencia: ['']
+      referencia: [''],
+      fechaMovimiento: [fechaActual, Validators.required],
+      horaMovimiento: [horaActual, Validators.required]
     });
 
     this.formulario.get('tipo')!.valueChanges.subscribe((tipo) => {
@@ -500,6 +523,13 @@ export class RegistrarMovimientoComponent implements OnInit {
     const usuario = this.authService.getCurrentUser();
 
     try {
+      // Combinar fecha y hora seleccionadas por el usuario
+      const fechaFinal = this.combinarFechaHora(this.fechaMovimiento, this.horaMovimiento);
+      
+      console.log('📅 Fecha movimiento:', this.fechaMovimiento);
+      console.log('🕐 Hora movimiento:', this.horaMovimiento);
+      console.log('✅ Fecha final:', fechaFinal);
+
       // Construir movimiento evitando campos undefined (Firestore no los acepta)
       const movimientoBase: any = {
         tipo: this.formulario.value.tipo,
@@ -507,7 +537,7 @@ export class RegistrarMovimientoComponent implements OnInit {
         descripcion: this.formulario.value.descripcion,
         monto: this.formulario.value.monto,
         referencia: this.formulario.value.referencia || '',
-        fecha: new Date(),
+        fecha: fechaFinal,
         usuario_id: usuario?.id || null,
         usuario_nombre: usuario?.nombre || null,
       };
@@ -580,6 +610,54 @@ export class RegistrarMovimientoComponent implements OnInit {
     } finally {
       this.guardando = false;
     }
+  }
+
+  /**
+   * Inicializa fecha y hora con valores actuales por defecto
+   */
+  inicializarFechaHora(): void {
+    const ahora = new Date();
+    
+    // Formato HH:mm:ss para hora
+    const horas = ahora.getHours().toString().padStart(2, '0');
+    const minutos = ahora.getMinutes().toString().padStart(2, '0');
+    const segundos = ahora.getSeconds().toString().padStart(2, '0');
+    this.horaMovimiento = `${horas}:${minutos}:${segundos}`;
+    
+    // Formato YYYY-MM-DD para fecha
+    const año = ahora.getFullYear();
+    const mes = (ahora.getMonth() + 1).toString().padStart(2, '0');
+    const dia = ahora.getDate().toString().padStart(2, '0');
+    this.fechaMovimiento = `${año}-${mes}-${dia}`;
+  }
+
+  /**
+   * Combina una fecha con una hora para crear un Date válido
+   * @param fecha - Fecha como string (YYYY-MM-DD)
+   * @param hora - Hora como string (HH:mm:ss)
+   * @returns Date con fecha y hora combinadas
+   */
+  combinarFechaHora(fecha: string, hora: string): Date {
+    // Parsear string YYYY-MM-DD y crear Date con hora 00:00:00 local
+    const partes = fecha.split('-');
+    const año = parseInt(partes[0]);
+    const mes = parseInt(partes[1]) - 1; // Meses 0-indexed en Date
+    const dia = parseInt(partes[2]);
+    const fechaBase = new Date(año, mes, dia, 0, 0, 0, 0);
+    
+    // Parsear hora HH:mm:ss
+    const partesHora = hora.split(':');
+    const horas = parseInt(partesHora[0] || '0');
+    const minutos = parseInt(partesHora[1] || '0');
+    const segundos = parseInt(partesHora[2] || '0');
+    
+    // Establecer la hora específica (esto NO causa conversión de zona horaria)
+    fechaBase.setHours(horas, minutos, segundos, 0);
+    
+    console.log(`🔧 combinarFechaHora entrada: fecha=${fecha}, hora=${hora}`);
+    console.log(`🔧 combinarFechaHora resultado: ${fechaBase.toLocaleString()} (${fechaBase.toISOString()})`);
+    
+    return fechaBase;
   }
 
   /**

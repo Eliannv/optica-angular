@@ -92,6 +92,18 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="fechaMovimiento">📅 Fecha del Movimiento</label>
+                    <input id="fechaMovimiento" type="date" formControlName="fechaMovimiento" class="form-control" />
+                    <small style="color: #666; display: block; margin-top: 4px;">Fecha en que ocurrió el movimiento</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="horaMovimiento">🕐 Hora del Movimiento</label>
+                    <input id="horaMovimiento" type="time" step="1" formControlName="horaMovimiento" class="form-control" />
+                    <small style="color: #666; display: block; margin-top: 4px;">Hora en que ocurrió el movimiento</small>
+                </div>
+
+                <div class="form-group">
                     <label for="referencia">Referencia (Código de transferencia, etc.)</label>
                     <input id="referencia" type="text" formControlName="referencia" placeholder="Ej: TRF-12345" class="form-control" />
                 </div>

@@ -19,6 +19,7 @@ import {
   doc,
   docData,
   serverTimestamp,
+  Timestamp,
   query,
   where,
   getDocs,
@@ -66,14 +67,27 @@ export class FacturasService {
     // Generar ID secuencial personalizado
     const idPersonalizado = await this.generarIdSecuencial();
 
-    // Usar setDoc con el ID personalizado en lugar de addDoc
+    // Convertir Date a Timestamp de Firestore
+    const facturaParaGuardar: any = { ...factura };
+    
+    // Si fecha es un Date, convertirlo a Timestamp
+    if (facturaParaGuardar.fecha instanceof Date) {
+      facturaParaGuardar.fecha = Timestamp.fromDate(facturaParaGuardar.fecha);
+      console.log('📅 Fecha convertida a Timestamp:', facturaParaGuardar.fecha);
+    } else if (facturaParaGuardar.fecha) {
+      console.warn('⚠️ Fecha no es Date:', typeof facturaParaGuardar.fecha, facturaParaGuardar.fecha);
+    } else {
+      console.error('❌ Fecha es undefined o null');
+    }
+
+    // Usar setDoc con el ID personalizado
     const docRef = doc(this.facturasRef, idPersonalizado);
     await setDoc(docRef, {
-      ...factura,
-      idPersonalizado,
-      fecha: serverTimestamp()
+      ...facturaParaGuardar,
+      idPersonalizado
     });
 
+    console.log('✅ Factura guardada con ID:', idPersonalizado);
     return docRef;
   }
 

@@ -62,6 +62,9 @@ export class RegistrarMovimientoComponent implements OnInit {
   error = '';
   exito = false;
   saldoActual = 0;
+  
+  // 🕐 Hora del movimiento (solo hora, fecha viene de la caja)
+  horaMovimiento = '';
 
   /**
    * Tipos de movimientos disponibles
@@ -71,6 +74,9 @@ export class RegistrarMovimientoComponent implements OnInit {
   ];
 
   ngOnInit(): void {
+    // 🕐 Inicializar hora por defecto
+    this.inicializarFechaHora();
+    
     this.cajaId = this.route.snapshot.paramMap.get('id') || '';
     this.inicializarFormulario();
     this.cargarSaldoActual();
@@ -93,12 +99,21 @@ export class RegistrarMovimientoComponent implements OnInit {
    * @returns void
    */
   inicializarFormulario(): void {
+    const ahora = new Date();
+    
+    // Formato HH:mm:ss para hora
+    const horas = ahora.getHours().toString().padStart(2, '0');
+    const minutos = ahora.getMinutes().toString().padStart(2, '0');
+    const segundos = ahora.getSeconds().toString().padStart(2, '0');
+    const horaActual = `${horas}:${minutos}:${segundos}`;
+
     this.form = this.formBuilder.group({
       tipo: ['EGRESO', Validators.required],
       descripcion: ['', [Validators.required, Validators.minLength(3)]],
       monto: ['', [Validators.required, Validators.min(0.01)]],
       comprobante: [''],
-      observacion: ['']
+      observacion: [''],
+      horaMovimiento: [horaActual, Validators.required]
     });
   }
 
@@ -236,14 +251,26 @@ export class RegistrarMovimientoComponent implements OnInit {
    * @param tipo Tipo del movimiento ('INGRESO' | 'EGRESO')
    * @returns void (operación asincrónica)
    */
-  private procesarMovimiento(monto: number, tipo: 'INGRESO' | 'EGRESO'): void {
+  private async procesarMovimiento(monto: number, tipo: 'INGRESO' | 'EGRESO'): Promise<void> {
     this.cargando = true;
     this.error = '';
 
     const usuario = this.authService.getCurrentUser();
+    
+    // Obtener fecha de apertura de la caja chica
+    const caja = await this.cajaChicaService.getCajaChicaById(this.cajaId).toPromise();
+    const fechaCaja = caja?.fecha instanceof Date ? caja.fecha : new Date(caja?.fecha || new Date());
+    
+    // Combinar fecha de caja con hora seleccionada por el usuario
+    const fechaFinal = this.combinarFechaHora(fechaCaja, this.horaMovimiento);
+    
+    console.log('📅 Caja fecha:', fechaCaja);
+    console.log('🕐 Hora movimiento:', this.horaMovimiento);
+    console.log('✅ Fecha final:', fechaFinal);
+    
     const movimiento: MovimientoCajaChica = {
       caja_chica_id: this.cajaId,
-      fecha: new Date(),
+      fecha: fechaFinal,
       tipo,
       descripcion: this.form.get('descripcion')?.value,
       monto,
@@ -257,6 +284,54 @@ export class RegistrarMovimientoComponent implements OnInit {
       () => this.manejarExito(),
       (error) => this.manejarError(error)
     );
+  }
+
+  /**
+   * Inicializa la hora con la hora actual por defecto (HH:mm:ss)
+   */
+  inicializarFechaHora(): void {
+    const ahora = new Date();
+    const horas = ahora.getHours().toString().padStart(2, '0');
+    const minutos = ahora.getMinutes().toString().padStart(2, '0');
+    const segundos = ahora.getSeconds().toString().padStart(2, '0');
+    this.horaMovimiento = `${horas}:${minutos}:${segundos}`;
+  }
+
+  /**
+   * Combina una fecha con una hora para crear un Date válido
+   * @param fecha - Fecha como string (YYYY-MM-DD) o Date
+   * @param hora - Hora como string (HH:mm:ss)
+   * @returns Date con fecha y hora combinadas
+   */
+  combinarFechaHora(fecha: string | Date, hora: string): Date {
+    let fechaBase: Date;
+    
+    if (typeof fecha === 'string') {
+      // Parsear string YYYY-MM-DD y crear Date con hora 00:00:00 local
+      const partes = fecha.split('-');
+      const año = parseInt(partes[0]);
+      const mes = parseInt(partes[1]) - 1; // Meses 0-indexed en Date
+      const dia = parseInt(partes[2]);
+      fechaBase = new Date(año, mes, dia, 0, 0, 0, 0);
+    } else {
+      // Clonar Date y resetear hora a 00:00:00
+      fechaBase = new Date(fecha);
+      fechaBase.setHours(0, 0, 0, 0);
+    }
+    
+    // Parsear hora HH:mm:ss
+    const partesHora = hora.split(':');
+    const horas = parseInt(partesHora[0] || '0');
+    const minutos = parseInt(partesHora[1] || '0');
+    const segundos = parseInt(partesHora[2] || '0');
+    
+    // Establecer la hora específica (esto NO causa conversión de zona horaria)
+    fechaBase.setHours(horas, minutos, segundos, 0);
+    
+    console.log(`🔧 combinarFechaHora entrada: fecha=${fecha}, hora=${hora}`);
+    console.log(`🔧 combinarFechaHora resultado: ${fechaBase.toLocaleString()} (${fechaBase.toISOString()})`);
+    
+    return fechaBase;
   }
 
   /**

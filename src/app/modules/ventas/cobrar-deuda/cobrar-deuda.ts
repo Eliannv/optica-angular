@@ -38,6 +38,10 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
   abono = 0;
   saldoNuevo = 0;
 
+  // 🕐 FECHA Y HORA DE PAGO
+  horaPago = ''; // Hora del pago (HH:mm)
+  fechaPago = ''; // Fecha del pago (YYYY-MM-DD) - solo para transferencia/tarjeta
+
   // ✅ CONTROL DE CRÉDITO PERSONAL
   esCreditoPersonal = false; // Checkbox para marcar si es crédito personal
 
@@ -112,7 +116,10 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
   ) {}
 
   async ngOnInit() {
-    // 🔒 VALIDACIÓN CRÍTICA: Verificar que exista alguna caja chica ABIERTA
+    // � Inicializar fecha y hora por defecto
+    this.inicializarFechaHora();
+    
+    // �🔒 VALIDACIÓN CRÍTICA: Verificar que exista alguna caja chica ABIERTA
     try {
       const validacion = await this.cajaChicaService.validarCajaAbierta();
       
@@ -308,6 +315,44 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
       const saldoNuevo = +(total - abonadoNuevo).toFixed(2);
       const estadoPago = saldoNuevo <= 0 ? 'PAGADA' : 'PENDIENTE';
 
+      // 🕐 CONSTRUIR FECHA FINAL CON HORA
+      let fechaFinal: Date;
+      if (this.metodoPago === 'Efectivo') {
+        // Para efectivo: usar fecha de caja chica + hora seleccionada
+        try {
+          const cajaAbierta = await this.cajaChicaService.getCajaAbierta();
+          console.log('📅 Caja abierta obtenida:', cajaAbierta);
+          
+          if (cajaAbierta?.fecha) {
+            // Convertir correctamente Timestamp de Firestore a Date
+            let fechaCaja: Date;
+            if ((cajaAbierta.fecha as any).toDate) {
+              // Es un Timestamp de Firestore
+              fechaCaja = (cajaAbierta.fecha as any).toDate();
+            } else if (cajaAbierta.fecha instanceof Date) {
+              fechaCaja = cajaAbierta.fecha;
+            } else {
+              fechaCaja = new Date(cajaAbierta.fecha);
+            }
+            
+            console.log('📅 Fecha de caja convertida:', fechaCaja);
+            console.log('🕐 Hora de pago seleccionada:', this.horaPago);
+            
+            fechaFinal = this.combinarFechaHora(fechaCaja, this.horaPago);
+            console.log('✅ Fecha final combinada:', fechaFinal);
+          } else {
+            console.warn('⚠️ No hay fecha en caja, usando fecha actual');
+            fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
+          }
+        } catch (err) {
+          console.error('❌ Error obteniendo fecha de caja chica:', err);
+          fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
+        }
+      } else {
+        // Para transferencia/tarjeta: usar fecha y hora seleccionadas
+        fechaFinal = this.combinarFechaHora(this.fechaPago, this.horaPago);
+      }
+
       // ✅ ACTUALIZAR ESTADO DEL CRÉDITO Y OTROS CAMPOS
       const actualizacion: any = {
         abonado: abonadoNuevo,
@@ -349,7 +394,7 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
       // ✅ ticket con tu estilo + ítems
       this.ticketPago = {
         facturaId: f.id,
-        fecha: new Date(),
+        fecha: fechaFinal,  // Date - Firestore lo convertirá automáticamente
         clienteNombre: this.clienteNombre,
         clienteTelefono: this.clienteTelefono,
         metodoPago: this.metodoPago,
@@ -435,7 +480,7 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
             const usuario = this.authService.getCurrentUser();
             const movimiento = {
               caja_chica_id: caja.id,
-              fecha: new Date(),
+              fecha: fechaFinal,  // Mantener como Date para el servicio de caja chica
               tipo: 'INGRESO' as const,
               descripcion: `Pago de deuda - ${this.clienteNombre} - Factura #${f.id}`,
               monto: abonoReal,
@@ -520,6 +565,62 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     } finally {
       this.pagando = false;
     }
+  }
+
+  /**
+   * Inicializa los campos de fecha y hora con valores actuales
+   */
+  inicializarFechaHora(): void {
+    const ahora = new Date();
+    
+    // Formato HH:mm:ss para hora
+    const horas = ahora.getHours().toString().padStart(2, '0');
+    const minutos = ahora.getMinutes().toString().padStart(2, '0');
+    const segundos = ahora.getSeconds().toString().padStart(2, '0');
+    this.horaPago = `${horas}:${minutos}:${segundos}`;
+    
+    // Formato YYYY-MM-DD para fecha
+    const año = ahora.getFullYear();
+    const mes = (ahora.getMonth() + 1).toString().padStart(2, '0');
+    const dia = ahora.getDate().toString().padStart(2, '0');
+    this.fechaPago = `${año}-${mes}-${dia}`;
+  }
+
+  /**
+   * Combina una fecha con una hora para crear un Date válido
+   * @param fecha - Fecha como string (YYYY-MM-DD) o Date
+   * @param hora - Hora como string (HH:mm:ss)
+   * @returns Date con fecha y hora combinadas
+   */
+  combinarFechaHora(fecha: string | Date, hora: string): Date {
+    let fechaBase: Date;
+    
+    if (typeof fecha === 'string') {
+      // Parsear string YYYY-MM-DD y crear Date con hora 00:00:00 local
+      const partes = fecha.split('-');
+      const año = parseInt(partes[0]);
+      const mes = parseInt(partes[1]) - 1; // Meses 0-indexed en Date
+      const dia = parseInt(partes[2]);
+      fechaBase = new Date(año, mes, dia, 0, 0, 0, 0);
+    } else {
+      // Clonar Date y resetear hora a 00:00:00
+      fechaBase = new Date(fecha);
+      fechaBase.setHours(0, 0, 0, 0);
+    }
+    
+    // Parsear hora HH:mm:ss
+    const partesHora = hora.split(':');
+    const horas = parseInt(partesHora[0] || '0');
+    const minutos = parseInt(partesHora[1] || '0');
+    const segundos = parseInt(partesHora[2] || '0');
+    
+    // Establecer la hora específica (esto NO causa conversión de zona horaria)
+    fechaBase.setHours(horas, minutos, segundos, 0);
+    
+    console.log(`🔧 combinarFechaHora entrada: fecha=${fecha}, hora=${hora}`);
+    console.log(`🔧 combinarFechaHora resultado: ${fechaBase.toLocaleString()} (${fechaBase.toISOString()})`);
+    
+    return fechaBase;
   }
 
   volver() {
