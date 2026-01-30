@@ -26,6 +26,13 @@
     flex-wrap: wrap;
 }
 
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
 .caja-title {
     margin: 0;
     font-size: 1.35rem;
@@ -85,6 +92,38 @@
     transform: translateY(-2px);
     background: #e67e22;
     box-shadow: var(--shadow-md);
+}
+
+/* Botón Toggle Modo Automático/Manual */
+.btn-toggle-modo {
+    padding: 0.65rem 1.25rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: 2px solid var(--border-color);
+    cursor: pointer;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-toggle-modo:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary-color);
+}
+
+.btn-toggle-modo.btn-automatico {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    border-color: #2980b9;
+}
+
+.btn-toggle-modo.btn-automatico:hover {
+    background: linear-gradient(135deg, #2980b9, #21618c);
 }
 
 .caja-body {

@@ -218,7 +218,7 @@
 
 .btn-primary,
 .btn-secondary,
-.btn-warning {
+.btn-danger {
     padding: 10px 15px;
     border: none;
     border-radius: 5px;
@@ -244,13 +244,14 @@
     background-color: var(--btn-secondary-hover);
 }
 
-.btn-warning {
-    background-color: var(--warning-color);
-    color: var(--text-inverse);
+.btn-danger {
+    background: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+    border: 1px solid rgba(231, 76, 60, 0.3);
 }
 
-.btn-warning:hover {
-    background-color: rgba(241, 196, 15, 0.8);
+.btn-danger:hover {
+    background: rgba(231, 76, 60, 0.3);
 }
 
 .loading {

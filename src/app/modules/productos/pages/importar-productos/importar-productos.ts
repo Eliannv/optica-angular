@@ -422,6 +422,20 @@ export class ImportarProductosComponent {
         stockActivoAnterior: p.stockActivoAnterior || 0
       }));
 
+      // 🔹 IMPORTANTE: Ordenar productos por código (idInterno) ASCENDENTE
+      // Esto garantiza que el contador lastId tome el ID más alto real
+      detalles.sort((a, b) => {
+        const idA = a.idInterno || 0;
+        const idB = b.idInterno || 0;
+        return idA - idB;
+      });
+      
+      console.log('📊 Productos ordenados por código:', {
+        primero: detalles[0]?.idInterno,
+        ultimo: detalles[detalles.length - 1]?.idInterno,
+        total: detalles.length
+      });
+
       console.log('💾 Finalizando ingreso con', detalles.length, 'productos...');
       
       // 3. Finalizar ingreso (crea/actualiza productos automáticamente)

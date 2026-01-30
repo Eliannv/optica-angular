@@ -16,6 +16,7 @@ import { Component, inject, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
+import { CajaBancoConfigService } from '../../../../core/services/caja-banco-config.service';
 import { CajaBanco, MovimientoCajaBanco } from '../../../../core/models/caja-banco.model';
 import { CajaChica } from '../../../../core/models/caja-chica.model';
 import Swal from 'sweetalert2';
@@ -38,6 +39,9 @@ export class VerCajaComponent implements OnInit {
 
   /** Servicio de cajas chicas */
   private cajaChicaService = inject(CajaChicaService);
+
+  /** Servicio de configuración de cajas banco */
+  protected cajaBancoConfigService = inject(CajaBancoConfigService);
 
   /** Caja banco actual siendo visualizada */
   caja: CajaBanco | null = null;

@@ -18,6 +18,7 @@ import { Component, inject, OnInit } from '@angular/core';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { CajaBancoConfigService } from '../../../../core/services/caja-banco-config.service';
 import { Router } from '@angular/router';
 import { CajaBanco, MovimientoCajaBanco } from '../../../../core/models/caja-banco.model';
 import { CajaChica } from '../../../../core/models/caja-chica.model';
@@ -41,6 +42,9 @@ export class ListarCajasComponent implements OnInit {
   /** Servicio de autenticación */
   private authService = inject(AuthService);
 
+  /** Servicio de configuración de cajas banco */
+  private cajaBancoConfigService = inject(CajaBancoConfigService);
+
   /** Router para navegación */
   private router = inject(Router);
 
@@ -58,6 +62,12 @@ export class ListarCajasComponent implements OnInit {
 
   /** Flag para prevenir múltiples creaciones simultáneas */
   private procesandoCreacion = false;
+
+  /** Flag para prevenir múltiples verificaciones automáticas simultáneas */
+  private procesandoVerificacionAutomatica = false;
+
+  /** Indica si está en modo automático */
+  modoAutomatico = false;
 
   /**
    * Verifica si existe alguna caja banco ABIERTA.
@@ -84,9 +94,206 @@ export class ListarCajasComponent implements OnInit {
    * Dispara la carga de datos de cajas, cajas chicas y movimientos globales.
    */
   ngOnInit(): void {
+    // Cargar modo actual de configuración
+    this.modoAutomatico = this.cajaBancoConfigService.esAutomatico();
+    
     this.cargarCajas();
     this.cargarCajasChicas();
     this.cargarMovimientosGlobales();
+  }
+
+  /**
+   * Alterna entre modo automático y manual de gestión de cajas
+   */
+  async toggleModoAutomatico(): Promise<void> {
+    const nuevoModo = this.cajaBancoConfigService.toggleModo();
+    this.modoAutomatico = nuevoModo === 'automatico';
+    
+    const modoTexto = this.modoAutomatico ? 'AUTOMÁTICO' : 'MANUAL';
+    const icono = this.modoAutomatico 
+      ? '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>'
+      : '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.67 8H18a2 2 0 0 1 2 2v4.33"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M22 22 2 2"/><path d="M8 8H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 1.414-.586"/><path d="M9 13v2"/><path d="M9.67 4H12v2.33"/></svg>';
+    
+    await Swal.fire({
+      title: `Modo ${modoTexto} Activado`,
+      iconHtml: icono,
+      html: this.modoAutomatico 
+        ? `<p>Las cajas se cerrarán y abrirán automáticamente al cambiar de mes.</p>
+           <p><small>El saldo final de una caja se transferirá como saldo inicial de la siguiente.</small></p>`
+        : `<p>Deberás crear y cerrar las cajas manualmente.</p>`,
+      confirmButtonText: 'Entendido',
+      confirmButtonColor: 'var(--btn-primary-bg)'
+    });
+    
+    // Si se activó automático, verificar inmediatamente
+    if (this.modoAutomatico) {
+      this.verificarCierreAperturaAutomatica();
+    }
+  }
+
+  /**
+   * Verifica si debe cerrar la caja del mes anterior y abrir una nueva
+   * Solo se ejecuta en modo automático
+   */
+  private verificarCierreAperturaAutomatica(): void {
+    // Evitar verificaciones simultáneas
+    if (this.procesandoVerificacionAutomatica) {
+      console.log('⏸️ Verificación automática ya en proceso, saltando...');
+      return;
+    }
+
+    this.procesandoVerificacionAutomatica = true;
+
+    const hoy = new Date();
+    const mesActual = hoy.getMonth();
+    const anioActual = hoy.getFullYear();
+    
+    console.log('🔍 Verificando cajas para modo automático...', {
+      cajasTotal: this.cajas.length,
+      mesActual: mesActual + 1,
+      anioActual
+    });
+    
+    // Buscar caja abierta
+    const cajaAbierta = this.cajas.find(c => c.estado === 'ABIERTA' && c.activo !== false);
+    
+    if (cajaAbierta && cajaAbierta.fecha) {
+      // Convertir fecha de Firestore a Date
+      const fechaCaja = cajaAbierta.fecha instanceof Date 
+        ? cajaAbierta.fecha 
+        : (cajaAbierta.fecha as any).toDate?.() || new Date(cajaAbierta.fecha);
+      
+      const mesCaja = fechaCaja.getMonth();
+      const anioCaja = fechaCaja.getFullYear();
+      
+      console.log('📅 Caja abierta encontrada:', {
+        fecha: fechaCaja.toISOString(),
+        mesCaja: mesCaja + 1,
+        anioCaja,
+        esMesAnterior: anioCaja < anioActual || (anioCaja === anioActual && mesCaja < mesActual)
+      });
+      
+      // Si la caja abierta es de un mes anterior, cerrarla y crear nueva
+      if (anioCaja < anioActual || (anioCaja === anioActual && mesCaja < mesActual)) {
+        console.log('🤖 Modo automático: detectado cambio de mes, cerrando caja anterior...');
+        this.cerrarYAbrirNuevaCajaAutomatica(cajaAbierta);
+        return; // Salir y esperar a que termine el proceso
+      } else {
+        console.log('✅ La caja abierta corresponde al mes actual, no se requiere acción');
+        this.procesandoVerificacionAutomatica = false;
+      }
+    } else if (!cajaAbierta) {
+      // No hay caja abierta, verificar si ya existe una caja para el mes actual
+      const tieneCajaMesActual = this.cajas.some(c => {
+        const fechaCaja = c.fecha instanceof Date 
+          ? c.fecha 
+          : (c.fecha as any).toDate?.() || new Date(c.fecha);
+        
+        return fechaCaja.getMonth() === mesActual && 
+               fechaCaja.getFullYear() === anioActual &&
+               c.activo !== false;
+      });
+      
+      if (tieneCajaMesActual) {
+        console.log('ℹ️ Ya existe una caja para el mes actual (cerrada), no se crea nueva');
+        this.procesandoVerificacionAutomatica = false;
+      } else {
+        // No hay caja abierta ni caja del mes actual, crear una nueva automáticamente
+        console.log('🤖 Modo automático: no hay caja para el mes actual, creando nueva...');
+        
+        // Buscar la última caja cerrada para heredar su saldo
+        const cajasOrdenadas = [...this.cajas]
+          .filter(c => c.activo !== false)
+          .sort((a, b) => {
+            const fechaA = a.fecha instanceof Date ? a.fecha : (a.fecha as any).toDate?.() || new Date(a.fecha);
+            const fechaB = b.fecha instanceof Date ? b.fecha : (b.fecha as any).toDate?.() || new Date(b.fecha);
+            return fechaB.getTime() - fechaA.getTime();
+          });
+        
+        const ultimaCaja = cajasOrdenadas[0];
+        const saldoHeredado = ultimaCaja?.saldo_actual || 0;
+        
+        console.log('💰 Heredando saldo de última caja:', {
+          cajaFecha: ultimaCaja?.fecha,
+          saldoActual: ultimaCaja?.saldo_actual,
+          saldoAUsar: saldoHeredado
+        });
+        
+        this.crearCajaAutomatica(saldoHeredado);
+        return; // Salir y esperar a que termine el proceso
+      }
+    } else {
+      // No aplica ninguna condición
+      this.procesandoVerificacionAutomatica = false;
+    }
+  }
+
+  /**
+   * Cierra la caja anterior y abre una nueva automáticamente
+   */
+  private async cerrarYAbrirNuevaCajaAutomatica(cajaAnterior: CajaBanco): Promise<void> {
+    if (!cajaAnterior.id) return;
+    
+    try {
+      // Guardar el saldo actual ANTES de cerrar
+      const saldoFinal = cajaAnterior.saldo_actual || 0;
+      console.log('💰 Saldo final de caja anterior:', saldoFinal);
+      
+      // Cerrar la caja anterior
+      await this.cajaBancoService.cerrarCajaBanco(cajaAnterior.id);
+      console.log('✅ Caja anterior cerrada automáticamente');
+      
+      // Crear nueva caja con el saldo final de la anterior
+      await this.crearCajaAutomatica(saldoFinal);
+      console.log('✅ Nueva caja creada con saldo inicial:', saldoFinal);
+      
+      this.procesandoVerificacionAutomatica = false;
+      
+      // Recargar cajas
+      this.cargarCajas();
+    } catch (error) {
+      console.error('❌ Error en cierre/apertura automática:', error);
+      this.procesandoVerificacionAutomatica = false;
+    }
+  }
+
+  /**
+   * Crea una nueva caja automáticamente (sin diálogo)
+   */
+  private async crearCajaAutomatica(saldoInicial?: number): Promise<void> {
+    const hoy = new Date();
+    const usuario = this.authService.getCurrentUser();
+    
+    if (!usuario) {
+      console.error('❌ No hay usuario autenticado');
+      return;
+    }
+
+    // Usar saldo proporcionado o 0 si es undefined (pero permitir 0 explícito)
+    const saldo = saldoInicial !== undefined ? saldoInicial : 0;
+    
+    console.log('📝 Creando caja automática con saldo:', saldo);
+
+    const nuevaCaja: Partial<CajaBanco> = {
+      fecha: hoy,
+      saldo_inicial: saldo,
+      saldo_actual: saldo,
+      estado: 'ABIERTA',
+      usuario_id: usuario.id,
+      usuario_nombre: usuario.nombre,
+      observacion: 'Caja creada automáticamente',
+      activo: true,
+      createdAt: new Date()
+    };
+
+    try {
+      await this.cajaBancoService.abrirCajaBanco(nuevaCaja as CajaBanco);
+      console.log('✅ Caja banco creada automáticamente con saldo inicial:', saldo);
+      this.procesandoVerificacionAutomatica = false;
+    } catch (error) {
+      console.error('❌ Error al crear caja automática:', error);
+      this.procesandoVerificacionAutomatica = false;
+    }
   }
 
   /**
@@ -100,6 +307,11 @@ export class ListarCajasComponent implements OnInit {
         this.cajas = (cajas || []);
         this.calcularTotales();
         this.cargando = false;
+        
+        // Verificar cierre/apertura automática DESPUÉS de cargar las cajas
+        if (this.modoAutomatico) {
+          this.verificarCierreAperturaAutomatica();
+        }
       },
       error: (error) => {
         console.error('Error al cargar cajas:', error);
@@ -211,7 +423,7 @@ export class ListarCajasComponent implements OnInit {
     
     const { value: formValues } = await Swal.fire({
       title: 'Crear Nueva Caja Banco',
-      iconHtml: '🏦',
+      iconHtml: '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-landmark"><path d="M10 18v-7"/><path d="M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/></svg>',
       html: `
         <div style="text-align: left;">
           <!-- Fecha -->
