@@ -138,9 +138,11 @@ export class ExcelService {
         const nombre = (fila[2] || '').toString().trim(); // C
         const modelo = (fila[3] || '').toString().trim(); // D
         const color = (fila[4] || '').toString().trim(); // E
-        const costoStr = (fila[5] || '').toString().replace('$', '').trim(); // F
+        const grupoRaw = (fila[5] || '').toString().trim(); // F - GRUPO
+        const grupo = grupoRaw.toUpperCase() || 'GAFAS'; // Normalizar y valor por defecto
+        const costoStr = (fila[6] || '').toString().replace('$', '').trim(); // G - COSTO
         const costo = this.parsearNumero(costoStr);
-        const pvp1Str = (fila[6] || '').toString().replace('$', '').trim(); // G (antes era F)
+        const pvp1Str = (fila[7] || '').toString().replace('$', '').trim(); // H - V/PUBLICO
         const pvp1 = this.parsearNumero(pvp1Str);
         
         // Validar que al menos tenga nombre o código
@@ -155,8 +157,8 @@ export class ExcelService {
           pvp1,
           iva: 0,
           estado: 'NUEVO', // Se determinará después al verificar contra BD
-          costo: costo, // Ahora lee el costo del Excel
-          grupo: 'GAFAS', // Valor por defecto
+          costo: costo,
+          grupo: grupo, // Grupo leído del Excel
           observacion: ''
         });
       }

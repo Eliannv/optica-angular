@@ -40,6 +40,7 @@ function verificarSucursal() {
     '858744ddedd2fca1', // PC (desarrollo)
     'e1561953fadb3e82', // PC 2 (desarrollo)
     '0de9527eff37b967', //Pasaje
+    '45dfe499c7a935ed', //Pasaje 2
     'd87cced3d5d6611b' //Machala
     // Agrega aquí el Machine ID de la PC de PASAJE cuando lo obtengas
   ];

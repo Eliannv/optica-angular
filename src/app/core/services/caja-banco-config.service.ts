@@ -22,12 +22,14 @@ export class CajaBancoConfigService {
   public modo$: Observable<ModoCajaBanco>;
 
   constructor() {
-    // Cargar modo desde localStorage (default: manual)
-    const modoGuardado = localStorage.getItem(this.STORAGE_KEY) as ModoCajaBanco;
-    const modoInicial: ModoCajaBanco = modoGuardado || 'manual';
+    // Siempre iniciar en modo manual por defecto para evitar inconvenientes
+    const modoInicial: ModoCajaBanco = 'manual';
     
     this.modoSubject = new BehaviorSubject<ModoCajaBanco>(modoInicial);
     this.modo$ = this.modoSubject.asObservable();
+    
+    // Guardar modo manual en localStorage
+    localStorage.setItem(this.STORAGE_KEY, modoInicial);
   }
 
   /**
