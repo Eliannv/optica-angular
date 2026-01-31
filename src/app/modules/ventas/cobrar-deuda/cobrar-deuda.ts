@@ -68,6 +68,14 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     const saldoActual = this.facturaSeleccionada?.saldoPendiente || 0;
     return Math.max(0, abonoActual - saldoActual);
   }
+
+  /**
+   * Verifica si el usuario es administrador
+   * Solo los administradores pueden modificar fecha y hora manualmente
+   */
+  get esAdmin(): boolean {
+    return this.authService.isAdmin();
+  }
   filtroFecha = ''; // Filtro por fecha (YYYY-MM-DD)
   filtroCredito: 'todos' | 'conCredito' | 'sinCredito' = 'todos'; // Filtro por tipo de crédito
   selectedIndex = -1; // Índice de factura seleccionada con teclado
@@ -605,8 +613,28 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
 
   /**
    * Inicializa los campos de fecha y hora con valores actuales
+   * Si es operador, actualiza continuamente la hora cada segundo
    */
   inicializarFechaHora(): void {
+    this.actualizarFechaHoraActual();
+    
+    // Si es operador, actualizar fecha/hora cada segundo
+    if (!this.esAdmin) {
+      setInterval(() => {
+        this.actualizarFechaHoraActual();
+      }, 1000);
+    }
+    
+    // Cargar restricciones de fecha según caja banco abierta (solo para admin)
+    if (this.esAdmin) {
+      this.cargarRestriccionesFechaCajaBanco();
+    }
+  }
+
+  /**
+   * Actualiza fecha y hora con valores actuales
+   */
+  private actualizarFechaHoraActual(): void {
     const ahora = new Date();
     
     // Formato HH:mm:ss para hora
@@ -621,9 +649,6 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     const dia = ahora.getDate().toString().padStart(2, '0');
     this.fechaPago = `${año}-${mes}-${dia}`;
     this.fechaMaxima = `${año}-${mes}-${dia}`; // Límite máximo: hoy
-    
-    // Cargar restricciones de fecha según caja banco abierta
-    this.cargarRestriccionesFechaCajaBanco();
   }
   
   /**

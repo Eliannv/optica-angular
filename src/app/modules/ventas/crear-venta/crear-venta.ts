@@ -98,6 +98,14 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Verifica si el usuario es administrador
+   * Solo los administradores pueden modificar fecha y hora manualmente
+   */
+  get esAdmin(): boolean {
+    return this.authService.isAdmin();
+  }
+
+  /**
    * Calcula el vuelto automáticamente
    * Vuelto = Abono - Total (solo si el abono es mayor)
    */
@@ -639,8 +647,28 @@ private toNumber(v: any): number {
 
   /**
    * Inicializa los campos de fecha y hora con valores actuales
+   * Si es operador, actualiza continuamente la hora cada segundo
    */
   inicializarFechaHora(): void {
+    this.actualizarFechaHoraActual();
+    
+    // Si es operador, actualizar fecha/hora cada segundo
+    if (!this.esAdmin) {
+      setInterval(() => {
+        this.actualizarFechaHoraActual();
+      }, 1000);
+    }
+    
+    // Cargar restricciones de fecha según caja banco abierta (solo para admin)
+    if (this.esAdmin) {
+      this.cargarRestriccionesFechaCajaBanco();
+    }
+  }
+
+  /**
+   * Actualiza fecha y hora con valores actuales
+   */
+  private actualizarFechaHoraActual(): void {
     const ahora = new Date();
     
     // Formato HH:mm:ss para hora
@@ -655,9 +683,6 @@ private toNumber(v: any): number {
     const dia = ahora.getDate().toString().padStart(2, '0');
     this.fechaPago = `${año}-${mes}-${dia}`;
     this.fechaMaxima = `${año}-${mes}-${dia}`; // Límite máximo: hoy
-    
-    // Cargar restricciones de fecha según caja banco abierta
-    this.cargarRestriccionesFechaCajaBanco();
   }
   
   /**

@@ -122,7 +122,7 @@ export class ExcelService {
 
       // Parsear datos del encabezado
       const proveedor = this.extraerValor(jsonData, 2, 2) || ''; // C3
-      const numeroFactura = this.extraerValor(jsonData, 3, 4) || ''; // E4
+      const numeroFactura = this.extraerValor(jsonData, 2, 4) || ''; // E3
 
       // Parsear productos (a partir de la fila 6, índice 5)
       const productos: ProductoExcelPreview[] = [];
@@ -191,8 +191,8 @@ export class ExcelService {
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('PRODUCTOS');
 
-      // Configurar encabezados
-      const headers = ['CANTIDAD', 'CÓDIGO SIST', 'PRODUCTO', 'DETALLE VARILLA', 'MATERIA / COLOR', 'COSTO', 'V/PUBLICO'];
+      // Configurar encabezados (orden según plantilla)
+      const headers = ['CANTIDAD', 'CÓDIGO SIST', 'PRODUCTO', 'DETALLE VARILLA', 'MATERIA / COLOR', 'GRUPO', 'COSTO', 'V/PUBLICO'];
       worksheet.addRow(headers);
 
       // Configurar estilo de encabezados
@@ -212,6 +212,7 @@ export class ExcelService {
           producto.nombre || '',
           producto.modelo || '',
           producto.color || '',
+          producto.grupo || '',
           producto.costo ? `$ ${producto.costo.toFixed(2)}` : '$ 0.00',
           producto.pvp1 ? `$ ${producto.pvp1.toFixed(2)}` : '$ 0.00'
         ]);
@@ -223,8 +224,9 @@ export class ExcelService {
       worksheet.getColumn(3).width = 30; // PRODUCTO
       worksheet.getColumn(4).width = 30; // DETALLE VARILLA
       worksheet.getColumn(5).width = 30; // MATERIA / COLOR
-      worksheet.getColumn(6).width = 15; // COSTO
-      worksheet.getColumn(7).width = 15; // V/PUBLICO
+      worksheet.getColumn(6).width = 20; // GRUPO
+      worksheet.getColumn(7).width = 15; // COSTO
+      worksheet.getColumn(8).width = 15; // V/PUBLICO
 
       // Generar y descargar archivo
       const buffer = await workbook.xlsx.writeBuffer();

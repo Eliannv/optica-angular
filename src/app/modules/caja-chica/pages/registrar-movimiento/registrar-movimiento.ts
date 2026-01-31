@@ -74,6 +74,14 @@ export class RegistrarMovimientoComponent implements OnInit {
     { value: 'EGRESO', label: 'Egreso (Gasto pequeño)' }
   ];
 
+  /**
+   * Verifica si el usuario es administrador
+   * Solo los administradores pueden modificar la hora manualmente
+   */
+  get esAdmin(): boolean {
+    return this.authService.isAdmin();
+  }
+
   ngOnInit(): void {
     // 🕐 Inicializar hora por defecto
     this.inicializarFechaHora();
@@ -306,13 +314,31 @@ export class RegistrarMovimientoComponent implements OnInit {
 
   /**
    * Inicializa la hora con la hora actual por defecto (HH:mm:ss)
+   * Si es operador, actualiza continuamente la hora cada segundo
    */
   inicializarFechaHora(): void {
+    this.actualizarHoraActual();
+    
+    // Si es operador, actualizar hora cada segundo
+    if (!this.esAdmin) {
+      setInterval(() => {
+        this.actualizarHoraActual();
+      }, 1000);
+    }
+  }
+
+  /**
+   * Actualiza la hora con el valor actual
+   */
+  private actualizarHoraActual(): void {
     const ahora = new Date();
     const horas = ahora.getHours().toString().padStart(2, '0');
     const minutos = ahora.getMinutes().toString().padStart(2, '0');
     const segundos = ahora.getSeconds().toString().padStart(2, '0');
     this.horaMovimiento = `${horas}:${minutos}:${segundos}`;
+    
+    // Actualizar también el valor del formulario
+    this.form?.patchValue({ horaMovimiento: this.horaMovimiento }, { emitEvent: false });
   }
 
   /**

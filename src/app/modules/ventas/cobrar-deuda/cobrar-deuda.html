@@ -222,9 +222,9 @@
               </select>
                         </div>
 
-                        <!-- � FECHA Y HORA DE PAGO -->
-                        <!-- Para transferencia/tarjeta: mostrar fecha y hora editables -->
-                        <div class="metodo-pago" *ngIf="metodoPago === 'Transferencia' || metodoPago === 'Tarjeta'" style="background-color: #e3f2fd; border: 2px solid #2196f3; padding: 12px; border-radius: 6px;">
+                        <!-- 🕐 FECHA Y HORA DE PAGO (SOLO PARA ADMINISTRADORES) -->
+                        <!-- Para transferencia/tarjeta: mostrar fecha editable -->
+                        <div class="metodo-pago" *ngIf="esAdmin && (metodoPago === 'Transferencia' || metodoPago === 'Tarjeta')" style="background-color: #e3f2fd; border: 2px solid #2196f3; padding: 12px; border-radius: 6px;">
                             <label style="font-weight: 600; color: #1976d2;">📅 Fecha del Pago</label>
                             <input type="date" class="search-input" [(ngModel)]="fechaPago" [min]="fechaMinima" [max]="fechaMaxima" style="font-size: 1rem; border: 2px solid #2196f3;" />
                             <small class="muted" style="color: #1565c0;">
@@ -233,8 +233,8 @@
                             </small>
                         </div>
 
-                        <!-- Para todos los métodos: mostrar hora editable -->
-                        <div class="metodo-pago" style="background-color: #fff3e0; border: 2px solid #ff9800; padding: 12px; border-radius: 6px;">
+                        <!-- Para todos los métodos: mostrar hora editable (solo admin) -->
+                        <div class="metodo-pago" *ngIf="esAdmin" style="background-color: #fff3e0; border: 2px solid #ff9800; padding: 12px; border-radius: 6px;">
                             <label style="font-weight: 600; color: #f57c00;">🕐 Hora del Pago</label>
                             <input type="time" step="1" class="search-input" [(ngModel)]="horaPago" style="font-size: 1rem; border: 2px solid #ff9800;" />
                             <small class="muted" style="color: #ef6c00;" *ngIf="metodoPago === 'Efectivo'">

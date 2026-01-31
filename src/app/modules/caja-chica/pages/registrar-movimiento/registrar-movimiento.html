@@ -58,8 +58,8 @@
                 </ng-container>
             </div>
 
-            <!-- HORA DEL MOVIMIENTO (fecha se toma automáticamente de la caja) -->
-            <div class="form-group">
+            <!-- HORA DEL MOVIMIENTO (fecha se toma automáticamente de la caja) - SOLO PARA ADMINISTRADORES -->
+            <div class="form-group" *ngIf="esAdmin">
                 <label for="horaMovimiento">🕐 Hora del Movimiento *</label>
                 <input id="horaMovimiento" type="time" step="1" formControlName="horaMovimiento" class="form-control" />
                 <small style="color: #666; display: block; margin-top: 4px;">Fecha se usa automáticamente de la caja chica. Solo edite la hora.</small>
