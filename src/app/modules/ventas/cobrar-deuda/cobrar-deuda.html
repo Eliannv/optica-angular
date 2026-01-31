@@ -226,8 +226,11 @@
                         <!-- Para transferencia/tarjeta: mostrar fecha y hora editables -->
                         <div class="metodo-pago" *ngIf="metodoPago === 'Transferencia' || metodoPago === 'Tarjeta'" style="background-color: #e3f2fd; border: 2px solid #2196f3; padding: 12px; border-radius: 6px;">
                             <label style="font-weight: 600; color: #1976d2;">📅 Fecha del Pago</label>
-                            <input type="date" class="search-input" [(ngModel)]="fechaPago" style="font-size: 1rem; border: 2px solid #2196f3;" />
-                            <small class="muted" style="color: #1565c0;">Fecha en que se realizó el pago</small>
+                            <input type="date" class="search-input" [(ngModel)]="fechaPago" [min]="fechaMinima" [max]="fechaMaxima" style="font-size: 1rem; border: 2px solid #2196f3;" />
+                            <small class="muted" style="color: #1565c0;">
+                                <span *ngIf="periodoNombre">Periodo de caja banco: <strong>{{ periodoNombre }}</strong></span>
+                                <span *ngIf="!periodoNombre">Fecha en que se realizó el pago</span>
+                            </small>
                         </div>
 
                         <!-- Para todos los métodos: mostrar hora editable -->

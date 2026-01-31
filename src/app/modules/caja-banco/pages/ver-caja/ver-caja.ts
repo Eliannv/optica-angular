@@ -260,6 +260,49 @@ export class VerCajaComponent implements OnInit {
       return;
     }
 
+    // ✅ VALIDAR QUE NO HAYA CAJAS CHICAS ABIERTAS
+    try {
+      const cajaChicaAbierta = await this.cajaChicaService.getCajaAbierta();
+      
+      if (cajaChicaAbierta) {
+        // Formatear fecha de la caja chica abierta
+        let fechaCajaChica: Date;
+        if ((cajaChicaAbierta.fecha as any)?.toDate) {
+          fechaCajaChica = (cajaChicaAbierta.fecha as any).toDate();
+        } else if (cajaChicaAbierta.fecha instanceof Date) {
+          fechaCajaChica = cajaChicaAbierta.fecha;
+        } else {
+          fechaCajaChica = new Date(cajaChicaAbierta.fecha);
+        }
+        
+        const fechaFormateada = fechaCajaChica.toLocaleDateString('es-ES', { 
+          day: '2-digit', 
+          month: '2-digit', 
+          year: 'numeric' 
+        });
+        
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Caja Chica Abierta',
+          html: `
+            <p>No se puede cerrar la caja banco porque hay una caja chica abierta.</p>
+            <p style="margin-top: 1rem;">
+              <strong>Caja Chica:</strong> ${fechaFormateada}<br>
+              <strong>Saldo:</strong> ${this.formatoMoneda(cajaChicaAbierta.monto_actual)}
+            </p>
+            <p class="text-muted" style="font-size: 0.9rem; margin-top: 1rem;">
+              Por favor, cierra primero la caja chica antes de cerrar la caja banco.
+            </p>
+          `,
+          confirmButtonText: 'Entendido',
+          confirmButtonColor: '#3085d6'
+        });
+        return;
+      }
+    } catch (error) {
+      console.error('Error al verificar cajas chicas:', error);
+    }
+
     const periodo = this.formatoFecha(this.caja.fecha);
     
     const result = await Swal.fire({

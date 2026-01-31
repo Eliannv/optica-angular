@@ -250,6 +250,27 @@ export class CajaBancoService {
     }
   }
 
+  /**
+   * Verifica si la caja banco del periodo de una fecha está abierta.
+   * Útil para validar que no se registren movimientos en periodos cerrados.
+   * 
+   * @param fecha Fecha a verificar (puede ser Date o string YYYY-MM-DD)
+   * @returns Promise<boolean> true si la caja del periodo está abierta, false si está cerrada o no existe
+   */
+  async verificarCajaAbiertaPorFecha(fecha: Date | string): Promise<boolean> {
+    try {
+      const fechaNormalizada = normalizarFecha(fecha);
+      const periodo = obtenerPeriodo(fechaNormalizada);
+      const caja = await this.getCajaBancoPorPeriodo(periodo.year, periodo.monthIndex0);
+      
+      // Si no hay caja o está cerrada, retorna false
+      return caja !== null && caja.estado === 'ABIERTA';
+    } catch (error) {
+      console.error('Error verificando caja abierta por fecha:', error);
+      return false;
+    }
+  }
+
   // Verificar si existe al menos una caja banco en el sistema
   existeAlMenosUnaCajaBanco(): Observable<boolean> {
     const cajasRef = collection(this.firestore, 'cajas_banco');

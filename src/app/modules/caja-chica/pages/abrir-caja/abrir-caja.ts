@@ -42,7 +42,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import Swal from 'sweetalert2';
-import { normalizarFecha } from '../../../../core/utils/fecha-helpers';
+import { normalizarFecha, obtenerPeriodo } from '../../../../core/utils/fecha-helpers';
 
 @Component({
   selector: 'app-abrir-caja',
@@ -63,6 +63,11 @@ export class AbrirCajaComponent implements OnInit, OnDestroy {
   error = '';
   maxFecha = '';
   private procesando = false;
+  
+  // 🔒 Restricción de fecha según el periodo de la caja banco
+  fechaMinima = ''; // Fecha mínima permitida (inicio del mes de la caja banco)
+  fechaMaximaPermitida = ''; // Fecha máxima permitida (fin del mes de la caja banco o hoy)
+  periodoNombre = ''; // Nombre del periodo para mostrar (ej: "Enero 2026")
 
   /** Referencia al control de monto para usar en template */
   get montoControl() {
@@ -82,6 +87,8 @@ export class AbrirCajaComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.inicializarFormulario();
+    // Cargar restricciones de fecha según caja banco abierta
+    this.cargarRestriccionesFechaCajaBanco();
   }
 
   ngOnDestroy(): void {
@@ -127,6 +134,66 @@ export class AbrirCajaComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Carga las restricciones de fecha min/max basadas en el periodo de la caja banco abierta.
+   * Limita la selección de fecha al mes de la caja banco activa.
+   */
+  async cargarRestriccionesFechaCajaBanco(): Promise<void> {
+    try {
+      const caja = await this.cajaBancoService.getCajaBancoAbierta();
+      
+      if (!caja?.fecha) {
+        console.warn('⚠️ No hay caja banco abierta');
+        return;
+      }
+
+      // Convertir fecha de Firestore a Date
+      let fechaCaja: Date;
+      if ((caja.fecha as any)?.toDate) {
+        fechaCaja = (caja.fecha as any).toDate();
+      } else if (caja.fecha instanceof Date) {
+        fechaCaja = caja.fecha;
+      } else {
+        fechaCaja = new Date(caja.fecha);
+      }
+
+      // Obtener periodo de la caja
+      const periodo = obtenerPeriodo(fechaCaja);
+      const year = periodo.year;
+      const month = periodo.monthIndex0; // Base 0
+
+      // Calcular primer y último día del mes
+      const primerDia = new Date(year, month, 1);
+      const ultimoDia = new Date(year, month + 1, 0); // Día 0 del mes siguiente = último día del mes actual
+      const hoy = new Date();
+
+      // Formatear para input[type="date"] (YYYY-MM-DD)
+      this.fechaMinima = this.formatearFecha(primerDia);
+      // La fecha máxima es el menor entre el último día del mes y hoy
+      const fechaMax = ultimoDia < hoy ? ultimoDia : hoy;
+      this.fechaMaximaPermitida = this.formatearFecha(fechaMax);
+      
+      // Nombre del periodo para mostrar
+      const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+      this.periodoNombre = `${meses[month]} ${year}`;
+
+      console.log(`📅 Restricciones de fecha establecidas: ${this.fechaMinima} a ${this.fechaMaximaPermitida} (${this.periodoNombre})`);
+    } catch (error) {
+      console.error('❌ Error cargando restricciones de fecha:', error);
+    }
+  }
+
+  /**
+   * Formatea una fecha a string YYYY-MM-DD para input[type="date"]
+   */
+  private formatearFecha(fecha: Date): string {
+    const year = fecha.getFullYear();
+    const month = (fecha.getMonth() + 1).toString().padStart(2, '0');
+    const day = fecha.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
    * Inicia el flujo de apertura de caja chica.
    *
    * Proceso:
@@ -157,6 +224,19 @@ export class AbrirCajaComponent implements OnInit, OnDestroy {
     // Validar que la fecha no sea futura (usar getRawValue para obtener valor incluso si está deshabilitado)
     const fechaSeleccionada = this.form.getRawValue().fecha;
     if (fechaSeleccionada) {
+      // Validar que esté dentro del periodo de la caja banco
+      if (this.fechaMinima && this.fechaMaximaPermitida) {
+        if (fechaSeleccionada < this.fechaMinima || fechaSeleccionada > this.fechaMaximaPermitida) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Fecha Inválida',
+            text: `La fecha debe estar dentro del periodo de la caja banco: ${this.periodoNombre}. Seleccione una fecha entre ${this.fechaMinima} y ${this.fechaMaximaPermitida}.`,
+            confirmButtonText: 'Entendido'
+          });
+          return;
+        }
+      }
+      
       const fechaNorm = new Date(fechaSeleccionada + 'T00:00:00');
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
@@ -287,11 +367,13 @@ export class AbrirCajaComponent implements OnInit, OnDestroy {
 
     if (!this.validarFecha()) {
       this.procesando = false;
+      this.cargando = false; // Resetear estado de cargando
       return;
     }
 
     if (this.existeCajaAbiertaHoy()) {
       this.procesando = false;
+      this.cargando = false; // Resetear estado de cargando
       return;
     }
 
@@ -316,11 +398,14 @@ export class AbrirCajaComponent implements OnInit, OnDestroy {
    * @returns boolean true si la fecha es válida (pasada o presente), false si es futura
    */
   private validarFecha(): boolean {
-    const fechaSel = new Date(this.form.get('fecha')?.value);
+    const fechaISO = this.form.get('fecha')?.value;
+    const fechaSel = new Date(fechaISO);
     const hoyCmp = new Date();
     fechaSel.setHours(0, 0, 0, 0);
     hoyCmp.setHours(0, 0, 0, 0);
 
+    // La validación del periodo de caja banco ya se hace en abrirCaja()
+    // Solo validar fechas futuras aquí (por si acaso)
     if (fechaSel.getTime() > hoyCmp.getTime()) {
       Swal.fire({
         icon: 'warning',

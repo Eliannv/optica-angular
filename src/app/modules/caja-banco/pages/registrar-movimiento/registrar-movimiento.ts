@@ -17,11 +17,13 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { ClientesService } from '../../../../core/services/clientes';
 import { EmpleadosService } from '../../../../core/services/empleados.service';
 import { ProveedoresService } from '../../../../core/services/proveedores';
 import { AuthService } from '../../../../core/services/auth.service';
+import { normalizarFecha, obtenerPeriodo } from '../../../../core/utils/fecha-helpers';
 import Swal from 'sweetalert2';
 
 @Component({
@@ -94,9 +96,14 @@ export class RegistrarMovimientoComponent implements OnInit {
   /** Saldo restante del proveedor después de pago */
   deudaRestante = 0;
   
-  // 🕐 Fecha y hora del movimiento
+  // � Fecha y hora del movimiento
   fechaMovimiento = ''; // Fecha del movimiento (YYYY-MM-DD)
   horaMovimiento = ''; // Hora del movimiento (HH:mm:ss)
+  
+  // 🔒 Restricción de fecha según el periodo de la caja banco
+  fechaMinima = ''; // Fecha mínima permitida (inicio del mes de la caja)
+  fechaMaxima = ''; // Fecha máxima permitida (fin del mes de la caja)
+  periodoNombre = ''; // Nombre del periodo para mostrar (ej: "Enero 2026")
 
   /** Categorías disponibles para ingresos */
   categorias_ingresos = ['CIERRE_CAJA_CHICA', 'TRANSFERENCIA_CLIENTE', 'OTRO_INGRESO'];
@@ -140,6 +147,9 @@ export class RegistrarMovimientoComponent implements OnInit {
     this.cargarClientes();
     this.cargarEmpleados();
     this.cargarProveedores();
+    
+    // 🔒 Cargar restricciones de fecha según el periodo de la caja
+    this.cargarRestriccionesFecha();
   }
 
   /**
@@ -193,6 +203,68 @@ export class RegistrarMovimientoComponent implements OnInit {
     this.formulario.get('monto')!.valueChanges.subscribe((monto) => {
       this.actualizarDeudaRestante(monto);
     });
+  }
+
+  /**
+   * Carga las restricciones de fecha min/max basadas en el periodo de la caja banco.
+   * Limita la selección de fecha al mes correspondiente de la caja.
+   */
+  async cargarRestriccionesFecha(): Promise<void> {
+    if (!this.cajaId) {
+      console.warn('⚠️ No hay cajaId para cargar restricciones de fecha');
+      return;
+    }
+
+    try {
+      const caja = await firstValueFrom(this.cajaBancoService.getCajaBancoById(this.cajaId));
+      
+      if (!caja?.fecha) {
+        console.warn('⚠️ Caja sin fecha, no se pueden establecer restricciones');
+        return;
+      }
+
+      // Convertir fecha de Firestore a Date
+      let fechaCaja: Date;
+      if ((caja.fecha as any)?.toDate) {
+        fechaCaja = (caja.fecha as any).toDate();
+      } else if (caja.fecha instanceof Date) {
+        fechaCaja = caja.fecha;
+      } else {
+        fechaCaja = new Date(caja.fecha);
+      }
+
+      // Obtener periodo de la caja
+      const periodo = obtenerPeriodo(fechaCaja);
+      const year = periodo.year;
+      const month = periodo.monthIndex0; // Base 0
+
+      // Calcular primer y último día del mes
+      const primerDia = new Date(year, month, 1);
+      const ultimoDia = new Date(year, month + 1, 0); // Día 0 del mes siguiente = último día del mes actual
+
+      // Formatear para input[type="date"] (YYYY-MM-DD)
+      this.fechaMinima = this.formatearFecha(primerDia);
+      this.fechaMaxima = this.formatearFecha(ultimoDia);
+      
+      // Nombre del periodo para mostrar
+      const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+      this.periodoNombre = `${meses[month]} ${year}`;
+
+      console.log(`📅 Restricciones de fecha establecidas: ${this.fechaMinima} a ${this.fechaMaxima} (${this.periodoNombre})`);
+    } catch (error) {
+      console.error('❌ Error cargando restricciones de fecha:', error);
+    }
+  }
+
+  /**
+   * Formatea una fecha a string YYYY-MM-DD para input[type="date"]
+   */
+  private formatearFecha(fecha: Date): string {
+    const year = fecha.getFullYear();
+    const month = (fecha.getMonth() + 1).toString().padStart(2, '0');
+    const day = fecha.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   /**
@@ -526,6 +598,20 @@ export class RegistrarMovimientoComponent implements OnInit {
       // Obtener fecha y hora del formulario
       const fechaSeleccionada = this.formulario.get('fechaMovimiento')?.value || this.fechaMovimiento;
       const horaSeleccionada = this.formulario.get('horaMovimiento')?.value || this.horaMovimiento;
+      
+      // ✅ VALIDAR QUE LA FECHA ESTÉ DENTRO DEL PERIODO DE LA CAJA BANCO
+      if (this.fechaMinima && this.fechaMaxima) {
+        if (fechaSeleccionada < this.fechaMinima || fechaSeleccionada > this.fechaMaxima) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Fecha Inválida',
+            text: `La fecha debe estar dentro del periodo ${this.periodoNombre}. Seleccione una fecha entre ${this.fechaMinima} y ${this.fechaMaxima}.`,
+            confirmButtonText: 'Entendido'
+          });
+          this.guardando = false;
+          return;
+        }
+      }
       
       // Combinar fecha y hora seleccionadas por el usuario
       const fechaFinal = this.combinarFechaHora(fechaSeleccionada, horaSeleccionada);

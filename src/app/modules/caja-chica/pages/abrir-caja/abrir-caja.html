@@ -18,11 +18,13 @@
                     type="date" 
                     formControlName="fecha" 
                     class="form-control"
-                    [max]="fechaMaxima"
+                    [min]="fechaMinima"
+                    [max]="fechaMaximaPermitida || fechaMaxima"
                     [disabled]="esOperador"
                     [class.error]="form.get('fecha')?.touched && form.get('fecha')?.invalid"
                 />
-                <small class="fecha-hint" *ngIf="!esOperador">Selecciona la fecha de la caja chica (no se permiten fechas futuras)</small>
+                <small class="fecha-hint" *ngIf="!esOperador && periodoNombre">Periodo de caja banco: <strong>{{ periodoNombre }}</strong></small>
+                <small class="fecha-hint" *ngIf="!esOperador && !periodoNombre">Selecciona la fecha de la caja chica (no se permiten fechas futuras)</small>
                 <small class="fecha-hint" *ngIf="esOperador">Solo puedes crear cajas para el día de hoy</small>
                 <ng-container *ngIf="form.get('fecha')?.touched && form.get('fecha')?.invalid">
                     <span class="error-text">La fecha es requerida</span>

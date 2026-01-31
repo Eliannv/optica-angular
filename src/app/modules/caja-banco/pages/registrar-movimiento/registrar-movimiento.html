@@ -93,8 +93,18 @@
 
                 <div class="form-group">
                     <label for="fechaMovimiento">📅 Fecha del Movimiento</label>
-                    <input id="fechaMovimiento" type="date" formControlName="fechaMovimiento" class="form-control" />
-                    <small style="color: #666; display: block; margin-top: 4px;">Fecha en que ocurrió el movimiento</small>
+                    <input 
+                        id="fechaMovimiento" 
+                        type="date" 
+                        formControlName="fechaMovimiento" 
+                        class="form-control"
+                        [min]="fechaMinima"
+                        [max]="fechaMaxima" 
+                    />
+                    <small style="color: #666; display: block; margin-top: 4px;">
+                        <span *ngIf="periodoNombre">Debe estar dentro del periodo: <strong>{{ periodoNombre }}</strong></span>
+                        <span *ngIf="!periodoNombre">Fecha en que ocurrió el movimiento</span>
+                    </small>
                 </div>
 
                 <div class="form-group">
