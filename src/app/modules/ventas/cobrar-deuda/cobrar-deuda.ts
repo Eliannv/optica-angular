@@ -506,9 +506,10 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
             this.codigoTransferencia,
             f.id,
             usuario?.id || '',
-            usuario?.nombre || 'Usuario'
+            usuario?.nombre || 'Usuario',
+            fechaFinal  // Pasar la fecha seleccionada por el usuario
           );
-          console.log('✅ Pago de deuda registrado en Caja Banco');
+          console.log('✅ Pago de deuda registrado en Caja Banco con fecha', fechaFinal);
         } catch (err) {
           console.error('❌ Error registrando transferencia en Caja Banco:', err);
           // Mostrar advertencia pero no fallar la operación
@@ -528,9 +529,10 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
             this.ultimosCuatroTarjeta,
             f.id,
             usuario?.id || '',
-            usuario?.nombre || 'Usuario'
+            usuario?.nombre || 'Usuario',
+            fechaFinal  // Pasar la fecha seleccionada por el usuario
           );
-          console.log('✅ Pago por tarjeta registrado en Caja Banco');
+          console.log('✅ Pago por tarjeta registrado en Caja Banco con fecha', fechaFinal);
         } catch (err) {
           console.error('❌ Error registrando pago por tarjeta en Caja Banco:', err);
           // Mostrar advertencia pero no fallar la operación

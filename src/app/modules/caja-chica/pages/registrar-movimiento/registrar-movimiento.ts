@@ -38,6 +38,7 @@ import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { MovimientoCajaChica } from '../../../../core/models/caja-chica.model';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -257,33 +258,50 @@ export class RegistrarMovimientoComponent implements OnInit {
 
     const usuario = this.authService.getCurrentUser();
     
-    // Obtener fecha de apertura de la caja chica
-    const caja = await this.cajaChicaService.getCajaChicaById(this.cajaId).toPromise();
-    const fechaCaja = caja?.fecha instanceof Date ? caja.fecha : new Date(caja?.fecha || new Date());
-    
-    // Combinar fecha de caja con hora seleccionada por el usuario
-    const fechaFinal = this.combinarFechaHora(fechaCaja, this.horaMovimiento);
-    
-    console.log('📅 Caja fecha:', fechaCaja);
-    console.log('🕐 Hora movimiento:', this.horaMovimiento);
-    console.log('✅ Fecha final:', fechaFinal);
-    
-    const movimiento: MovimientoCajaChica = {
-      caja_chica_id: this.cajaId,
-      fecha: fechaFinal,
-      tipo,
-      descripcion: this.form.get('descripcion')?.value,
-      monto,
-      comprobante: this.form.get('comprobante')?.value,
-      observacion: this.form.get('observacion')?.value,
-      ...(usuario?.id ? { usuario_id: usuario.id } : {}),
-      ...(usuario?.nombre ? { usuario_nombre: usuario.nombre } : {}),
-    };
+    try {
+      // Obtener fecha de apertura de la caja chica
+      const caja = await firstValueFrom(this.cajaChicaService.getCajaChicaById(this.cajaId));
+      
+      // Convertir Timestamp de Firestore a Date si es necesario
+      let fechaCaja: Date;
+      if ((caja?.fecha as any)?.toDate) {
+        fechaCaja = (caja.fecha as any).toDate();
+      } else if (caja?.fecha instanceof Date) {
+        fechaCaja = caja.fecha;
+      } else {
+        fechaCaja = new Date();
+      }
+      
+      // Obtener la hora seleccionada del formulario
+      const horaSeleccionada = this.form.get('horaMovimiento')?.value || this.horaMovimiento;
+      
+      // Combinar fecha de caja con hora seleccionada por el usuario
+      const fechaFinal = this.combinarFechaHora(fechaCaja, horaSeleccionada);
+      
+      console.log('📅 Caja fecha:', fechaCaja);
+      console.log('🕐 Hora movimiento:', horaSeleccionada);
+      console.log('✅ Fecha final:', fechaFinal);
+      
+      const movimiento: MovimientoCajaChica = {
+        caja_chica_id: this.cajaId,
+        fecha: fechaFinal,
+        tipo,
+        descripcion: this.form.get('descripcion')?.value,
+        monto,
+        comprobante: this.form.get('comprobante')?.value,
+        observacion: this.form.get('observacion')?.value,
+        ...(usuario?.id ? { usuario_id: usuario.id } : {}),
+        ...(usuario?.nombre ? { usuario_nombre: usuario.nombre } : {}),
+      };
 
-    this.cajaChicaService.registrarMovimiento(this.cajaId, movimiento).then(
-      () => this.manejarExito(),
-      (error) => this.manejarError(error)
-    );
+      this.cajaChicaService.registrarMovimiento(this.cajaId, movimiento).then(
+        () => this.manejarExito(),
+        (error) => this.manejarError(error)
+      );
+    } catch (error) {
+      console.error('❌ Error obteniendo caja chica:', error);
+      this.manejarError(error);
+    }
   }
 
   /**

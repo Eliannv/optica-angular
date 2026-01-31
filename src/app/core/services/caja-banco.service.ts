@@ -753,7 +753,8 @@ export class CajaBancoService {
     codigoTransferencia: string,
     ventaId: string,
     usuarioId?: string,
-    usuarioNombre?: string
+    usuarioNombre?: string,
+    fecha?: Date
   ): Promise<string> {
     // Obtener CUALQUIER caja banco ABIERTA (histórica o actual)
     const cajaBancoActiva = await this.getCajaBancoAbierta();
@@ -764,7 +765,7 @@ export class CajaBancoService {
 
     const movimiento: MovimientoCajaBanco = {
       caja_banco_id: cajaBancoActiva.id,
-      fecha: new Date(),
+      fecha: fecha || new Date(),  // Usar fecha proporcionada o actual
       tipo: 'INGRESO',
       categoria: 'TRANSFERENCIA_CLIENTE',
       descripcion: `Transferencia de cliente - Venta #${ventaId}`,
@@ -784,7 +785,8 @@ export class CajaBancoService {
     ultimos4Digitos: string,
     ventaId: string,
     usuarioId?: string,
-    usuarioNombre?: string
+    usuarioNombre?: string,
+    fecha?: Date
   ): Promise<string> {
     // Obtener CUALQUIER caja banco ABIERTA (histórica o actual)
     const cajaBancoActiva = await this.getCajaBancoAbierta();
@@ -795,7 +797,7 @@ export class CajaBancoService {
 
     const movimiento: MovimientoCajaBanco = {
       caja_banco_id: cajaBancoActiva.id,
-      fecha: new Date(),
+      fecha: fecha || new Date(),  // Usar fecha proporcionada o actual
       tipo: 'INGRESO',
       categoria: 'TRANSFERENCIA_CLIENTE', // Se usa la misma categoría que transferencias
       descripcion: `Pago por tarjeta - Venta #${ventaId} (Últimos 4 dígitos: ${ultimos4Digitos})`,

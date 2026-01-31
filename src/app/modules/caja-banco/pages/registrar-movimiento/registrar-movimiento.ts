@@ -523,11 +523,15 @@ export class RegistrarMovimientoComponent implements OnInit {
     const usuario = this.authService.getCurrentUser();
 
     try {
-      // Combinar fecha y hora seleccionadas por el usuario
-      const fechaFinal = this.combinarFechaHora(this.fechaMovimiento, this.horaMovimiento);
+      // Obtener fecha y hora del formulario
+      const fechaSeleccionada = this.formulario.get('fechaMovimiento')?.value || this.fechaMovimiento;
+      const horaSeleccionada = this.formulario.get('horaMovimiento')?.value || this.horaMovimiento;
       
-      console.log('📅 Fecha movimiento:', this.fechaMovimiento);
-      console.log('🕐 Hora movimiento:', this.horaMovimiento);
+      // Combinar fecha y hora seleccionadas por el usuario
+      const fechaFinal = this.combinarFechaHora(fechaSeleccionada, horaSeleccionada);
+      
+      console.log('📅 Fecha movimiento:', fechaSeleccionada);
+      console.log('🕐 Hora movimiento:', horaSeleccionada);
       console.log('✅ Fecha final:', fechaFinal);
 
       // Construir movimiento evitando campos undefined (Firestore no los acepta)

@@ -882,9 +882,10 @@ async guardarEImprimir() {
           this.codigoTransferencia,
           facturaId,
           usuario?.id || '',
-          usuario?.nombre || 'Usuario'
+          usuario?.nombre || 'Usuario',
+          fechaFinal  // Pasar la fecha seleccionada por el usuario
         );
-        console.log(`✅ Transferencia registrada en Caja Banco: ${montoPagado} USD`);
+        console.log(`✅ Transferencia registrada en Caja Banco: ${montoPagado} USD con fecha`, fechaFinal);
       } catch (err) {
         console.error('❌ Error registrando transferencia en Caja Banco:', err);
         Swal.fire({
@@ -904,9 +905,10 @@ async guardarEImprimir() {
           this.ultimosCuatroTarjeta,
           facturaId,
           usuario?.id || '',
-          usuario?.nombre || 'Usuario'
+          usuario?.nombre || 'Usuario',
+          fechaFinal  // Pasar la fecha seleccionada por el usuario
         );
-        console.log(`✅ Pago por tarjeta registrado en Caja Banco: ${montoPagado} USD`);
+        console.log(`✅ Pago por tarjeta registrado en Caja Banco: ${montoPagado} USD con fecha`, fechaFinal);
       } catch (err) {
         console.error('❌ Error registrando pago por tarjeta en Caja Banco:', err);
         Swal.fire({
