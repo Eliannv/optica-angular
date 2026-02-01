@@ -167,6 +167,18 @@ export const routes: Routes = [
     canActivate: [authGuard, roleGuard([RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR])]
   },
 
+  /**
+   * Módulo de cuentas por pagar y cobrar.
+   * Control de deudas con terceros y préstamos realizados.
+   */
+  {
+    path: 'cuentas',
+    loadChildren: () =>
+      import('./modules/cuentas/cuentas-module')
+        .then(m => m.CuentasModule),
+    canActivate: [authGuard, roleGuard([RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR])]
+  },
+
   /* ==========================================================================
      RUTAS PROTEGIDAS - ADMINISTRACIÓN
      Acceso: Solo Administradores

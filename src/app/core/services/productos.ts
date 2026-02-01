@@ -199,9 +199,11 @@ export class ProductosService {
     // Generar ID interno automáticamente
     const idInterno = await this.getNextIdInterno();
 
-    // Stock ilimitado para grupo LUNAS
-    const esIlimitado = (producto as any)?.grupo === 'LUNAS';
-    const tipoControlStock = esIlimitado ? 'ILIMITADO' : 'NORMAL';
+    // Stock control: NORMAL ONLY para ARMAZONES y GAFAS
+    // ILIMITADO para todos los demás (LUNAS, SERVICIOS, ACCESORIOS, etc.)
+    const grupo = (producto as any)?.grupo || '';
+    const esControlNormal = grupo === 'ARMAZONES' || grupo === 'GAFAS';
+    const tipoControlStock = esControlNormal ? 'NORMAL' : 'ILIMITADO';
 
     return addDoc(this.productosRef, {
       ...producto,
@@ -210,7 +212,7 @@ export class ProductosService {
       activo: true, // 🔹 Nuevo producto siempre activo
       createdAt: new Date(),
       updatedAt: new Date(),
-      stock: esIlimitado ? 0 : (producto.stock || 0),
+      stock: esControlNormal ? (producto.stock || 0) : 0,
     });
   }
 

@@ -39,6 +39,7 @@
         "@popperjs/core": "^2.11.8",
         "bootstrap": "^5.3.8",
         "exceljs": "^4.4.0",
+        "file-saver": "^2.0.5",
         "firebase-admin": "^13.6.0",
         "rxjs": "~7.8.0",
         "sweetalert2": "^11.26.17",

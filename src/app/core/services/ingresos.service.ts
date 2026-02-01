@@ -450,13 +450,16 @@ export class IngresosService {
     const ingreso = ingresoSnap.data() as Ingreso;
 
     // Construir objeto sin valores undefined (Firestore no admite undefined)
-    const esIlimitado = (detalle.grupo === 'LUNAS');
-    const tipoControlStock = esIlimitado ? 'ILIMITADO' : 'NORMAL';
+    // Stock control: NORMAL ONLY para ARMAZONES y GAFAS
+    // ILIMITADO para todos los demás (LUNAS, SERVICIOS, ACCESORIOS, etc.)
+    const grupo = detalle.grupo || '';
+    const esControlNormal = grupo === 'ARMAZONES' || grupo === 'GAFAS';
+    const tipoControlStock = esControlNormal ? 'NORMAL' : 'ILIMITADO';
     
     const nuevoProducto: any = {
       idInterno: idInterno,
       nombre: detalle.nombre,
-      stock: esIlimitado ? 0 : detalle.cantidad,
+      stock: esControlNormal ? detalle.cantidad : 0,
       tipo_control_stock: tipoControlStock,
       proveedor: ingreso?.proveedor || '', // 🔹 Usar proveedor (nombre), NO proveedorId
       ingresoId: ingresoId,

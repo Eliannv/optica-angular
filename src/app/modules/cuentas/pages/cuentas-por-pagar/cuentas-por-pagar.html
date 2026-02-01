@@ -1,0 +1,165 @@
+<div class="caja-container">
+    <div class="caja-card">
+        <!-- HEADER -->
+        <div class="caja-header">
+            <div class="header-content">
+                <h1 class="caja-title">Cuentas por Pagar</h1>
+                <p class="subtitle">Gestión de deudas que tenemos con terceros</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn-primary" (click)="toggleFormulario()">
+          {{ mostrandoFormulario ? '× Cancelar' : '+ Nueva Cuenta por Pagar' }}
+        </button>
+            </div>
+        </div>
+
+        <div class="caja-body">
+            <!-- FORMULARIO DE REGISTRO -->
+            <div class="form-section" *ngIf="mostrandoFormulario">
+                <h2 class="section-title">Registrar cuenta por pagar</h2>
+                <p class="text-muted">Al registrar, el monto se SUMARÁ a caja/banco</p>
+
+                <form [formGroup]="formularioCuenta" (ngSubmit)="registrarCuenta()">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="fecha">Fecha</label>
+                            <input type="date" id="fecha" formControlName="fecha" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="montoTotal">Monto Total</label>
+                            <input type="number" id="montoTotal" formControlName="montoTotal" class="form-control" placeholder="0.00" step="0.01" min="0.01">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="observacion">Observación</label>
+                        <textarea id="observacion" formControlName="observacion" class="form-control" rows="3" placeholder="Descripción de la cuenta por pagar"></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary" [disabled]="formularioCuenta.invalid">
+              Registrar cuenta
+            </button>
+                        <button type="button" class="btn-secondary" (click)="toggleFormulario()">
+              Cancelar
+            </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- RESUMEN -->
+            <div class="resumen-container" *ngIf="!cargando && !mostrandoFormulario">
+                <div class="resumen-card">
+                    <div class="resumen-label">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" x2="12" y1="2" y2="22"/>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg> Total Pendiente
+                    </div>
+                    <div class="resumen-valor">{{ formatoMoneda(getTotalPendiente()) }}</div>
+                </div>
+
+                <div class="resumen-card">
+                    <div class="resumen-label">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2"/>
+              <path d="M3 9h18"/>
+            </svg> Cuentas Activas
+                    </div>
+                    <div class="resumen-valor">{{ getCantidadActivas() }}</div>
+                </div>
+
+                <div class="resumen-card">
+                    <div class="resumen-label">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 3v18h18"/>
+              <path d="m19 9-5 5-4-4-3 3"/>
+            </svg> Total Cuentas
+                    </div>
+                    <div class="resumen-valor">{{ cuentasFiltradas.length }}</div>
+                </div>
+            </div>
+
+            <!-- FILTROS -->
+            <div class="filtros-container" *ngIf="!mostrandoFormulario">
+                <div class="filtro-group">
+                    <label>Filtrar por estado:</label>
+                    <div class="filtro-buttons">
+                        <button class="filtro-btn" [class.active]="filtroEstado === 'TODAS'" (click)="cambiarFiltroEstado('TODAS')">
+              Todas
+            </button>
+                        <button class="filtro-btn" [class.active]="filtroEstado === EstadoCuenta.ACTIVA" (click)="cambiarFiltroEstado(EstadoCuenta.ACTIVA)">
+              Activas
+            </button>
+                        <button class="filtro-btn" [class.active]="filtroEstado === EstadoCuenta.CANCELADA" (click)="cambiarFiltroEstado(EstadoCuenta.CANCELADA)">
+              Canceladas
+            </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LISTADO DE CUENTAS -->
+            <div class="caja-section" *ngIf="!mostrandoFormulario">
+                <h2 class="section-title">Listado de cuentas por pagar</h2>
+
+                <!-- Cargando -->
+                <div *ngIf="cargando" class="loading-container">
+                    <p>Cargando cuentas...</p>
+                </div>
+
+                <!-- Sin cuentas -->
+                <div *ngIf="!cargando && cuentasFiltradas.length === 0" class="empty-state">
+                    <p>No hay cuentas por pagar registradas</p>
+                </div>
+
+                <!-- Tabla -->
+                <div class="tabla-responsive" *ngIf="!cargando && cuentasFiltradas.length > 0">
+                    <table class="tabla">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Observación</th>
+                                <th class="text-right">Monto Total</th>
+                                <th class="text-right">Pagado</th>
+                                <th class="text-right">Saldo</th>
+                                <th>Estado</th>
+                                <th class="text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let cuenta of cuentasFiltradas" class="tabla-row">
+                                <td>{{ formatoFecha(cuenta.fecha) }}</td>
+                                <td>{{ cuenta.observacion }}</td>
+                                <td class="text-right">{{ formatoMoneda(cuenta.montoTotal) }}</td>
+                                <td class="text-right">{{ formatoMoneda(cuenta.montoAbonado) }}</td>
+                                <td class="text-right font-bold">{{ formatoMoneda(cuenta.saldo) }}</td>
+                                <td>
+                                    <span class="badge" [class.badge-success]="cuenta.estado === EstadoCuenta.ACTIVA" [class.badge-secondary]="cuenta.estado === EstadoCuenta.CANCELADA">
+                    {{ cuenta.estado }}
+                  </span>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn-action btn-action-primary" (click)="verDetalles(cuenta)" title="Ver detalles">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                    </button>
+                                        <button *ngIf="cuenta.estado === EstadoCuenta.ACTIVA" class="btn-action btn-action-success" (click)="realizarAbono(cuenta)" title="Realizar pago">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" x2="12" y1="2" y2="22"/>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                      </svg>
+                    </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
