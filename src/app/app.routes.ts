@@ -185,15 +185,39 @@ export const routes: Routes = [
   },
 
   /**
-   * Gestión de máquinas autorizadas.
-   * Control centralizado de acceso por sucursal mediante Machine ID.
+   * Módulo de Administración.
+   * Gestión centralizada de sucursales y máquinas autorizadas.
    */
   {
-    path: 'gestionar-maquinas',
-    loadComponent: () =>
-      import('./modules/empleados/gestionar-maquinas/gestionar-maquinas.component')
-        .then(m => m.GestionarMaquinasComponent),
-    canActivate: [authGuard, roleGuard([RolUsuario.ADMINISTRADOR])]
+    path: 'administracion',
+    children: [
+      {
+        path: 'sucursales',
+        loadComponent: () =>
+          import('./modules/administracion/sucursales/listar-sucursales/listar-sucursales')
+            .then(m => m.ListarSucursales),
+        canActivate: [authGuard, roleGuard([RolUsuario.ADMINISTRADOR])]
+      },
+      {
+        path: 'gestionar-maquinas',
+        loadComponent: () =>
+          import('./modules/administracion/sucursales/gestionar-maquinas/gestionar-maquinas.component')
+            .then(m => m.GestionarMaquinasComponent),
+        canActivate: [authGuard, roleGuard([RolUsuario.ADMINISTRADOR])]
+      },
+      {
+        path: 'crear-sucursal',
+        loadComponent: () =>
+          import('./modules/administracion/sucursales/crear-sucursal/crear-sucursal')
+            .then(m => m.CrearSucursal),
+        canActivate: [authGuard, roleGuard([RolUsuario.ADMINISTRADOR])]
+      },
+      {
+        path: '',
+        redirectTo: 'sucursales',
+        pathMatch: 'full'
+      }
+    ]
   },
 
   /* ==========================================================================

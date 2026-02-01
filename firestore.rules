@@ -55,6 +55,22 @@ service cloud.firestore {
       // Crear/Actualizar/Eliminar: solo administradores
       allow create, update, delete: if isAdmin();
     }
+    // ===== SUCURSALES =====
+    match /sucursales/{sucursalId} {
+      // Leer: cualquier usuario autenticado (para selección de sucursales)
+      allow read: if isSignedIn();
+      
+      // Crear/Actualizar/Eliminar: solo administradores
+      allow create, update, delete: if isAdmin();
+    }
+    // ===== SUCURSALES =====
+    match /sucursales/{sucursalId} {
+      // Leer: cualquier usuario autenticado (para selección de sucursales)
+      allow read: if isSignedIn();
+      
+      // Crear/Actualizar/Eliminar: solo administradores
+      allow create, update, delete: if isAdmin();
+    }
 
     // ===== CLIENTES =====
     match /clientes/{clienteId} {

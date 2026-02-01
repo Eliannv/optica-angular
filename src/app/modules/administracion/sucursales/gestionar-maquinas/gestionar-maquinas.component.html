@@ -26,9 +26,9 @@
       </div>
     </div>
     <div class="d-flex gap-2">
-      <button class="btn btn-outline-secondary" (click)="registrarMaquinasIniciales()" [disabled]="cargando()">
-        <i class="bi bi-database-add me-1"></i>
-        Registrar Máquinas Iniciales
+      <button class="btn btn-outline-secondary" (click)="volverASucursales()" [disabled]="cargando()">
+        <i class="bi bi-arrow-left me-1"></i>
+        Volver
       </button>
       <button class="btn btn-primary" (click)="nuevaMaquina()" [disabled]="cargando()">
         <i class="bi bi-plus-lg me-1"></i>
@@ -76,10 +76,16 @@
                   <label class="form-label">Sucursal *</label>
                   <select class="form-select" formControlName="sucursal">
                     <option value="">Seleccione una sucursal</option>
-                    @for (sucursal of sucursales; track sucursal) {
-                      <option [value]="sucursal">{{ sucursal }}</option>
+                    @for (sucursal of sucursales(); track sucursal.id) {
+                      <option [value]="sucursal.codigo">{{ sucursal.nombre }}</option>
                     }
                   </select>
+                  @if (sucursales().length === 0) {
+                    <small class="text-warning">
+                      <i class="bi bi-exclamation-triangle me-1"></i>
+                      No hay sucursales disponibles. Cree una primero.
+                    </small>
+                  }
                 </div>
 
                 <div class="col-12 mb-3">

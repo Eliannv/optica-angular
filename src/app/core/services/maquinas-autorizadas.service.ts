@@ -15,7 +15,7 @@ import {
   Timestamp,
 } from '@angular/fire/firestore';
 import { Observable, from, map } from 'rxjs';
-import { MaquinaAutorizada, Sucursal } from '../models/maquina-autorizada.model';
+import { MaquinaAutorizada } from '../models/maquina-autorizada.model';
 
 @Injectable({
   providedIn: 'root',
@@ -40,7 +40,7 @@ export class MaquinasAutorizadasService {
   /**
    * Obtener máquinas de una sucursal específica
    */
-  getMaquinasPorSucursal(sucursal: Sucursal): Observable<MaquinaAutorizada[]> {
+  getMaquinasPorSucursal(sucursal: string): Observable<MaquinaAutorizada[]> {
     const colRef = collection(this.firestore, this.collectionName);
     const q = query(colRef, where('sucursal', '==', sucursal));
     return collectionData(q, { idField: 'id' }).pipe(

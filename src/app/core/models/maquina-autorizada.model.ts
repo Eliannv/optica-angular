@@ -5,7 +5,7 @@
 export interface MaquinaAutorizada {
   id?: string; // ID del documento en Firestore
   machineId: string; // ID único de la máquina (hash del sistema)
-  sucursal: 'MACHALA' | 'PASAJE' | 'DESARROLLO_1' | 'DESARROLLO_2';
+  sucursal: string; // Código de la sucursal (ej: "MACH001", "PASJ001")
   nombreMaquina: string; // Nombre descriptivo (ej: "PC Recepción Pasaje")
   activo: boolean; // Si la máquina está autorizada
   fechaRegistro: Date;
@@ -13,12 +13,3 @@ export interface MaquinaAutorizada {
   observaciones?: string;
   autorizadoPor?: string; // UID del admin que autorizó
 }
-
-export type Sucursal = 'MACHALA' | 'PASAJE' | 'DESARROLLO_1' | 'DESARROLLO_2';
-
-export const SUCURSALES: readonly Sucursal[] = [
-  'MACHALA',
-  'PASAJE',
-  'DESARROLLO_1',
-  'DESARROLLO_2',
-] as const;

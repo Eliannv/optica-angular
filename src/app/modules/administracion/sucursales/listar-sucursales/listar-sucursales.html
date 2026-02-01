@@ -1,0 +1,157 @@
+<div class="container-fluid py-4">
+  <!-- Encabezado -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1">
+        <i class="bi bi-building me-2"></i>
+        Gestión de Sucursales
+      </h2>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-primary" (click)="irAGestionarMaquinas()" [disabled]="cargando()">
+        <i class="bi bi-pc-display-horizontal me-1"></i>
+        Gestionar Máquinas
+      </button>
+      <button class="btn btn-success" (click)="irACrearSucursal()" [disabled]="cargando()">
+        <i class="bi bi-plus-lg me-1"></i>
+        Nueva Sucursal
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabla de sucursales -->
+  <div class="card shadow-sm">
+    <div class="card-body">
+      @if (cargando()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+          </div>
+          <p class="text-muted mt-2">Cargando sucursales...</p>
+        </div>
+      } @else if (sucursales().length === 0) {
+        <div class="text-center py-5">
+          <i class="bi bi-building text-muted" style="font-size: 4rem;"></i>
+          <p class="text-muted mt-3 mb-0">No hay sucursales registradas</p>
+          <button class="btn btn-primary mt-3" (click)="irACrearSucursal()">
+            <i class="bi bi-plus-lg me-1"></i>
+            Crear Primera Sucursal
+          </button>
+        </div>
+      } @else {
+        <!-- Estadísticas en tarjetas -->
+        <div class="stats-container mb-4">
+          <div class="stats-card">
+            <div class="stats-icon bg-primary-subtle">
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-store-icon lucide-store">
+                <path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/>
+                <path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/>
+                <path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/>
+              </svg>
+            </div>
+            <div class="stats-info">
+              <h6 class="stats-label">Total Sucursales</h6>
+              <h3 class="stats-value">{{ totalSucursales }}</h3>
+            </div>
+          </div>
+
+          <div class="stats-card">
+            <div class="stats-icon bg-success-subtle">
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <div class="stats-info">
+              <h6 class="stats-label">Activas</h6>
+              <h3 class="stats-value text-success">{{ sucursalesActivas }}</h3>
+            </div>
+          </div>
+
+          <div class="stats-card">
+            <div class="stats-icon bg-danger-subtle">
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </div>
+            <div class="stats-info">
+              <h6 class="stats-label">Inactivas</h6>
+              <h3 class="stats-value text-danger">{{ sucursalesInactivas }}</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Código</th>
+                <th>Nombre</th>
+                <th>Dirección</th>
+                <th>Teléfono</th>
+                <th>Estado</th>
+                <th>Fecha Creación</th>
+                <th class="text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (sucursal of sucursales(); track sucursal.id) {
+                <tr>
+                  <td>
+                    <code class="bg-light px-2 py-1 rounded">{{ sucursal.codigo }}</code>
+                  </td>
+                  <td>
+                    <strong>{{ sucursal.nombre }}</strong>
+                  </td>
+                  <td>
+                    <span class="text-muted">{{ sucursal.direccion || 'N/A' }}</span>
+                  </td>
+                  <td>
+                    <span class="text-muted">{{ sucursal.telefono || 'N/A' }}</span>
+                  </td>
+                  <td>
+                    @if (sucursal.activo) {
+                      <span class="badge bg-success">Activa</span>
+                    } @else {
+                      <span class="badge bg-danger">Inactiva</span>
+                    }
+                  </td>
+                  <td>
+                    <small class="text-muted">{{ formatearFecha(sucursal.fechaCreacion) }}</small>
+                  </td>
+                  <td>
+                    <div class="d-flex gap-2 justify-content-center">
+                      <button class="btn btn-sm btn-info" (click)="editarSucursal(sucursal)" title="Editar sucursal">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil">
+                          <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/>
+                          <path d="m15 5 4 4"/>
+                        </svg>
+                      </button>
+                      <button class="btn btn-sm" [class.btn-success]="sucursal.activo" [class.btn-secondary]="!sucursal.activo" (click)="cambiarEstado(sucursal)" [title]="sucursal.activo ? 'Desactivar' : 'Activar'">
+                        <svg *ngIf="sucursal.activo" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-toggle-right">
+                          <circle cx="15" cy="12" r="3"/>
+                          <rect width="20" height="14" x="2" y="5" rx="7"/>
+                        </svg>
+                        <svg *ngIf="!sucursal.activo" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-toggle-left">
+                          <circle cx="9" cy="12" r="3"/>
+                          <rect width="20" height="14" x="2" y="5" rx="7"/>
+                        </svg>
+                      </button>
+                      <button class="btn btn-sm btn-danger" (click)="eliminarSucursal(sucursal)" title="Eliminar sucursal">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash">
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+                          <path d="M3 6h18"/>
+                          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  </div>
+</div>

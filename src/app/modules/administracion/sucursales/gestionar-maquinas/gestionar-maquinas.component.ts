@@ -1,9 +1,12 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MaquinasAutorizadasService } from '../../../core/services/maquinas-autorizadas.service';
-import { MaquinaAutorizada, SUCURSALES, Sucursal } from '../../../core/models/maquina-autorizada.model';
-import { AuthService } from '../../../core/services/auth.service';
+import { Router } from '@angular/router';
+import { MaquinasAutorizadasService } from '../../../../core/services/maquinas-autorizadas.service';
+import { SucursalesService } from '../../../../core/services/sucursales.service';
+import { MaquinaAutorizada } from '../../../../core/models/maquina-autorizada.model';
+import { Sucursal } from '../../../../core/models/sucursal.model';
+import { AuthService } from '../../../../core/services/auth.service';
 import Swal from 'sweetalert2';
 
 @Component({
@@ -15,7 +18,7 @@ import Swal from 'sweetalert2';
 })
 export class GestionarMaquinasComponent implements OnInit {
   maquinas = signal<MaquinaAutorizada[]>([]);
-  sucursales = SUCURSALES;
+  sucursales = signal<Sucursal[]>([]);
   maquinaForm!: FormGroup;
   mostrarFormulario = signal(false);
   modoEdicion = signal(false);
@@ -23,7 +26,9 @@ export class GestionarMaquinasComponent implements OnInit {
 
   constructor(
     private fb: FormBuilder,
+    private router: Router,
     private maquinasService: MaquinasAutorizadasService,
+    private sucursalesService: SucursalesService,
     private authService: AuthService
   ) {
     this.inicializarFormulario();
@@ -31,6 +36,7 @@ export class GestionarMaquinasComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargarMaquinas();
+    this.cargarSucursales();
   }
 
   inicializarFormulario(): void {
@@ -60,6 +66,17 @@ export class GestionarMaquinasComponent implements OnInit {
           confirmButtonText: 'Cerrar'
         });
         this.cargando.set(false);
+      },
+    });
+  }
+
+  cargarSucursales(): void {
+    this.sucursalesService.getSucursalesActivas().subscribe({
+      next: (sucursales) => {
+        this.sucursales.set(sucursales);
+      },
+      error: (error) => {
+        console.error('Error cargando sucursales:', error);
       },
     });
   }
@@ -250,6 +267,10 @@ export class GestionarMaquinasComponent implements OnInit {
     }
   }
 
+  volverASucursales(): void {
+    this.router.navigate(['/administracion/sucursales']);
+  }
+
   cancelar(): void {
     this.mostrarFormulario.set(false);
     this.maquinaForm.reset({ activo: true });
@@ -264,14 +285,9 @@ export class GestionarMaquinasComponent implements OnInit {
     return activo ? 'badge bg-success' : 'badge bg-danger';
   }
 
-  getSucursalBadgeClass(sucursal: Sucursal): string {
-    const clases: Record<Sucursal, string> = {
-      MACHALA: 'badge bg-success-subtle',
-      PASAJE: 'badge bg-info',
-      DESARROLLO_1: 'badge bg-primary-subtle',
-      DESARROLLO_2: 'badge bg-primary-subtle',
-    };
-    return clases[sucursal] || 'badge bg-light';
+  getSucursalBadgeClass(sucursal: string): string {
+    // Clase base para todas las sucursales
+    return 'badge bg-info';
   }
 
   // Métodos calculados para estadísticas
@@ -288,7 +304,6 @@ export class GestionarMaquinasComponent implements OnInit {
   }
 
   get totalSucursales(): number {
-    const sucursales = new Set(this.maquinas().map(m => m.sucursal));
-    return sucursales.size;
+    return this.sucursales().length;
   }
 }

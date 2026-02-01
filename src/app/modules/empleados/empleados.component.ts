@@ -16,7 +16,6 @@
 
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators, AbstractControl, AsyncValidatorFn, ValidationErrors, FormGroup } from '@angular/forms';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { EmpleadosService } from '../../core/services/empleados.service';
@@ -29,7 +28,7 @@ import Swal from 'sweetalert2';
 @Component({
   selector: 'app-empleados',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, EnterNextDirective],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, EnterNextDirective],
   templateUrl: './empleados.component.html',
   styleUrls: ['./empleados.component.css']
 })
