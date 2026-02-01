@@ -132,6 +132,11 @@ service cloud.firestore {
       allow read, write: if isAdmin() || isAuthorizedOperator();
     }
 
+    // ===== CUENTAS (POR PAGAR Y COBRAR) =====
+    match /cuentas/{cuentaId} {
+      allow read, write: if isAdmin() || isAuthorizedOperator();
+    }
+
     // ===== COUNTERS / AUXILIARES =====
     match /counters/{counterId} {
       allow read, write: if isAdmin() || isAuthorizedOperator();
