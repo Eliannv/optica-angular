@@ -4,8 +4,11 @@ const os = require('os');
 const crypto = require('crypto');
 const fs = require('fs');
 
-// 🔐 CONFIGURACIÓN DE SUCURSAL
-const SUCURSAL_PERMITIDA = 'PASAJE';
+// Firebase Admin SDK para verificación de máquinas
+const admin = require('firebase-admin');
+
+// 🔐 CONFIGURACIÓN - Ya no se usa una sola sucursal, se verifica contra Firestore
+// Cada máquina autorizada está registrada en la colección 'maquinas_autorizadas'
 
 // Flag de entorno para controlar logs y DevTools
 const IS_DEV = !app.isPackaged;
@@ -13,51 +16,35 @@ const IS_DEV = !app.isPackaged;
 // Propagar entorno al renderer
 process.env.NODE_ENV = IS_DEV ? 'development' : 'production';
 
+// Inicializar Firebase Admin
+let db = null;
+try {
+  // Cargar credenciales de Firebase Admin
+  const serviceAccountPath = path.join(__dirname, '../serviceAccountKey.json');
+  
+  if (fs.existsSync(serviceAccountPath)) {
+    const serviceAccount = require(serviceAccountPath);
+    
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+    }
+    
+    db = admin.firestore();
+    devLog('✅ Firebase Admin inicializado correctamente');
+  } else {
+    console.error('❌ No se encontró serviceAccountKey.json');
+  }
+} catch (error) {
+  console.error('❌ Error inicializando Firebase Admin:', error.message);
+}
+
 // Log seguro: solo muestra mensajes en desarrollo
 function devLog(...args) {
   if (IS_DEV) {
     console.log(...args);
   }
-}
-
-/**
- * OPCIÓN A: Verificación por nombre de máquina o usuario
- * Puedes verificar el nombre de la PC o el nombre de usuario del sistema
- */
-function verificarSucursal() {
-  const hostname = os.hostname().toUpperCase();
-  const username = os.userInfo().username.toUpperCase();
-
-  // Opción 1: Por nombre de PC (ejemplo: PC-PASAJE, PASAJE-01, etc.)
-  // Descomenta y ajusta según tus necesidades:
-  // if (!hostname.includes('PASAJE')) {
-  //   return false;
-  // }
-
-  // Opción 2: Por ID único de máquina (más seguro)
-  const machineId = generarIdMaquina();
-  const idsPermitidos = [
-    '858744ddedd2fca1', // PC (desarrollo)
-    'e1561953fadb3e82', // PC 2 (desarrollo)
-    '0de9527eff37b967', //Pasaje
-    '45dfe499c7a935ed', //Pasaje 2
-    'd87cced3d5d6611b', //Machala
-    // Agrega aquí el Machine ID de la PC de PASAJE cuando lo obtengas
-  ];
-
-  devLog('🔐 Verificación de sucursal:');
-  devLog('  - Hostname:', hostname);
-  devLog('  - Username:', username);
-  devLog('  - Machine ID:', machineId);
-
-  // ✅ VALIDACIÓN ACTIVA - Solo permite PCs autorizadas
-  if (!idsPermitidos.includes(machineId)) {
-    console.error('❌ Machine ID no autorizado:', machineId);
-    return false;
-  }
-
-  devLog('✅ Machine ID autorizado');
-  return true;
 }
 
 /**
@@ -73,14 +60,77 @@ function generarIdMaquina() {
   return crypto.createHash('sha256').update(machineInfo).digest('hex').substring(0, 16);
 }
 
-function createWindow() {
+/**
+ * Verificar si la máquina está autorizada consultando Firestore
+ */
+async function verificarSucursal() {
+  const hostname = os.hostname().toUpperCase();
+  const username = os.userInfo().username.toUpperCase();
+  const machineId = generarIdMaquina();
+
+  devLog('🔐 Verificación de sucursal:');
+  devLog('  - Hostname:', hostname);
+  devLog('  - Username:', username);
+  devLog('  - Machine ID:', machineId);
+
+  // Si no hay conexión a Firestore, permitir acceso en desarrollo
+  if (!db) {
+    console.error('❌ No se pudo conectar a Firestore');
+    if (IS_DEV) {
+      console.warn('⚠️ MODO DESARROLLO: Permitiendo acceso sin verificación');
+      return { autorizado: true, sucursal: 'DESARROLLO_2', machineId };
+    }
+    return { autorizado: false, sucursal: null, machineId };
+  }
+
+  try {
+    // Consultar en Firestore si este machineId está autorizado
+    const maquinasRef = db.collection('maquinas_autorizadas');
+    const snapshot = await maquinasRef
+      .where('machineId', '==', machineId)
+      .where('activo', '==', true)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      console.error('❌ Machine ID no autorizado:', machineId);
+      console.error('   Esta máquina no está registrada en el sistema.');
+      console.error('   Contacte al administrador para autorizarla.');
+      return { autorizado: false, sucursal: null, machineId };
+    }
+
+    const maquinaDoc = snapshot.docs[0];
+    const maquina = maquinaDoc.data();
+
+    // Actualizar último acceso
+    await maquinasRef.doc(maquinaDoc.id).update({
+      ultimoAcceso: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    devLog('✅ Máquina autorizada:');
+    devLog('   - Sucursal:', maquina.sucursal);
+    devLog('   - Nombre:', maquina.nombreMaquina);
+
+    return { autorizado: true, sucursal: maquina.sucursal, machineId };
+  } catch (error) {
+    console.error('❌ Error verificando autorización:', error.message);
+    return { autorizado: false, sucursal: null, machineId };
+  }
+}
+
+async function createWindow() {
   // 🔐 Verificar sucursal ANTES de crear la ventana
-  if (!verificarSucursal()) {
+  const verificacion = await verificarSucursal();
+  
+  if (!verificacion.autorizado) {
     dialog.showErrorBox(
       'Acceso Denegado - Sistema Óptica',
-      `Este sistema está autorizado SOLO para la sucursal ${SUCURSAL_PERMITIDA}.\n\n` +
-        `No se puede ejecutar en esta ubicación.\n\n` +
-        `Contacte al administrador del sistema.`
+      `Esta máquina NO está autorizada para acceder al sistema.\n\n` +
+        `Machine ID: ${verificacion.machineId}\n\n` +
+        `Por favor, contacte al administrador para:\n` +
+        `1. Registrar esta máquina en el sistema\n` +
+        `2. Asignarle una sucursal\n` +
+        `3. Activar su acceso`
     );
     app.quit();
     return;
@@ -96,7 +146,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
     },
     icon: path.join(__dirname, '../public/icono/icon.ico'),
-    title: `Sistema Óptica - ${SUCURSAL_PERMITIDA}`,
+    title: `Sistema Óptica - ${verificacion.sucursal}`,
     // Deshabilitar DevTools en producción
     devTools: IS_DEV,
   });

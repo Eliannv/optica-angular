@@ -72,7 +72,8 @@
             "dist/**/*",
             "electron/**/*",
             "public/**/*",
-            "plantilla_importacion_productos.xlsx"
+            "plantilla_importacion_productos.xlsx",
+            "serviceAccountKey.json"
         ],
         "extraMetadata": {
             "main": "electron/main.js"

@@ -14,9 +14,10 @@ service cloud.firestore {
       return isSignedIn() && userDoc().data.rol == 1; // ADMINISTRADOR
     }
 
-    // Validar que el usuario pertenezca a sucursal PASAJE
-    function hasSucursalPasaje() {
-      return isSignedIn() && userDoc().data.sucursal == "PASAJE";
+    // Validar que el usuario pertenezca a una sucursal válida
+    function hasValidSucursal() {
+      return isSignedIn() && 
+             userDoc().data.sucursal in ['MACHALA', 'PASAJE', 'DESARROLLO_1', 'DESARROLLO_2'];
     }
 
     // Validar que el usuario esté activo (autorizado)
@@ -24,21 +25,35 @@ service cloud.firestore {
       return isSignedIn() && userDoc().data.activo == true;
     }
 
-    // Operador autorizado: sucursal PASAJE + activo
+    // Operador autorizado: sucursal válida + activo
     function isAuthorizedOperator() {
-      return hasSucursalPasaje() && isActive();
+      return hasValidSucursal() && isActive();
+    }
+
+    // Verificar si el usuario pertenece a una sucursal específica
+    function belongsToSucursal(sucursal) {
+      return isSignedIn() && userDoc().data.sucursal == sucursal;
     }
 
     // ===== USUARIOS =====
     match /usuarios/{uid} {
-      // Leer: el propio documento, usuarios de PASAJE, admin, o durante registro
-      allow read: if (isSignedIn() && request.auth.uid == uid) || hasSucursalPasaje() || isAdmin() || true;
+      // Leer: el propio documento, usuarios de sucursales válidas, admin, o durante registro
+      allow read: if (isSignedIn() && request.auth.uid == uid) || hasValidSucursal() || isAdmin() || true;
       
       // Crear su propio documento durante registro (usuario recién creado en Auth)
       allow create: if isSignedIn() && request.auth.uid == uid;
       
       // Actualizar/Eliminar: el propio usuario o un administrador
       allow update, delete: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+    }
+
+    // ===== MÁQUINAS AUTORIZADAS =====
+    match /maquinas_autorizadas/{maquinaId} {
+      // Leer: cualquier usuario autenticado (para verificación de acceso en Electron)
+      allow read: if isSignedIn();
+      
+      // Crear/Actualizar/Eliminar: solo administradores
+      allow create, update, delete: if isAdmin();
     }
 
     // ===== CLIENTES =====

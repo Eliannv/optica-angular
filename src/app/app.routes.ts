@@ -184,6 +184,18 @@ export const routes: Routes = [
     canActivate: [authGuard, roleGuard([RolUsuario.ADMINISTRADOR])]
   },
 
+  /**
+   * Gestión de máquinas autorizadas.
+   * Control centralizado de acceso por sucursal mediante Machine ID.
+   */
+  {
+    path: 'gestionar-maquinas',
+    loadComponent: () =>
+      import('./modules/empleados/gestionar-maquinas/gestionar-maquinas.component')
+        .then(m => m.GestionarMaquinasComponent),
+    canActivate: [authGuard, roleGuard([RolUsuario.ADMINISTRADOR])]
+  },
+
   /* ==========================================================================
      REDIRECCIONES
      Manejo de rutas raíz y no encontradas

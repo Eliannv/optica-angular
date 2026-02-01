@@ -16,9 +16,12 @@
 
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators, AbstractControl, AsyncValidatorFn, ValidationErrors, FormGroup } from '@angular/forms';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { EmpleadosService } from '../../core/services/empleados.service';
+import { MaquinasAutorizadasService } from '../../core/services/maquinas-autorizadas.service';
+import { MaquinaAutorizada } from '../../core/models/maquina-autorizada.model';
 import { EnterNextDirective } from '../../shared/directives/enter-next.directive';
 import { Usuario } from '../../core/models/usuario.model';
 import Swal from 'sweetalert2';
@@ -26,12 +29,13 @@ import Swal from 'sweetalert2';
 @Component({
   selector: 'app-empleados',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, EnterNextDirective],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, EnterNextDirective],
   templateUrl: './empleados.component.html',
   styleUrls: ['./empleados.component.css']
 })
 export class EmpleadosComponent implements OnInit {
   private empleadosService = inject(EmpleadosService);
+  private maquinasService = inject(MaquinasAutorizadasService);
   private fb = inject(FormBuilder);
   private cdr = inject(ChangeDetectorRef);
 
@@ -120,70 +124,166 @@ export class EmpleadosComponent implements OnInit {
 
   /**
    * Alterna el estado de actividad de un empleado.
+   * Al desbloquear, permite seleccionar la máquina autorizada.
    * 
    * @param empleado Empleado cuyo estado se alterna
    */
-  toggleEstado(empleado: Usuario): void {
+  async toggleEstado(empleado: Usuario): Promise<void> {
     const nuevoEstado = !empleado.activo;
 
-    if (nuevoEstado && !this.machineIdActual) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Machine ID no disponible',
-        text: 'Asegúrate de estar ejecutando la aplicación empaquetada.'
-      });
-      return;
+    if (nuevoEstado) {
+      // Desbloquear: mostrar selector de máquinas
+      await this.desbloquearConMaquina(empleado);
+    } else {
+      // Bloquear: confirmar y quitar máquina
+      await this.bloquearEmpleado(empleado);
     }
-
-    const titulo = empleado.activo ? 'Bloquear empleado' : 'Desbloquear empleado';
-    const texto = nuevoEstado
-      ? `Desbloquear a ${empleado.nombre}.\nSe asignará:\nMachine ID: ${this.machineIdActual}\nSucursal: ${this.sucursalActual}`
-      : `¿Estás seguro de bloquear a ${empleado.nombre}?\nSe quitarán Machine ID y Sucursal.`;
-
-    Swal.fire({
-      icon: 'question',
-      title: titulo,
-      text: texto,
-      showCancelButton: true,
-      confirmButtonText: 'Sí',
-      cancelButtonText: 'No'
-    }).then(res => {
-      if (res.isConfirmed) {
-        this.aplicarCambioEstado(empleado, nuevoEstado);
-      }
-    });
   }
 
   /**
-   * Aplica el cambio de estado en base de datos.
+   * Desbloquea un empleado permitiéndole seleccionar una máquina autorizada
    */
-  private aplicarCambioEstado(empleado: Usuario, nuevoEstado: boolean): void {
-    const datosActualizacion = nuevoEstado
-      ? { activo: nuevoEstado, machineId: this.machineIdActual!, sucursal: this.sucursalActual }
-      : { activo: nuevoEstado, machineId: undefined, sucursal: undefined };
-
-    this.empleadosService.toggleEstadoEmpleado(empleado.id!, datosActualizacion)
-      .then(() => {
-        empleado.activo = nuevoEstado;
-        if (nuevoEstado) {
-          empleado.machineId = this.machineIdActual!;
-          empleado.sucursal = this.sucursalActual;
-        } else {
-          empleado.machineId = undefined;
-          empleado.sucursal = undefined;
-        }
-        const accion = nuevoEstado ? 'desbloqueado' : 'bloqueado';
-        Swal.fire({
-          icon: 'success',
-          title: 'Listo',
-          text: `Empleado ${accion} exitosamente`
+  private async desbloquearConMaquina(empleado: Usuario): Promise<void> {
+    try {
+      // Obtener máquinas activas
+      const maquinas = await new Promise<MaquinaAutorizada[]>((resolve, reject) => {
+        this.maquinasService.getMaquinasAutorizadas().subscribe({
+          next: (data) => resolve(data.filter(m => m.activo)),
+          error: (err) => reject(err)
         });
-      })
-      .catch(err => Swal.fire({
+      });
+
+      if (maquinas.length === 0) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'No hay máquinas disponibles',
+          text: 'No se encontraron máquinas autorizadas activas. Primero registre máquinas en Gestión de Máquinas.',
+          confirmButtonText: 'Entendido'
+        });
+        return;
+      }
+
+      // Crear opciones para el selector
+      const opciones: { [key: string]: string } = {};
+      maquinas.forEach(m => {
+        opciones[m.machineId] = `${m.nombreMaquina} - ${m.sucursal}`;
+      });
+
+      const result = await Swal.fire({
+        icon: 'question',
+        title: `Desbloquear a ${empleado.nombre}`,
+        html: `
+          <div style="text-align: left; padding: 1rem;">
+            <p style="margin-bottom: 1rem;">Seleccione la máquina que usará este empleado:</p>
+          </div>
+        `,
+        input: 'select',
+        inputOptions: opciones,
+        inputPlaceholder: 'Seleccione una máquina',
+        showCancelButton: true,
+        confirmButtonText: 'Desbloquear',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#28a745',
+        inputValidator: (value) => {
+          if (!value) {
+            return 'Debe seleccionar una máquina';
+          }
+          return null;
+        }
+      });
+
+      if (!result.isConfirmed || !result.value) return;
+
+      const maquinaSeleccionada = maquinas.find(m => m.machineId === result.value);
+      if (!maquinaSeleccionada) return;
+
+      // Aplicar cambios
+      const datosActualizacion = {
+        activo: true,
+        machineId: maquinaSeleccionada.machineId,
+        sucursal: maquinaSeleccionada.sucursal
+      };
+
+      await this.empleadosService.toggleEstadoEmpleado(empleado.id!, datosActualizacion);
+      
+      empleado.activo = true;
+      empleado.machineId = maquinaSeleccionada.machineId;
+      empleado.sucursal = maquinaSeleccionada.sucursal;
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Éxito',
+        html: `
+          <div style="text-align: left; padding: 1rem;">
+            <p><strong>Empleado desbloqueado</strong></p>
+            <p><strong>Máquina asignada:</strong> ${maquinaSeleccionada.nombreMaquina}</p>
+            <p><strong>Sucursal:</strong> ${maquinaSeleccionada.sucursal}</p>
+          </div>
+        `,
+        timer: 3000,
+        showConfirmButton: false
+      });
+    } catch (error) {
+      console.error('Error al desbloquear empleado:', error);
+      Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: err.message
-      }));
+        text: 'No se pudo desbloquear el empleado',
+        confirmButtonText: 'Cerrar'
+      });
+    }
+  }
+
+  /**
+   * Bloquea un empleado y quita su asignación de máquina
+   */
+  private async bloquearEmpleado(empleado: Usuario): Promise<void> {
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: 'Bloquear empleado',
+      html: `
+        <div style="text-align: left; padding: 1rem;">
+          <p>¿Está seguro de bloquear a <strong>${empleado.nombre}</strong>?</p>
+          <p style="color: #6c757d; margin-top: 1rem;">Se quitarán el Machine ID y la Sucursal asignados.</p>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Sí, Bloquear',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#dc3545'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const datosActualizacion = {
+        activo: false,
+        machineId: undefined,
+        sucursal: undefined
+      };
+
+      await this.empleadosService.toggleEstadoEmpleado(empleado.id!, datosActualizacion);
+      
+      empleado.activo = false;
+      empleado.machineId = undefined;
+      empleado.sucursal = undefined;
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Éxito',
+        text: 'Empleado bloqueado exitosamente',
+        timer: 2000,
+        showConfirmButton: false
+      });
+    } catch (error) {
+      console.error('Error al bloquear empleado:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo bloquear el empleado',
+        confirmButtonText: 'Cerrar'
+      });
+    }
   }
 
   /**
