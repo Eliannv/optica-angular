@@ -52,9 +52,29 @@ export interface Cuenta {
   observacion: string;
 
   /**
+   * Nombre del usuario que creó la cuenta.
+   */
+  usuario_nombre?: string;
+
+  /**
+   * ID del usuario que creó la cuenta.
+   */
+  usuario_id?: string;
+
+  /**
+   * Fecha y hora de creación de la cuenta.
+   */
+  createdAt?: Date;
+
+  /**
    * Historial de abonos realizados.
    */
   abonos?: AbonoCuenta[];
+
+  /**
+   * ID de la caja banco asociada al período contable.
+   */
+  cuentaBancoId?: string;
 
   /**
    * Fecha de última modificación.

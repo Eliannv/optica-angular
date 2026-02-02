@@ -35,6 +35,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { Cuenta, TipoCuenta, EstadoCuenta, AbonoCuenta } from '../models/cuenta.model';
 import { CajaBancoService } from './caja-banco.service';
+import { AuthService } from './auth.service';
 import { MovimientoCajaBanco } from '../models/caja-banco.model';
 
 @Injectable({
@@ -43,6 +44,7 @@ import { MovimientoCajaBanco } from '../models/caja-banco.model';
 export class CuentasService {
   private readonly firestore = inject(Firestore);
   private readonly cajaBancoService = inject(CajaBancoService);
+  private readonly authService = inject(AuthService);
 
   /**
    * Obtiene todas las cuentas del sistema.
@@ -129,6 +131,37 @@ export class CuentasService {
   }
 
   /**
+   * Obtiene cuentas filtradas por tipo y cuenta banco (período).
+   * 
+   * @param tipo Tipo de cuenta (PAGAR o COBRAR).
+   * @param cuentaBancoId ID de la cuenta banco para filtrar.
+   * @returns Observable con el listado de cuentas del período especificado.
+   */
+  getCuentasPorTipoYCajaBanco(tipo: TipoCuenta, cuentaBancoId: string): Observable<Cuenta[]> {
+    const cuentasRef = collection(this.firestore, 'cuentas');
+    const q = query(
+      cuentasRef,
+      where('tipo', '==', tipo),
+      where('cuentaBancoId', '==', cuentaBancoId),
+      orderBy('fecha', 'desc')
+    );
+    
+    return collectionData(q, { idField: 'id' }).pipe(
+      map(cuentas => cuentas.map(cuenta => ({
+        ...cuenta,
+        fecha: (cuenta['fecha'] as Timestamp).toDate(),
+        fechaModificacion: cuenta['fechaModificacion'] 
+          ? (cuenta['fechaModificacion'] as Timestamp).toDate() 
+          : undefined,
+        abonos: cuenta['abonos']?.map((abono: any) => ({
+          ...abono,
+          fecha: (abono.fecha as Timestamp).toDate()
+        })) || []
+      } as Cuenta)))
+    );
+  }
+
+  /**
    * Obtiene una cuenta por su ID.
    * 
    * @param id ID de la cuenta.
@@ -168,15 +201,10 @@ export class CuentasService {
    */
   async registrarCuenta(cuenta: Omit<Cuenta, 'id' | 'montoAbonado' | 'saldo' | 'estado' | 'abonos'>): Promise<string> {
     try {
-      // Preparar la cuenta con valores iniciales
-      const nuevaCuenta: Omit<Cuenta, 'id'> = {
-        ...cuenta,
-        montoAbonado: 0,
-        saldo: cuenta.montoTotal,
-        estado: EstadoCuenta.ACTIVA,
-        abonos: [],
-        fechaModificacion: new Date()
-      };
+      // Obtener el usuario actual
+      const usuarioActual = this.authService.getCurrentUser();
+      const nombreUsuario = usuarioActual?.nombre || 'desconocido';
+      const idUsuario = usuarioActual?.id || '';
 
       // Determinar el tipo de movimiento en caja/banco
       let tipoMovimiento: 'INGRESO' | 'EGRESO';
@@ -187,18 +215,17 @@ export class CuentasService {
         // Al registrar cuenta por PAGAR: INGRESO a caja (recibimos dinero prestado)
         tipoMovimiento = 'INGRESO';
         categoriaMovimiento = 'OTRO_INGRESO';
-        descripcion = `Cuenta por pagar registrada: ${cuenta.observacion}`;
+        descripcion = 'Cuenta por pagar registrada';
       } else {
         // Al registrar cuenta por COBRAR: EGRESO de caja (prestamos dinero)
         tipoMovimiento = 'EGRESO';
         categoriaMovimiento = 'OTRO_EGRESO';
-        descripcion = `Cuenta por cobrar registrada: ${cuenta.observacion}`;
+        descripcion = 'Cuenta por cobrar registrada';
       }
 
       // Registrar movimiento en caja/banco del periodo de la cuenta
-      const fechaCuenta = new Date(cuenta.fecha);
-      const year = fechaCuenta.getFullYear();
-      const monthIndex0 = fechaCuenta.getMonth();
+      const year = cuenta.fecha.getFullYear();
+      const monthIndex0 = cuenta.fecha.getMonth();
       
       const caja = await this.cajaBancoService.getCajaBancoPorPeriodo(year, monthIndex0);
       if (!caja) {
@@ -212,16 +239,34 @@ export class CuentasService {
         categoria: categoriaMovimiento,
         monto: cuenta.montoTotal,
         descripcion: descripcion,
+        referencia: cuenta.observacion,
+        usuario_nombre: nombreUsuario,
+        usuario_id: idUsuario,
         fecha: cuenta.fecha
       };
 
       await this.cajaBancoService.registrarMovimiento(movimiento);
+
+      // Preparar la cuenta con valores iniciales, cuentaBancoId y datos del usuario
+      const nuevaCuenta: Omit<Cuenta, 'id'> = {
+        ...cuenta,
+        cuentaBancoId: caja.id!,
+        usuario_nombre: nombreUsuario,
+        usuario_id: idUsuario,
+        createdAt: new Date(),
+        montoAbonado: 0,
+        saldo: cuenta.montoTotal,
+        estado: EstadoCuenta.ACTIVA,
+        abonos: [],
+        fechaModificacion: new Date()
+      };
 
       // Guardar la cuenta en Firestore
       const cuentasRef = collection(this.firestore, 'cuentas');
       const docRef = await addDoc(cuentasRef, {
         ...nuevaCuenta,
         fecha: Timestamp.fromDate(nuevaCuenta.fecha),
+        createdAt: Timestamp.fromDate(nuevaCuenta.createdAt!),
         fechaModificacion: Timestamp.fromDate(nuevaCuenta.fechaModificacion!)
       });
 
@@ -246,6 +291,11 @@ export class CuentasService {
    */
   async registrarAbono(cuentaId: string, monto: number, fechaAbono?: Date, observacion?: string): Promise<void> {
     try {
+      // Obtener el usuario actual
+      const usuarioActual = this.authService.getCurrentUser();
+      const nombreUsuario = usuarioActual?.nombre || 'desconocido';
+      const idUsuario = usuarioActual?.id || '';
+
       // Obtener la cuenta actual
       const cuentaDocRef = doc(this.firestore, `cuentas/${cuentaId}`);
       const cuentaSnapshot = await getDoc(cuentaDocRef);
@@ -310,18 +360,12 @@ export class CuentasService {
         // Al pagar cuenta por PAGAR: EGRESO de caja (devolvemos dinero)
         tipoMovimiento = 'EGRESO';
         categoriaMovimiento = 'OTRO_EGRESO';
-        descripcion = `Pago de cuenta por pagar: ${cuenta.observacion}`;
-        if (observacion) {
-          descripcion += ` - ${observacion}`;
-        }
+        descripcion = 'Pago de cuenta por pagar';
       } else {
         // Al cobrar cuenta por COBRAR: INGRESO a caja (nos devuelven dinero)
         tipoMovimiento = 'INGRESO';
         categoriaMovimiento = 'OTRO_INGRESO';
-        descripcion = `Cobro de cuenta por cobrar: ${cuenta.observacion}`;
-        if (observacion) {
-          descripcion += ` - ${observacion}`;
-        }
+        descripcion = 'Cobro de cuenta por cobrar';
       }
 
       // Registrar movimiento en caja/banco del periodo del abono
@@ -340,6 +384,9 @@ export class CuentasService {
         categoria: categoriaMovimiento,
         monto: monto,
         descripcion: descripcion,
+        referencia: observacion,
+        usuario_nombre: nombreUsuario,
+        usuario_id: idUsuario,
         fecha: fechaDelAbono
       };
 

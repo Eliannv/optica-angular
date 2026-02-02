@@ -19,6 +19,7 @@ import Swal from 'sweetalert2';
 import { CuentasService } from '../../../../core/services/cuentas.service';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { Cuenta, TipoCuenta, EstadoCuenta } from '../../../../core/models/cuenta.model';
+import { CajaBanco } from '../../../../core/models/caja-banco.model';
 import { obtenerPeriodo } from '../../../../core/utils/fecha-helpers';
 
 @Component({
@@ -39,7 +40,11 @@ export class CuentasPorCobrarComponent implements OnInit {
   // Filtros
   filtroEstado: 'TODAS' | EstadoCuenta = 'TODAS';
   
-  // 🔒 Restricción de fecha según el periodo de la caja banco
+  // � Filtro por período (Cuenta Banco)
+  cajasBanco: CajaBanco[] = [];
+  cuentaBancoSeleccionada: string | null = null; // null = "Todos los períodos"
+  
+  // �🔒 Restricción de fecha según el periodo de la caja banco
   fechaMinima = ''; // Fecha mínima permitida (inicio del mes de la caja banco)
   fechaMaximaPermitida = ''; // Fecha máxima permitida (fin del mes de la caja banco o hoy)
   periodoNombre = ''; // Nombre del periodo para mostrar (ej: "Enero 2026")
@@ -56,16 +61,83 @@ export class CuentasPorCobrarComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.cargarCuentas();
+    this.cargarCajasBanco(); // Esto cargará las cuentas automáticamente después de seleccionar la caja abierta
     this.cargarRestriccionesFechaCajaBanco();
+  }
+
+  /**
+   * Carga todas las cuentas banco disponibles (para el selector de período).
+   * Selecciona automáticamente la caja banco abierta.
+   */
+  async cargarCajasBanco(): Promise<void> {
+    this.cajaBancoService.getCajasBanco().subscribe({
+      next: async (cajas) => {
+        // Ordenar por fecha descendente (más reciente primero)
+        this.cajasBanco = cajas.sort((a, b) => {
+          const fechaA = this.convertirFechaFirestore(a.fecha);
+          const fechaB = this.convertirFechaFirestore(b.fecha);
+          return fechaB.getTime() - fechaA.getTime();
+        });
+
+        // Seleccionar automáticamente la caja banco abierta
+        try {
+          const cajaAbierta = await this.cajaBancoService.getCajaBancoAbierta();
+          if (cajaAbierta?.id) {
+            this.cuentaBancoSeleccionada = cajaAbierta.id;
+            this.cargarCuentas();
+          } else if (this.cajasBanco.length > 0) {
+            // Si no hay caja abierta, seleccionar la más reciente
+            this.cuentaBancoSeleccionada = this.cajasBanco[0].id!;
+            this.cargarCuentas();
+          }
+        } catch (error) {
+          console.error('Error al obtener caja banco abierta:', error);
+          // Si falla, seleccionar la primera disponible
+          if (this.cajasBanco.length > 0) {
+            this.cuentaBancoSeleccionada = this.cajasBanco[0].id!;
+            this.cargarCuentas();
+          }
+        }
+      },
+      error: (error) => {
+        console.error('Error al cargar cajas banco:', error);
+      }
+    });
+  }
+
+  /**
+   * Convierte una fecha de Firestore a Date.
+   */
+  private convertirFechaFirestore(fecha: any): Date {
+    if (fecha?.toDate) {
+      return fecha.toDate();
+    } else if (fecha instanceof Date) {
+      return fecha;
+    } else {
+      return new Date(fecha);
+    }
+  }
+
+  /**
+   * Obtiene el nombre del período de una caja banco (ej: "Enero 2026").
+   */
+  obtenerNombrePeriodo(caja: CajaBanco): string {
+    const fecha = this.convertirFechaFirestore(caja.fecha);
+    const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    return `${meses[fecha.getMonth()]} ${fecha.getFullYear()}`;
   }
 
   /**
    * Inicializa el formulario de registro de cuentas.
    */
   private inicializarFormulario(): void {
+    const ahora = new Date();
+    const horaActual = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    
     this.formularioCuenta = this.fb.group({
       fecha: [new Date().toISOString().split('T')[0], Validators.required],
+      hora: [horaActual, Validators.required],
       montoTotal: [0, [Validators.required, Validators.min(0.01)]],
       observacion: ['', Validators.required]
     });
@@ -133,10 +205,15 @@ export class CuentasPorCobrarComponent implements OnInit {
 
   /**
    * Carga todas las cuentas por cobrar desde Firestore.
+   * Siempre filtra por el período seleccionado (cuentaBancoId).
    */
   cargarCuentas(): void {
+    if (!this.cuentaBancoSeleccionada) {
+      return; // No cargar si no hay período seleccionado
+    }
+
     this.cargando = true;
-    this.cuentasService.getCuentasPorTipo(TipoCuenta.COBRAR).subscribe({
+    this.cuentasService.getCuentasPorTipoYCajaBanco(TipoCuenta.COBRAR, this.cuentaBancoSeleccionada).subscribe({
       next: (cuentas) => {
         this.cuentas = cuentas;
         this.aplicarFiltros();
@@ -148,6 +225,15 @@ export class CuentasPorCobrarComponent implements OnInit {
         this.cargando = false;
       }
     });
+  }
+
+  /**
+   * Cambia el período de cuenta banco seleccionado y recarga las cuentas.
+   */
+  cambiarPeriodo(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    this.cuentaBancoSeleccionada = select.value;
+    this.cargarCuentas();
   }
 
   /**
@@ -175,8 +261,11 @@ export class CuentasPorCobrarComponent implements OnInit {
   toggleFormulario(): void {
     this.mostrandoFormulario = !this.mostrandoFormulario;
     if (!this.mostrandoFormulario) {
+      const ahora = new Date();
+      const horaActual = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
       this.formularioCuenta.reset({
         fecha: new Date().toISOString().split('T')[0],
+        hora: horaActual,
         montoTotal: 0,
         observacion: ''
       });
@@ -208,8 +297,14 @@ export class CuentasPorCobrarComponent implements OnInit {
 
     try {
       const formValue = this.formularioCuenta.value;
+      
+      // Combinar fecha y hora en un solo Date
+      const [hours, minutes, seconds] = formValue.hora.split(':').map(Number);
+      const fechaCompleta = new Date(formValue.fecha + 'T00:00:00');
+      fechaCompleta.setHours(hours, minutes, seconds || 0);
+      
       const nuevaCuenta: Omit<Cuenta, 'id' | 'montoAbonado' | 'saldo' | 'estado' | 'abonos'> = {
-        fecha: new Date(formValue.fecha + 'T00:00:00'),
+        fecha: fechaCompleta,
         tipo: TipoCuenta.COBRAR,
         montoTotal: formValue.montoTotal,
         observacion: formValue.observacion
@@ -243,31 +338,96 @@ export class CuentasPorCobrarComponent implements OnInit {
     const { value: formValues } = await Swal.fire({
       title: `Cobrar cuenta`,
       html: `
-        <div style="text-align: left; margin-bottom: 15px;">
-          <p><strong>Cuenta:</strong> ${cuenta.observacion}</p>
-          <p><strong>Saldo pendiente:</strong> $${cuenta.saldo.toFixed(2)}</p>
-          <p style="font-size: 0.9em; color: #666;">Periodo permitido: <strong>${this.periodoNombre}</strong></p>
+        <div class="modern-modal-content">
+          <div class="info-section">
+            <div class="info-row">
+              <span class="info-label">Cuenta:</span>
+              <span class="info-value">${cuenta.observacion}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Saldo pendiente:</span>
+              <span class="info-value highlight">$${cuenta.saldo.toFixed(2)}</span>
+            </div>
+            <div class="period-badge">
+              <i class="bi bi-calendar-check"></i>
+              Periodo permitido: <strong>${this.periodoNombre}</strong>
+            </div>
+          </div>
+          
+          <div class="form-group-modern">
+            <label for="fecha-abono" class="form-label-modern">Fecha del cobro</label>
+            <input id="fecha-abono" class="form-input-modern" type="date" value="${this.formatearFecha(new Date())}" min="${this.fechaMinima}" max="${this.fechaMaximaPermitida}">
+          </div>
+          
+          <div class="form-group-modern">
+            <label for="hora-abono" class="form-label-modern">Hora del cobro</label>
+            <input id="hora-abono" class="form-input-modern" type="time" step="1" value="${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}">
+          </div>
+          
+          <div class="form-group-modern">
+            <label for="monto-abono" class="form-label-modern">Monto a cobrar</label>
+            <input id="monto-abono" class="form-input-modern" type="number" placeholder="0.00" step="0.01" min="0.01" max="${cuenta.saldo}">
+          </div>
+          
+          <div class="form-group-modern">
+            <label for="observacion-abono" class="form-label-modern">Observación (opcional)</label>
+            <input id="observacion-abono" class="form-input-modern" type="text" placeholder="Información adicional sobre este cobro">
+          </div>
+          
+          <div class="alert-modern alert-success">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            Este monto se <strong>SUMARÁ</strong> a caja/banco
+          </div>
         </div>
-        <div style="margin-bottom: 10px;">
-          <label for="fecha-abono" style="display: block; text-align: left; margin-bottom: 5px; font-weight: 500;">Fecha del cobro</label>
-          <input id="fecha-abono" class="swal2-input" type="date" value="${this.formatearFecha(new Date())}" min="${this.fechaMinima}" max="${this.fechaMaximaPermitida}" style="width: 90%;">
-        </div>
-        <input id="monto-abono" class="swal2-input" type="number" placeholder="Monto a cobrar" step="0.01" min="0.01" max="${cuenta.saldo}">
-        <input id="observacion-abono" class="swal2-input" type="text" placeholder="Observación (opcional)">
-        <p class="text-muted" style="font-size: 0.9em; margin-top: 10px;">Este monto se <strong>SUMARÁ</strong> a caja/banco</p>
+        
+        <style>
+          .modern-modal-content { text-align: left; padding: 0.5rem; }
+          .info-section { background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; border: 1px solid #e9ecef; }
+          .info-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+          .info-row:last-child { margin-bottom: 0; }
+          .info-label { font-weight: 500; color: #6c757d; font-size: 0.95rem; }
+          .info-value { font-weight: 600; color: #2c3e50; font-size: 1rem; }
+          .info-value.highlight { color: #3498db; font-size: 1.25rem; }
+          .period-badge { background: rgba(52, 152, 219, 0.1); color: #3498db; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem; margin-top: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+          .form-group-modern { margin-bottom: 1.25rem; }
+          .form-label-modern { display: block; font-weight: 600; font-size: 0.95rem; color: #2c3e50; margin-bottom: 0.5rem; }
+          .form-input-modern { width: 100%; padding: 0.75rem 1rem; border: 2px solid #e9ecef; border-radius: 8px; font-size: 1rem; transition: all 0.2s; }
+          .form-input-modern:focus { outline: none; border-color: #3498db; box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1); }
+          .alert-modern { padding: 0.875rem 1rem; border-radius: 8px; font-size: 0.9rem; display: flex; align-items: center; gap: 0.75rem; border: 1px solid; }
+          .alert-modern svg { flex-shrink: 0; }
+          .alert-success { background: rgba(39, 174, 96, 0.1); color: #27ae60; border-color: rgba(39, 174, 96, 0.2); }
+        </style>
       `,
+      width: '550px',
       focusConfirm: false,
       showCancelButton: true,
-      confirmButtonText: 'Registrar cobro',
+      confirmButtonText: '<i class="bi bi-check-lg"></i> Registrar cobro',
       cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#3498db',
+      cancelButtonColor: '#6c757d',
+      customClass: {
+        popup: 'modern-swal-popup',
+        title: 'modern-swal-title',
+        confirmButton: 'modern-confirm-btn',
+        cancelButton: 'modern-cancel-btn'
+      },
       preConfirm: () => {
         const fechaInput = document.getElementById('fecha-abono') as HTMLInputElement;
+        const horaInput = document.getElementById('hora-abono') as HTMLInputElement;
         const montoInput = document.getElementById('monto-abono') as HTMLInputElement;
         const observacionInput = document.getElementById('observacion-abono') as HTMLInputElement;
         const monto = parseFloat(montoInput.value);
 
         if (!fechaInput.value) {
           Swal.showValidationMessage('Selecciona una fecha válida');
+          return null;
+        }
+
+        if (!horaInput.value) {
+          Swal.showValidationMessage('Selecciona una hora válida');
           return null;
         }
 
@@ -281,8 +441,13 @@ export class CuentasPorCobrarComponent implements OnInit {
           return null;
         }
 
+        // Combinar fecha y hora
+        const [hours, minutes, seconds] = horaInput.value.split(':').map(Number);
+        const fechaCompleta = new Date(fechaInput.value + 'T00:00:00');
+        fechaCompleta.setHours(hours, minutes, seconds || 0);
+
         return {
-          fecha: new Date(fechaInput.value + 'T00:00:00'),
+          fecha: fechaCompleta,
           monto: monto,
           observacion: observacionInput.value
         };
@@ -312,54 +477,156 @@ export class CuentasPorCobrarComponent implements OnInit {
   verDetalles(cuenta: Cuenta): void {
     const cobrosHTML = cuenta.abonos && cuenta.abonos.length > 0
       ? `
-        <div style="margin-top: 20px;">
-          <h4 style="text-align: left; margin-bottom: 10px;">Historial de cobros</h4>
-          <div style="max-height: 200px; overflow-y: auto;">
-            ${cuenta.abonos.map(abono => `
-              <div style="text-align: left; padding: 8px; border-bottom: 1px solid #eee;">
-                <div><strong>${this.formatoFecha(abono.fecha)}</strong></div>
-                <div>Monto: $${abono.monto.toFixed(2)}</div>
-                ${abono.observacion ? `<div style="font-size: 0.9em; color: #666;">${abono.observacion}</div>` : ''}
-                <div style="font-size: 0.9em; color: #666;">Saldo restante: $${abono.saldoRestante.toFixed(2)}</div>
+        <div class="historial-section">
+          <div class="historial-header">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <h4>Historial de cobros</h4>
+          </div>
+          <div class="abonos-list">
+            ${cuenta.abonos.map((abono, index) => `
+              <div class="abono-card">
+                <div class="abono-header">
+                  <span class="abono-number">#${cuenta.abonos!.length - index}</span>
+                  <span class="abono-date">${this.formatoFecha(abono.fecha)}</span>
+                </div>
+                <div class="abono-body">
+                  <div class="abono-detail">
+                    <span class="detail-label">Monto cobrado:</span>
+                    <span class="detail-value amount">$${abono.monto.toFixed(2)}</span>
+                  </div>
+                  ${abono.observacion ? `
+                    <div class="abono-detail">
+                      <span class="detail-label">Observación:</span>
+                      <span class="detail-value">${abono.observacion}</span>
+                    </div>
+                  ` : ''}
+                  <div class="abono-detail">
+                    <span class="detail-label">Saldo restante:</span>
+                    <span class="detail-value saldo">$${abono.saldoRestante.toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
             `).join('')}
           </div>
         </div>
       `
-      : '<p style="margin-top: 20px;">No hay cobros registrados</p>';
+      : '<div class="empty-state"><i class="bi bi-inbox"></i><p>No hay cobros registrados</p></div>';
 
     Swal.fire({
       title: 'Detalles de la cuenta',
       html: `
-        <div style="text-align: left;">
-          <p><strong>Fecha:</strong> ${this.formatoFecha(cuenta.fecha)}</p>
-          <p><strong>Observación:</strong> ${cuenta.observacion}</p>
-          <p><strong>Monto total:</strong> $${cuenta.montoTotal.toFixed(2)}</p>
-          <p><strong>Monto cobrado:</strong> $${cuenta.montoAbonado.toFixed(2)}</p>
-          <p><strong>Saldo pendiente:</strong> $${cuenta.saldo.toFixed(2)}</p>
-          <p><strong>Estado:</strong> ${cuenta.estado}</p>
+        <div class="modern-details-content">
+          <div class="details-grid">
+            <div class="detail-item">              
+              <div class="detail-content">
+                <span class="detail-label-sm">Fecha</span>
+                <span class="detail-value-sm">${this.formatoFecha(cuenta.fecha)}</span>
+              </div>
+            </div>
+            
+            <div class="detail-item">              
+              <div class="detail-content">
+                <span class="detail-label-sm">Observación</span>
+                <span class="detail-value-sm">${cuenta.observacion}</span>
+              </div>
+            </div>
+            
+            <div class="detail-item">              
+              <div class="detail-content">
+                <span class="detail-label-sm">Monto total</span>
+                <span class="detail-value-sm amount-lg">$${cuenta.montoTotal.toFixed(2)}</span>
+              </div>
+            </div>
+            
+            <div class="detail-item">
+              
+              <div class="detail-content">
+                <span class="detail-label-sm">Monto cobrado</span>
+                <span class="detail-value-sm amount-success">$${cuenta.montoAbonado.toFixed(2)}</span>
+              </div>
+            </div>
+            
+            <div class="detail-item">              
+              <div class="detail-content">
+                <span class="detail-label-sm">Saldo pendiente</span>
+                <span class="detail-value-sm amount-warning">$${cuenta.saldo.toFixed(2)}</span>
+              </div>
+            </div>
+            
+            <div class="detail-item">
+              <div class="detail-content">
+                <span class="detail-label-sm">Estado</span>
+                <span class="detail-value-sm badge-${cuenta.estado === EstadoCuenta.ACTIVA ? 'active' : 'inactive'}">${cuenta.estado}</span>
+              </div>
+            </div>
+          </div>
+          
           ${cobrosHTML}
         </div>
+        
+        <style>
+          .modern-details-content { text-align: left; padding: 0.5rem; }
+          .details-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+          .detail-item { background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); border: 1px solid #e9ecef; border-radius: 12px; padding: 1rem; display: flex; align-items: center; gap: 0.75rem; }
+          .detail-icon { font-size: 1.75rem; }
+          .detail-content { flex: 1; display: flex; flex-direction: column; gap: 0.25rem; }
+          .detail-label-sm { font-size: 0.8rem; color: #6c757d; font-weight: 500; }
+          .detail-value-sm { font-size: 1rem; color: #2c3e50; font-weight: 600; }
+          .amount-lg { color: #3498db; font-size: 1.15rem; }
+          .amount-success { color: #27ae60; }
+          .amount-warning { color: #e74c3c; }
+          .badge-active { background: rgba(39, 174, 96, 0.15); color: #27ae60; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.85rem; }
+          .badge-inactive { background: rgba(149, 165, 166, 0.15); color: #7f8c8d; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.85rem; }
+          
+          .historial-section { background: white; border-radius: 12px; padding: 1.25rem; border: 2px solid #e9ecef; }
+          .historial-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; color: #3498db; }
+          .historial-header h4 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+          .historial-header svg { flex-shrink: 0; }
+          .abonos-list { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; }
+          .abono-card { background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); border: 1px solid #e9ecef; border-radius: 8px; padding: 1rem; }
+          .abono-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid #e9ecef; }
+          .abono-number { background: #3498db; color: white; padding: 0.25rem 0.65rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
+          .abono-date { font-weight: 600; color: #2c3e50; font-size: 0.95rem; }
+          .abono-body { display: flex; flex-direction: column; gap: 0.5rem; }
+          .abono-detail { display: flex; justify-content: space-between; align-items: center; }
+          .detail-label { font-size: 0.9rem; color: #6c757d; }
+          .detail-value { font-weight: 600; color: #2c3e50; font-size: 0.95rem; }
+          .detail-value.amount { color: #27ae60; font-size: 1.05rem; }
+          .detail-value.saldo { color: #e74c3c; }
+          
+          .empty-state { text-align: center; padding: 2rem; color: #6c757d; }
+          .empty-state i { font-size: 3rem; margin-bottom: 0.5rem; opacity: 0.3; }
+          .empty-state p { margin: 0; font-size: 1rem; }
+        </style>
       `,
-      width: '600px',
-      confirmButtonText: 'Cerrar'
+      width: '700px',
+      confirmButtonText: 'Cerrar',
+      confirmButtonColor: '#3498db',
+      customClass: {
+        popup: 'modern-swal-popup',
+        title: 'modern-swal-title',
+        confirmButton: 'modern-confirm-btn'
+      }
     });
   }
 
   /**
-   * Calcula el total de saldo pendiente de todas las cuentas activas.
+   * Calcula el total de saldo pendiente de todas las cuentas activas del período.
    */
   getTotalPendiente(): number {
-    return this.cuentasFiltradas
+    return this.cuentas
       .filter(c => c.estado === EstadoCuenta.ACTIVA)
       .reduce((total, cuenta) => total + cuenta.saldo, 0);
   }
 
   /**
-   * Calcula el total de cuentas activas.
+   * Calcula el total de cuentas activas del período.
    */
   getCantidadActivas(): number {
-    return this.cuentasFiltradas.filter(c => c.estado === EstadoCuenta.ACTIVA).length;
+    return this.cuentas.filter(c => c.estado === EstadoCuenta.ACTIVA).length;
   }
 
   /**
@@ -436,29 +703,12 @@ export class CuentasPorCobrarComponent implements OnInit {
   }
 
   /**
-   * 6. Cobros del mes actual
-   * Total de cobros realizados en el mes y año actual.
+   * 6. Cobros del período seleccionado
+   * Total de cobros realizados en el período de cuenta banco seleccionado.
    */
-  getCobrosDelMesActual(): number {
-    const hoy = new Date();
-    const mesActual = hoy.getMonth();
-    const añoActual = hoy.getFullYear();
-
-    let totalCobros = 0;
-
-    this.cuentas.forEach(cuenta => {
-      if (cuenta.abonos && cuenta.abonos.length > 0) {
-        cuenta.abonos.forEach(abono => {
-          const fechaAbono = new Date(abono.fecha);
-          if (fechaAbono.getMonth() === mesActual && 
-              fechaAbono.getFullYear() === añoActual) {
-            totalCobros += abono.monto;
-          }
-        });
-      }
-    });
-
-    return totalCobros;
+  getCobrosDelPeriodo(): number {
+    // Suma total de los montos cobrados (abonados) en todas las cuentas del período
+    return this.cuentas.reduce((total, cuenta) => total + cuenta.montoAbonado, 0);
   }
 
   /**

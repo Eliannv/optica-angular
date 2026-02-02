@@ -8,146 +8,229 @@
             </div>
             <div class="header-actions">
                 <button class="btn-primary" (click)="toggleFormulario()">
-          {{ mostrandoFormulario ? '× Cancelar' : '+ Nueva Cuenta por Cobrar' }}
+          {{ mostrandoFormulario ? '× Cancelar' : '+ Nuevo' }}
         </button>
             </div>
         </div>
 
         <div class="caja-body">
             <!-- FORMULARIO DE REGISTRO -->
-            <div class="form-section" *ngIf="mostrandoFormulario">
-                <h2 class="section-title">Registrar cuenta por cobrar</h2>
-                <p class="text-muted">Al registrar, el monto se DESCONTARÁ de caja/banco</p>
+            <div class="card" *ngIf="mostrandoFormulario">
+                <div class="card-header">
+                    <h3 class="card-title">Registrar cuenta por cobrar</h3>
+                </div>
+                <div class="card-body">
+                    <p class="alert alert-warning" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.875rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.875rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                            <line x1="12" y1="9" x2="12" y2="13"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                        <span>Al registrar, el monto se <strong>DESCONTARÁ</strong> de caja/banco</span>
+                    </p>
 
-                <form [formGroup]="formularioCuenta" (ngSubmit)="registrarCuenta()">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="fecha">Fecha</label>
-                            <input 
-                                type="date" 
-                                id="fecha" 
-                                formControlName="fecha" 
-                                class="form-control"
-                                [min]="fechaMinima"
-                                [max]="fechaMaximaPermitida"
-                            >
-                            <small class="fecha-hint" *ngIf="periodoNombre">Periodo de caja banco: <strong>{{ periodoNombre }}</strong></small>
-                            <small class="fecha-hint" *ngIf="!periodoNombre && !fechaMinima" style="color: #dc3545;">⚠️ No hay caja banco abierta. Debe abrir una caja banco primero.</small>
+                    <form [formGroup]="formularioCuenta">
+                        <div class="row">
+                            <div class="col-6 col-md-3">
+                                <div class="form-group">
+                                    <label class="form-label">Fecha</label>
+                                    <input 
+                                        type="date" 
+                                        id="fecha" 
+                                        formControlName="fecha" 
+                                        class="form-control"
+                                        [min]="fechaMinima"
+                                        [max]="fechaMaximaPermitida"
+                                    >
+                                    <small class="form-text text-muted" *ngIf="periodoNombre">Periodo: <strong>{{ periodoNombre }}</strong></small>
+                                    <small class="form-text text-muted" *ngIf="!periodoNombre && !fechaMinima" style="color: #dc3545;">⚠️ Sin caja banco abierta</small>
+                                </div>
+                            </div>
+
+                            <div class="col-6 col-md-3">
+                                <div class="form-group">
+                                    <label class="form-label">Hora</label>
+                                    <input 
+                                        type="time" 
+                                        id="hora" 
+                                        formControlName="hora" 
+                                        class="form-control"
+                                        step="1"
+                                    >
+                                </div>
+                            </div>
+
+                            <div class="col-6 col-md-3">
+                                <div class="form-group">
+                                    <label class="form-label">Monto Total</label>
+                                    <input 
+                                        type="number" 
+                                        id="montoTotal" 
+                                        formControlName="montoTotal" 
+                                        class="form-control" 
+                                        placeholder="0" 
+                                        step="0.01" 
+                                        min="0.01"
+                                    >
+                                </div>
+                            </div>
+
+                            <div class="col-6 col-md-3">
+                                <div class="form-group">
+                                    <label class="form-label">Observación</label>
+                                    <input 
+                                        type="text" 
+                                        id="observacion" 
+                                        formControlName="observacion" 
+                                        class="form-control" 
+                                        placeholder="Descripción de la cuenta por cobrar"
+                                    >
+                                </div>
+                            </div>
                         </div>
+                    </form>
+                </div>
+                <div class="card-footer d-flex justify-between">
+                    <button class="btn btn-secondary" (click)="toggleFormulario()">
+                        Cancelar
+                    </button>
+                    <button class="btn btn-primary" (click)="registrarCuenta()" [disabled]="formularioCuenta.invalid">
+                        Guardar Cuenta
+                    </button>
+                </div>
+            </div>
 
-                        <div class="form-group">
-                            <label for="montoTotal">Monto Total</label>
-                            <input type="number" id="montoTotal" formControlName="montoTotal" class="form-control" placeholder="0.00" step="0.01" min="0.01">
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="observacion">Observación</label>
-                        <textarea id="observacion" formControlName="observacion" class="form-control" rows="3" placeholder="Descripción de la cuenta por cobrar"></textarea>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="submit" class="btn-primary" [disabled]="formularioCuenta.invalid">
-              Registrar cuenta
-            </button>
-                        <button type="button" class="btn-secondary" (click)="toggleFormulario()">
-              Cancelar
-            </button>
-                    </div>
-                </form>
+            <!-- SELECTOR DE PERÍODO -->
+            <div class="filtro-periodo" *ngIf="!mostrandoFormulario">
+                <label for="periodo-selector">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+                        <line x1="16" x2="16" y1="2" y2="6"/>
+                        <line x1="8" x2="8" y1="2" y2="6"/>
+                        <line x1="3" x2="21" y1="10" y2="10"/>
+                    </svg>
+                    Filtrar por período:
+                </label>
+                <select id="periodo-selector" (change)="cambiarPeriodo($event)" class="form-control periodo-select" [value]="cuentaBancoSeleccionada">
+                    <option *ngFor="let caja of cajasBanco" [value]="caja.id" [selected]="caja.id === cuentaBancoSeleccionada">
+                        {{ obtenerNombrePeriodo(caja) }}
+                    </option>
+                </select>
             </div>
 
             <!-- RESUMEN -->
-            <div class="resumen-container" *ngIf="!cargando && !mostrandoFormulario">
-                <!-- FILA 1: Total Pendiente, Cuentas Activas, Total Cuentas -->
-                <div class="resumen-card">
-                    <div class="resumen-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" x2="12" y1="2" y2="22"/>
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-            </svg> Total Pendiente
+            <div class="resumen-stats" *ngIf="!cargando && !mostrandoFormulario">
+                <div class="stat-card stat-card-primary">
+                    <div class="stat-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" x2="12" y1="2" y2="22"/>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                        </svg>
                     </div>
-                    <div class="resumen-valor">{{ formatoMoneda(getTotalPendiente()) }}</div>
+                    <div class="stat-content">
+                        <span class="stat-label">Total Pendiente</span>
+                        <span class="stat-value">{{ formatoMoneda(getTotalPendiente()) }}</span>
+                    </div>
                 </div>
 
-                <div class="resumen-card">
-                    <div class="resumen-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect width="18" height="18" x="3" y="3" rx="2"/>
-              <path d="M3 9h18"/>
-            </svg> Cuentas Activas
+                <div class="stat-card stat-card-primary">
+                    <div class="stat-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="18" height="18" x="3" y="3" rx="2"/>
+                            <path d="M3 9h18"/>
+                        </svg>
                     </div>
-                    <div class="resumen-valor">{{ getCantidadActivas() }}</div>
+                    <div class="stat-content">
+                        <span class="stat-label">Cuentas Activas</span>
+                        <span class="stat-value">{{ getCantidadActivas() }}</span>
+                    </div>
                 </div>
 
-                <div class="resumen-card">
-                    <div class="resumen-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 3v18h18"/>
-              <path d="m19 9-5 5-4-4-3 3"/>
-            </svg> Total Cuentas
+                <div class="stat-card stat-card-primary">
+                    <div class="stat-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 3v18h18"/>
+                            <path d="m19 9-5 5-4-4-3 3"/>
+                        </svg>
                     </div>
-                    <div class="resumen-valor">{{ cuentasFiltradas.length }}</div>
+                    <div class="stat-content">
+                        <span class="stat-label">Total Cuentas</span>
+                        <span class="stat-value">{{ cuentas.length }}</span>
+                    </div>
                 </div>
 
-                <!-- FILA 2: Total Cobrado, Promedio por Cuenta, Cobros del Mes -->
-                <div class="resumen-card resumen-card-success">
-                    <div class="resumen-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg> Total Cobrado
+                <div class="stat-card stat-card-primary">
+                    <div class="stat-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
                     </div>
-                    <div class="resumen-valor">{{ formatoMoneda(getTotalCobrado()) }}</div>
+                    <div class="stat-content">
+                        <span class="stat-label">Total Cobrado</span>
+                        <span class="stat-value">{{ formatoMoneda(getTotalCobrado()) }}</span>
+                        <span class="stat-sublabel">{{ getPorcentajeCobrado().toFixed(1) }}% del total</span>
+                    </div>
                 </div>
 
-                <div class="resumen-card resumen-card-info">
-                    <div class="resumen-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
-              <line x1="3" x2="21" y1="9" y2="9"/>
-              <line x1="9" x2="9" y1="21" y2="9"/>
-            </svg> Promedio por Cuenta
+                <div class="stat-card stat-card-primary">
+                    <div class="stat-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+                            <line x1="3" x2="21" y1="9" y2="9"/>
+                            <line x1="9" x2="9" y1="21" y2="9"/>
+                        </svg>
                     </div>
-                    <div class="resumen-valor">{{ formatoMoneda(getPromedioPorCuenta()) }}</div>
+                    <div class="stat-content">
+                        <span class="stat-label">Promedio por Cuenta</span>
+                        <span class="stat-value">{{ formatoMoneda(getPromedioPorCuenta()) }}</span>
+                    </div>
                 </div>
 
-                <div class="resumen-card resumen-card-warning">
-                    <div class="resumen-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect width="20" height="14" x="2" y="7" rx="2" ry="2"/>
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-            </svg> Cobros del Mes
+                <div class="stat-card stat-card-primary">
+                    <div class="stat-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="20" height="14" x="2" y="7" rx="2" ry="2"/>
+                            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                        </svg>
                     </div>
-                    <div class="resumen-valor">{{ formatoMoneda(getCobrosDelMesActual()) }}</div>
+                    <div class="stat-content">
+                        <span class="stat-label">Cobros del Periodo</span>
+                        <span class="stat-value">{{ formatoMoneda(getCobrosDelPeriodo()) }}</span>
+                    </div>
                 </div>
 
-                <!-- FILA 3: Último Cobro (1 col) + Progreso de Cobro (2 cols) -->
-                <div class="resumen-card resumen-card-primary">
-                    <div class="resumen-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <polyline points="12 6 12 12 16 14"/>
-            </svg> Último Cobro
+                <div class="stat-card stat-card-primary">
+                    <div class="stat-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
                     </div>
-                    <div class="resumen-valor-small">{{ formatoMoneda(getMontoUltimoCobro()) }}</div>
-                    <div class="resumen-fecha">{{ getFechaUltimoCobro() }}</div>
+                    <div class="stat-content">
+                        <span class="stat-label">Último Cobro</span>
+                        <span class="stat-value">{{ formatoMoneda(getMontoUltimoCobro()) }}</span>
+                        <span class="stat-sublabel">{{ getFechaUltimoCobro() }}</span>
+                    </div>
                 </div>
 
-                <div class="resumen-card resumen-card-percentage">
-                    <div class="resumen-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="19" x2="5" y1="5" y2="19"/>
-              <circle cx="6.5" cy="6.5" r="2.5"/>
-              <circle cx="17.5" cy="17.5" r="2.5"/>
-            </svg> Progreso de Cobro
+                <div class="stat-card stat-card-progress">
+                    <div class="stat-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="19" x2="5" y1="5" y2="19"/>
+                            <circle cx="6.5" cy="6.5" r="2.5"/>
+                            <circle cx="17.5" cy="17.5" r="2.5"/>
+                        </svg>
                     </div>
-                    <div class="resumen-valor">{{ getPorcentajeCobrado().toFixed(1) }}%</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" [style.width.%]="getPorcentajeCobrado()"></div>
-                    </div>
-                    <div class="progress-labels">
-                        <span class="progress-label-paid">Cobrado: {{ getPorcentajeCobrado().toFixed(1) }}%</span>
-                        <span class="progress-label-pending">Pendiente: {{ getPorcentajePendiente().toFixed(1) }}%</span>
+                    <div class="stat-content">
+                        <span class="stat-label">Progreso de Cobro</span>
+                        <span class="stat-value">{{ getPorcentajeCobrado().toFixed(1) }}%</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" [style.width.%]="getPorcentajeCobrado()"></div>
+                        </div>
+                        <div class="progress-labels">
+                            <span class="progress-label-paid">Cobrado: {{ getPorcentajeCobrado().toFixed(1) }}%</span>
+                            <span class="progress-label-pending">Pendiente: {{ getPorcentajePendiente().toFixed(1) }}%</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -185,45 +268,64 @@
                 </div>
 
                 <!-- Tabla -->
-                <div class="tabla-responsive" *ngIf="!cargando && cuentasFiltradas.length > 0">
-                    <table class="tabla">
+                <div class="table-wrapper" *ngIf="!cargando && cuentasFiltradas.length > 0">
+                    <table class="ingresos-table">
                         <thead>
                             <tr>
-                                <th>Fecha</th>
-                                <th>Observación</th>
-                                <th class="text-right">Monto Total</th>
-                                <th class="text-right">Cobrado</th>
-                                <th class="text-right">Saldo</th>
-                                <th>Estado</th>
-                                <th class="text-right">Acciones</th>
+                                <th class="col-fecha">Fecha</th>
+                                <th class="col-observacion">Observación</th>
+                                <th class="col-usuario">Creado Por</th>
+                                <th class="col-total">Monto Total</th>
+                                <th class="col-total">Cobrado</th>
+                                <th class="col-total">Saldo</th>
+                                <th class="col-estado">Estado</th>
+                                <th class="col-acciones">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr *ngFor="let cuenta of cuentasFiltradas" class="tabla-row">
-                                <td>{{ formatoFecha(cuenta.fecha) }}</td>
-                                <td>{{ cuenta.observacion }}</td>
-                                <td class="text-right">{{ formatoMoneda(cuenta.montoTotal) }}</td>
-                                <td class="text-right">{{ formatoMoneda(cuenta.montoAbonado) }}</td>
-                                <td class="text-right font-bold">{{ formatoMoneda(cuenta.saldo) }}</td>
-                                <td>
-                                    <span class="badge" [class.badge-success]="cuenta.estado === EstadoCuenta.ACTIVA" [class.badge-secondary]="cuenta.estado === EstadoCuenta.CANCELADA">
-                    {{ cuenta.estado }}
-                  </span>
+                            <tr *ngFor="let cuenta of cuentasFiltradas" class="ingreso-row">
+                                <td class="col-fecha">
+                                    <span class="fecha-text">{{ formatoFecha(cuenta.fecha) }}</span>
                                 </td>
-                                <td>
+                                <td class="col-observacion">
+                                    <strong>{{ cuenta.observacion }}</strong>
+                                </td>
+                                <td class="col-usuario">
+                                    <span class="usuario-text">{{ cuenta.usuario_nombre || 'N/A' }}</span>
+                                </td>
+                                <td class="col-total">
+                                    <span class="precio">${{ cuenta.montoTotal.toFixed(2) }}</span>
+                                </td>
+                                <td class="col-total">
+                                    <span class="precio">${{ cuenta.montoAbonado.toFixed(2) }}</span>
+                                </td>
+                                <td class="col-total">
+                                    <span class="precio" style="font-weight: 700;">${{ cuenta.saldo.toFixed(2) }}</span>
+                                </td>
+                                <td class="col-estado">
+                                    <span class="badge-tipo" 
+                                          [class.badge-success]="cuenta.estado === EstadoCuenta.CANCELADA" 
+                                          [class.badge-warning]="cuenta.estado === EstadoCuenta.ACTIVA">
+                                        {{ cuenta.estado }}
+                                    </span>
+                                </td>
+                                <td class="col-acciones">
                                     <div class="action-buttons">
-                                        <button class="btn-action btn-action-primary" (click)="verDetalles(cuenta)" title="Ver detalles">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
-                        <circle cx="12" cy="12" r="3"/>
-                      </svg>
-                    </button>
-                                        <button *ngIf="cuenta.estado === EstadoCuenta.ACTIVA" class="btn-action btn-action-success" (click)="realizarCobro(cuenta)" title="Realizar cobro">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="12" x2="12" y1="2" y2="22"/>
-                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                      </svg>
-                    </button>
+                                        <button class="btn-ver" (click)="verDetalles(cuenta)" title="Ver detalles">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
+                                                <circle cx="12" cy="12" r="3"/>
+                                            </svg>
+                                        </button>
+                                        <button *ngIf="cuenta.estado === EstadoCuenta.ACTIVA" 
+                                                class="btn-eliminar" 
+                                                (click)="realizarCobro(cuenta)" 
+                                                title="Realizar cobro">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                                                <path d="M16 11h-4"></path>
+                                            </svg>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
