@@ -484,7 +484,7 @@ export class VerCajaComponent implements OnInit {
       <body>
         <div class="reporte-container">
           <div class="reporte-header">
-            <h1>ÓPTICA MACÍAS</h1>
+            <h1>ÓPTICA MACÍAS PASAJE</h1>
             <h2>REPORTE CAJA BANCO</h2>
             <div class="fecha-reporte">Fecha: ${this.formatoFecha(caja.fecha)}</div>
           </div>

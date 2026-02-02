@@ -170,7 +170,7 @@ La mayoría de impresoras Epson modernas soportan impresión A4 automáticamente
 Editar en: `ver-caja.html` línea del header:
 
 ```html
-<h1>ÓPTICA MACÍAS</h1>  <!-- Cambiar aquí -->
+<h1>ÓPTICA MACÍAS PASAJE</h1>  <!-- Nombre actualizado -->
 ```
 
 ### Agregar logo de la empresa
@@ -181,7 +181,7 @@ Editar en: `ver-caja.html` línea del header:
 ```html
 <div class="reporte-header">
   <img src="/img/logo-empresa.png" alt="Logo" style="height: 60px;">
-  <h1>ÓPTICA MACÍAS</h1>
+  <h1>ÓPTICA MACÍAS PASAJE</h1>
   ...
 </div>
 ```

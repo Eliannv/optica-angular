@@ -793,7 +793,7 @@ export class ListarCajasComponent implements OnInit {
       <body>
         <div class="reporte-container">
           <div class="reporte-header">
-            <h1>ÓPTICA MACÍAS</h1>
+            <h1>ÓPTICA MACÍAS PASAJE</h1>
             <h2>REPORTE MENSUAL CAJA BANCO</h2>
             <div class="fecha-reporte">Periodo: ${getNombreMes(month - 1)} ${year}</div>
           </div>
@@ -874,7 +874,7 @@ export class ListarCajasComponent implements OnInit {
           </div>
 
           <div class="reporte-footer">
-            <p>Reporte mensual de Caja Banco - Óptica Macías</p>
+            <p>Reporte mensual de Caja Banco - Óptica Macías Pasaje</p>
           </div>
         </div>
       </body>

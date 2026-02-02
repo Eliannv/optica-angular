@@ -635,7 +635,7 @@ export class VerCajaComponent implements OnInit {
       <body>
         <div class="reporte-container">
           <div class="reporte-header">
-            <h1>ÓPTICA MACÍAS</h1>
+            <h1>ÓPTICA MACÍAS PASAJE</h1>
             <h2>REPORTE DE CIERRE DE CAJA CHICA</h2>
             <div class="fecha-reporte">Fecha de impresión: ${formatoFecha(data.fechaReporte)}</div>
           </div>
@@ -715,7 +715,7 @@ export class VerCajaComponent implements OnInit {
           </div>
           <div class="reporte-footer">
             <p>Este documento es un reporte interno de cierre de caja chica</p>
-            <p>Generado por el Sistema de Gestión - Óptica Macías</p>
+            <p>Generado por el Sistema de Gestión - Óptica Macías Pasaje</p>
           </div>
         </div>
       </body>
