@@ -195,10 +195,15 @@ export class CuentasService {
         descripcion = `Cuenta por cobrar registrada: ${cuenta.observacion}`;
       }
 
-      // Registrar movimiento en caja/banco
-      const caja = await this.cajaBancoService.getCajaBancoActivaMes();
+      // Registrar movimiento en caja/banco del periodo de la cuenta
+      const fechaCuenta = new Date(cuenta.fecha);
+      const year = fechaCuenta.getFullYear();
+      const monthIndex0 = fechaCuenta.getMonth();
+      
+      const caja = await this.cajaBancoService.getCajaBancoPorPeriodo(year, monthIndex0);
       if (!caja) {
-        throw new Error('No hay una caja banco abierta para registrar el movimiento');
+        const nombreMes = new Date(year, monthIndex0).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+        throw new Error(`No hay una caja banco abierta para el periodo ${nombreMes}. Debe abrir una caja para ese mes primero.`);
       }
 
       const movimiento: MovimientoCajaBanco = {
@@ -235,10 +240,11 @@ export class CuentasService {
    * 
    * @param cuentaId ID de la cuenta.
    * @param monto Monto del abono.
+   * @param fechaAbono Fecha del abono (opcional, por defecto: hoy).
    * @param observacion Observación del abono (opcional).
    * @returns Promise que se resuelve cuando el abono se registra correctamente.
    */
-  async registrarAbono(cuentaId: string, monto: number, observacion?: string): Promise<void> {
+  async registrarAbono(cuentaId: string, monto: number, fechaAbono?: Date, observacion?: string): Promise<void> {
     try {
       // Obtener la cuenta actual
       const cuentaDocRef = doc(this.firestore, `cuentas/${cuentaId}`);
@@ -282,9 +288,12 @@ export class CuentasService {
       const nuevoMontoAbonado = cuenta.montoAbonado + monto;
       const nuevoEstado = nuevoSaldo === 0 ? EstadoCuenta.CANCELADA : EstadoCuenta.ACTIVA;
 
+      // Usar la fecha proporcionada o la fecha actual
+      const fechaDelAbono = fechaAbono || new Date();
+
       // Crear registro del abono
       const nuevoAbono: AbonoCuenta = {
-        fecha: new Date(),
+        fecha: fechaDelAbono,
         monto: monto,
         observacion: observacion,
         saldoRestante: nuevoSaldo
@@ -315,10 +324,14 @@ export class CuentasService {
         }
       }
 
-      // Registrar movimiento en caja/banco
-      const caja = await this.cajaBancoService.getCajaBancoActivaMes();
+      // Registrar movimiento en caja/banco del periodo del abono
+      const year = fechaDelAbono.getFullYear();
+      const monthIndex0 = fechaDelAbono.getMonth();
+      
+      const caja = await this.cajaBancoService.getCajaBancoPorPeriodo(year, monthIndex0);
       if (!caja) {
-        throw new Error('No hay una caja banco abierta para registrar el movimiento');
+        const nombreMes = new Date(year, monthIndex0).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+        throw new Error(`No hay una caja banco abierta para el periodo ${nombreMes}. Debe abrir una caja para ese mes primero.`);
       }
 
       const movimiento: MovimientoCajaBanco = {
@@ -327,7 +340,7 @@ export class CuentasService {
         categoria: categoriaMovimiento,
         monto: monto,
         descripcion: descripcion,
-        fecha: new Date()
+        fecha: fechaDelAbono
       };
 
       await this.cajaBancoService.registrarMovimiento(movimiento);

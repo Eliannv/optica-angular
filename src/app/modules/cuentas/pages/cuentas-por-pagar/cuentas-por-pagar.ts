@@ -17,7 +17,9 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import Swal from 'sweetalert2';
 import { CuentasService } from '../../../../core/services/cuentas.service';
+import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { Cuenta, TipoCuenta, EstadoCuenta } from '../../../../core/models/cuenta.model';
+import { obtenerPeriodo } from '../../../../core/utils/fecha-helpers';
 
 @Component({
   selector: 'app-cuentas-por-pagar',
@@ -37,11 +39,17 @@ export class CuentasPorPagarComponent implements OnInit {
   // Filtros
   filtroEstado: 'TODAS' | EstadoCuenta = 'TODAS';
   
+  // 🔒 Restricción de fecha según el periodo de la caja banco
+  fechaMinima = ''; // Fecha mínima permitida (inicio del mes de la caja banco)
+  fechaMaximaPermitida = ''; // Fecha máxima permitida (fin del mes de la caja banco o hoy)
+  periodoNombre = ''; // Nombre del periodo para mostrar (ej: "Enero 2026")
+  
   // Estados
   EstadoCuenta = EstadoCuenta;
 
   constructor(
     private readonly cuentasService: CuentasService,
+    private readonly cajaBancoService: CajaBancoService,
     private readonly fb: FormBuilder
   ) {
     this.inicializarFormulario();
@@ -49,6 +57,7 @@ export class CuentasPorPagarComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargarCuentas();
+    this.cargarRestriccionesFechaCajaBanco();
   }
 
   /**
@@ -60,6 +69,66 @@ export class CuentasPorPagarComponent implements OnInit {
       montoTotal: [0, [Validators.required, Validators.min(0.01)]],
       observacion: ['', Validators.required]
     });
+  }
+
+  /**
+   * Carga las restricciones de fecha min/max basadas en el periodo de la caja banco abierta.
+   * Limita la selección de fecha al mes de la caja banco activa.
+   */
+  async cargarRestriccionesFechaCajaBanco(): Promise<void> {
+    try {
+      const caja = await this.cajaBancoService.getCajaBancoAbierta();
+      
+      if (!caja?.fecha) {
+        console.warn('⚠️ No hay caja banco abierta');
+        return;
+      }
+
+      // Convertir fecha de Firestore a Date
+      let fechaCaja: Date;
+      if ((caja.fecha as any)?.toDate) {
+        fechaCaja = (caja.fecha as any).toDate();
+      } else if (caja.fecha instanceof Date) {
+        fechaCaja = caja.fecha;
+      } else {
+        fechaCaja = new Date(caja.fecha);
+      }
+
+      // Obtener periodo de la caja
+      const periodo = obtenerPeriodo(fechaCaja);
+      const year = periodo.year;
+      const month = periodo.monthIndex0; // Base 0
+
+      // Calcular primer y último día del mes
+      const primerDia = new Date(year, month, 1);
+      const ultimoDia = new Date(year, month + 1, 0); // Día 0 del mes siguiente = último día del mes actual
+      const hoy = new Date();
+
+      // Formatear para input[type="date"] (YYYY-MM-DD)
+      this.fechaMinima = this.formatearFecha(primerDia);
+      // La fecha máxima es el menor entre el último día del mes y hoy
+      const fechaMax = ultimoDia < hoy ? ultimoDia : hoy;
+      this.fechaMaximaPermitida = this.formatearFecha(fechaMax);
+      
+      // Nombre del periodo para mostrar
+      const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+      this.periodoNombre = `${meses[month]} ${year}`;
+
+      console.log(`📅 Restricciones de fecha establecidas: ${this.fechaMinima} a ${this.fechaMaximaPermitida} (${this.periodoNombre})`);
+    } catch (error) {
+      console.error('❌ Error cargando restricciones de fecha:', error);
+    }
+  }
+
+  /**
+   * Formatea una fecha a string YYYY-MM-DD para input[type="date"]
+   */
+  private formatearFecha(fecha: Date): string {
+    const year = fecha.getFullYear();
+    const month = (fecha.getMonth() + 1).toString().padStart(2, '0');
+    const day = fecha.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   /**
@@ -161,12 +230,27 @@ export class CuentasPorPagarComponent implements OnInit {
    * Muestra un formulario para registrar un abono a una cuenta.
    */
   async realizarAbono(cuenta: Cuenta): Promise<void> {
+    // Validar que haya caja banco disponible
+    if (!this.fechaMinima || !this.fechaMaximaPermitida) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Sin caja banco',
+        text: 'No hay una caja banco abierta. Debe abrir una caja banco primero para registrar abonos.'
+      });
+      return;
+    }
+
     const { value: formValues } = await Swal.fire({
       title: `Pagar cuenta`,
       html: `
         <div style="text-align: left; margin-bottom: 15px;">
           <p><strong>Cuenta:</strong> ${cuenta.observacion}</p>
           <p><strong>Saldo pendiente:</strong> $${cuenta.saldo.toFixed(2)}</p>
+          <p style="font-size: 0.9em; color: #666;">Periodo permitido: <strong>${this.periodoNombre}</strong></p>
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label for="fecha-abono" style="display: block; text-align: left; margin-bottom: 5px; font-weight: 500;">Fecha del pago</label>
+          <input id="fecha-abono" class="swal2-input" type="date" value="${this.formatearFecha(new Date())}" min="${this.fechaMinima}" max="${this.fechaMaximaPermitida}" style="width: 90%;">
         </div>
         <input id="monto-abono" class="swal2-input" type="number" placeholder="Monto a pagar" step="0.01" min="0.01" max="${cuenta.saldo}">
         <input id="observacion-abono" class="swal2-input" type="text" placeholder="Observación (opcional)">
@@ -177,9 +261,15 @@ export class CuentasPorPagarComponent implements OnInit {
       confirmButtonText: 'Registrar pago',
       cancelButtonText: 'Cancelar',
       preConfirm: () => {
+        const fechaInput = document.getElementById('fecha-abono') as HTMLInputElement;
         const montoInput = document.getElementById('monto-abono') as HTMLInputElement;
         const observacionInput = document.getElementById('observacion-abono') as HTMLInputElement;
         const monto = parseFloat(montoInput.value);
+
+        if (!fechaInput.value) {
+          Swal.showValidationMessage('Selecciona una fecha válida');
+          return null;
+        }
 
         if (!monto || monto <= 0) {
           Swal.showValidationMessage('Ingresa un monto válido');
@@ -192,6 +282,7 @@ export class CuentasPorPagarComponent implements OnInit {
         }
 
         return {
+          fecha: new Date(fechaInput.value + 'T00:00:00'),
           monto: monto,
           observacion: observacionInput.value
         };
@@ -204,6 +295,7 @@ export class CuentasPorPagarComponent implements OnInit {
       await this.cuentasService.registrarAbono(
         cuenta.id!,
         formValues.monto,
+        formValues.fecha,
         formValues.observacion || undefined
       );
 
@@ -287,5 +379,110 @@ export class CuentasPorPagarComponent implements OnInit {
    */
   formatoMoneda(valor: number): string {
     return `$${valor.toFixed(2)}`;
+  }
+
+  // ========== NUEVAS ESTADÍSTICAS ==========
+
+  /**
+   * 1. Total Pagado (acumulado)
+   * Suma de todos los montos abonados en todas las cuentas.
+   */
+  getTotalPagado(): number {
+    return this.cuentas.reduce((total, cuenta) => total + cuenta.montoAbonado, 0);
+  }
+
+  /**
+   * 2. Promedio por cuenta
+   * Promedio del monto total de todas las cuentas.
+   */
+  getPromedioPorCuenta(): number {
+    if (this.cuentas.length === 0) return 0;
+    const totalMonto = this.cuentas.reduce((total, cuenta) => total + cuenta.montoTotal, 0);
+    return totalMonto / this.cuentas.length;
+  }
+
+  /**
+   * 3. Cuentas vencidas
+   * Como no hay campo de fecha de vencimiento, retornamos 0.
+   * Podría implementarse en el futuro agregando un campo fechaVencimiento.
+   */
+  getCuentasVencidas(): number {
+    // No hay campo de vencimiento en el modelo actual
+    return 0;
+  }
+
+  /**
+   * 4. Porcentaje de deuda pagada
+   * Calcula qué porcentaje del total se ha pagado.
+   */
+  getPorcentajePagado(): number {
+    const totalGeneral = this.cuentas.reduce((total, cuenta) => total + cuenta.montoTotal, 0);
+    if (totalGeneral === 0) return 0;
+    const totalPagado = this.getTotalPagado();
+    return (totalPagado / totalGeneral) * 100;
+  }
+
+  /**
+   * Porcentaje pendiente de pago.
+   */
+  getPorcentajePendiente(): number {
+    return 100 - this.getPorcentajePagado();
+  }
+
+  /**
+   * 5. Deuda del mes actual
+   * Total de deudas creadas en el mes y año actual.
+   */
+  getDeudaMesActual(): number {
+    const hoy = new Date();
+    const mesActual = hoy.getMonth();
+    const añoActual = hoy.getFullYear();
+
+    return this.cuentas
+      .filter(cuenta => {
+        const fechaCuenta = new Date(cuenta.fecha);
+        return fechaCuenta.getMonth() === mesActual && 
+               fechaCuenta.getFullYear() === añoActual;
+      })
+      .reduce((total, cuenta) => total + cuenta.montoTotal, 0);
+  }
+
+  /**
+   * 6. Último pago realizado
+   * Encuentra el abono más reciente de todas las cuentas.
+   */
+  getUltimoPago(): { monto: number; fecha: Date } | null {
+    let ultimoPago: { monto: number; fecha: Date } | null = null;
+    let fechaMasReciente: Date | null = null;
+
+    this.cuentas.forEach(cuenta => {
+      if (cuenta.abonos && cuenta.abonos.length > 0) {
+        cuenta.abonos.forEach(abono => {
+          const fechaAbono = new Date(abono.fecha);
+          if (!fechaMasReciente || fechaAbono > fechaMasReciente) {
+            fechaMasReciente = fechaAbono;
+            ultimoPago = { monto: abono.monto, fecha: fechaAbono };
+          }
+        });
+      }
+    });
+
+    return ultimoPago;
+  }
+
+  /**
+   * Obtiene el monto del último pago.
+   */
+  getMontoUltimoPago(): number {
+    const ultimoPago = this.getUltimoPago();
+    return ultimoPago ? ultimoPago.monto : 0;
+  }
+
+  /**
+   * Obtiene la fecha del último pago formateada.
+   */
+  getFechaUltimoPago(): string {
+    const ultimoPago = this.getUltimoPago();
+    return ultimoPago ? this.formatoFecha(ultimoPago.fecha) : 'Sin pagos';
   }
 }
