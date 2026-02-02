@@ -1,7 +1,8 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { MaquinasAutorizadasService } from '../../../../core/services/maquinas-autorizadas.service';
 import { SucursalesService } from '../../../../core/services/sucursales.service';
 import { MaquinaAutorizada } from '../../../../core/models/maquina-autorizada.model';
@@ -16,13 +17,15 @@ import Swal from 'sweetalert2';
   templateUrl: './gestionar-maquinas.component.html',
   styleUrls: ['./gestionar-maquinas.component.css'],
 })
-export class GestionarMaquinasComponent implements OnInit {
+export class GestionarMaquinasComponent implements OnInit, OnDestroy {
   maquinas = signal<MaquinaAutorizada[]>([]);
   sucursales = signal<Sucursal[]>([]);
   maquinaForm!: FormGroup;
   mostrarFormulario = signal(false);
   modoEdicion = signal(false);
   cargando = signal(false);
+  
+  private subscriptions: Subscription[] = [];
 
   constructor(
     private fb: FormBuilder,
@@ -39,6 +42,10 @@ export class GestionarMaquinasComponent implements OnInit {
     this.cargarSucursales();
   }
 
+  ngOnDestroy(): void {
+    this.subscriptions.forEach(sub => sub.unsubscribe());
+  }
+
   inicializarFormulario(): void {
     this.maquinaForm = this.fb.group({
       id: [''],
@@ -52,7 +59,7 @@ export class GestionarMaquinasComponent implements OnInit {
 
   cargarMaquinas(): void {
     this.cargando.set(true);
-    this.maquinasService.getMaquinasAutorizadas().subscribe({
+    const sub = this.maquinasService.getMaquinasAutorizadas().subscribe({
       next: (maquinas) => {
         this.maquinas.set(maquinas);
         this.cargando.set(false);
@@ -68,10 +75,11 @@ export class GestionarMaquinasComponent implements OnInit {
         this.cargando.set(false);
       },
     });
+    this.subscriptions.push(sub);
   }
 
   cargarSucursales(): void {
-    this.sucursalesService.getSucursalesActivas().subscribe({
+    const sub = this.sucursalesService.getSucursalesActivas().subscribe({
       next: (sucursales) => {
         this.sucursales.set(sucursales);
       },
@@ -79,6 +87,7 @@ export class GestionarMaquinasComponent implements OnInit {
         console.error('Error cargando sucursales:', error);
       },
     });
+    this.subscriptions.push(sub);
   }
 
   nuevaMaquina(): void {

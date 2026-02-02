@@ -17,7 +17,8 @@ service cloud.firestore {
     // Validar que el usuario pertenezca a una sucursal válida
     function hasValidSucursal() {
       return isSignedIn() && 
-             userDoc().data.sucursal in ['MACHALA', 'PASAJE', 'DESARROLLO_1', 'DESARROLLO_2'];
+             userDoc().data.sucursal != null &&
+             userDoc().data.sucursal != '';
     }
 
     // Validar que el usuario esté activo (autorizado)

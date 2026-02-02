@@ -41,7 +41,7 @@ import {
   collectionData,
   serverTimestamp
 } from '@angular/fire/firestore';
-import { Observable, from, map, switchMap, of, tap } from 'rxjs';
+import { Observable, from, map, switchMap, of, tap, catchError, throwError } from 'rxjs';
 import { Usuario, RolUsuario } from '../models/usuario.model';
 import { Router } from '@angular/router';
 
@@ -103,8 +103,8 @@ export class AuthService {
           throw new Error('Usuario no encontrado en la base de datos');
         }
         
-        // Verificar si el usuario está bloqueado
-        if (userData.activo === false && userData.rol === 2) {
+        // VALIDACIÓN 1: Verificar si el usuario está bloqueado (activo === false)
+        if (userData.activo === false) {
           // Distinguir entre "sin autorización" y "bloqueado"
           // Si nunca ha tenido machineId, probablemente nunca fue autorizado
           if (!userData.machineId) {
@@ -114,12 +114,27 @@ export class AuthService {
           }
         }
         
-        // VALIDACIÓN DE SUCURSAL Y MACHINE ID (Nivel 2)
-        this.validarAccesoSucursal(userData);
+        // VALIDACIÓN 2: Verificar Machine ID y Sucursal (Nivel 2)
+        // Solo para usuarios operadores (rol === 2)
+        if (userData.rol === RolUsuario.OPERADOR) {
+          // Validación async - convertir a Observable
+          return from(this.validarAccesoSucursal(userData)).pipe(
+            switchMap(() => from(this.setCustomClaims(userData))),
+            map(() => userData)
+          );
+        }
 
-        // Establecer custom claims en el token (para Firestore security rules)
+        // Si no es operador, solo establecer custom claims
         return from(this.setCustomClaims(userData)).pipe(
           map(() => userData)
+        );
+      }),
+      // CRÍTICO: Si hay un error, hacer logout automáticamente
+      catchError(error => {
+        console.error('❌ Error durante login, cerrando sesión automáticamente:', error.message);
+        // Hacer logout para limpiar la autenticación de Firebase
+        return from(signOut(this.auth)).pipe(
+          switchMap(() => throwError(() => error))
         );
       })
     );
@@ -185,37 +200,65 @@ export class AuthService {
   /**
    * Validar que el usuario tenga acceso a esta sucursal y machine ID
    */
-  private validarAccesoSucursal(userData: Usuario): void {
+  private async validarAccesoSucursal(userData: Usuario): Promise<void> {
     // Obtener datos de Electron (solo disponible en app empaquetada)
     const electronApi = (window as any).electron;
+    const electronAPI = (window as any).electronAPI;
     
-    if (!electronApi) {
+    if (!electronApi || !electronAPI) {
       // En desarrollo (navegador), permitir acceso
       console.warn('⚠️ Ejecutando en modo desarrollo - validación de sucursal deshabilitada');
       return;
     }
 
-    const sucursalActual = electronApi.sucursal || 'PASAJE';
-    const machineIdActual = electronApi.machineId;
+    // Obtener información real de la máquina desde Electron
+    let machineInfo;
+    try {
+      machineInfo = await electronAPI.getMachineInfo();
+    } catch (error) {
+      console.error('❌ Error obteniendo información de máquina:', error);
+      throw new Error('RESTRICTED: No se pudo verificar la información de la máquina.');
+    }
 
-    // Validar sucursal
-    if (userData.sucursal && userData.sucursal !== sucursalActual) {
+    const sucursalActual = machineInfo.sucursal || 'DESCONOCIDA';
+    const machineIdActual = machineInfo.machineId || electronApi.machineId;
+
+    // DEBUG: Mostrar valores para verificación
+    console.log('🔍 VALIDACIÓN DE ACCESO:');
+    console.log('  Machine ID Usuario:', userData.machineId);
+    console.log('  Machine ID Actual:', machineIdActual);
+    console.log('  Sucursal Usuario:', userData.sucursal);
+    console.log('  Sucursal Actual:', sucursalActual);
+    console.log('  ¿Coinciden IDs?:', userData.machineId === machineIdActual);
+    console.log('  ¿Coinciden Sucursales?:', userData.sucursal === sucursalActual);
+
+    // VALIDACIÓN CRÍTICA: Verificar que el usuario tenga machineId y sucursal asignados
+    if (!userData.machineId || !userData.sucursal) {
       throw new Error(
-        `Tu cuenta está asignada a la sucursal ${userData.sucursal}. ` +
+        'RESTRICTED: Acceso restringido. Tu cuenta aún no ha sido asignada a ninguna sucursal. ' +
+        'Contacta al administrador para obtener acceso.'
+      );
+    }
+
+    // Validar machine ID - CRÍTICO para seguridad
+    if (userData.machineId !== machineIdActual) {
+      throw new Error(
+        `RESTRICTED: Acceso restringido. Tu cuenta está asignada a otra computadora. ` +
+        `No puedes iniciar sesión desde esta máquina.\n\n` +
+        `Máquina asignada: ${userData.machineId}\n` +
+        `Máquina actual: ${machineIdActual}`
+      );
+    }
+
+    // Validar sucursal (adicional para coherencia)
+    if (userData.sucursal !== sucursalActual) {
+      throw new Error(
+        `RESTRICTED: Acceso restringido. Tu cuenta está asignada a la sucursal ${userData.sucursal}. ` +
         `No puedes iniciar sesión desde ${sucursalActual}.`
       );
     }
 
-    // Validar machine ID
-    if (userData.machineId && userData.machineId !== machineIdActual) {
-      throw new Error(
-        'Esta cuenta está autorizada para otra computadora. ' +
-        'Contacta al administrador para autorizar este equipo.'
-      );
-    }
-
-    // Log removido para producción: evitar mensajes en consola en la app de escritorio
-    // Si necesitas depurar, reactivar este log temporalmente.
+    console.log('✅ Validación exitosa - Acceso permitido');
   }
 
   /**

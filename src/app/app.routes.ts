@@ -170,13 +170,14 @@ export const routes: Routes = [
   /**
    * Módulo de cuentas por pagar y cobrar.
    * Control de deudas con terceros y préstamos realizados.
+   * ACCESO: Solo Administradores
    */
   {
     path: 'cuentas',
     loadChildren: () =>
       import('./modules/cuentas/cuentas-module')
         .then(m => m.CuentasModule),
-    canActivate: [authGuard, roleGuard([RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR])]
+    canActivate: [authGuard, roleGuard([RolUsuario.ADMINISTRADOR])]
   },
 
   /* ==========================================================================

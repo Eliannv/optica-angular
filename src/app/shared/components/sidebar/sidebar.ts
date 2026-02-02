@@ -130,7 +130,7 @@ export class SidebarComponent implements OnInit {
         `),
         route: '/cuentas',
         active: false,
-        roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR],
+        roles: [RolUsuario.ADMINISTRADOR],
         expanded: false,
         children: [
           {
@@ -138,14 +138,14 @@ export class SidebarComponent implements OnInit {
             icon: '',
             route: '/cuentas/pagar',
             active: false,
-            roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
+            roles: [RolUsuario.ADMINISTRADOR]
           },
           {
             label: 'Cuentas por Cobrar',
             icon: '',
             route: '/cuentas/cobrar',
             active: false,
-            roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
+            roles: [RolUsuario.ADMINISTRADOR]
           }
         ]
       },

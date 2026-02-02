@@ -279,6 +279,10 @@ export class AuthCarousel implements OnInit, OnDestroy {
             errorIcon = 'error';
             errorTitle = 'Cuenta bloqueada';
             errorMessage = err.message.replace('BLOCKED: ', '');
+          } else if (err.message.startsWith('RESTRICTED:')) {
+            errorIcon = 'warning';
+            errorTitle = 'Acceso restringido';
+            errorMessage = err.message.replace('RESTRICTED: ', '');
           } else if (err.message.includes('inactiva') || err.message.includes('bloqueada')) {
             errorMessage = err.message;
           } else if (err.message.includes('sucursal') || err.message.includes('computadora')) {

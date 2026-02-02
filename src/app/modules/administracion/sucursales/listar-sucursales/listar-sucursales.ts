@@ -1,6 +1,7 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
+import { Subscription } from 'rxjs';
 import Swal from 'sweetalert2';
 import { SucursalesService } from '../../../../core/services/sucursales.service';
 import { Sucursal } from '../../../../core/models/sucursal.model';
@@ -12,9 +13,10 @@ import { Sucursal } from '../../../../core/models/sucursal.model';
   templateUrl: './listar-sucursales.html',
   styleUrl: './listar-sucursales.css'
 })
-export class ListarSucursales implements OnInit {
+export class ListarSucursales implements OnInit, OnDestroy {
   private router = inject(Router);
   private sucursalesSrv = inject(SucursalesService);
+  private subscription?: Subscription;
 
   sucursales = signal<Sucursal[]>([]);
   cargando = signal(false);
@@ -23,9 +25,13 @@ export class ListarSucursales implements OnInit {
     this.cargarSucursales();
   }
 
+  ngOnDestroy(): void {
+    this.subscription?.unsubscribe();
+  }
+
   cargarSucursales(): void {
     this.cargando.set(true);
-    this.sucursalesSrv.getSucursales().subscribe({
+    this.subscription = this.sucursalesSrv.getSucursales().subscribe({
       next: (data) => {
         this.sucursales.set(data);
         this.cargando.set(false);

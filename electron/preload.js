@@ -17,15 +17,28 @@ function generarIdMaquina() {
   return crypto.createHash('sha256').update(machineInfo).digest('hex').substring(0, 16);
 }
 
+// Variable para almacenar la información de la máquina
+let machineInfoCache = null;
+
+// Función async para obtener la información
+async function getMachineInfo() {
+  if (!machineInfoCache) {
+    machineInfoCache = await ipcRenderer.invoke('get-machine-info');
+  }
+  return machineInfoCache;
+}
+
 // Exponer APIs seguras a la aplicación Angular
 contextBridge.exposeInMainWorld('electronAPI', {
   descargarPlantilla: () => ipcRenderer.invoke('descargar-plantilla'),
+  getMachineInfo: () => ipcRenderer.invoke('get-machine-info'),
 });
 
+// Inicializar y exponer electron con valores por defecto
+// Los valores reales se obtendrán vía electronAPI.getMachineInfo()
 contextBridge.exposeInMainWorld('electron', {
-  sucursal: 'PASAJE',
+  sucursal: 'CARGANDO...', // Se actualizará desde Angular
   version: '1.0.0',
-  machineId: generarIdMaquina(), // Exponer machine ID para validación
-  // Flag para saber si estamos en desarrollo o producción
+  machineId: generarIdMaquina(), // Machine ID local
   isDev: process.env.NODE_ENV !== 'production',
 });

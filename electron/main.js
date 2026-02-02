@@ -102,6 +102,14 @@ async function verificarSucursal() {
     const maquinaDoc = snapshot.docs[0];
     const maquina = maquinaDoc.data();
 
+    // DEBUGGING: Mostrar SIEMPRE qué documento se está usando
+    console.log('🔍 DOCUMENTO CONSULTADO:');
+    console.log('   ID del documento:', maquinaDoc.id);
+    console.log('   Machine ID:', maquina.machineId);
+    console.log('   Sucursal:', maquina.sucursal);
+    console.log('   Nombre:', maquina.nombreMaquina);
+    console.log('   Activo:', maquina.activo);
+
     // Actualizar último acceso
     await maquinasRef.doc(maquinaDoc.id).update({
       ultimoAcceso: admin.firestore.FieldValue.serverTimestamp(),
@@ -135,6 +143,12 @@ async function createWindow() {
     app.quit();
     return;
   }
+
+  // Guardar información de la máquina para usarla en IPC
+  global.machineInfo = {
+    sucursal: verificacion.sucursal,
+    machineId: verificacion.machineId
+  };
 
   const win = new BrowserWindow({
     width: 1200,
@@ -194,6 +208,15 @@ async function createWindow() {
 /**
  * IPC Handlers para servir archivos desde Electron
  */
+
+// Handler para obtener información de la máquina
+ipcMain.handle('get-machine-info', async () => {
+  return global.machineInfo || {
+    sucursal: 'DESCONOCIDA',
+    machineId: generarIdMaquina()
+  };
+});
+
 ipcMain.handle('descargar-plantilla', async () => {
   try {
     // Rutas posibles donde podría estar el archivo
