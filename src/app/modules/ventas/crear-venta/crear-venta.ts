@@ -52,6 +52,14 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
 
   items: any[] = []; // (tu ItemVenta ya lo usas pero aquí guardas nombre/tipo/total también)
 
+  // 🔧 SERVICIOS
+  mostrarFormServicio: boolean = false; // Toggle para mostrar/ocultar formulario de servicio
+  servicioNuevo = {
+    nombre: '',
+    cantidad: 1,
+    precio: 0
+  };
+
   ivaPct = 0.15;
   private _descuentoPorcentaje = 0;
   descuentoMonto = 0; // Monto del descuento calculado
@@ -103,6 +111,14 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
    */
   get esAdmin(): boolean {
     return this.authService.isAdmin();
+  }
+
+  /**
+   * Valida si se puede guardar la venta
+   * Requiere: al menos un item (producto O servicio) y cliente
+   */
+  get puedeGuardar(): boolean {
+    return Boolean(this.clienteId && this.items.length > 0);
   }
 
   /**
@@ -772,6 +788,93 @@ private toNumber(v: any): number {
     this.recalcularAbono(); // Actualizar saldo pendiente
   }
 
+  /**
+   * Agrega un servicio al detalle de la venta
+   * Los servicios NO descuentan stock y tienen precio manual
+   */
+  agregarServicio() {
+    const nombre = (this.servicioNuevo.nombre || '').trim();
+    const cantidad = Math.max(1, Number(this.servicioNuevo.cantidad || 1));
+    const precio = Math.max(0, Number(this.servicioNuevo.precio || 0));
+
+    // Validar que el nombre no esté vacío
+    if (!nombre) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Nombre requerido',
+        text: 'Ingresa el nombre del servicio.',
+      });
+      return;
+    }
+
+    // Validar que el precio sea mayor a 0
+    if (precio <= 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Precio requerido',
+        text: 'Ingresa un precio mayor a 0 para el servicio.',
+      });
+      return;
+    }
+
+    // Buscar si ya existe este servicio (por nombre exacto)
+    const existing = this.items.find((i: any) => i.esServicio && (i.nombre || '').toLowerCase() === nombre.toLowerCase());
+
+    if (existing) {
+      // Si ya existe, solo incrementar cantidad
+      existing.cantidad++;
+      existing.total = existing.cantidad * existing.precioUnitario;
+      existing.totalSinIva = existing.total; // Servicios sin IVA desglosado
+    } else {
+      // Agregar nuevo servicio
+      this.items.push({
+        esServicio: true, // 🔧 Identificador de servicio
+        nombre: nombre,
+        tipo: 'SERVICIO',
+        cantidad: cantidad,
+        precioUnitarioSinIva: precio,
+        precioUnitario: precio,
+        total: cantidad * precio,
+        totalSinIva: cantidad * precio,
+        porcentajeIva: 0,
+        stockDisponible: Number.POSITIVE_INFINITY, // Servicios sin stock
+        codigo: '',
+        idInterno: ''
+      });
+    }
+
+    // Limpiar formulario
+    this.servicioNuevo = {
+      nombre: '',
+      cantidad: 1,
+      precio: 0
+    };
+    this.mostrarFormServicio = false;
+
+    this.recalcular();
+    this.recalcularAbono();
+  }
+
+  /**
+   * Toggle para mostrar/ocultar formulario de servicio
+   */
+  toggleFormServicio() {
+    this.mostrarFormServicio = !this.mostrarFormServicio;
+    if (this.mostrarFormServicio) {
+      // Resetear el formulario al abrir
+      this.servicioNuevo = {
+        nombre: '',
+        cantidad: 1,
+        precio: 0
+      };
+      // Enfocar el input después de que se renderice
+      setTimeout(() => {
+        const input = document.querySelector('.form-servicio input[type="text"]') as HTMLInputElement;
+        if (input) input.focus();
+      }, 100);
+    }
+  }
+
   recalcular() {
     // Calcular subtotal SIN IVA y el IVA desglosado
     const subtotalBruto = this.items.reduce((a: number, i: any) => a + (Number(i.totalSinIva) || 0), 0);
@@ -783,6 +886,9 @@ private toNumber(v: any): number {
 
 async guardarEImprimir() {
   if (!this.items.length || this.guardando) return;
+
+  // ✅ VALIDACIÓN: La venta es válida si tiene items (productos O servicios)
+  // No requerimos que sean solo productos
 
   // ✅ VALIDACIÓN: Si NO es crédito personal, requiere abono > 0
   if (!this.esCredito && this.abono <= 0) {
@@ -797,8 +903,13 @@ async guardarEImprimir() {
   this.guardando = true;
 
   try {
-    // ✅ Verificar stock en tiempo real antes de guardar (solo productos con stock NORMAL)
+    // ✅ Verificar stock en tiempo real antes de guardar (solo para PRODUCTOS, no servicios)
     for (const it of this.items) {
+      // ✅ Saltar verificación si es servicio
+      if (it.esServicio) {
+        continue;
+      }
+
       const prodActual: any = await firstValueFrom(this.productosSrv.getProductoById(it.productoId));
       
       // Determinar el tipo de control de stock (compatible con datos legacy)
@@ -922,7 +1033,8 @@ async guardarEImprimir() {
       historialSnapshot: this.historial || null,
 
       items: this.items.map((i: any) => ({
-        productoId: i.productoId,
+        esServicio: i.esServicio || false, // ✅ Incluir flag de servicio
+        productoId: i.productoId || undefined,
         nombre: i.nombre,
         tipo: i.tipo,
         cantidad: i.cantidad,
@@ -1044,7 +1156,14 @@ async guardarEImprimir() {
     }
 
     // ✅ Descontar stock de cada producto de manera segura
+    // ✅ NO descontar para servicios (esServicio === true)
     for (const it of this.items) {
+      // ✅ Saltar si es servicio
+      if (it.esServicio) {
+        console.log(`⏭️ Saltando deducción de stock para servicio: "${it.nombre}"`);
+        continue;
+      }
+
       try {
         await this.productosSrv.descontarStock(it.productoId, it.cantidad);
       } catch (err) {

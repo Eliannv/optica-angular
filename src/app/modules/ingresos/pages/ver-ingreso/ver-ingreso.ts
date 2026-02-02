@@ -348,6 +348,9 @@ export class VerIngresoComponent implements OnDestroy {
         <div class="container">
           <!-- ENCABEZADO -->
           <div class="header">
+            <div style="text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 5px;">ÓPTICA MACÍAS PASAJE</div>
+            <div style="text-align: center; font-size: 10px; margin-bottom: 15px; color: #666;">RUC: 0912477528001 | Pasaje - Ecuador</div>
+            
             <div class="header-title">FACTURA DE INGRESO ${idIngreso}</div>
             
             <div class="header-grid">

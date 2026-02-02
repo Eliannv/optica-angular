@@ -132,11 +132,51 @@
                     <span class="items-count" *ngIf="items.length">{{ items.length }} item(s)</span>
                 </div>
 
+                <!-- 🔧 BOTÓN AGREGAR SERVICIO -->
+                <div style="margin: 10px 0;">
+                    <button type="button" class="btn-secondary" (click)="toggleFormServicio()" style="width: 100%;">
+                        <span *ngIf="!mostrarFormServicio">Agregar Servicio</span>
+                        <span *ngIf="mostrarFormServicio">Cerrar Formulario</span>
+                    </button>
+                </div>
+
+                <!-- 🔧 FORMULARIO SERVICIO -->
+                <div *ngIf="mostrarFormServicio" class="form-servicio" style="background-color: #f8f9fa; border: 2px dashed #0d6efd; border-radius: 8px; padding: 15px; margin: 10px 0;">
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label for="servicioNombre" style="font-weight: 600; font-size: 13px; color: #495057; margin-bottom: 5px; display: block;">Nombre del Servicio *</label>
+                        <input id="servicioNombre" type="text" class="search-input" [(ngModel)]="servicioNuevo.nombre" placeholder="Ej: Limpieza de lentes, Ajuste de armazón" (keydown.enter)="agregarServicio()" style="padding: 8px 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 13px; width: 100%;"
+                        />
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                        <div class="form-group">
+                            <label for="servicioCantidad" style="font-weight: 600; font-size: 13px; color: #495057; margin-bottom: 5px; display: block;">Cantidad</label>
+                            <input id="servicioCantidad" type="number" class="search-input" [(ngModel)]="servicioNuevo.cantidad" min="1" value="1" (keydown.enter)="agregarServicio()" style="padding: 8px 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 13px; width: 100%;"
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="servicioPrecio" style="font-weight: 600; font-size: 13px; color: #495057; margin-bottom: 5px; display: block;">Precio *</label>
+                            <input id="servicioPrecio" type="number" class="search-input" [(ngModel)]="servicioNuevo.precio" min="0.01" step="0.01" placeholder="0.00" (keydown.enter)="agregarServicio()" style="padding: 8px 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 13px; width: 100%;"
+                            />
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn-primary" (click)="agregarServicio()" style="width: 100%;">
+                        Agregar Servicio
+                    </button>
+                </div>
+
                 <div class="carrito-content" *ngIf="items.length; else empty">
                     <div class="carrito-items">
                         <div class="carrito-item" *ngFor="let it of items">
                             <div class="item-info">
-                                <div class="item-nombre">{{ $any(it).nombre }}</div>
+                                <div class="item-nombre">
+                                    {{ $any(it).nombre }}
+                                    <span *ngIf="$any(it).esServicio" style="display: inline-block; background-color: #0d6efd; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 5px; font-weight: 600;">
+                                        🔧 SERVICIO
+                                    </span>
+                                </div>
                                 <div class="item-tipo">{{ $any(it).tipo }}</div>
                             </div>
 
@@ -246,27 +286,16 @@
                             <label style="font-weight: 600; color: #2e7d32;">
                                 {{ esCredito ? '💰 Abono inicial (opcional)' : '💵 Abono (paga hoy)' }}
                             </label>
-                            <input 
-                                #abonoInput 
-                                type="number" 
-                                min="0" 
-                                class="search-input" 
-                                [(ngModel)]="abono" 
-                                (ngModelChange)="recalcularAbono()" 
-                                (keydown.enter)="onInputEnter($event, 'abono')" 
-                                placeholder="0.00"
-                                style="font-size: 1.1rem; font-weight: 600; border: 2px solid #4caf50;"
+                            <input #abonoInput type="number" min="0" class="search-input" [(ngModel)]="abono" (ngModelChange)="recalcularAbono()" (keydown.enter)="onInputEnter($event, 'abono')" placeholder="0.00" style="font-size: 1.1rem; font-weight: 600; border: 2px solid #4caf50;"
                             />
                             <small class="muted" *ngIf="!esCredito" style="color: #388e3c;">Si es menor al total, quedará saldo pendiente.</small>
                             <small class="muted" *ngIf="esCredito" style="color: #ff9800;">Si no ingresa abono, el total quedará como deuda pendiente.</small>
-                            
+
                             <!-- VUELTO CALCULADO (solo si metodoPago es Efectivo y hay abono) -->
                             <div *ngIf="metodoPago === 'Efectivo' && abono > 0" style="margin-top: 12px; padding: 10px; background-color: #fff; border-radius: 4px; border-left: 4px solid #ff9800;">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <span style="font-weight: 600; color: #f57c00;">🔄 VUELTO A ENTREGAR:</span>
-                                    <span 
-                                        style="font-size: 1.3rem; font-weight: 700;" 
-                                        [style.color]="vuelto >= 0 ? '#4caf50' : '#f44336'">
+                                    <span style="font-size: 1.3rem; font-weight: 700;" [style.color]="vuelto >= 0 ? '#4caf50' : '#f44336'">
                                         ${{ vuelto | number:'1.2-2' }}
                                     </span>
                                 </div>
@@ -287,7 +316,7 @@
                             <button class="btn-secondary" type="button" (click)="volver()">
                                 <span>← Volver</span>
                             </button>
-                            <button #btnGuardar class="btn-primary" type="button" [disabled]="guardando || !items.length" (click)="guardarEImprimir()" (keydown.enter)="guardarEImprimir()" style="min-width: 200px;">
+                            <button #btnGuardar class="btn-primary" type="button" [disabled]="guardando || !puedeGuardar" (click)="guardarEImprimir()" (keydown.enter)="guardarEImprimir()" style="min-width: 200px;">
                                 <span>{{ guardando ? 'Guardando...' : 'Guardar + Imprimir' }}</span>
                             </button>
                         </div>
@@ -309,7 +338,7 @@
 <!-- ================= TICKET / FACTURA (oculto, solo para impresión) ================= -->
 <div id="ticket" class="ticket" *ngIf="facturaParaImprimir">
 
-    <div class="t-center t-bold">ÓPTICA MACÍAS</div>
+    <div class="t-center t-bold">ÓPTICA MACÍAS PASAJE</div>
     <div class="t-center t-small">RUC: 0912477528001</div>
     <div class="t-center t-small">Pasaje - Ecuador</div>
 
