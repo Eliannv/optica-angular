@@ -160,6 +160,13 @@ export class SidebarComponent implements OnInit {
         expanded: false,
         children: [
           {
+            label: 'Ventas Generales',
+            icon: '',
+            route: '/informes/ventas-generales',
+            active: false,
+            roles: [RolUsuario.ADMINISTRADOR]
+          },
+          {
             label: 'Cobros Cliente',
             icon: '',
             route: '/informes/cobros-cliente',

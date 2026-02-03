@@ -120,17 +120,36 @@ export class CobrosClienteComponent implements OnInit, OnDestroy {
   aplicarFiltros(): void {
     let resultado = [...this.cobros];
 
-    // Filtro por rango de fechas
+    // ✅ Filtro por rango de fechas SIN conversión de zona horaria
+    // Comparar solo año/mes/día para evitar problemas con UTC
     if (this.fechaInicio) {
-      const inicio = new Date(this.fechaInicio);
-      inicio.setHours(0, 0, 0, 0);
-      resultado = resultado.filter(c => c.fecha >= inicio);
+      const [añoInicio, mesInicio, diaInicio] = this.fechaInicio.split('-').map(Number);
+      resultado = resultado.filter(c => {
+        const fechaCobro = new Date(c.fecha);
+        const añoCobro = fechaCobro.getFullYear();
+        const mesCobro = fechaCobro.getMonth() + 1; // getMonth() es 0-based
+        const diaCobro = fechaCobro.getDate();
+        
+        // Comparar como números YYYYMMDD
+        const numCobro = añoCobro * 10000 + mesCobro * 100 + diaCobro;
+        const numInicio = añoInicio * 10000 + mesInicio * 100 + diaInicio;
+        return numCobro >= numInicio;
+      });
     }
 
     if (this.fechaFin) {
-      const fin = new Date(this.fechaFin);
-      fin.setHours(23, 59, 59, 999);
-      resultado = resultado.filter(c => c.fecha <= fin);
+      const [añoFin, mesFin, diaFin] = this.fechaFin.split('-').map(Number);
+      resultado = resultado.filter(c => {
+        const fechaCobro = new Date(c.fecha);
+        const añoCobro = fechaCobro.getFullYear();
+        const mesCobro = fechaCobro.getMonth() + 1;
+        const diaCobro = fechaCobro.getDate();
+        
+        // Comparar como números YYYYMMDD
+        const numCobro = añoCobro * 10000 + mesCobro * 100 + diaCobro;
+        const numFin = añoFin * 10000 + mesFin * 100 + diaFin;
+        return numCobro <= numFin;
+      });
     }
 
     // Filtro por búsqueda de cliente o factura
@@ -232,10 +251,16 @@ export class CobrosClienteComponent implements OnInit, OnDestroy {
 
   /**
    * Formatea una fecha a string legible.
+   * ✅ SIN conversión de zona horaria - usa el objeto Date directamente.
    */
   formatoFecha(fecha: Date): string {
     if (!fecha) return '-';
-    return new Date(fecha).toLocaleDateString('es-ES', {
+    
+    // NO usar new Date(fecha) porque causa conversión UTC
+    // Usar directamente el objeto Date que ya tiene la fecha correcta
+    const fechaObj = fecha instanceof Date ? fecha : new Date(fecha);
+    
+    return fechaObj.toLocaleDateString('es-ES', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -297,8 +322,17 @@ export class CobrosClienteComponent implements OnInit, OnDestroy {
     
     // Construir descripción de filtros aplicados
     const filtrosAplicados: string[] = [];
-    if (this.fechaInicio) filtrosAplicados.push(`Desde: ${new Date(this.fechaInicio).toLocaleDateString('es-ES')}`);
-    if (this.fechaFin) filtrosAplicados.push(`Hasta: ${new Date(this.fechaFin).toLocaleDateString('es-ES')}`);
+    
+    // ✅ Convertir fechas sin desfase de zona horaria
+    if (this.fechaInicio) {
+      const [año, mes, dia] = this.fechaInicio.split('-');
+      filtrosAplicados.push(`Desde: ${dia}/${mes}/${año}`);
+    }
+    if (this.fechaFin) {
+      const [año, mes, dia] = this.fechaFin.split('-');
+      filtrosAplicados.push(`Hasta: ${dia}/${mes}/${año}`);
+    }
+    
     if (this.clienteBusqueda) filtrosAplicados.push(`Cliente: ${this.clienteBusqueda}`);
     if (this.metodoPago !== 'TODOS') filtrosAplicados.push(`Método: ${this.metodoPago}`);
     if (this.soloCreditoPersonal) filtrosAplicados.push('Solo Crédito Personal');

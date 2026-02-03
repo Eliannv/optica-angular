@@ -1,0 +1,210 @@
+<div class="ventas-container">
+    <!-- HEADER -->
+    <div class="ventas-header">
+        <div class="header-content">
+            <h2 class="titulo">Reporte de Ventas Generales</h2>
+            <div class="header-actions">
+                <button class="btn-reimprimir" type="button" (click)="imprimirReporte()" [disabled]="cobrosFiltrados.length === 0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+            <path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/>
+            <rect x="6" y="14" width="12" height="8" rx="1"/>
+          </svg> Imprimir Reporte
+        </button>
+            </div>
+        </div>
+        <p class="subtitulo">Informe de ventas generales con cobros y egresos de caja chica</p>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="filtros-card">
+        <h3 class="filtros-titulo">Filtros de Búsqueda</h3>
+
+        <div class="filtros-grid">
+            <!-- Rango de Fechas -->
+            <div class="filtro-grupo">
+                <label>Fecha Desde</label>
+                <input type="date" [(ngModel)]="fechaDesde" class="input-filtro">
+            </div>
+
+            <div class="filtro-grupo">
+                <label>Fecha Hasta</label>
+                <input type="date" [(ngModel)]="fechaHasta" class="input-filtro">
+            </div>
+
+            <!-- Tipo de Movimiento (Checkboxes) -->
+            <div class="filtro-grupo filtro-wide">
+                <label>Tipo de Movimiento</label>
+                <div class="checkboxes-group">
+                    <label class="checkbox-item" *ngFor="let tipo of tiposDisponibles">
+            <input 
+              type="checkbox" 
+              [checked]="isTipoSeleccionado(tipo.valor)" 
+              (change)="toggleTipo(tipo.valor)">
+            <span>{{ tipo.label }}</span>
+          </label>
+                </div>
+                <small class="help-text">Selecciona uno o varios tipos (si no seleccionas ninguno, se mostrarán todos)</small>
+            </div>
+        </div>
+
+        <div class="filtros-acciones">
+            <div class="filtros-botones">
+                <button class="btn-mostrar" (click)="aplicarFiltros()" [disabled]="loading" type="button">
+          Mostrar
+        </button>
+                <button class="btn-limpiar" (click)="limpiarFiltros()" type="button">
+          Limpiar Filtros
+        </button>
+            </div>
+            <span class="filtros-resultado">
+        {{ cobrosFiltrados.length }} registro(s) encontrado(s)
+      </span>
+        </div>
+    </div>
+
+    <!-- RESUMEN ESTADÍSTICAS -->
+    <div class="resumen-stats" *ngIf="!loading">
+        <div class="stat-card stat-card-primary">
+            <div class="stat-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" x2="12" y1="2" y2="22"/>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+            </div>
+            <div class="stat-content">
+                <span class="stat-label">Total Neto</span>
+                <span class="stat-value">{{ formatoMoneda(totalCobrado) }}</span>
+            </div>
+        </div>
+
+        <div class="stat-card stat-card-primary">
+            <div class="stat-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="20" height="14" x="2" y="5" rx="2"/>
+          <path d="M2 10h20"/>
+        </svg>
+            </div>
+            <div class="stat-content">
+                <span class="stat-label">Efectivo</span>
+                <span class="stat-value">{{ formatoMoneda(totalesPorMetodo['Efectivo'] || 0) }}</span>
+            </div>
+        </div>
+
+        <div class="stat-card stat-card-primary">
+            <div class="stat-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+          <line x1="1" y1="10" x2="23" y2="10"/>
+        </svg>
+            </div>
+            <div class="stat-content">
+                <span class="stat-label">Transferencia</span>
+                <span class="stat-value">{{ formatoMoneda(totalesPorMetodo['Transferencia'] || 0) }}</span>
+            </div>
+        </div>
+
+        <div class="stat-card stat-card-primary">
+            <div class="stat-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="20" height="14" x="2" y="5" rx="2"/>
+          <path d="M2 10h20"/>
+        </svg>
+            </div>
+            <div class="stat-content">
+                <span class="stat-label">Tarjeta</span>
+                <span class="stat-value">{{ formatoMoneda(totalesPorMetodo['Tarjeta'] || 0) }}</span>
+            </div>
+        </div>
+
+        <div class="stat-card stat-card-primary">
+            <div class="stat-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3v18h18"/>
+          <path d="m19 9-5 5-4-4-3 3"/>
+        </svg>
+            </div>
+            <div class="stat-content">
+                <span class="stat-label">Total Registros</span>
+                <span class="stat-value">{{ cantidadRegistros }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOADING -->
+    <div *ngIf="loading" class="loading-container">
+        <div class="spinner"></div>
+        <p>Cargando datos...</p>
+    </div>
+
+    <!-- TABLA DE REGISTROS -->
+    <div *ngIf="!loading" class="table-wrapper">
+        <table class="ventas-table">
+            <thead>
+                <tr>
+                    <th class="col-fecha">Fecha</th>
+                    <th class="col-factura">Factura/Orden</th>
+                    <th class="col-cliente">Cliente</th>
+                    <th class="col-tipo">Tipo</th>
+                    <th class="col-metodo">Método</th>
+                    <th class="col-monto">Monto</th>
+                    <th class="col-saldo">Saldo Pend.</th>
+                    <th class="col-credito">Crédito</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let cobro of cobrosFiltrados" class="registro-row" [class.row-egreso]="cobro.esEgreso">
+                    <td class="col-fecha">
+                        <span class="fecha-text">{{ formatoFecha(cobro.fecha) }}</span>
+                    </td>
+                    <td class="col-factura">
+                        <strong *ngIf="!cobro.esEgreso">{{ cobro.facturaIdPersonalizado || cobro.facturaId || '-' }}</strong>
+                        <strong *ngIf="cobro.esEgreso" class="egreso-label">EGRESO</strong>
+                    </td>
+                    <td class="col-cliente">
+                        <span>{{ cobro.clienteNombre }}</span>
+                    </td>
+                    <td class="col-tipo">
+                        <span class="badge-tipo" [class.badge-danger]="cobro.esEgreso" [class.badge-info]="!cobro.esEgreso">
+              {{ getTipoCobroLabel(cobro) }}
+            </span>
+                    </td>
+                    <td class="col-metodo">
+                        <span *ngIf="!cobro.esEgreso" class="badge-metodo" [class.bg-success]="cobro.metodoPago === 'Efectivo'" [class.bg-primary]="cobro.metodoPago === 'Tarjeta'" [class.bg-warning]="cobro.metodoPago === 'Transferencia'">
+              {{ cobro.metodoPago }}
+            </span>
+                        <span *ngIf="cobro.esEgreso" class="badge-metodo bg-secondary">
+              Caja Chica
+            </span>
+                    </td>
+                    <td class="col-monto">
+                        <span class="monto" [class.monto-egreso]="cobro.esEgreso">
+              <span *ngIf="cobro.esEgreso">-</span>{{ formatoMoneda(cobro.monto) }}
+                        </span>
+                    </td>
+                    <td class="col-saldo">
+                        <span *ngIf="!cobro.esEgreso">{{ formatoMoneda(cobro.saldoPendiente || 0) }}</span>
+                        <span *ngIf="cobro.esEgreso">-</span>
+                    </td>
+                    <td class="col-credito">
+                        <span *ngIf="cobro.esCredito && !cobro.esEgreso" class="badge-credito bg-success">SÍ</span>
+                        <span *ngIf="!cobro.esCredito && !cobro.esEgreso" class="badge-credito bg-secondary">NO</span>
+                        <span *ngIf="cobro.esEgreso">-</span>
+                    </td>
+                </tr>
+
+                <!-- Sin resultados -->
+                <tr *ngIf="cobrosFiltrados.length === 0">
+                    <td colspan="8" class="sin-datos">
+                        <div class="mensaje-vacio">
+                            <p>📭 No se encontraron registros con los filtros aplicados</p>
+                            <button class="btn-limpiar" (click)="limpiarFiltros()" type="button">
+                Limpiar Filtros
+              </button>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

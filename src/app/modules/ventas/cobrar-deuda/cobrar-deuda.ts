@@ -351,7 +351,7 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
             console.log('🕐 Hora de pago seleccionada:', this.horaPago);
             
             fechaFinal = this.combinarFechaHora(fechaCaja, this.horaPago);
-            console.log('✅ Fecha final combinada:', fechaFinal);
+            console.log('✅ Fecha final EFECTIVO combinada:', fechaFinal);
           } else {
             console.warn('⚠️ No hay fecha en caja, usando fecha actual');
             fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
@@ -361,7 +361,8 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
           fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
         }
       } else {
-        // Para transferencia/tarjeta: usar fecha y hora seleccionadas
+        // Para transferencia/tarjeta: validar fecha seleccionada pero usar fecha contable de caja chica
+        console.log('💳 Usando fecha contable de caja chica para caja banco');
         
         // ✅ VALIDAR QUE LA FECHA ESTÉ DENTRO DEL PERIODO DE LA CAJA BANCO
         if (this.fechaMinima && this.fechaMaxima) {
@@ -392,8 +393,35 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
           return;
         }
         
-        fechaFinal = this.combinarFechaHora(this.fechaPago, this.horaPago);
+        // ✅ Usar FECHA DE CAJA CHICA como fecha contable oficial
+        try {
+          const cajaChicaAbierta = await this.cajaChicaService.getCajaAbierta();
+          console.log('📅 Caja chica abierta obtenida (no efectivo):', cajaChicaAbierta);
+
+          if (cajaChicaAbierta?.fecha) {
+            let fechaCaja: Date;
+            if ((cajaChicaAbierta.fecha as any).toDate) {
+              fechaCaja = (cajaChicaAbierta.fecha as any).toDate();
+            } else if (cajaChicaAbierta.fecha instanceof Date) {
+              fechaCaja = cajaChicaAbierta.fecha;
+            } else {
+              fechaCaja = new Date(cajaChicaAbierta.fecha);
+            }
+
+            console.log('📅 Fecha de caja chica convertida (no efectivo):', fechaCaja);
+            fechaFinal = this.combinarFechaHora(fechaCaja, this.horaPago);
+            console.log('✅ Fecha final TRANSFERENCIA/TARJETA (caja chica):', fechaFinal);
+          } else {
+            console.warn('⚠️ No hay fecha en caja chica, usando fecha actual');
+            fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
+          }
+        } catch (err) {
+          console.error('❌ Error obteniendo fecha de caja chica (no efectivo):', err);
+          fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
+        }
       }
+
+      console.log('🎯 FECHA FINAL QUE SE GUARDARÁ EN COBRO DE DEUDA:', fechaFinal);
 
       // ✅ ACTUALIZAR ESTADO DEL CRÉDITO Y OTROS CAMPOS
       const actualizacion: any = {
