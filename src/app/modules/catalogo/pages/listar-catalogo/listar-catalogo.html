@@ -1,0 +1,104 @@
+<div class="container mt-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2 class="mb-2">Catálogo de Ítems</h2>
+            <p class="text-muted">Gestiona ítems vendibles sin inventario ni deuda</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="btn-group" role="group">
+                <a class="btn btn-outline-primary" routerLink="/catalogo/importar" title="Importar desde Excel">
+                    <i class="bi bi-file-earmark-arrow-up"></i> Importar
+                </a>
+                <button class="btn btn-primary" (click)="irACrear()">
+                    <i class="bi bi-plus-circle"></i> Nuevo Ítem
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Opciones de filtrado -->
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-secondary" [class.active]="categoriaSeleccionada === null" (click)="seleccionarCategoria(null)">
+          Todos
+        </button>
+                <button *ngFor="let cat of categorias" type="button" class="btn btn-outline-secondary" [class.active]="categoriaSeleccionada === cat" (click)="seleccionarCategoria($any(cat))">
+          {{ getCategoriLabel($any(cat)) }}
+        </button>
+            </div>
+        </div>
+        <div class="col-md-4 text-end">
+            <label class="form-check-label">
+        <input 
+          type="checkbox" 
+          class="form-check-input"
+          [checked]="mostrarInactivos"
+          (change)="toggleMostrarInactivos()">
+        Mostrar inactivos
+      </label>
+        </div>
+    </div>
+
+    <!-- Tabla de ítems -->
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Nombre</th>
+                    <th>Categoría</th>
+                    <th>Precio Base</th>
+                    <th>IVA</th>
+                    <th>Precio c/ IVA</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngIf="cargando" class="text-center">
+                    <td colspan="7">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                    </td>
+                </tr>
+                <tr *ngIf="!cargando && itemsFiltrados.length === 0" class="text-center text-muted">
+                    <td colspan="7">No hay ítems en esta categoría</td>
+                </tr>
+                <tr *ngFor="let item of itemsFiltrados">
+                    <td>
+                        <strong>{{ item.nombre }}</strong>
+                        <br>
+                        <small class="text-muted" *ngIf="item.observacion">{{ item.observacion }}</small>
+                    </td>
+                    <td>{{ getCategoriLabel(item.categoria) }}</td>
+                    <td>{{ item.precio ? ('$' + item.precio) : '-' }}</td>
+                    <td>{{ item.iva ? (item.iva + '%') : '-' }}</td>
+                    <td>{{ item.precioConIVA ? ('$' + item.precioConIVA.toFixed(2)) : '-' }}</td>
+                    <td>
+                        <span class="badge" [class.bg-success]="item.activo !== false" [class.bg-danger]="item.activo === false">
+              {{ getEstado(item.activo) }}
+            </span>
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button class="btn btn-outline-primary" (click)="irAEditar(item.id!)" title="Editar">
+                <i class="bi bi-pencil"></i>
+              </button>
+                            <button *ngIf="item.activo !== false" class="btn btn-outline-danger" (click)="desactivarItem(item)" title="Desactivar">
+                <i class="bi bi-trash"></i>
+              </button>
+                            <button *ngIf="item.activo === false" class="btn btn-outline-success" (click)="activarItem(item)" title="Activar">
+                <i class="bi bi-arrow-counterclockwise"></i>
+              </button>
+                            <button *ngIf="item.activo === false" class="btn btn-outline-danger" (click)="eliminarItem(item)" title="Eliminar permanentemente">
+                <i class="bi bi-x-circle"></i>
+              </button>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

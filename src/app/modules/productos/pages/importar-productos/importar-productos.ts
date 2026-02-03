@@ -1,7 +1,7 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, Input, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { 
   ExcelService, 
@@ -35,13 +35,15 @@ import Swal from 'sweetalert2';
   templateUrl: './importar-productos.html',
   styleUrls: ['./importar-productos.css']
 })
-export class ImportarProductosComponent {
+export class ImportarProductosComponent implements OnInit {
+  @Input() modo: 'INGRESO' | 'CATALOGO' = 'INGRESO';
   private excelService = inject(ExcelService);
   private productosService = inject(ProductosService);
   private ingresosService = inject(IngresosService);
   private proveedoresService = inject(ProveedoresService);
   private fb = inject(FormBuilder);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   paso = signal<1 | 2 | 3>(1);
   archivoSeleccionado = signal<File | null>(null);
@@ -83,6 +85,16 @@ export class ImportarProductosComponent {
     this.inicializarFormularioProveedor();
   }
 
+  ngOnInit(): void {
+    if (this.modo === 'INGRESO') {
+      const modoData = this.route.snapshot.data?.['modo'];
+      const modoQuery = this.route.snapshot.queryParamMap.get('modo');
+      if (modoData === 'CATALOGO' || modoQuery === 'CATALOGO') {
+        this.modo = 'CATALOGO';
+      }
+    }
+  }
+
   /**
    * Valida si se puede confirmar la importación
    * 
@@ -90,9 +102,11 @@ export class ImportarProductosComponent {
    */
   get puedeConfirmarImportacion(): boolean {
     if (!this.datosImportacion()) return false;
-    if (!this.proveedorExiste()) return false;
-    if (this.validandoNumeroFactura) return false;
-    if (this.validacionFactura.mensaje && !this.validacionFactura.valido) return false;
+    if (this.modo === 'INGRESO') {
+      if (!this.proveedorExiste()) return false;
+      if (this.validandoNumeroFactura) return false;
+      if (this.validacionFactura.mensaje && !this.validacionFactura.valido) return false;
+    }
     return !this.procesando();
   }
 
@@ -209,11 +223,17 @@ export class ImportarProductosComponent {
 
     try {
       const datos = await this.excelService.importarProductos(archivo);
-      
-      await this.verificarProveedor(datos.proveedor);
-      
-      await this.validarNumeroFactura(datos.numeroFactura);
-      
+
+      if (this.modo === 'INGRESO') {
+        await this.verificarProveedor(datos.proveedor);
+        await this.validarNumeroFactura(datos.numeroFactura);
+      } else {
+        this.proveedorExiste.set(true);
+        this.proveedorExistente.set(null);
+        this.mostrarFormProveedor.set(false);
+        this.validacionFactura = { valido: true, mensaje: '' };
+      }
+
       await this.verificarProductosExistentes(datos.productos);
       
       this.datosImportacion.set(datos);
@@ -355,22 +375,24 @@ export class ImportarProductosComponent {
     const datos = this.datosImportacion();
     if (!datos) return;
 
-    await this.validarNumeroFactura(datos.numeroFactura);
-    if (this.validacionFactura.mensaje && !this.validacionFactura.valido) {
-      this.mensajeError.set(this.validacionFactura.mensaje);
-      return;
-    }
+    if (this.modo === 'INGRESO') {
+      await this.validarNumeroFactura(datos.numeroFactura);
+      if (this.validacionFactura.mensaje && !this.validacionFactura.valido) {
+        this.mensajeError.set(this.validacionFactura.mensaje);
+        return;
+      }
 
-    // Validar que todos tengan costo
-    const sinCosto = datos.productos.filter(p => !p.costo || p.costo <= 0);
-    if (sinCosto.length > 0) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Productos sin costo',
-        text: `${sinCosto.length} producto(s) no tienen costo válido. Por favor completa todos los costos.`,
-        confirmButtonText: 'Revisar'
-      });
-      return;
+      // Validar que todos tengan costo
+      const sinCosto = datos.productos.filter(p => !p.costo || p.costo <= 0);
+      if (sinCosto.length > 0) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Productos sin costo',
+          text: `${sinCosto.length} producto(s) no tienen costo válido. Por favor completa todos los costos.`,
+          confirmButtonText: 'Revisar'
+        });
+        return;
+      }
     }
 
     this.procesando.set(true);
@@ -378,6 +400,20 @@ export class ImportarProductosComponent {
     this.mensajeError.set('');
 
     try {
+      if (this.modo === 'CATALOGO') {
+        await this.importarComoCatalogo(datos);
+
+        await Swal.fire({
+          icon: 'success',
+          title: '¡Importación completada!',
+          text: `${datos.productos.length} productos procesados correctamente`,
+          timer: 2000,
+          showConfirmButton: false
+        });
+        this.router.navigate(['/catalogo']);
+        return;
+      }
+
       console.log('📦 Iniciando importación...', { 
         proveedor: datos.proveedor, 
         factura: datos.numeroFactura,
@@ -459,6 +495,38 @@ export class ImportarProductosComponent {
       this.paso.set(2);
     } finally {
       this.procesando.set(false);
+    }
+  }
+
+  /**
+   * ✅ Importar productos en modo CATÁLOGO (sin ingreso, sin deuda, sin caja/banco)
+   */
+  private async importarComoCatalogo(datos: DatosExcelImportacion): Promise<void> {
+    for (const prod of datos.productos) {
+      const baseProducto: any = {
+        codigo: prod.codigo || '',
+        nombre: prod.nombre,
+        modelo: prod.modelo || '',
+        color: prod.color || '',
+        grupo: prod.grupo || 'SERVICIOS',
+        costo: prod.costo || 0,
+        pvp1: prod.pvp1 || 0,
+        iva: prod.iva || 0,
+        observacion: prod.observacion || '',
+        activo: true,
+        controlaStock: false,
+        tipo_control_stock: 'ILIMITADO',
+        stock: 0
+      };
+
+      if (prod.estado === 'EXISTENTE' && prod.productoId) {
+        await this.productosService.updateProducto(prod.productoId, {
+          ...baseProducto,
+          ingresoId: null
+        });
+      } else {
+        await this.productosService.createProducto(baseProducto);
+      }
     }
   }
 
