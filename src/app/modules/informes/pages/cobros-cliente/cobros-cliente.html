@@ -1,0 +1,261 @@
+<div class="cobros-container">
+  <!-- HEADER -->
+  <div class="cobros-header">
+    <div class="header-content">
+      <h2 class="titulo">Informe de Cobros Cliente</h2>
+      <div class="header-actions">
+        <button class="btn-reimprimir" type="button" (click)="imprimirReporte()" [disabled]="cobrosFiltrados.length === 0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+            <path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/>
+            <rect x="6" y="14" width="12" height="8" rx="1"/>
+          </svg> Imprimir Reporte
+        </button>
+      </div>
+    </div>
+    <p class="subtitulo">Consulta y reporte de cobros realizados</p>
+  </div>
+
+  <!-- FILTROS -->
+  <div class="filtros-card">
+    <h3 class="filtros-titulo">Filtros de Búsqueda</h3>
+    
+    <div class="filtros-grid">
+
+        <!-- Búsqueda Cliente/Factura -->
+      <div class="filtro-grupo filtro-wide">
+        <label>Cliente o Número de Factura</label>
+        <input 
+          type="text" 
+          [(ngModel)]="clienteBusqueda" 
+          (input)="aplicarFiltros()"
+          placeholder="Buscar por nombre de cliente o número de factura..."
+          class="input-filtro">
+      </div>
+      
+      <!-- Rango de Fechas -->
+      <div class="filtro-grupo">
+        <label>Fecha Inicio</label>
+        <input 
+          type="date" 
+          [(ngModel)]="fechaInicio" 
+          (change)="aplicarFiltros()"
+          class="input-filtro">
+      </div>
+
+      <div class="filtro-grupo">
+        <label>Fecha Fin</label>
+        <input 
+          type="date" 
+          [(ngModel)]="fechaFin" 
+          (change)="aplicarFiltros()"
+          class="input-filtro">
+      </div>
+
+      <!-- Método de Pago -->
+      <div class="filtro-grupo">
+        <label>Método de Pago</label>
+        <select [(ngModel)]="metodoPago" (change)="aplicarFiltros()" class="input-filtro">
+          <option value="TODOS">Todos</option>
+          <option value="Efectivo">Efectivo</option>
+          <option value="Transferencia">Transferencia</option>
+          <option value="Tarjeta">Tarjeta</option>
+        </select>
+      </div>
+
+      <!-- Estado de Pago -->
+      <div class="filtro-grupo">
+        <label>Estado de Pago</label>
+        <select [(ngModel)]="estadoPago" (change)="aplicarFiltros()" class="input-filtro">
+          <option value="TODAS">Todas</option>
+          <option value="PENDIENTE">Pendientes</option>
+          <option value="PAGADA">Pagadas</option>
+        </select>
+      </div>
+
+      <!-- Crédito Personal -->
+      <div class="filtro-grupo filtro-checkbox">
+        <label>
+          <input 
+            type="checkbox" 
+            [(ngModel)]="soloCreditoPersonal" 
+            (change)="aplicarFiltros()">
+          Solo Crédito Personal
+        </label>
+      </div>
+    </div>
+
+    <div class="filtros-acciones">
+      <button class="btn-limpiar" (click)="limpiarFiltros()" type="button">
+        Limpiar Filtros
+      </button>
+      <span class="filtros-resultado">
+        {{ cobrosFiltrados.length }} cobro(s) encontrado(s)
+      </span>
+    </div>
+  </div>
+
+  <!-- RESUMEN RÁPIDO -->
+  <div class="resumen-stats" *ngIf="!loading">
+    <div class="stat-card stat-card-primary">
+      <div class="stat-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" x2="12" y1="2" y2="22"/>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">Total Cobrado</span>
+        <span class="stat-value">{{ formatoMoneda(totalCobrado) }}</span>
+      </div>
+    </div>
+
+    <div class="stat-card stat-card-primary">
+      <div class="stat-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="20" height="14" x="2" y="5" rx="2"/>
+          <path d="M2 10h20"/>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">Efectivo</span>
+        <span class="stat-value">{{ formatoMoneda(totalesPorMetodo['Efectivo'] || 0) }}</span>
+      </div>
+    </div>
+
+    <div class="stat-card stat-card-primary">
+      <div class="stat-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+          <line x1="1" y1="10" x2="23" y2="10"/>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">Transferencia</span>
+        <span class="stat-value">{{ formatoMoneda(totalesPorMetodo['Transferencia'] || 0) }}</span>
+      </div>
+    </div>
+
+    <div class="stat-card stat-card-primary">
+      <div class="stat-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="20" height="14" x="2" y="5" rx="2"/>
+          <path d="M2 10h20"/>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">Tarjeta</span>
+        <span class="stat-value">{{ formatoMoneda(totalesPorMetodo['Tarjeta'] || 0) }}</span>
+      </div>
+    </div>
+
+    <div class="stat-card stat-card-primary">
+      <div class="stat-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3v18h18"/>
+          <path d="m19 9-5 5-4-4-3 3"/>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">Total Cobros</span>
+        <span class="stat-value">{{ cobrosFiltrados.length }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Cargando cobros...</p>
+  </div>
+
+  <!-- TABLA DE COBROS -->
+  <div *ngIf="!loading" class="table-wrapper">
+    <table class="ingresos-table">
+      <thead>
+        <tr>
+          <th class="col-fecha">Factura</th>
+          <th class="col-fecha">Fecha</th>
+          <th class="col-observacion">Cliente</th>
+          <th class="col-total">Total Factura</th>
+          <th class="col-total">Cobrado</th>
+          <th class="col-total">Saldo</th>
+          <th class="col-estado">Método</th>
+          <th class="col-estado">Estado</th>
+          <th class="col-estado">Crédito</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let cobro of cobrosPaginados" class="ingreso-row">
+          <td class="col-fecha">
+            <span class="fecha-text">{{ cobro.facturaIdPersonalizado || cobro.facturaId }}</span>
+          </td>
+          <td class="col-fecha">
+            <span class="fecha-text">{{ formatoFecha(cobro.fecha) }}</span>
+          </td>
+          <td class="col-observacion">
+            <strong>{{ cobro.clienteNombre }}</strong>
+          </td>
+          <td class="col-total">
+            <span class="precio">${{ cobro.totalFactura.toFixed(2) }}</span>
+          </td>
+          <td class="col-total">
+            <span class="precio">${{ cobro.monto.toFixed(2) }}</span>
+          </td>
+          <td class="col-total">
+            <span class="precio" style="font-weight: 700;">${{ cobro.saldoPendiente.toFixed(2) }}</span>
+          </td>
+          <td class="col-estado">
+            <span class="badge-tipo">{{ cobro.metodoPago }}</span>
+          </td>
+          <td class="col-estado">
+            <span class="badge-tipo" [class.badge-success]="cobro.estadoPago === 'PAGADA'" [class.badge-warning]="cobro.estadoPago === 'PENDIENTE'">
+              {{ cobro.estadoPago }}
+            </span>
+          </td>
+          <td class="col-estado">
+            <span class="badge-tipo" [class.badge-success]="cobro.esCredito" [class.badge-secondary]="!cobro.esCredito">
+              {{ cobro.esCredito ? 'SÍ' : 'NO' }}
+            </span>
+          </td>
+        </tr>
+
+        <!-- Sin resultados -->
+        <tr *ngIf="cobrosFiltrados.length === 0">
+          <td colspan="9" class="sin-datos">
+            <div class="mensaje-vacio">
+              <p>📭 No se encontraron cobros con los filtros aplicados</p>
+              <button class="btn-limpiar" (click)="limpiarFiltros()" type="button">
+                Limpiar Filtros
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- PAGINACIÓN -->
+  <div *ngIf="!loading && cobrosFiltrados.length > 0" class="paginacion">
+    <button 
+      class="btn-pag" 
+      (click)="paginaAnterior()" 
+      [disabled]="paginaActual === 1"
+      type="button">
+      ← Anterior
+    </button>
+
+    <span class="pag-info">
+      Página {{ paginaActual }} de {{ totalPaginas }}
+      ({{ cobrosFiltrados.length }} cobros)
+    </span>
+
+    <button 
+      class="btn-pag" 
+      (click)="paginaSiguiente()" 
+      [disabled]="paginaActual >= totalPaginas"
+      type="button">
+      Siguiente →
+    </button>
+  </div>
+</div>

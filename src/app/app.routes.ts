@@ -181,6 +181,23 @@ export const routes: Routes = [
   },
 
   /* ==========================================================================
+     RUTAS PROTEGIDAS - INFORMES Y REPORTES
+     Acceso: Operadores y Administradores
+     ========================================================================== */
+
+  /**
+   * Módulo de Informes.
+   * Generación de reportes e informes del sistema (cobros, egresos, etc).
+   */
+  {
+    path: 'informes',
+    loadChildren: () =>
+      import('./modules/informes/informes-module')
+        .then(m => m.InformesModule),
+    canActivate: [authGuard, roleGuard([RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR])]
+  },
+
+  /* ==========================================================================
      RUTAS PROTEGIDAS - ADMINISTRACIÓN
      Acceso: Solo Administradores
      ========================================================================== */
