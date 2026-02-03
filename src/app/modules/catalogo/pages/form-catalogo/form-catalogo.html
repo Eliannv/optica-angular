@@ -1,0 +1,136 @@
+<div class="container mt-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2>{{ editando ? 'Editar' : 'Crear' }} Ítem del Catálogo</h2>
+            <p class="text-muted">{{ editando ? 'Actualiza los datos del ítem' : 'Registra un nuevo ítem vendible' }}</p>
+        </div>
+    </div>
+
+    <!-- Formulario -->
+    <div class="row">
+        <div class="col-md-8">
+            <form [formGroup]="form" (ngSubmit)="enviar()">
+                <!-- Nombre -->
+                <div class="mb-3">
+                    <label for="nombre" class="form-label">Nombre / Descripción *</label>
+                    <input type="text" class="form-control" id="nombre" formControlName="nombre" placeholder="Ej: Luna Anti-Reflejo" [class.is-invalid]="tieneError('nombre')">
+                    <div class="invalid-feedback" *ngIf="tieneError('nombre')">
+                        {{ getMensajeError('nombre') }}
+                    </div>
+                </div>
+
+                <!-- Categoría -->
+                <div class="mb-3">
+                    <label for="categoria" class="form-label">Categoría *</label>
+                    <select class="form-select" id="categoria" formControlName="categoria" [class.is-invalid]="tieneError('categoria')">
+            <option value="">-- Selecciona una categoría --</option>
+            <option *ngFor="let cat of categorias" [value]="cat">
+              {{ getCategoriLabel($any(cat)) }}
+            </option>
+          </select>
+                    <div class="invalid-feedback" *ngIf="tieneError('categoria')">
+                        {{ getMensajeError('categoria') }}
+                    </div>
+                </div>
+
+                <!-- Precio Base -->
+                <div class="mb-3">
+                    <label for="precio" class="form-label">Precio Base (Opcional)</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" class="form-control" id="precio" formControlName="precio" placeholder="0.00" step="0.01" min="0" [class.is-invalid]="tieneError('precio')">
+                    </div>
+                    <small class="form-text text-muted">
+            Precio antes de IVA. Se puede editar durante la venta.
+          </small>
+                    <div class="invalid-feedback" *ngIf="tieneError('precio')">
+                        {{ getMensajeError('precio') }}
+                    </div>
+                </div>
+
+                <!-- IVA -->
+                <div class="mb-3">
+                    <label for="iva" class="form-label">IVA (%)</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="iva" formControlName="iva" placeholder="15" step="0.1" min="0" max="100" [class.is-invalid]="tieneError('iva')">
+                        <span class="input-group-text">%</span>
+                    </div>
+                    <div class="invalid-feedback" *ngIf="tieneError('iva')">
+                        {{ getMensajeError('iva') }}
+                    </div>
+                </div>
+
+                <!-- Precio con IVA (Visualización) -->
+                <div class="mb-3" *ngIf="precioConIVA">
+                    <label class="form-label">Precio con IVA (Cálculo)</label>
+                    <div class="alert alert-info" role="alert">
+                        <strong>${{ precioConIVA.toFixed(2) }}</strong>
+                    </div>
+                </div>
+
+                <!-- Observación -->
+                <div class="mb-3">
+                    <label for="observacion" class="form-label">Observación (Opcional)</label>
+                    <textarea class="form-control" id="observacion" formControlName="observacion" rows="3" placeholder="Notas adicionales sobre el ítem" [class.is-invalid]="tieneError('observacion')"></textarea>
+                </div>
+
+                <!-- Estado -->
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="activo" formControlName="activo">
+                        <label class="form-check-label" for="activo">
+              Ítem activo
+            </label>
+                    </div>
+                </div>
+
+                <!-- Botones -->
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" [disabled]="cargando || form.invalid">
+            <span *ngIf="!cargando">
+              <i class="bi bi-check-circle"></i>
+              {{ editando ? 'Actualizar' : 'Crear' }}
+            </span>
+            <span *ngIf="cargando">
+              <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              Guardando...
+            </span>
+          </button>
+                    <button type="button" class="btn btn-outline-secondary" (click)="cancelar()" [disabled]="cargando">
+            Cancelar
+          </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Panel de información -->
+        <div class="col-md-4">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h5 class="card-title">Información</h5>
+                    <p class="card-text small">
+                        <strong>Stock:</strong> Infinito (no se gestiona inventario)
+                    </p>
+                    <p class="card-text small">
+                        <strong>Compras:</strong> No genera movimientos
+                    </p>
+                    <p class="card-text small">
+                        <strong>Deuda:</strong> No genera deuda
+                    </p>
+                    <p class="card-text small">
+                        <strong>Caja/Banco:</strong> No afecta contabilidad
+                    </p>
+                    <hr>
+                    <h6>Categorías</h6>
+                    <ul class="small mb-0">
+                        <li>Tipos de Lunas</li>
+                        <li>Lentes de Contacto</li>
+                        <li>Líquidos Limpia Lunas</li>
+                        <li>Servicios</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

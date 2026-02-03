@@ -1,0 +1,30 @@
+/* Estilos para el componente de listado de catálogo */
+
+.container {
+    max-width: 1200px;
+}
+
+.btn-group-sm .btn {
+    font-size: 0.875rem;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.35em 0.65em;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-danger:hover,
+.btn-outline-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+small.text-muted {
+    display: block;
+    margin-top: 0.25rem;
+}

@@ -973,8 +973,8 @@ async guardarEImprimir() {
         fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
       }
     } else {
-      // Para transferencia/tarjeta: usar fecha y hora seleccionadas
-      console.log('💳 Usando fecha/hora seleccionadas manualmente');
+      // Para transferencia/tarjeta: validar fecha seleccionada pero usar fecha contable de caja chica
+      console.log('💳 Usando fecha contable de caja chica para caja banco');
       
       // ✅ VALIDAR QUE LA FECHA ESTÉ DENTRO DEL PERIODO DE LA CAJA BANCO
       if (this.fechaMinima && this.fechaMaxima) {
@@ -1005,8 +1005,32 @@ async guardarEImprimir() {
         return;
       }
       
-      fechaFinal = this.combinarFechaHora(this.fechaPago, this.horaPago);
-      console.log('✅ Fecha final TRANSFERENCIA/TARJETA combinada:', fechaFinal);
+      // ✅ Usar FECHA DE CAJA CHICA como fecha contable oficial
+      try {
+        const cajaAbierta = await this.cajaChicaService.getCajaAbierta();
+        console.log('📅 Caja chica abierta obtenida (no efectivo):', cajaAbierta);
+
+        if (cajaAbierta?.fecha) {
+          let fechaCaja: Date;
+          if ((cajaAbierta.fecha as any).toDate) {
+            fechaCaja = (cajaAbierta.fecha as any).toDate();
+          } else if (cajaAbierta.fecha instanceof Date) {
+            fechaCaja = cajaAbierta.fecha;
+          } else {
+            fechaCaja = new Date(cajaAbierta.fecha);
+          }
+
+          console.log('📅 Fecha de caja chica convertida (no efectivo):', fechaCaja);
+          fechaFinal = this.combinarFechaHora(fechaCaja, this.horaPago);
+          console.log('✅ Fecha final TRANSFERENCIA/TARJETA (caja chica):', fechaFinal);
+        } else {
+          console.warn('⚠️ No hay fecha en caja chica, usando fecha actual');
+          fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
+        }
+      } catch (err) {
+        console.error('❌ Error obteniendo fecha de caja chica (no efectivo):', err);
+        fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
+      }
     }
     
     console.log('🎯 FECHA FINAL QUE SE GUARDARÁ:', fechaFinal);

@@ -86,6 +86,19 @@ export const routes: Routes = [
   },
 
   /**
+   * Módulo de catálogo.
+   * Gestión de ítems vendibles sin inventario ni deuda.
+   * Incluye lunas, lentes de contacto, líquidos y servicios.
+   */
+  {
+    path: 'catalogo',
+    loadChildren: () =>
+      import('./modules/catalogo/catalogo.module')
+        .then(m => m.CatalogoModule),
+    canActivate: [authGuard, roleGuard([RolUsuario.ADMINISTRADOR])]
+  },
+
+  /**
    * Módulo de ingresos de inventario.
    * Registro de entradas de mercancía y actualización de stock.
    */
