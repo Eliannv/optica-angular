@@ -40,6 +40,8 @@ import { firstValueFrom } from 'rxjs';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { FacturasService } from '../../../../core/services/facturas';
+import { ProductosService } from '../../../../core/services/productos';
 import { CajaChica, MovimientoCajaChica, ResumenCajaChica } from '../../../../core/models/caja-chica.model';
 import Swal from 'sweetalert2';
 
@@ -53,6 +55,8 @@ export class VerCajaComponent implements OnInit {
   private cajaChicaService = inject(CajaChicaService);
   private cajaBancoService = inject(CajaBancoService);
   private authService = inject(AuthService);
+  private facturasSrv = inject(FacturasService);
+  private productosSrv = inject(ProductosService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
 
@@ -208,49 +212,159 @@ export class VerCajaComponent implements OnInit {
 
   /**
    * Elimina un movimiento específico de la caja chica actual.
+   * También elimina la factura asociada y revierte el stock de productos.
    *
    * Proceso:
-   * 1. Solicita confirmación al usuario (irreversible)
-   * 2. Si no confirma, retorna sin hacer cambios
-   * 3. Llama a cajaChicaService.eliminarMovimiento() que:
-   *    - Elimina el documento de Firestore
-   *    - Recalcula resumen financiero automáticamente
-   * 4. Muestra confirmación de éxito
-   * 5. Recarga todos los detalles de la caja (lista y resumen)
-   *
-   * Validaciones:
-   * - No valida si el movimiento existe (el servicio lo maneja)
-   * - No valida el estado de la caja (debe estar ABIERTA según reglas de negocio)
+   * 1. Busca el movimiento por ID para obtener el comprobante (facturaId)
+   * 2. Si tiene factura asociada:
+   *    - Busca la factura en Firestore
+   *    - Revierte el stock de los productos (incrementa cantidades)
+   *    - Elimina la factura
+   * 3. Elimina el movimiento de caja chica
+   * 4. Recalcula el resumen financiero
    *
    * @param movimientoId ID único del movimiento en Firestore
    * @returns Promise<void>
    */
   async eliminarMovimiento(movimientoId: string): Promise<void> {
+    // Buscar el movimiento para obtener el comprobante (facturaId)
+    const movimiento = this.movimientos.find(m => m.id === movimientoId);
+    
     const confirmar = await Swal.fire({
       icon: 'warning',
       title: 'Eliminar movimiento',
-      text: 'Esta acción no se puede deshacer.',
+      html: `
+        <div style="text-align: left;">
+          <p>Esta acción eliminará:</p>
+          <ul>
+            <li>El movimiento de caja</li>
+            ${movimiento?.comprobante ? '<li>La factura asociada #' + movimiento.comprobante + '</li><li>Revertirá el stock de productos</li>' : ''}
+          </ul>
+          <p style="color: red; margin-top: 10px;"><strong>⚠️ Esta acción no se puede deshacer.</strong></p>
+        </div>
+      `,
       showCancelButton: true,
       confirmButtonText: 'Eliminar',
+      confirmButtonColor: '#d33',
       cancelButtonText: 'Cancelar'
     });
+    
     if (!confirmar.isConfirmed) return;
 
     try {
+      // Verificar si es un movimiento de venta (no de cobro de deuda)
+      const esMovimientoDeVenta = movimiento?.descripcion?.startsWith('Venta #');
+      let facturaEliminada = false;
+      
+      // 1️⃣ Si hay factura asociada Y es movimiento de venta, eliminarla y revertir stock
+      if (movimiento?.comprobante && esMovimientoDeVenta) {
+        const facturaId = movimiento.comprobante;
+        console.log('🔄 Buscando factura asociada (movimiento de venta):', facturaId);
+        
+        try {
+          // Buscar la factura
+          const factura = await firstValueFrom(this.facturasSrv.getFacturaById(facturaId));
+          
+          if (factura) {
+            console.log('🔄 Revirtiendo stock de productos...');
+            
+            // Revertir stock de cada producto
+            for (const item of factura.items || []) {
+              if (item.esServicio) {
+                console.log(`⏭️ Saltando servicio: "${item.nombre}"`);
+                continue;
+              }
+              
+              if (item.productoId && item.cantidad > 0) {
+                try {
+                  await this.productosSrv.incrementarStock(item.productoId, item.cantidad);
+                  console.log(`✅ Stock restaurado: ${item.nombre} (+${item.cantidad})`);
+                } catch (error) {
+                  console.error(`Error restaurando stock de "${item.nombre}":`, error);
+                }
+              }
+            }
+            
+            // Eliminar factura
+            console.log('🔄 Eliminando factura...');
+            if (factura.id) {
+              await this.facturasSrv.eliminarFactura(factura.id);
+              console.log('✅ Factura eliminada');
+              facturaEliminada = true;
+            }
+          }
+        } catch (error) {
+          console.error('Error procesando factura:', error);
+          // Continuar con la eliminación del movimiento aunque falle la factura
+        }
+      } else if (movimiento?.comprobante && !esMovimientoDeVenta) {
+        console.log('⚠️ Movimiento de cobro de deuda - Restando del abonado de la factura');
+        
+        // Para cobros de deuda, restar el monto del campo abonado de la factura
+        try {
+          const facturaId = movimiento.comprobante;
+          const factura = await firstValueFrom(this.facturasSrv.getFacturaById(facturaId));
+          
+          if (factura && factura.id) {
+            const nuevoAbonado = (factura.abonado || 0) - movimiento.monto;
+            const nuevoSaldoPendiente = (factura.total || 0) - nuevoAbonado;
+            
+            // Preparar datos de actualización
+            const datosActualizacion: any = {
+              abonado: nuevoAbonado >= 0 ? nuevoAbonado : 0,
+              saldoPendiente: nuevoSaldoPendiente >= 0 ? nuevoSaldoPendiente : 0
+            };
+            
+            // Si hay saldo pendiente, cambiar estado de pago a PENDIENTE
+            if (nuevoSaldoPendiente > 0) {
+              datosActualizacion.estadoPago = 'PENDIENTE';
+              
+              // Si es crédito, cambiar a ACTIVO
+              if (factura.esCredito || factura.tipoVenta === 'CREDITO') {
+                datosActualizacion.estadoCredito = 'ACTIVO';
+              }
+            }
+            
+            await this.facturasSrv.actualizarFactura(factura.id, datosActualizacion);
+            console.log(`✅ Abonado actualizado: ${factura.abonado} → ${nuevoAbonado}`);
+            console.log(`✅ Saldo pendiente actualizado: ${factura.saldoPendiente} → ${nuevoSaldoPendiente}`);
+            if (nuevoSaldoPendiente > 0) {
+              console.log(`✅ Estado pago: PAGADA → PENDIENTE`);
+              if (factura.esCredito || factura.tipoVenta === 'CREDITO') {
+                console.log(`✅ Estado crédito: CANCELADO → ACTIVO`);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error actualizando abonado de factura:', error);
+          // Continuar con la eliminación del movimiento
+        }
+      }
+      
+      // 2️⃣ Eliminar el movimiento de caja chica
+      console.log('🔄 Eliminando movimiento de caja...');
       await this.cajaChicaService.eliminarMovimiento(this.cajaId, movimientoId);
+      
       await Swal.fire({
         icon: 'success',
-        title: 'Movimiento eliminado',
-        timer: 1500,
+        title: '✅ Eliminado',
+        html: `
+          <div style="text-align: left;">
+            <p>✅ Movimiento eliminado</p>
+            ${facturaEliminada ? '<p>✅ Factura eliminada</p><p>✅ Stock restaurado</p>' : ''}
+          </div>
+        `,
+        timer: 2000,
         showConfirmButton: false
       });
+      
       this.cargarDetalles();
     } catch (error) {
       console.error('Error al eliminar movimiento:', error);
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'Error al eliminar el movimiento'
+        text: error instanceof Error ? error.message : 'Error al eliminar el movimiento'
       });
     }
   }

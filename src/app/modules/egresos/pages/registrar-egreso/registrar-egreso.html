@@ -1,0 +1,387 @@
+<div class="egreso-container">
+  <!-- HEADER -->
+  <div class="egreso-header">
+    <div class="header-content">
+      <h2 class="titulo">Registrar Egreso de Mercadería</h2>
+      <div class="header-actions">
+        <button class="btn-volver" type="button" (click)="volver()">
+          ← Volver
+        </button>
+      </div>
+    </div>
+    <p class="subtitulo">Registro de salida de productos del inventario</p>
+  </div>
+
+  <!-- FORMULARIO -->
+  <div class="formulario-card">
+    <form [formGroup]="formulario" (ngSubmit)="registrarEgreso()">
+      
+      <!-- Búsqueda de Proveedor e Ingreso -->
+      <div class="form-section">
+        <h3 class="section-title">
+          Proveedor
+        </h3>
+        <div class="form-row">
+          <!-- Búsqueda de Proveedor -->
+          <div class="form-group col-half autocomplete-container">
+            <label>Buscar Proveedor</label>
+            <div class="input-with-clear">
+              <input 
+                type="text" 
+                formControlName="proveedorBusqueda" 
+                class="form-control"
+                placeholder="Escriba el nombre, RUC o código del proveedor"
+                autocomplete="off"
+                (focus)="mostrarTodosProveedores()"
+                (blur)="ocultarSugerenciasProveedor()">
+              <button 
+                type="button" 
+                class="btn-clear"
+                *ngIf="formulario.get('proveedorId')?.value"
+                (click)="limpiarProveedor()">
+                ✕
+              </button>
+            </div>
+
+            <!-- Sugerencias de Proveedores -->
+            <div class="autocomplete-suggestions" *ngIf="mostrarSugerenciasProveedor() && proveedoresFiltrados().length > 0">
+              <div 
+                class="suggestion-item"
+                *ngFor="let proveedor of proveedoresFiltrados()"
+                (mousedown)="seleccionarProveedor(proveedor)">
+                <div class="suggestion-nombre">{{ proveedor.nombre }}</div>
+                <div class="suggestion-detalles">
+                  <span *ngIf="proveedor.codigo">{{ proveedor.codigo }} - </span>RUC: {{ proveedor.ruc }}
+                  <span *ngIf="proveedor.saldo" [class.saldo-positivo]="(proveedor.saldo || 0) > 0">
+                    - Saldo: ${{ proveedor.saldo.toFixed(2) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Búsqueda de Ingreso (Opcional) -->
+          <div class="form-group col-half autocomplete-container">
+            <label>
+              Cargar desde Ingreso/Factura
+              <small class="text-muted">(Opcional)</small>
+            </label>
+            <div class="input-with-icon">
+              <input 
+                type="text" 
+                formControlName="ingresoIdBusqueda" 
+                class="form-control"
+                placeholder="Seleccione primero un proveedor..."
+                [disabled]="!formulario.get('proveedorId')?.value"
+                autocomplete="off"
+                (focus)="mostrarTodosIngresos()"
+                (blur)="ocultarSugerenciasIngreso()">
+            </div>
+            
+            <!-- Sugerencias de Ingresos -->
+            <div class="autocomplete-suggestions" *ngIf="mostrarSugerenciasIngreso() && ingresosFiltrados().length > 0">
+              <div 
+                class="suggestion-item"
+                *ngFor="let ingreso of ingresosFiltrados()"
+                (mousedown)="seleccionarIngreso(ingreso)">
+                <div class="suggestion-nombre">
+                  <strong>{{ ingreso.idPersonalizado }}</strong> - Factura: {{ ingreso.numeroFactura }}
+                </div>
+                <div class="suggestion-detalles">
+                  Fecha: {{ ingreso.fecha | date:'dd/MM/yyyy' }} - Total: ${{ ingreso.total?.toFixed(2) || '0.00' }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Mensaje cuando no hay ingresos -->
+            <div class="sin-ingresos-mensaje" *ngIf="formulario.get('proveedorId')?.value && ingresosProveedor().length === 0">
+              <small class="text-muted">No hay ingresos registrados para este proveedor</small>
+            </div>
+            
+            <small class="form-hint" *ngIf="!formulario.get('proveedorId')?.value">
+              Primero seleccione un proveedor
+            </small>
+            <small class="form-hint" *ngIf="formulario.get('proveedorId')?.value && ingresosProveedor().length > 0">
+              {{ ingresosProveedor().length }} ingreso(s) disponible(s)
+            </small>
+          </div>
+          <div class="form-group col-accion-ingreso">
+            <label>&nbsp;</label>
+            <button 
+              type="button" 
+              class="btn-buscar-ingreso"
+              (click)="buscarProductosPorIngreso()"
+              [disabled]="!formulario.get('ingresoIdBusqueda')?.value">
+              ✓ Cargar Productos
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agregar Productos -->
+      <div class="form-section">
+        <h3 class="section-title">
+          Agregar Productos Manualmente
+          <small>Los productos se filtran según el proveedor seleccionado</small>
+        </h3>
+        
+        <!-- Buscador de productos -->
+        <div class="productos-buscador">
+          <div class="search-container-productos">
+            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.35-4.35"></path>
+            </svg>
+            <input 
+              type="text" 
+              class="search-input-productos"
+              placeholder="Buscar por nombre, modelo, color, código... (usa ↑↓ y Enter)"
+              [value]="filtroProducto()"
+              (input)="filtrarProductosTexto($any($event.target).value)"
+              (keydown)="onProductoKeydown($event)"
+              autocomplete="off">
+            <button class="clear-btn" *ngIf="filtroProducto()" (click)="filtrarProductosTexto('')">
+              ✕
+            </button>
+          </div>
+
+          <!-- Lista de productos filtrados -->
+          <div class="productos-resultados" *ngIf="productosFiltrados().length > 0 && filtroProducto()">
+            <div 
+              class="producto-item"
+              *ngFor="let producto of productosFiltrados(); let i = index"
+              [class.selected]="i === productoSeleccionadoIndex()"
+              (mousedown)="seleccionarProductoDesdeLista(producto)">
+              <div class="producto-info">
+                <div class="producto-nombre">
+                  <strong>{{ producto.nombre }}</strong>
+                  <span class="producto-marca" *ngIf="producto.grupo">{{ producto.grupo }}</span>
+                </div>
+                <div class="producto-detalles">
+                  <span class="producto-id-interno" *ngIf="producto.idInterno">#{{ producto.idInterno }}</span>
+                  <span class="producto-modelo">{{ producto.modelo }}</span>
+                  <span class="producto-color" *ngIf="producto.color">{{ producto.color }}</span>
+                </div>
+              </div>
+              <div class="producto-stock">
+                <span class="stock-badge" [class.stock-bajo]="(producto.stock || 0) < 5">
+                  Stock: {{ producto.stock || 0 }}
+                </span>
+                <span class="producto-costo">${{ (producto.costo || 0).toFixed(2) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Producto seleccionado y cantidad -->
+        <div class="producto-seleccion-container" *ngIf="productoSeleccionado()">
+          <div class="producto-seleccionado-header">
+            <label class="producto-sel-titulo">Producto Seleccionado</label>
+            <button type="button" class="btn-clear-producto" (click)="productoSeleccionado.set(null); formulario.patchValue({productoId: '', cantidad: 1})">
+              ✕ Limpiar
+            </button>
+          </div>
+          
+          <div class="producto-seleccionado-card">
+            <div class="producto-sel-info">
+              <div class="producto-sel-nombre">
+                <strong>{{ productoSeleccionado()?.nombre }}</strong>
+                <span class="producto-sel-grupo" *ngIf="productoSeleccionado()?.grupo">{{ productoSeleccionado()?.grupo }}</span>
+              </div>
+              <div class="producto-sel-detalles">
+                <span *ngIf="productoSeleccionado()?.modelo">{{ productoSeleccionado()?.modelo }}</span>
+                <span *ngIf="productoSeleccionado()?.color">{{ productoSeleccionado()?.color }}</span>
+                <span>Cód: {{ productoSeleccionado()?.codigo }}</span>
+              </div>
+            </div>
+            <div class="producto-sel-stock">
+              <span class="stock-disponible" [class.stock-bajo]="(productoSeleccionado()?.stock || 0) < 5">
+                Stock: {{ stockDisponible }}
+              </span>
+            </div>
+          </div>
+
+          <div class="agregar-cantidad-container">
+            <div class="cantidad-input-group">
+              <label>Cantidad a egresar</label>
+              <input 
+                type="number" 
+                formControlName="cantidad" 
+                class="form-control cantidad-input"
+                min="1"
+                [max]="stockDisponible"
+                placeholder="Ingrese cantidad">
+              <small *ngIf="productoSeleccionado()" class="stock-info-text">
+                <span *ngIf="(formulario.get('cantidad')?.value || 0) > 0 && (formulario.get('cantidad')?.value || 0) <= stockDisponible">
+                  ✓ Cantidad válida
+                </span>
+                <span *ngIf="(formulario.get('cantidad')?.value || 0) > stockDisponible" class="error-text">
+                  ⚠ Cantidad supera el stock disponible
+                </span>
+              </small>
+            </div>
+
+            <button 
+              type="button" 
+              class="btn-agregar-producto"
+              (click)="agregarProductoALista()"
+              [disabled]="!productoSeleccionado() || (formulario.get('cantidad')?.value || 0) <= 0 || (formulario.get('cantidad')?.value || 0) > stockDisponible">
+              <span>+ Agregar a la lista</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Tabla de Productos Agregados -->
+        <div class="productos-lista" *ngIf="productosEnLista().length > 0">
+          <h4 class="lista-titulo">Productos a Egresar ({{ productosEnLista().length }})</h4>
+          <table class="tabla-productos">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Código</th>
+                <th class="text-center">Cantidad</th>
+                <th class="text-right">Costo Unit.</th>
+                <th class="text-right">Subtotal</th>
+                <th class="text-center">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of productosEnLista(); let i = index">
+                <td>
+                  <strong>{{ item.producto.nombre }}</strong>
+                  <br>
+                  <small>{{ item.producto.modelo }}</small>
+                </td>
+                <td>
+                  <span *ngIf="!item.producto.codigo && item.producto.idInterno" class="text-muted">{{ item.producto.idInterno }}</span>
+                  <span *ngIf="!item.producto.codigo && !item.producto.idInterno" class="text-muted">-</span>
+                </td>
+                <td class="text-center">{{ item.cantidad }}</td>
+                <td class="text-right">${{ item.costoUnitario.toFixed(2) }}</td>
+                <td class="text-right"><strong>${{ item.costoTotal.toFixed(2) }}</strong></td>
+                <td class="text-center">
+                  <button 
+                    type="button" 
+                    class="btn-eliminar-item"
+                    (click)="eliminarProductoDeLista(i)"
+                    title="Eliminar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="fila-total">
+                <td colspan="2"><strong>TOTALES</strong></td>
+                <td class="text-center"><strong>{{ cantidadTotalProductos() }}</strong></td>
+                <td colspan="2" class="text-right"><strong>${{ costoTotalGeneral().toFixed(2) }}</strong></td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- Mensaje si no hay productos -->
+        <div class="sin-productos" *ngIf="productosEnLista().length === 0">
+          <p>No hay productos agregados. Seleccione productos para egresar.</p>
+        </div>
+      </div>
+
+      <!-- Detalles del Egreso -->
+      <div class="form-section detalles-egreso-section">
+        <h3 class="section-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; vertical-align: middle; margin-right: 0.5rem;">
+            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+          </svg>
+          Detalles del Egreso
+        </h3>
+        
+        <div class="detalles-grid">
+          <div class="form-group">
+            <label class="label-required">
+              
+              Motivo del Egreso
+            </label>
+            <select formControlName="motivo" class="form-control select-enhanced">
+              <option value="" disabled>-- Seleccione el motivo --</option>
+              <option *ngFor="let key of motivosKeys" [value]="key">
+                {{ motivos[key] }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="label-optional">
+              
+              Documento de Referencia
+              <span class="badge-opcional">Opcional</span>
+            </label>
+            <input 
+              type="text" 
+              formControlName="documentoReferencia" 
+              class="form-control"
+              placeholder="Ej: Devolución #1234, Nota #567">
+          </div>
+        </div>
+
+        <div class="form-group descripcion-group">
+          <label class="label-required">
+            
+            Descripción / Observaciones
+          </label>
+          <textarea 
+            formControlName="descripcion" 
+            class="form-control textarea-enhanced"
+            rows="4"
+            placeholder="Describa el motivo del egreso de manera detallada. Incluya información relevante como motivo específico, destino, responsable, etc."></textarea>
+          <div class="descripcion-footer">
+            <small class="form-text" [class.text-success]="(formulario.get('descripcion')?.value?.length || 0) >= 5">
+              <span *ngIf="(formulario.get('descripcion')?.value?.length || 0) >= 5">✓</span>
+              {{ formulario.get('descripcion')?.value?.length || 0 }} / 5 caracteres mínimos
+            </small>
+            <small class="form-hint">Mínimo 5 caracteres requeridos</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumen -->
+      <div class="resumen-section" *ngIf="productosEnLista().length > 0">
+        <h3 class="section-title">Resumen del Egreso</h3>
+        <div class="resumen-grid">
+          <div class="resumen-item">
+            <span class="resumen-label">Total Productos</span>
+            <span class="resumen-valor">{{ productosEnLista().length }}</span>
+          </div>
+          <div class="resumen-item">
+            <span class="resumen-label">Unidades Totales</span>
+            <span class="resumen-valor">{{ cantidadTotalProductos() }}</span>
+          </div>
+          <div class="resumen-item">
+            <span class="resumen-label">Costo Total</span>
+            <span class="resumen-valor costo">${{ costoTotalGeneral().toFixed(2) }}</span>
+          </div>
+          <div class="resumen-item" *ngIf="formulario.get('proveedorId')?.value && formulario.get('motivo')?.value === 'DEVOLUCION_PROVEEDOR'">
+            <span class="resumen-label">Saldo Resultante Proveedor</span>
+            <span class="resumen-valor" [class.disminucion]="saldoResultanteProveedor() < 0" [class.costo]="saldoResultanteProveedor() >= 0">
+              ${{ saldoResultanteProveedor().toFixed(2) }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Acciones -->
+      <div class="form-actions">
+        <button type="button" class="btn-secundario" (click)="volver()" [disabled]="guardando()">
+          Cancelar
+        </button>
+        <button 
+          type="submit" 
+          class="btn-primario" 
+          [disabled]="formulario.get('proveedorId')?.invalid || formulario.get('motivo')?.invalid || formulario.get('descripcion')?.invalid || productosEnLista().length === 0 || guardando()">
+          <span *ngIf="!guardando()">Registrar Egreso</span>
+          <span *ngIf="guardando()">Registrando...</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

@@ -284,7 +284,7 @@ export class ProveedoresService {
     return totalIngresos - totalPagos;
   }
 
-  // Actualizar saldo del proveedor en Firestore (ingresos - pagos)
+  // Actualizar saldo del proveedor en Firestore (ingresos - pagos - egresos)
   async actualizarSaldoProveedor(proveedorNombre: string, proveedorId?: string): Promise<void> {
     try {
       const saldo = await this.calcularSaldoProveedor(proveedorNombre, proveedorId);
@@ -302,6 +302,33 @@ export class ProveedoresService {
       }
     } catch (error) {
       console.error('Error al actualizar saldo del proveedor:', error);
+    }
+  }
+
+  /**
+   * Disminuye el saldo de un proveedor en una cantidad específica.
+   * Se usa cuando se registra un egreso (devolución a proveedor).
+   * 
+   * @param proveedorId ID del proveedor
+   * @param monto Monto a disminuir del saldo
+   */
+  async disminuirSaldoProveedor(proveedorId: string, monto: number): Promise<void> {
+    try {
+      const proveedorDoc = doc(this.firestore, `proveedores/${proveedorId}`);
+      const docSnap = await getDocs(query(collection(this.firestore, 'proveedores'), where('__name__', '==', proveedorId)));
+      
+      if (!docSnap.empty) {
+        const proveedor = docSnap.docs[0].data() as Proveedor;
+        const nuevoSaldo = (proveedor.saldo || 0) - monto;
+        
+        await updateDoc(proveedorDoc, {
+          saldo: nuevoSaldo,
+          updatedAt: new Date()
+        });
+      }
+    } catch (error) {
+      console.error('Error al disminuir saldo del proveedor:', error);
+      throw error;
     }
   }
 }

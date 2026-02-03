@@ -1,0 +1,129 @@
+<div *ngIf="!loading && egreso" class="ver-egreso-container">
+    <div class="ver-egreso-card">
+
+        <!-- HEADER -->
+        <div class="ver-egreso-header">
+            <div class="header-content">
+                <h3 class="egreso-title">Egreso de Mercadería</h3>
+                <div class="header-actions">
+                    <button class="btn-imprimir" type="button" (click)="imprimirEgreso()" title="Imprimir detalle de egreso">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                            <path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/>
+                            <rect x="6" y="14" width="12" height="8" rx="1"/>
+                        </svg>
+                        Imprimir
+                    </button>
+                    <button class="btn-volver" type="button" (click)="volver()">
+            ← Volver
+          </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- BODY -->
+        <div class="ver-egreso-body">
+
+            <!-- INFO GENERAL -->
+            <div class="info-section">
+                <h4 class="section-title">Información General</h4>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Fecha</span>
+                        <span class="info-value">
+              {{ egreso.fecha?.toDate ? (egreso.fecha.toDate() | date:'dd/MM/yyyy') : (egreso.fecha | date:'dd/MM/yyyy') }}
+            </span>
+                    </div>
+                    <div class="info-item" *ngIf="egreso.proveedorNombre">
+                        <span class="info-label">Proveedor</span>
+                        <strong class="info-value">{{ egreso.proveedorNombre }}</strong>
+                    </div>
+                    <div class="info-item" *ngIf="egreso.documentoReferencia">
+                        <span class="info-label">Referencia</span>
+                        <span class="badge-factura">{{ egreso.documentoReferencia }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Motivo</span>
+                        <span [ngClass]="getMotivoBadgeClass(egreso.motivo)" class="badge-motivo">
+              {{ formatMotivo(egreso.motivo) }}
+            </span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Usuario</span>
+                        <span class="info-value">{{ egreso.usuarioNombre || 'Sistema' }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Costo Total</span>
+                        <strong class="info-value precio">${{ (egreso.costoTotal || 0).toFixed(2) }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OBSERVACIONES -->
+            <div class="info-section" *ngIf="egreso.observaciones">
+                <h4 class="section-title">Observaciones</h4>
+                <div class="observaciones-box">
+                    {{ egreso.observaciones }}
+                </div>
+            </div>
+
+            <!-- PRODUCTOS -->
+            <div class="productos-section">
+                <h4 class="section-title">Productos del Egreso</h4>
+                <div class="table-wrapper" *ngIf="productos.length > 0">
+                    <table class="productos-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Modelo</th>
+                                <th>Cantidad</th>
+                                <th>Costo Unit.</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let prod of productos">
+                                <td>
+                                    <span class="badge-codigo">{{ prod.productoCodigo || (prod.productoIdInterno ? prod.productoIdInterno : 'N/A') }}</span>
+                                </td>
+                                <td><strong>{{ prod.productoNombre }}</strong></td>
+                                <td>{{ prod.productoModelo || '-' }}</td>
+                                <td class="text-center"><strong>{{ prod.cantidad }}</strong></td>
+                                <td class="text-right">${{ (prod.costoUnitario || 0).toFixed(2) }}</td>
+                                <td class="text-right"><strong class="precio">${{ ((prod.cantidad || 0) * (prod.costoUnitario || 0)).toFixed(2) }}</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="empty-state" *ngIf="productos.length === 0">
+                    <p class="empty-icon">📦</p>
+                    <p>No hay productos asociados a este egreso</p>
+                    <span>Los productos pueden haber sido eliminados o no se registraron correctamente.</span>
+                </div>
+
+                <!-- TOTALES -->
+                <div class="totales-section" *ngIf="productos.length > 0">
+                    <div class="total-row">
+                        <span>Total de Productos</span>
+                        <strong>{{ productos.length }}</strong>
+                    </div>
+                    <div class="total-row">
+                        <span>Unidades Totales</span>
+                        <strong>{{ calcularUnidadesTotales() }}</strong>
+                    </div>
+                    <div class="total-row total-final">
+                        <span>Costo Total del Egreso</span>
+                        <strong class="precio-total">${{ calcularCostoTotal() }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- LOADING STATE -->
+<div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Cargando egreso...</p>
+</div>

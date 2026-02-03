@@ -1,134 +1,234 @@
-<div class="container mt-4">
-    <!-- Encabezado -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <h2>{{ editando ? 'Editar' : 'Crear' }} Ítem del Catálogo</h2>
-            <p class="text-muted">{{ editando ? 'Actualiza los datos del ítem' : 'Registra un nuevo ítem vendible' }}</p>
+<div class="form-catalogo-container">
+    <!-- HEADER -->
+    <div class="form-catalogo-header">
+        <div class="header-content">
+            <div class="header-title-section">
+                <h2 class="form-title">{{ editando ? 'Editar' : 'Crear' }} Ítem del Catálogo</h2>
+                <p class="form-subtitle">{{ editando ? 'Actualiza los datos del ítem' : 'Registra un nuevo ítem vendible' }}</p>
+            </div>
+            <button type="button" class="btn-close-header" (click)="cancelar()" [disabled]="cargando">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 6 6 18"/>
+                    <path d="m6 6 12 12"/>
+                </svg>
+            </button>
         </div>
     </div>
 
-    <!-- Formulario -->
-    <div class="row">
-        <div class="col-md-8">
-            <form [formGroup]="form" (ngSubmit)="enviar()">
-                <!-- Nombre -->
-                <div class="mb-3">
-                    <label for="nombre" class="form-label">Nombre / Descripción *</label>
-                    <input type="text" class="form-control" id="nombre" formControlName="nombre" placeholder="Ej: Luna Anti-Reflejo" [class.is-invalid]="tieneError('nombre')">
-                    <div class="invalid-feedback" *ngIf="tieneError('nombre')">
-                        {{ getMensajeError('nombre') }}
+    <!-- BODY -->
+    <div class="form-catalogo-body">
+        <div class="form-layout">
+            <!-- FORMULARIO -->
+            <div class="form-main">
+                <form [formGroup]="form" (ngSubmit)="enviar()">
+                    <!-- SECCIÓN: INFORMACIÓN BÁSICA -->
+                    <div class="form-section">
+                        <h3 class="section-title">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                                <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                            </svg>
+                            Información Básica
+                        </h3>
+
+                        <div class="form-grid">
+                            <!-- Nombre -->
+                            <div class="form-field full-width">
+                                <label for="nombre" class="field-label label-required">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                                        <polyline points="14 2 14 8 20 8"/>
+                                    </svg>
+                                    Nombre / Descripción
+                                </label>
+                                <input type="text" class="field-input" id="nombre" formControlName="nombre" placeholder="Ej: Luna Anti-Reflejo" [class.error]="tieneError('nombre')">
+                                @if (tieneError('nombre')) {
+                                    <div class="error-message">{{ getMensajeError('nombre') }}</div>
+                                }
+                            </div>
+
+                            <!-- Categoría -->
+                            <div class="form-field full-width">
+                                <label for="categoria" class="field-label label-required">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect width="7" height="7" x="3" y="3" rx="1"/>
+                                        <rect width="7" height="7" x="14" y="3" rx="1"/>
+                                        <rect width="7" height="7" x="14" y="14" rx="1"/>
+                                        <rect width="7" height="7" x="3" y="14" rx="1"/>
+                                    </svg>
+                                    Categoría
+                                </label>
+                                <select class="field-select" id="categoria" formControlName="categoria" [class.error]="tieneError('categoria')">
+                                    <option value="">-- Selecciona una categoría --</option>
+                                    @for (cat of categorias; track cat) {
+                                        <option [value]="cat">{{ getCategoriLabel($any(cat)) }}</option>
+                                    }
+                                </select>
+                                @if (tieneError('categoria')) {
+                                    <div class="error-message">{{ getMensajeError('categoria') }}</div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECCIÓN: PRECIOS -->
+                    <div class="form-section">
+                        <h3 class="section-title">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" x2="12" y1="2" y2="22"/>
+                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                            </svg>
+                            Precios e IVA
+                        </h3>
+
+                        <div class="form-grid">
+                            <!-- Precio Base -->
+                            <div class="form-field">
+                                <label for="precio" class="field-label label-optional">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect width="20" height="14" x="2" y="5" rx="2"/>
+                                        <line x1="2" x2="22" y1="10" y2="10"/>
+                                    </svg>
+                                    Precio Base
+                                </label>
+                                <div class="input-with-prefix">
+                                    <span class="input-prefix">$</span>
+                                    <input type="number" class="field-input" id="precio" formControlName="precio" placeholder="0.00" step="0.01" min="0" [class.error]="tieneError('precio')">
+                                </div>
+                                @if (tieneError('precio')) {
+                                    <div class="error-message">{{ getMensajeError('precio') }}</div>
+                                }
+                            </div>
+
+                            <!-- IVA -->
+                            <div class="form-field">
+                                <label for="iva" class="field-label label-required">
+                                    
+                                    IVA (%)
+                                </label>
+                                <div class="input-with-suffix">
+                                    <input type="number" class="field-input" id="iva" formControlName="iva" placeholder="15" step="0.1" min="0" max="100" [class.error]="tieneError('iva')">
+                                    <span class="input-suffix">%</span>
+                                </div>
+                                @if (tieneError('iva')) {
+                                    <div class="error-message">{{ getMensajeError('iva') }}</div>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Precio con IVA -->
+                        @if (precioConIVA) {
+                            <div class="precio-final-display">
+                                <span class="precio-final-label">Precio Final (con IVA):</span>
+                                <span class="precio-final-value">${{ precioConIVA.toFixed(2) }}</span>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- SECCIÓN: INFORMACIÓN ADICIONAL -->
+                    <div class="form-section">
+                        <h3 class="section-title">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                                    </svg>
+                            Información Adicional
+                        </h3>
+
+                        <div class="form-grid">
+                            <!-- Observación -->
+                            <div class="form-field full-width">
+                                
+                                <textarea class="field-textarea" id="observacion" formControlName="observacion" rows="3" placeholder="Notas adicionales sobre el ítem" [class.error]="tieneError('observacion')"></textarea>
+                                @if (tieneError('observacion')) {
+                                    <div class="error-message">{{ getMensajeError('observacion') }}</div>
+                                }
+                            </div>
+
+                            <!-- Estado -->
+                            <div class="form-field full-width">
+                                <div class="checkbox-container">
+                                    <input type="checkbox" class="checkbox-input" id="activo" formControlName="activo">
+                                    <label class="checkbox-label" for="activo">
+                                        Ítem activo
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BOTONES DE ACCIÓN -->
+                    <div class="form-actions">
+                        <button type="submit" class="btn-submit" [disabled]="cargando || form.invalid">
+                            @if (!cargando) {
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                                <span>{{ editando ? 'Actualizar' : 'Crear' }}</span>
+                            } @else {
+                                <span class="loading-spinner">
+                                    <span class="spinner"></span>
+                                    Guardando...
+                                </span>
+                            }
+                        </button>
+                        <button type="button" class="btn-cancel" (click)="cancelar()" [disabled]="cargando">
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- PANEL DE INFORMACIÓN -->
+            <div class="form-sidebar">
+                <div class="info-card">
+                    <div class="info-card-header">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 16v-4"/>
+                            <path d="M12 8h.01"/>
+                        </svg>
+                        <h3>Información</h3>
+                    </div>
+                    <div class="info-card-body">
+                        <div class="info-item">
+                            <span class="info-item-label">Stock:</span>
+                            <span class="info-item-value">Infinito</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-item-label">Compras:</span>
+                            <span class="info-item-value">No aplica</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-item-label">Deuda:</span>
+                            <span class="info-item-value">No genera</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-item-label">Caja/Banco:</span>
+                            <span class="info-item-value">No afecta</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Categoría -->
-                <div class="mb-3">
-                    <label for="categoria" class="form-label">Categoría *</label>
-                    <select class="form-select" id="categoria" formControlName="categoria" [class.is-invalid]="tieneError('categoria')">
-            <option value="">-- Selecciona una categoría --</option>
-            <option *ngFor="let cat of categorias" [value]="cat">
-              {{ getCategoriLabel($any(cat)) }}
-            </option>
-          </select>
-                    <div class="invalid-feedback" *ngIf="tieneError('categoria')">
-                        {{ getMensajeError('categoria') }}
+                <div class="info-card">
+                    <div class="info-card-header">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="7" height="7" x="3" y="3" rx="1"/>
+                            <rect width="7" height="7" x="14" y="3" rx="1"/>
+                            <rect width="7" height="7" x="14" y="14" rx="1"/>
+                            <rect width="7" height="7" x="3" y="14" rx="1"/>
+                        </svg>
+                        <h3>Categorías</h3>
                     </div>
-                </div>
-
-                <!-- Precio Base -->
-                <div class="mb-3">
-                    <label for="precio" class="form-label">Precio Base (Opcional)</label>
-                    <div class="input-group">
-                        <span class="input-group-text">$</span>
-                        <input type="number" class="form-control" id="precio" formControlName="precio" placeholder="0.00" step="0.01" min="0" [class.is-invalid]="tieneError('precio')">
+                    <div class="info-card-body">
+                        <ul class="categorias-list">
+                            <li>Tipos de Lunas</li>
+                            <li>Lentes de Contacto</li>
+                            <li>Líquidos Limpia Lunas</li>
+                            <li>Servicios</li>
+                        </ul>
                     </div>
-                    <small class="form-text text-muted">
-            Precio antes de IVA. Se puede editar durante la venta.
-          </small>
-                    <div class="invalid-feedback" *ngIf="tieneError('precio')">
-                        {{ getMensajeError('precio') }}
-                    </div>
-                </div>
-
-                <!-- IVA -->
-                <div class="mb-3">
-                    <label for="iva" class="form-label">IVA (%)</label>
-                    <div class="input-group">
-                        <input type="number" class="form-control" id="iva" formControlName="iva" placeholder="15" step="0.1" min="0" max="100" [class.is-invalid]="tieneError('iva')">
-                        <span class="input-group-text">%</span>
-                    </div>
-                    <div class="invalid-feedback" *ngIf="tieneError('iva')">
-                        {{ getMensajeError('iva') }}
-                    </div>
-                </div>
-
-                <!-- Precio con IVA (Visualización) -->
-                <div class="mb-3" *ngIf="precioConIVA">
-                    <label class="form-label">Precio con IVA (Cálculo)</label>
-                    <div class="alert alert-info" role="alert">
-                        <strong>${{ precioConIVA.toFixed(2) }}</strong>
-                    </div>
-                </div>
-
-                <!-- Observación -->
-                <div class="mb-3">
-                    <label for="observacion" class="form-label">Observación (Opcional)</label>
-                    <textarea class="form-control" id="observacion" formControlName="observacion" rows="3" placeholder="Notas adicionales sobre el ítem" [class.is-invalid]="tieneError('observacion')"></textarea>
-                </div>
-
-                <!-- Estado -->
-                <div class="mb-3">
-                    <div class="form-check">
-                        <input type="checkbox" class="form-check-input" id="activo" formControlName="activo">
-                        <label class="form-check-label" for="activo">
-              Ítem activo
-            </label>
-                    </div>
-                </div>
-
-                <!-- Botones -->
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary" [disabled]="cargando || form.invalid">
-            <span *ngIf="!cargando">
-              <i class="bi bi-check-circle"></i>
-              {{ editando ? 'Actualizar' : 'Crear' }}
-            </span>
-            <span *ngIf="cargando">
-              <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-              Guardando...
-            </span>
-          </button>
-                    <button type="button" class="btn btn-outline-secondary" (click)="cancelar()" [disabled]="cargando">
-            Cancelar
-          </button>
-                </div>
-            </form>
-        </div>
-
-        <!-- Panel de información -->
-        <div class="col-md-4">
-            <div class="card bg-light">
-                <div class="card-body">
-                    <h5 class="card-title">Información</h5>
-                    <p class="card-text small">
-                        <strong>Stock:</strong> Infinito (no se gestiona inventario)
-                    </p>
-                    <p class="card-text small">
-                        <strong>Compras:</strong> No genera movimientos
-                    </p>
-                    <p class="card-text small">
-                        <strong>Deuda:</strong> No genera deuda
-                    </p>
-                    <p class="card-text small">
-                        <strong>Caja/Banco:</strong> No afecta contabilidad
-                    </p>
-                    <hr>
-                    <h6>Categorías</h6>
-                    <ul class="small mb-0">
-                        <li>Tipos de Lunas</li>
-                        <li>Lentes de Contacto</li>
-                        <li>Líquidos Limpia Lunas</li>
-                        <li>Servicios</li>
-                    </ul>
                 </div>
             </div>
         </div>

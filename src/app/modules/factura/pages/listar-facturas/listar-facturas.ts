@@ -3,6 +3,12 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { FacturasService } from '../../../../core/services/facturas';
+import { ProductosService } from '../../../../core/services/productos';
+import { CajaChicaService } from '../../../../core/services/caja-chica.service';
+import { CajaBancoService } from '../../../../core/services/caja-banco.service';
+import { AuthService } from '../../../../core/services/auth.service';
+import { RolUsuario } from '../../../../core/models/usuario.model';
+import Swal from 'sweetalert2';
 
 /**
  * Tipo literal para estados de filtro de facturas.
@@ -137,6 +143,20 @@ export class ListarFacturasComponent {
   Math = Math;
 
   /**
+   * ID de la caja chica actualmente abierta.
+   * @type {string | null}
+   * @default null
+   */
+  cajaChicaAbiertaId: string | null = null;
+
+  /**
+   * Set de IDs de facturas que tienen movimientos en la caja chica abierta.
+   * Usado para determinar qué facturas pueden editarse/eliminarse.
+   * @type {Set<string>}
+   */
+  facturasEnCajaAbierta: Set<string> = new Set();
+
+  /**
    * Inicializa el componente y configura la suscripción a datos de facturas.
    *
    * **Flujo de inicialización:**
@@ -164,7 +184,17 @@ export class ListarFacturasComponent {
    * - La suscripción se mantiene abierta (sin unsubscribe) - considerar agregar OnDestroy en futuras mejoras
    * - El ordenamiento inicial se preserva a través de filtros (ver filtrar método)
    */
-  constructor(private facturasSrv: FacturasService, private router: Router) {
+  constructor(
+    private facturasSrv: FacturasService,
+    private router: Router,
+    private productosSrv: ProductosService,
+    private cajaChicaSrv: CajaChicaService,
+    private cajaBancoSrv: CajaBancoService,
+    private authService: AuthService
+  ) {
+    // Verificar si hay caja chica abierta
+    this.verificarCajaAbierta();
+
     this.facturasSrv.getFacturas().subscribe((data: any[]) => {
       this.facturas = (data || []).map(f => ({
         ...f,
@@ -177,6 +207,60 @@ export class ListarFacturasComponent {
 
       this.filtrar();
     });
+  }
+
+  /**
+   * Verifica si existe una caja chica abierta y carga sus movimientos.
+   * Actualiza cajaChicaAbiertaId y facturasEnCajaAbierta.
+   */
+  async verificarCajaAbierta(): Promise<void> {
+    try {
+      const caja = await this.cajaChicaSrv.getCajaAbierta();
+      
+      if (caja?.id && caja.estado === 'ABIERTA') {
+        this.cajaChicaAbiertaId = caja.id;
+        
+        // Cargar movimientos de esta caja para saber qué facturas pertenecen a ella
+        this.cajaChicaSrv.getMovimientosCajaChica(caja.id).subscribe((movimientos: any[]) => {
+          this.facturasEnCajaAbierta.clear();
+          movimientos.forEach((mov: any) => {
+            // ✅ Solo considerar movimientos de VENTA (no de cobro de deuda)
+            if (mov.comprobante && mov.descripcion?.startsWith('Venta #')) {
+              this.facturasEnCajaAbierta.add(mov.comprobante);
+            }
+          });
+          console.log('📋 Facturas con venta en caja abierta:', Array.from(this.facturasEnCajaAbierta));
+        });
+        
+        console.log('🔍 Caja chica ABIERTA encontrada:', caja.id);
+      } else {
+        this.cajaChicaAbiertaId = null;
+        this.facturasEnCajaAbierta.clear();
+        console.log('🔍 No hay caja chica abierta');
+      }
+    } catch (error) {
+      this.cajaChicaAbiertaId = null;
+      this.facturasEnCajaAbierta.clear();
+      console.log('❌ Error verificando caja chica:', error);
+    }
+  }
+
+  /**
+   * Verifica si una factura puede ser editada o eliminada.
+   * Retorna true si la factura es en efectivo, tiene movimiento en la caja abierta,
+   * y el usuario NO es operador (rol 2).
+   */
+  puedeEditarEliminar(factura: any): boolean {
+    // ❌ RESTRICCIÓN: Operadores (Rol 2) no pueden editar ni eliminar facturas
+    const usuario = this.authService.getCurrentUser();
+    if (usuario?.rol === RolUsuario.OPERADOR) {
+      return false;
+    }
+
+    return factura.metodoPago === 'Efectivo' 
+           && this.cajaChicaAbiertaId !== null 
+           && factura.id 
+           && this.facturasEnCajaAbierta.has(factura.id);
   }
 
   /**
@@ -617,6 +701,171 @@ export class ListarFacturasComponent {
    */
   nuevaVenta() {
     this.router.navigate(['/clientes/historial-clinico']);
+  }
+
+  /**
+   * Elimina permanentemente una factura de tipo EFECTIVO.
+   * Solo permite eliminar facturas pagadas en efectivo.
+   * Revierte automáticamente el stock y elimina el movimiento de caja chica.
+   * 
+   * @param factura - Factura a eliminar
+   * @param ev - Evento para prevenir propagación
+   */
+  async eliminarFactura(factura: any, ev?: Event): Promise<void> {
+    ev?.stopPropagation();
+    
+    // ⚠️ VALIDACIÓN 1: Solo permitir eliminar facturas de efectivo
+    if (factura.metodoPago !== 'Efectivo') {
+      Swal.fire({
+        title: '❌ No Permitido',
+        html: `
+          <div style="text-align: left;">
+            <p>Solo se pueden eliminar facturas pagadas en <strong>Efectivo</strong>.</p>
+            <hr>
+            <p><strong>Método de pago de esta factura:</strong> ${factura.metodoPago}</p>
+            <p style="color: #666; font-size: 0.9rem;">Para facturas de Transferencia o Tarjeta, usa la función de edición.</p>
+          </div>
+        `,
+        icon: 'error',
+        confirmButtonText: 'Entendido'
+      });
+      return;
+    }
+    
+    // ⚠️ VALIDACIÓN 2: Verificar que haya una caja chica abierta
+    try {
+      const cajaAbierta = await this.cajaChicaSrv.getCajaAbierta();
+      if (!cajaAbierta || !cajaAbierta.id) {
+        Swal.fire({
+          title: '❌ Caja Chica Cerrada',
+          html: `
+            <div style="text-align: left;">
+              <p>No hay ninguna <strong>Caja Chica abierta</strong>.</p>
+              <hr>
+              <p>No se pueden eliminar facturas cuando la caja está cerrada, ya que los movimientos están consolidados.</p>
+              <p style="color: #666; font-size: 0.9rem; margin-top: 10px;">💡 Debes abrir una caja chica primero para poder eliminar facturas de efectivo.</p>
+            </div>
+          `,
+          icon: 'error',
+          confirmButtonText: 'Entendido'
+        });
+        return;
+      }
+    } catch (error) {
+      console.error('Error verificando caja chica:', error);
+      Swal.fire({
+        title: '❌ Error',
+        text: 'No se pudo verificar el estado de la caja chica.',
+        icon: 'error'
+      });
+      return;
+    }
+    
+    const resultado = await Swal.fire({
+      title: '¿Eliminar Factura?',
+      html: `
+        <div style="text-align: left;">
+          <p><strong>ID:</strong> ${factura.idPersonalizado || factura.id}</p>
+          <p><strong>Cliente:</strong> ${factura.clienteNombre || '-'}</p>
+          <p><strong>Total:</strong> $${(Number(factura.total) || 0).toFixed(2)}</p>
+          <p><strong>Método:</strong> ${factura.metodoPago}</p>
+          <hr>
+          <p style="color: red;"><strong>⚠️ Esta acción es PERMANENTE</strong></p>
+          <p style="color: green; font-size: 0.9rem;">✅ Se revertirá automáticamente:</p>
+          <ul style="text-align: left; font-size: 0.9rem;">
+            <li>Stock de productos</li>
+            <li>Movimiento de Caja Chica</li>
+          </ul>
+        </div>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (resultado.isConfirmed) {
+      try {
+        const facturaId = factura.idPersonalizado || factura.id;
+        
+        // 1️⃣ REVERTIR STOCK DE PRODUCTOS
+        console.log('🔄 Revirtiendo stock de productos...');
+        for (const item of factura.items || []) {
+          // Saltar servicios (no afectan inventario)
+          if (item.esServicio) {
+            console.log(`⏭️ Saltando servicio: "${item.nombre}"`);
+            continue;
+          }
+          
+          if (item.productoId && item.cantidad > 0) {
+            try {
+              await this.productosSrv.incrementarStock(item.productoId, item.cantidad);
+              console.log(`✅ Stock restaurado: ${item.nombre} (+${item.cantidad})`);
+            } catch (error) {
+              console.error(`Error restaurando stock de "${item.nombre}":`, error);
+              // Continuar con otros productos aunque falle uno
+            }
+          }
+        }
+        
+        // 2️⃣ ELIMINAR MOVIMIENTO DE CAJA CHICA (Solo efectivo)
+        console.log('🔄 Eliminando movimiento de Caja Chica...');
+        try {
+          const caja = await this.cajaChicaSrv.getCajaAbierta();
+          if (caja?.id) {
+            await this.cajaChicaSrv.eliminarMovimientoPorFactura(caja.id, facturaId);
+            console.log('✅ Movimiento eliminado de Caja Chica');
+          }
+        } catch (error) {
+          console.error('Error eliminando movimiento de Caja Chica:', error);
+        }
+        
+        // 3️⃣ ELIMINAR FACTURA
+        console.log('🔄 Eliminando factura...');
+        await this.facturasSrv.eliminarFactura(factura.id);
+        console.log('✅ Factura eliminada');
+        
+        Swal.fire({
+          title: '✅ Eliminada',
+          html: `
+            <div style="text-align: left;">
+              <p>✅ Factura eliminada correctamente</p>
+              <p>✅ Stock restaurado</p>
+              <p>✅ Movimientos de caja revertidos</p>
+            </div>
+          `,
+          icon: 'success',
+          timer: 3000,
+          showConfirmButton: false
+        });
+      } catch (error) {
+        console.error('Error al eliminar factura:', error);
+        Swal.fire({
+          title: '❌ Error',
+          text: error instanceof Error ? error.message : 'No se pudo eliminar la factura',
+          icon: 'error'
+        });
+      }
+    }
+  }
+
+  /**
+   * Navega a la pantalla de edición de factura.
+   * TODO: Implementar componente editar-factura.
+   * 
+   * @param factura - Factura a editar
+   * @param ev - Evento para prevenir propagación
+   */
+  editarFactura(factura: any, ev?: Event): void {
+    ev?.stopPropagation();
+    
+    // Navegar al componente de edición
+    const facturaId = factura.idPersonalizado || factura.id;
+    this.router.navigate(['/ventas/editar', facturaId]);
+    // TODO: Implementar navegación a editar-factura
+    // this.router.navigate(['/facturas/editar', factura.id]);
   }
 }
 

@@ -1147,18 +1147,29 @@ export class ListarCajasComponent implements OnInit {
    * @returns {Promise<void>}
    */
   async eliminarCajaBanco(cajaBanco: CajaBanco): Promise<void> {
-    // Solo permitir eliminar si está CERRADA
-    if (cajaBanco.estado !== 'CERRADA') {
+    // Solo permitir eliminar si el saldo inicial es igual al saldo actual
+    const saldoInicial = cajaBanco.saldo_inicial || 0;
+    const saldoActual = cajaBanco.saldo_actual || 0;
+    
+    if (saldoInicial !== saldoActual) {
       Swal.fire({
         title: '❌ No permitido',
-        text: 'Solo puedes desactivar cajas que estén CERRADAS',
+        html: `
+          <div style="text-align: left;">
+            <p>Solo puedes desactivar cajas donde el <strong>saldo inicial</strong> sea igual al <strong>saldo actual</strong>.</p>
+            <hr>
+            <p><strong>Saldo Inicial:</strong> ${this.formatoMoneda(saldoInicial)}</p>
+            <p><strong>Saldo Actual:</strong> ${this.formatoMoneda(saldoActual)}</p>
+            <p><strong>Diferencia:</strong> ${this.formatoMoneda(Math.abs(saldoActual - saldoInicial))}</p>
+          </div>
+        `,
         icon: 'error'
       });
       return;
     }
 
     const resultado = await Swal.fire({
-      title: '¿Desactivar Caja Banco?',
+      title: '¿Eliminar Caja Banco?',
       html: `
         <div style="text-align: left;">
           <p><strong>Fecha:</strong> ${this.formatoFecha(cajaBanco.fecha)}</p>
@@ -1166,14 +1177,15 @@ export class ListarCajasComponent implements OnInit {
           <p><strong>Saldo Inicial:</strong> ${this.formatoMoneda(cajaBanco.saldo_inicial || 0)}</p>
           <p><strong>Saldo Actual:</strong> ${this.formatoMoneda(cajaBanco.saldo_actual || 0)}</p>
           <p><strong>Estado:</strong> ${cajaBanco.estado}</p>
-          <p style="color: orange; margin-top: 1rem;"><strong>ℹ️ La caja se desactivará pero podrá ser reactivada</strong></p>
+          <p style="color: #28a745; margin-top: 1rem;"><strong>✅ Saldos coinciden - puede eliminarse</strong></p>
+          <p style="color: red;"><strong>⚠️ Esta acción es PERMANENTE y NO se puede deshacer</strong></p>
         </div>
       `,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
       cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Sí, desactivar',
+      confirmButtonText: 'Sí, eliminar permanentemente',
       cancelButtonText: 'Cancelar'
     });
 
@@ -1185,16 +1197,16 @@ export class ListarCajasComponent implements OnInit {
         this.cargarCajas();
 
         Swal.fire({
-          title: '✅ Desactivada',
-          text: 'Caja banco desactivada correctamente',
+          title: '✅ Eliminada',
+          text: 'Caja banco eliminada permanentemente',
           icon: 'success',
           timer: 2000
         });
       } catch (error) {
-        console.error('Error al desactivar:', error);
+        console.error('Error al eliminar:', error);
         Swal.fire({
           title: '❌ Error',
-          text: 'No se pudo desactivar la caja banco',
+          text: 'No se pudo eliminar la caja banco',
           icon: 'error'
         });
       }

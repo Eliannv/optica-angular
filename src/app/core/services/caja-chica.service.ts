@@ -884,6 +884,152 @@ export class CajaChicaService {
     }
   }
 
+  // Actualizar movimiento por ID de factura
+  async actualizarMovimientoPorFactura(
+    cajaChicaId: string, 
+    facturaId: string, 
+    nuevoMonto: number,
+    nuevaFecha?: Date,
+    nuevaDescripcion?: string
+  ): Promise<void> {
+    try {
+      // Buscar el movimiento con comprobante = facturaId
+      const movimientosRef = collection(this.firestore, 'movimientos_cajas_chicas');
+      const q = query(
+        movimientosRef,
+        where('caja_chica_id', '==', cajaChicaId),
+        where('comprobante', '==', facturaId)
+      );
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        const movimientoDoc = snapshot.docs[0];
+        const movimientoActual = movimientoDoc.data() as MovimientoCajaChica;
+        const montoAnterior = movimientoActual.monto;
+        
+        // Calcular diferencia para ajustar saldo de caja
+        const diferencia = nuevoMonto - montoAnterior;
+        
+        // Actualizar saldo de la caja
+        const cajaDoc = await getDoc(doc(this.firestore, `cajas_chicas/${cajaChicaId}`));
+        const caja = cajaDoc.data() as CajaChica;
+        const nuevoSaldoCaja = caja.monto_actual + diferencia;
+        
+        // Actualizar caja
+        await updateDoc(doc(this.firestore, `cajas_chicas/${cajaChicaId}`), {
+          monto_actual: nuevoSaldoCaja,
+          updatedAt: Timestamp.now(),
+        });
+        
+        // Actualizar el movimiento específico
+        const datosActualizacion: any = {
+          monto: nuevoMonto,
+          updatedAt: Timestamp.now(),
+        };
+        
+        if (nuevaFecha) {
+          datosActualizacion.fecha = nuevaFecha;
+        }
+        
+        if (nuevaDescripcion) {
+          datosActualizacion.descripcion = nuevaDescripcion;
+        }
+        
+        await updateDoc(doc(this.firestore, `movimientos_cajas_chicas/${movimientoDoc.id}`), datosActualizacion);
+        
+        // ✅ RECALCULAR SALDOS DE TODOS LOS MOVIMIENTOS
+        await this.recalcularSaldosMovimientos(cajaChicaId);
+        
+        console.log('✅ Movimiento actualizado y saldos recalculados:', facturaId, '| Diferencia:', diferencia);
+      } else {
+        console.log('⚠️ No se encontró movimiento para actualizar, se creará uno nuevo');
+        throw new Error('NO_ENCONTRADO');
+      }
+    } catch (error) {
+      console.error('Error actualizando movimiento por factura:', error);
+      throw error;
+    }
+  }
+
+  // Recalcular saldos acumulativos de todos los movimientos de una caja
+  private async recalcularSaldosMovimientos(cajaChicaId: string): Promise<void> {
+    try {
+      console.log('🔄 Iniciando recalcularSaldosMovimientos para caja:', cajaChicaId);
+      
+      // Obtener la caja para el monto inicial
+      const cajaDoc = await getDoc(doc(this.firestore, `cajas_chicas/${cajaChicaId}`));
+      const caja = cajaDoc.data() as CajaChica;
+      
+      console.log('📊 Monto inicial de caja:', caja.monto_inicial);
+      
+      // Obtener todos los movimientos ordenados por fecha
+      const movimientosRef = collection(this.firestore, 'movimientos_cajas_chicas');
+      const q = query(
+        movimientosRef,
+        where('caja_chica_id', '==', cajaChicaId),
+        orderBy('fecha', 'asc')
+      );
+      const snapshot = await getDocs(q);
+      
+      console.log('📋 Total movimientos a recalcular:', snapshot.docs.length);
+      
+      // Calcular saldos acumulativos
+      let saldoAcumulado = caja.monto_inicial || 0;
+      const promesasActualizacion: Promise<void>[] = [];
+      
+      snapshot.docs.forEach((movDoc, index) => {
+        const mov = movDoc.data() as MovimientoCajaChica;
+        const saldoAnterior = saldoAcumulado;
+        
+        // Calcular nuevo saldo según tipo
+        if (mov.tipo === 'INGRESO') {
+          saldoAcumulado += mov.monto;
+        } else {
+          saldoAcumulado -= mov.monto;
+        }
+        
+        console.log(`  [${index + 1}] ${mov.tipo} $${mov.monto} → Saldo: ${saldoAnterior} → ${saldoAcumulado}`);
+        
+        // Actualizar saldos del movimiento si cambiaron
+        const promesa = updateDoc(doc(this.firestore, `movimientos_cajas_chicas/${movDoc.id}`), {
+          saldo_anterior: saldoAnterior,
+          saldo_nuevo: saldoAcumulado
+        });
+        promesasActualizacion.push(promesa);
+      });
+      
+      // Ejecutar todas las actualizaciones en paralelo
+      await Promise.all(promesasActualizacion);
+      console.log(`✅ Saldos recalculados para ${promesasActualizacion.length} movimientos. Saldo final: ${saldoAcumulado}`);
+      
+    } catch (error) {
+      console.error('Error recalculando saldos:', error);
+    }
+  }
+
+  // Eliminar movimiento por ID de factura
+  async eliminarMovimientoPorFactura(cajaChicaId: string, facturaId: string): Promise<void> {
+    try {
+      // Buscar el movimiento con comprobante = facturaId
+      const movimientosRef = collection(this.firestore, 'movimientos_cajas_chicas');
+      const q = query(
+        movimientosRef,
+        where('caja_chica_id', '==', cajaChicaId),
+        where('comprobante', '==', facturaId)
+      );
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        const movimientoDoc = snapshot.docs[0];
+        await this.eliminarMovimiento(cajaChicaId, movimientoDoc.id);
+        console.log('✅ Movimiento de factura eliminado:', facturaId);
+      }
+    } catch (error) {
+      console.error('Error eliminando movimiento por factura:', error);
+      throw error;
+    }
+  }
+
   // Desactivar una caja chica (SOFT DELETE)
   async desactivarCajaChica(cajaChicaId: string): Promise<void> {
     try {

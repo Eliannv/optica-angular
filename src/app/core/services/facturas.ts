@@ -25,7 +25,8 @@ import {
   getDocs,
   updateDoc,
   orderBy,
-  setDoc
+  setDoc,
+  deleteDoc
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -190,5 +191,43 @@ export class FacturasService {
       // opcional: timestamp servidor para auditar
       ultimaActualizacionPago: serverTimestamp()
     } as any);
+  }
+
+  /**
+   * Actualiza una factura completa.
+   * Permite editar productos, montos, método de pago, etc.
+   * NO modifica el historialSnapshot (registro clínico inmutable).
+   */
+  async actualizarFactura(facturaId: string, factura: Partial<Factura>) {
+    const ref = doc(this.fs, `facturas/${facturaId}`);
+    
+    // Convertir Date a Timestamp si es necesario
+    const facturaParaGuardar: any = { ...factura };
+    if (facturaParaGuardar.fecha instanceof Date) {
+      facturaParaGuardar.fecha = Timestamp.fromDate(facturaParaGuardar.fecha);
+    }
+
+    // Remover campos que no deben actualizarse
+    delete facturaParaGuardar.id;
+    delete facturaParaGuardar.idPersonalizado;
+    delete facturaParaGuardar.historialSnapshot; // NO modificar historial clínico
+
+    await updateDoc(ref, {
+      ...facturaParaGuardar,
+      ultimaActualizacion: serverTimestamp()
+    } as any);
+    
+    console.log('✅ Factura actualizada:', facturaId);
+  }
+
+  /**
+   * Elimina permanentemente una factura.
+   * IMPORTANTE: Esta acción no se puede deshacer.
+   * Se recomienda validar que no tenga movimientos en cajas antes de eliminar.
+   */
+  async eliminarFactura(facturaId: string): Promise<void> {
+    const ref = doc(this.fs, `facturas/${facturaId}`);
+    await deleteDoc(ref);
+    console.log('✅ Factura eliminada permanentemente:', facturaId);
   }
 }

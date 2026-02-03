@@ -143,6 +143,11 @@ service cloud.firestore {
       allow read, write: if isAdmin() || isAuthorizedOperator();
     }
 
+    // ===== EGRESOS DE MERCADERÍA =====
+    match /egresosMercaderia/{egresoId} {
+      allow read, write: if isAdmin() || isAuthorizedOperator();
+    }
+
     // ===== DENEGAR TODO LO DEMÁS POR DEFECTO =====
     match /{document=**} {
       allow read, write: if false;

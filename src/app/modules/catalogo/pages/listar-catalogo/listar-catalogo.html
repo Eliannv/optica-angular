@@ -1,104 +1,133 @@
-<div class="container mt-4">
-    <!-- Encabezado -->
-    <div class="row mb-4">
-        <div class="col-md-8">
-            <h2 class="mb-2">Catálogo de Ítems</h2>
-            <p class="text-muted">Gestiona ítems vendibles sin inventario ni deuda</p>
-        </div>
-        <div class="col-md-4 text-end">
-            <div class="btn-group" role="group">
-                <a class="btn btn-outline-primary" routerLink="/catalogo/importar" title="Importar desde Excel">
-                    <i class="bi bi-file-earmark-arrow-up"></i> Importar
-                </a>
-                <button class="btn btn-primary" (click)="irACrear()">
-                    <i class="bi bi-plus-circle"></i> Nuevo Ítem
-                </button>
+<div class="catalogo-wrapper">
+    <div class="card">
+        <div class="card-header">
+            <div class="header-content">
+                <h3 class="card-title">Catálogo de Ítems</h3>
+
+                <div class="search-wrapper">
+                    <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                    <input type="text" class="search-input" placeholder="Buscar por nombre, modelo, color, grupo o proveedor..." [(ngModel)]="terminoBusqueda" (input)="buscarItems()" />
+                    <button *ngIf="terminoBusqueda" class="clear-btn" (click)="limpiarBusqueda()" title="Limpiar búsqueda">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-outline-secondary" (click)="cambiarOrdenamiento('reciente')" [class.active]="ordenamiento === 'reciente'" title="Ordenar por más reciente">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>Reciente
+                    </button>
+                    <button class="btn btn-outline-primary" routerLink="/catalogo/importar" title="Importar ítems desde Excel">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down-to-line-icon lucide-arrow-down-to-line"><path d="M12 17V3"/><path d="m6 11 6 6 6-6"/><path d="M19 21H5"/></svg> Importar
+                    </button>
+                    <button class="btn btn-primary" (click)="irACrear()">
+                        <i class="bi bi-file-earmark-arrow-down"></i> + Nuevo 
+                    </button>
+                </div>
+            </div>
+
+            <!-- Indicador de filtro activo -->
+            <div class="filter-info" *ngIf="categoriaSeleccionada || terminoBusqueda">
+                <span class="badge badge-filter" *ngIf="categoriaSeleccionada">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
+                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                    </svg>
+                    Categoría: {{ getCategoriLabel(categoriaSeleccionada!) }}
+                </span>
+                <span class="text-muted" style="margin-left: 8px;">{{ totalItems }} ítem(s) encontrado(s)</span>
             </div>
         </div>
-    </div>
 
-    <!-- Opciones de filtrado -->
-    <div class="row mb-3">
-        <div class="col-md-8">
-            <div class="btn-group btn-group-sm" role="group">
-                <button type="button" class="btn btn-outline-secondary" [class.active]="categoriaSeleccionada === null" (click)="seleccionarCategoria(null)">
-          Todos
-        </button>
-                <button *ngFor="let cat of categorias" type="button" class="btn btn-outline-secondary" [class.active]="categoriaSeleccionada === cat" (click)="seleccionarCategoria($any(cat))">
-          {{ getCategoriLabel($any(cat)) }}
-        </button>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Categoría</th>
+                            <th>Precio Base</th>
+                            <th>IVA</th>
+                            <th>Precio c/ IVA</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngIf="cargando" class="text-center">
+                            <td colspan="7">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr *ngFor="let item of itemsPaginados; trackBy: trackByItemId" style="cursor: pointer;">
+                            <td>
+                                <strong>{{ item.nombre }}</strong>
+                                <br>
+                                <small class="text-muted" *ngIf="item.observacion">{{ item.observacion }}</small>
+                            </td>
+                            <td>{{ getCategoriLabel(item.categoria) }}</td>
+                            <td>{{ item.precio ? ('$' + item.precio) : '-' }}</td>
+                            <td>{{ item.iva ? (item.iva + '%') : '-' }}</td>
+                            <td>{{ item.precioConIVA ? ('$' + item.precioConIVA.toFixed(2)) : '-' }}</td>
+                            <td>
+                                <span class="badge" [class.badge-success]="item.activo !== false" [class.badge-danger]="item.activo === false">
+                                    {{ getEstado(item.activo) }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-info" (click)="irAEditar(item.id!); $event.stopPropagation()" title="Editar">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil-icon lucide-pencil"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
+                                    </button>
+                                    <!-- Toggle Activo/Desactivado -->
+                                    <button class="btn btn-sm" 
+                                            [class.btn-success]="item.activo !== false" 
+                                            [class.btn-secondary]="item.activo === false"
+                                            (click)="toggleEstadoItem(item); $event.stopPropagation()"
+                                            [title]="(item.activo !== false) ? 'Desactivar ítem' : 'Activar ítem'">
+                                        <!-- Ícono Activo (Toggle Right) -->
+                                        <svg *ngIf="item.activo !== false" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-toggle-right-icon lucide-toggle-right"><circle cx="15" cy="12" r="3"/><rect width="20" height="14" x="2" y="5" rx="7"/></svg>
+                                        <!-- Ícono Desactivado (Toggle Left) -->
+                                        <svg *ngIf="item.activo === false" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-toggle-left-icon lucide-toggle-left"><circle cx="9" cy="12" r="3"/><rect width="20" height="14" x="2" y="5" rx="7"/></svg>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Controles de paginación -->
+                <div class="pagination-controls" *ngIf="totalItems > 0">
+                    <div class="pagination-info">
+                        <span class="text-muted">Mostrando {{ (paginaActual - 1) * itemsPorPagina + 1 }} - {{ Math.min(paginaActual * itemsPorPagina, totalItems) }} de {{ totalItems }} ítems</span>
+                    </div>
+                    <div class="pagination-buttons">
+                        <button class="btn btn-secondary" [disabled]="paginaActual === 1" (click)="irPrimeraPagina()">
+                            «« Primera
+                        </button>
+                        <button class="btn btn-secondary" [disabled]="paginaActual === 1" (click)="paginaAnterior()">
+                            ← Anterior
+                        </button>
+                        <button class="btn btn-secondary" [disabled]="paginaActual * itemsPorPagina >= totalItems" (click)="paginaSiguiente()">
+                            Siguiente →
+                        </button>
+                        <button class="btn btn-secondary" [disabled]="paginaActual * itemsPorPagina >= totalItems" (click)="irUltimaPagina()">
+                            Última »»
+                        </button>
+                    </div>
+                </div>
+
+                <div *ngIf="totalItems === 0" class="text-center p-4">
+                    <p class="text-muted">No hay ítems registrados</p>
+                    <p class="text-muted text-sm" style="margin-top: 12px;">Importa ítems desde un archivo Excel</p>
+                </div>
             </div>
         </div>
-        <div class="col-md-4 text-end">
-            <label class="form-check-label">
-        <input 
-          type="checkbox" 
-          class="form-check-input"
-          [checked]="mostrarInactivos"
-          (change)="toggleMostrarInactivos()">
-        Mostrar inactivos
-      </label>
-        </div>
-    </div>
-
-    <!-- Tabla de ítems -->
-    <div class="table-responsive">
-        <table class="table table-hover">
-            <thead class="table-light">
-                <tr>
-                    <th>Nombre</th>
-                    <th>Categoría</th>
-                    <th>Precio Base</th>
-                    <th>IVA</th>
-                    <th>Precio c/ IVA</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr *ngIf="cargando" class="text-center">
-                    <td colspan="7">
-                        <div class="spinner-border spinner-border-sm" role="status">
-                            <span class="visually-hidden">Cargando...</span>
-                        </div>
-                    </td>
-                </tr>
-                <tr *ngIf="!cargando && itemsFiltrados.length === 0" class="text-center text-muted">
-                    <td colspan="7">No hay ítems en esta categoría</td>
-                </tr>
-                <tr *ngFor="let item of itemsFiltrados">
-                    <td>
-                        <strong>{{ item.nombre }}</strong>
-                        <br>
-                        <small class="text-muted" *ngIf="item.observacion">{{ item.observacion }}</small>
-                    </td>
-                    <td>{{ getCategoriLabel(item.categoria) }}</td>
-                    <td>{{ item.precio ? ('$' + item.precio) : '-' }}</td>
-                    <td>{{ item.iva ? (item.iva + '%') : '-' }}</td>
-                    <td>{{ item.precioConIVA ? ('$' + item.precioConIVA.toFixed(2)) : '-' }}</td>
-                    <td>
-                        <span class="badge" [class.bg-success]="item.activo !== false" [class.bg-danger]="item.activo === false">
-              {{ getEstado(item.activo) }}
-            </span>
-                    </td>
-                    <td>
-                        <div class="btn-group btn-group-sm" role="group">
-                            <button class="btn btn-outline-primary" (click)="irAEditar(item.id!)" title="Editar">
-                <i class="bi bi-pencil"></i>
-              </button>
-                            <button *ngIf="item.activo !== false" class="btn btn-outline-danger" (click)="desactivarItem(item)" title="Desactivar">
-                <i class="bi bi-trash"></i>
-              </button>
-                            <button *ngIf="item.activo === false" class="btn btn-outline-success" (click)="activarItem(item)" title="Activar">
-                <i class="bi bi-arrow-counterclockwise"></i>
-              </button>
-                            <button *ngIf="item.activo === false" class="btn btn-outline-danger" (click)="eliminarItem(item)" title="Eliminar permanentemente">
-                <i class="bi bi-x-circle"></i>
-              </button>
-                        </div>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
     </div>
 </div>

@@ -293,6 +293,41 @@ export class ProductosService {
   }
 
   /**
+   * Incrementa stock de un producto usando transacción atómica de Firestore.
+   * No aplica incremento a productos con tipo_control_stock ILIMITADO.
+   * Se usa principalmente para revertir ventas editadas o eliminadas.
+   *
+   * @param id ID del producto.
+   * @param cantidad Cantidad a incrementar (positivo).
+   * @returns Promise<void> Se resuelve cuando la transacción se completa.
+   * @throws Error si el producto no existe.
+   */
+  async incrementarStock(id: string, cantidad: number): Promise<void> {
+    if (!id || !isFinite(cantidad) || cantidad <= 0) return;
+    const productoDoc = doc(this.firestore, `productos/${id}`);
+
+    await runTransaction(this.firestore, async (t) => {
+      const snap = await t.get(productoDoc);
+      if (!snap.exists()) {
+        throw new Error('Producto no encontrado');
+      }
+      const data = snap.data() as any;
+
+      // No incrementar stock si es tipo_control_stock ILIMITADO
+      const tipoControl = data?.tipo_control_stock || 'NORMAL';
+      if (tipoControl === 'ILIMITADO') {
+        // Productos con stock ilimitado no incrementan
+        return;
+      }
+      const stockActual = Number(data?.stock || 0);
+      t.update(productoDoc, {
+        stock: stockActual + cantidad,
+        updatedAt: new Date(),
+      });
+    });
+  }
+
+  /**
    * Desactiva un producto (soft delete) cambiando su campo activo a false.
    * El producto se mantiene en la base de datos pero se oculta de las consultas principales.
    *

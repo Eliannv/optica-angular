@@ -92,6 +92,12 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   private _abono = 0;
   saldoPendiente = 0;
   
+  // ✅ MODO EDICIÓN
+  modoEdicion = false; // Indica si estamos editando una factura existente
+  facturaId = ''; // ID de la factura a editar
+  facturaOriginal: any = null; // Copia de la factura original para comparar cambios
+  itemsOriginales: any[] = []; // Items originales para revertir inventario
+  
   // Getter y Setter para descuentoPorcentaje (limpia "0" inicial)
   get descuentoPorcentaje(): number {
     return this._descuentoPorcentaje;
@@ -160,43 +166,54 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     // � Inicializar fecha y hora por defecto
     this.inicializarFechaHora();
     
-    // �🔒 VALIDACIÓN CRÍTICA: Verificar que exista alguna caja chica ABIERTA
-    try {
-      const validacion = await this.cajaChicaService.validarCajaAbierta();
-      
-      // ✅ Caja ABIERTA - Permitir entrada
-      if (validacion.valida) {
-        // Continuamos con la carga normal
-      } 
-      // ❌ NO existe caja ABIERTA
-      else {
+    // ✅ DETECTAR MODO EDICIÓN: Verificar si hay facturaId en la ruta
+    this.facturaId = this.route.snapshot.paramMap.get('facturaId') || '';
+    this.modoEdicion = !!this.facturaId;
+    
+    // �🔒 VALIDACIÓN CRÍTICA: Verificar que exista alguna caja chica ABIERTA (solo en modo creación)
+    if (!this.modoEdicion) {
+      try {
+        const validacion = await this.cajaChicaService.validarCajaAbierta();
+        
+        // ✅ Caja ABIERTA - Permitir entrada
+        if (validacion.valida) {
+          // Continuamos con la carga normal
+        } 
+        // ❌ NO existe caja ABIERTA
+        else {
+          await Swal.fire({
+            icon: 'error',
+            title: 'Caja Chica Requerida',
+            text: 'Debe tener al menos una caja chica ABIERTA para crear ventas (puede ser de cualquier fecha).',
+            confirmButtonText: 'Ir a Caja Chica',
+            allowOutsideClick: false,
+            allowEscapeKey: false
+          }).then(() => {
+            this.router.navigate(['/caja-chica']);
+          });
+          return;
+        }
+      } catch (error) {
+        console.error('Error al validar caja chica:', error);
         await Swal.fire({
           icon: 'error',
-          title: 'Caja Chica Requerida',
-          text: 'Debe tener al menos una caja chica ABIERTA para crear ventas (puede ser de cualquier fecha).',
-          confirmButtonText: 'Ir a Caja Chica',
-          allowOutsideClick: false,
-          allowEscapeKey: false
+          title: 'Error',
+          text: 'Error al verificar la caja chica. Intente nuevamente.',
+          confirmButtonText: 'Volver'
         }).then(() => {
           this.router.navigate(['/caja-chica']);
         });
         return;
       }
-    } catch (error) {
-      console.error('Error al validar caja chica:', error);
-      await Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Error al verificar la caja chica. Intente nuevamente.',
-        confirmButtonText: 'Volver'
-      }).then(() => {
-        this.router.navigate(['/caja-chica']);
-      });
-      return;
     }
 
-    // ✅ puedes entrar con /ventas/crear?clienteId=xxx
-    this.clienteId = this.route.snapshot.queryParamMap.get('clienteId') || '';
+    // ✅ MODO EDICIÓN: Cargar factura existente
+    if (this.modoEdicion) {
+      await this.cargarFacturaParaEditar();
+    } else {
+      // MODO CREACIÓN: puedes entrar con /ventas/crear?clienteId=xxx
+      this.clienteId = this.route.snapshot.queryParamMap.get('clienteId') || '';
+    }
 
     if (!this.clienteId) {
       this.router.navigate(['/clientes/historial-clinico']);
@@ -903,6 +920,11 @@ async guardarEImprimir() {
   this.guardando = true;
 
   try {
+    // ✅ MODO EDICIÓN: Revertir inventario de items originales PRIMERO
+    if (this.modoEdicion) {
+      await this.revertirInventarioOriginal();
+    }
+
     // ✅ Verificar stock en tiempo real antes de guardar (solo para PRODUCTOS, no servicios)
     for (const it of this.items) {
       // ✅ Saltar verificación si es servicio
@@ -925,6 +947,11 @@ async guardarEImprimir() {
             text: `"${it.nombre}" ➜ disponible: ${disponible}, requerido: ${it.cantidad}.`,
           });
           this.guardando = false;
+          
+          // Si estamos en modo edición, revertir el inventario que acabamos de restaurar
+          if (this.modoEdicion) {
+            await this.descontarInventarioOriginal();
+          }
           return;
         }
       }
@@ -1097,13 +1124,100 @@ async guardarEImprimir() {
     console.log('📄 Fecha en factura limpia:', facturaLimpia.fecha);
     console.log('📄 Tipo de fecha limpia:', typeof facturaLimpia.fecha);
     
-    const ref = await this.facturasSrv.crearFactura(facturaLimpia);
+    // ✅ GUARDAR O ACTUALIZAR SEGÚN MODO
+    let facturaId: string;
+    if (this.modoEdicion && this.facturaId) {
+      // MODO EDICIÓN: Actualizar factura existente
+      await this.facturasSrv.actualizarFactura(this.facturaId, facturaLimpia);
+      facturaId = this.facturaId;
+      console.log('✅ Factura actualizada:', facturaId);
+    } else {
+      // MODO CREACIÓN: Crear nueva factura
+      const ref = await this.facturasSrv.crearFactura(facturaLimpia);
+      facturaId = ref.id;
+      console.log('✅ Factura creada:', facturaId);
+    }
 
     // ✅ REGISTRAR AUTOMÁTICAMENTE EN CAJA CHICA O CAJA BANCO
     const usuario = this.authService.getCurrentUser();
-    const facturaId = ref.id; // ID personalizado de 10 dígitos
     
-    if (this.metodoPago === 'Efectivo' && abonado > 0) {
+    // Variable para controlar si ya se registró el movimiento (evitar duplicados)
+    let movimientoYaRegistrado = false;
+    
+    // ✅ EN MODO EDICIÓN: Actualizar o eliminar/crear movimientos según cambios
+    if (this.modoEdicion && this.facturaOriginal) {
+      const cambioMetodoPago = this.facturaOriginal.metodoPago !== this.metodoPago;
+      const cambioMonto = this.facturaOriginal.abonado !== abonado;
+      
+      // CASO 1: Cambió de método de pago → Eliminar movimiento anterior y crear nuevo
+      if (cambioMetodoPago) {
+        console.log('🔄 Cambió método de pago. Eliminando movimiento antiguo y creando nuevo...');
+        
+        // Eliminar movimiento anterior de caja chica si existía
+        if (this.facturaOriginal.metodoPago === 'Efectivo') {
+          try {
+            const caja = await this.cajaChicaService.getCajaAbierta();
+            if (caja?.id) {
+              await this.cajaChicaService.eliminarMovimientoPorFactura(caja.id, facturaId);
+              console.log('✅ Movimiento anterior eliminado de Caja Chica');
+            }
+          } catch (err) {
+            console.error('Error eliminando movimiento de Caja Chica:', err);
+          }
+        }
+        
+        // Eliminar movimiento anterior de caja banco si existía
+        if (this.facturaOriginal.metodoPago === 'Transferencia' || this.facturaOriginal.metodoPago === 'Tarjeta') {
+          try {
+            await this.cajaBancoService.eliminarMovimientoPorFactura(facturaId);
+            console.log('✅ Movimiento anterior eliminado de Caja Banco');
+          } catch (err) {
+            console.error('Error eliminando movimiento de Caja Banco:', err);
+          }
+        }
+        // NO marcar como registrado aquí - se creará nuevo movimiento abajo
+      } 
+      // CASO 2: Mismo método pero cambió el monto → Actualizar movimiento existente
+      else if (cambioMonto) {
+        console.log('🔄 Cambió monto pero no método de pago. Actualizando movimiento existente...');
+        
+        // Actualizar movimiento en caja chica si es efectivo
+        if (this.metodoPago === 'Efectivo') {
+          try {
+            const caja = await this.cajaChicaService.getCajaAbierta();
+            if (caja?.id) {
+              await this.cajaChicaService.actualizarMovimientoPorFactura(
+                caja.id,
+                facturaId,
+                abonado,
+                fechaFinal,
+                `Venta #${facturaId} - ${this.cliente?.nombres || 'Cliente'}`
+              );
+              console.log('✅ Movimiento actualizado en Caja Chica. Nuevo monto:', abonado);
+              movimientoYaRegistrado = true; // Marcar como ya registrado
+            }
+          } catch (err) {
+            // Si no existe el movimiento (error NO_ENCONTRADO), continuar para crear uno nuevo
+            if (err instanceof Error && err.message !== 'NO_ENCONTRADO') {
+              console.error('Error actualizando movimiento de Caja Chica:', err);
+            } else {
+              console.log('⚠️ Movimiento no encontrado, se creará uno nuevo');
+            }
+          }
+        }
+        
+        // Actualizar movimiento en caja banco si es transferencia/tarjeta
+        // TODO: Implementar actualizarMovimientoPorFactura en CajaBancoService si es necesario
+      }
+      // CASO 3: No cambió ni método ni monto → No tocar el movimiento
+      else {
+        console.log('✅ No hubo cambios en método de pago ni monto. Movimiento sin modificar.');
+        movimientoYaRegistrado = true; // Marcar como ya registrado para no crear duplicado
+      }
+    }
+    
+    // ✅ REGISTRAR NUEVO MOVIMIENTO (solo si NO se actualizó uno existente y NO es modo edición sin cambios)
+    if (!movimientoYaRegistrado && this.metodoPago === 'Efectivo' && abonado > 0) {
       // 💵 Venta en EFECTIVO → Registrar en Caja Chica (solo lo que se pagó)
       try {
         // Buscar cualquier caja ABIERTA (histórica o actual)
@@ -1229,10 +1343,15 @@ async guardarEImprimir() {
 
     // ✅ Mostrar mensaje de éxito y redirigir (después de dar tiempo a la impresión)
     setTimeout(() => {
+      const tituloMensaje = this.modoEdicion ? '¡Venta Actualizada!' : '¡Venta Realizada!';
+      const textoMensaje = this.modoEdicion 
+        ? `La venta #${facturaId} se ha actualizado correctamente.`
+        : `La venta #${facturaId} se ha registrado correctamente.`;
+        
       Swal.fire({
         icon: 'success',
-        title: '¡Venta Realizada!',
-        text: `La venta #${facturaId} se ha registrado correctamente.`,
+        title: tituloMensaje,
+        text: textoMensaje,
         confirmButtonText: 'Continuar',
         allowOutsideClick: false,
         allowEscapeKey: false
@@ -1394,6 +1513,127 @@ private cleanUndefined(obj: any): any {
 
   volver() {
     this.router.navigate(['/clientes/historial-clinico']);
+  }
+
+  /**
+   * Carga una factura existente para edición
+   * Pre-llena todos los campos del formulario con los datos de la factura
+   */
+  async cargarFacturaParaEditar(): Promise<void> {
+    try {
+      // Cargar factura desde Firestore
+      const factura: any = await firstValueFrom(this.facturasSrv.getFacturaById(this.facturaId));
+      
+      if (!factura) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Factura no encontrada',
+          text: 'No se pudo cargar la factura para editar.',
+          confirmButtonText: 'Volver'
+        });
+        this.router.navigate(['/facturas']);
+        return;
+      }
+
+      // Guardar copia de la factura original
+      this.facturaOriginal = { ...factura };
+      this.itemsOriginales = factura.items ? JSON.parse(JSON.stringify(factura.items)) : [];
+
+      // Pre-llenar datos del cliente
+      this.clienteId = factura.clienteId || '';
+      if (this.clienteId) {
+        this.cliente = await firstValueFrom(this.clientesSrv.getClienteById(this.clienteId));
+        const snap = await this.historialSrv.obtenerHistorial(this.clienteId);
+        this.historial = snap.exists() ? snap.data() : null;
+      }
+
+      // Pre-llenar items (productos y servicios)
+      this.items = (factura.items || []).map((item: any) => ({
+        ...item,
+        // Asegurar que los servicios tengan stockDisponible infinito
+        stockDisponible: item.esServicio ? Number.POSITIVE_INFINITY : Number.POSITIVE_INFINITY // En edición permitimos cualquier cantidad
+      }));
+
+      // Pre-llenar totales
+      this.descuentoPorcentaje = factura.descuentoPorcentaje || 0;
+      this.subtotal = factura.subtotal || 0;
+      this.iva = factura.iva || 0;
+      this.total = factura.total || 0;
+      this.descuentoMonto = factura.descuentoMonto || 0;
+
+      // Pre-llenar método de pago
+      this.metodoPago = factura.metodoPago || 'Efectivo';
+      this.codigoTransferencia = factura.codigoTransferencia || '';
+      
+      // Pre-llenar datos de crédito
+      this.esCredito = factura.esCredito || false;
+      this.abono = factura.abonado || 0;
+      this.saldoPendiente = factura.saldoPendiente || 0;
+
+      // Pre-llenar fecha y hora
+      if (factura.fecha) {
+        const fechaFactura = factura.fecha.toDate ? factura.fecha.toDate() : new Date(factura.fecha);
+        const año = fechaFactura.getFullYear();
+        const mes = (fechaFactura.getMonth() + 1).toString().padStart(2, '0');
+        const dia = fechaFactura.getDate().toString().padStart(2, '0');
+        this.fechaPago = `${año}-${mes}-${dia}`;
+        
+        const horas = fechaFactura.getHours().toString().padStart(2, '0');
+        const minutos = fechaFactura.getMinutes().toString().padStart(2, '0');
+        const segundos = fechaFactura.getSeconds().toString().padStart(2, '0');
+        this.horaPago = `${horas}:${minutos}:${segundos}`;
+      }
+
+      console.log('✅ Factura cargada para edición:', factura);
+    } catch (error) {
+      console.error('Error cargando factura:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al cargar la factura para editar.',
+        confirmButtonText: 'Volver'
+      });
+      this.router.navigate(['/facturas']);
+    }
+  }
+
+  /**
+   * Revierte el inventario de los productos originales (suma el stock que se restó)
+   * Se usa en modo edición antes de aplicar los nuevos cambios
+   */
+  async revertirInventarioOriginal(): Promise<void> {
+    console.log('🔄 Revirtiendo inventario original...');
+    for (const itemOriginal of this.itemsOriginales) {
+      // Saltar servicios
+      if (itemOriginal.esServicio) continue;
+      
+      try {
+        // Devolver el stock (sumar la cantidad que se restó originalmente)
+        await this.productosSrv.incrementarStock(itemOriginal.productoId, itemOriginal.cantidad);
+        console.log(`✅ Stock revertido: ${itemOriginal.nombre} +${itemOriginal.cantidad}`);
+      } catch (err) {
+        console.error(`Error revirtiendo stock de ${itemOriginal.nombre}:`, err);
+      }
+    }
+  }
+
+  /**
+   * Descuenta el inventario original nuevamente (en caso de error durante edición)
+   * Se usa para revertir la reversión si algo falla
+   */
+  async descontarInventarioOriginal(): Promise<void> {
+    console.log('↩️ Descontando inventario original nuevamente...');
+    for (const itemOriginal of this.itemsOriginales) {
+      // Saltar servicios
+      if (itemOriginal.esServicio) continue;
+      
+      try {
+        await this.productosSrv.descontarStock(itemOriginal.productoId, itemOriginal.cantidad);
+        console.log(`✅ Stock descontado: ${itemOriginal.nombre} -${itemOriginal.cantidad}`);
+      } catch (err) {
+        console.error(`Error descontando stock de ${itemOriginal.nombre}:`, err);
+      }
+    }
   }
 
   ngOnDestroy() {

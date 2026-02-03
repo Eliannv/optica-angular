@@ -724,6 +724,37 @@ export class CajaBancoService {
   }
 
   /**
+   * Elimina un movimiento de caja banco asociado a una factura específica.
+   * Busca el movimiento por su número de comprobante (facturaId) y lo elimina,
+   * actualizando el saldo de la caja correspondiente.
+   *
+   * @param facturaId ID de la factura cuyo movimiento se debe eliminar.
+   */
+  async eliminarMovimientoPorFactura(facturaId: string): Promise<void> {
+    try {
+      // Buscar el movimiento con comprobante = facturaId
+      const movimientosRef = collection(this.firestore, 'movimientos_cajas_banco');
+      const q = query(
+        movimientosRef,
+        where('comprobante', '==', facturaId)
+      );
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        const movimientoDoc = snapshot.docs[0];
+        const movimiento = movimientoDoc.data() as MovimientoCajaBanco;
+        if (movimiento.caja_banco_id) {
+          await this.eliminarMovimiento(movimiento.caja_banco_id, movimientoDoc.id);
+          console.log('✅ Movimiento de factura eliminado de Caja Banco:', facturaId);
+        }
+      }
+    } catch (error) {
+      console.error('Error eliminando movimiento por factura:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Registra el cierre de una caja chica como ingreso en la caja banco.
    * Este método se llama automáticamente cuando se cierra una caja chica diaria.
    *
@@ -871,17 +902,14 @@ export class CajaBancoService {
     }
   }
 
-  // Eliminar una caja banco completa (SOFT DELETE)
+  // Eliminar una caja banco completa (HARD DELETE)
   async eliminarCajaBanco(cajaBancoId: string): Promise<void> {
     try {
-      // 🔹 SOFT DELETE: Solo marcar como inactivo
-      await updateDoc(doc(this.firestore, `cajas_banco/${cajaBancoId}`), {
-        activo: false,
-        updatedAt: Timestamp.now(),
-      });
-      console.log('✅ Caja banco desactivada (soft delete):', cajaBancoId);
+      // 🔹 HARD DELETE: Eliminar permanentemente de Firestore
+      await deleteDoc(doc(this.firestore, `cajas_banco/${cajaBancoId}`));
+      console.log('✅ Caja banco eliminada permanentemente:', cajaBancoId);
     } catch (error) {
-      console.error('Error al desactivar caja banco:', error);
+      console.error('Error al eliminar caja banco:', error);
       throw error;
     }
   }

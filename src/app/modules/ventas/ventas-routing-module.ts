@@ -10,6 +10,14 @@ export const VentasRoutingModule: Routes = [
       import('./crear-venta/crear-venta')
         .then(m => m.CrearVentaComponent),
   },
+  
+  {
+    path: 'editar/:facturaId',
+    canActivate: [cajaChicaGuard],
+    loadComponent: () =>
+      import('./crear-venta/crear-venta')
+        .then(m => m.CrearVentaComponent),
+  },
 
   // ✅ NUEVA RUTA
   {
