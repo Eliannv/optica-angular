@@ -271,6 +271,24 @@
     border-color: rgba(52, 152, 219, 0.2);
 }
 
+.stat-card-warning {
+    background: linear-gradient(135deg, rgba(255, 152, 0, 0.08) 0%, rgba(255, 152, 0, 0.04) 100%);
+    border-color: rgba(255, 152, 0, 0.2);
+}
+
+.stat-card-warning .stat-icon svg {
+    stroke: #ff9800;
+}
+
+.stat-card-danger {
+    background: linear-gradient(135deg, rgba(244, 67, 54, 0.08) 0%, rgba(244, 67, 54, 0.04) 100%);
+    border-color: rgba(244, 67, 54, 0.2);
+}
+
+.stat-card-danger .stat-icon svg {
+    stroke: #f44336;
+}
+
 .stat-icon {
     font-size: 2rem;
     min-width: 50px;
@@ -459,6 +477,11 @@
 .badge-info {
     background: #e7f3ff;
     color: #004085;
+}
+
+.badge-warning {
+    background: #fff3e0;
+    color: #f57c00;
 }
 
 .badge-danger {

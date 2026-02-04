@@ -11,8 +11,10 @@ import { ClientesService } from '../../../../core/services/clientes';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { FacturasService } from '../../../../core/services/facturas';
+import { FacturasDeudaService } from '../../../../core/services/facturas-deuda.service';
 import { Cobro } from '../../../../core/models/cobro.model';
 import { Factura } from '../../../../core/models/factura.model';
+import { FacturaDeuda } from '../../../../core/models/factura-deuda.model';
 
 /**
  * Componente de Reporte de Ventas Generales.
@@ -42,6 +44,8 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   loading = true;
   facturas: Factura[] = []; // Todas las facturas del sistema
   facturasFiltradas: Factura[] = []; // Facturas después de aplicar filtros
+  pagosDeuda: FacturaDeuda[] = []; // 🆕 Pagos de deuda desde facturas_deudas
+  egresos: any[] = []; // 🆕 Egresos de caja chica
   movimientosCajaChica: any[] = []; // Movimientos de caja chica (para desglose de pagos)
   movimientosCajaBanco: any[] = []; // Movimientos de caja banco (para desglose de pagos)
   
@@ -55,12 +59,16 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     { valor: 'VENTAS', label: 'Ventas (Facturas)' },
     { valor: 'PAGOS_EFECTIVO', label: 'Pagos en Efectivo' },
     { valor: 'PAGOS_TRANSFERENCIA', label: 'Pagos por Transferencia' },
-    { valor: 'PAGOS_TARJETA', label: 'Pagos por Tarjeta' }
+    { valor: 'PAGOS_TARJETA', label: 'Pagos por Tarjeta' },
+    { valor: 'FACTURAS_DEUDA', label: '💳 Facturas de Deuda' },
+    { valor: 'EGRESOS', label: '📤 Egresos' }
   ];
 
   // Totales (basados en facturas)
   totalVendido = 0; // Total de ventas (suma de facturas)
   cantidadRegistros = 0; // Cantidad de facturas
+  totalPagosDeuda = 0; // 🆕 Total de pagos de deuda
+  totalEgresos = 0; // 🆕 Total de egresos
   totalesPorMetodo: { [key: string]: number } = {}; // Desglose por forma de pago
 
   private subscription?: Subscription;
@@ -71,6 +79,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     private cajaChicaService: CajaChicaService,
     private cajaBancoService: CajaBancoService,
     private facturasService: FacturasService,
+    private facturasDeudaService: FacturasDeudaService, // 🆕 Inyectar servicio
     private firestore: Firestore,
     private router: Router
   ) {}
@@ -182,28 +191,52 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       console.log('💰 Total movimientos caja chica en BD:', todosChica.length);
       console.log('💰 Movimientos caja chica en rango:', this.movimientosCajaChica.length);
       
-      // Cargar FACTURAS usando el servicio
-      this.subscription = this.facturasService.getFacturas().subscribe({
-        next: (todasFacturas) => {
-          // Filtrar facturas por fecha en memoria
-          this.facturas = todasFacturas.filter(f => {
-            const fecha = (f.fecha as any) instanceof Date ? f.fecha as Date : 
-                          (typeof (f.fecha as any)?.toDate === 'function' ? (f.fecha as any).toDate() : new Date(f.fecha as any));
+      // 🆕 Filtrar EGRESOS de caja chica en el mismo rango de fechas
+      this.egresos = this.movimientosCajaChica.filter((m: any) => m.tipo === 'EGRESO');
+      console.log('📤 Egresos en rango:', this.egresos.length);
+      
+      // 🆕 Cargar FACTURAS DE DEUDA
+      this.subscription = this.facturasDeudaService.getTodosPagos().subscribe({
+        next: (todosPagos) => {
+          // Filtrar pagos de deuda por fecha en memoria
+          this.pagosDeuda = todosPagos.filter((p: any) => {
+            const fecha = p.fechaPago instanceof Date ? p.fechaPago : 
+                          (typeof p.fechaPago?.toDate === 'function' ? p.fechaPago.toDate() : new Date(p.fechaPago));
             return fecha >= fechaDesde && fecha <= fechaHasta;
           });
           
-          console.log('📄 Total facturas en BD:', todasFacturas.length);
-          console.log('📄 Facturas en rango:', this.facturas.length);
+          console.log('💳 Total pagos de deuda en BD:', todosPagos.length);
+          console.log('💳 Pagos de deuda en rango:', this.pagosDeuda.length);
           
-          this.loading = false;
-          
-          // Aplicar filtros en memoria
-          this.filtrarDatosEnMemoria();
+          // Cargar FACTURAS usando el servicio
+          this.facturasService.getFacturas().subscribe({
+            next: (todasFacturas) => {
+              // Filtrar facturas por fecha en memoria
+              this.facturas = todasFacturas.filter(f => {
+                const fecha = (f.fecha as any) instanceof Date ? f.fecha as Date : 
+                              (typeof (f.fecha as any)?.toDate === 'function' ? (f.fecha as any).toDate() : new Date(f.fecha as any));
+                return fecha >= fechaDesde && fecha <= fechaHasta;
+              });
+              
+              console.log('📄 Total facturas en BD:', todasFacturas.length);
+              console.log('📄 Facturas en rango:', this.facturas.length);
+              
+              this.loading = false;
+              
+              // Aplicar filtros en memoria
+              this.filtrarDatosEnMemoria();
+            },
+            error: (error) => {
+              console.error('❌ Error cargando facturas:', error);
+              this.loading = false;
+              this.filtrarDatosEnMemoria();
+            }
+          });
         },
         error: (error) => {
-          console.error('❌ Error cargando facturas:', error);
+          console.error('❌ Error cargando pagos de deuda:', error);
+          this.pagosDeuda = [];
           this.loading = false;
-          this.filtrarDatosEnMemoria();
         }
       });
     }).catch(error => {
@@ -313,12 +346,27 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
    * Calcula totales y estadísticas basadas en facturas filtradas.
    * El total vendido es la suma de todas las facturas.
    * Los totales por método de pago se calculan desde las facturas.
+   * 🆕 Ahora también calcula totales de facturas de deuda y egresos.
    */
   calcularTotales(): void {
     // Total vendido = suma de todas las facturas
     this.totalVendido = this.facturasFiltradas.reduce((sum, f) => sum + f.total, 0);
     
     this.cantidadRegistros = this.facturasFiltradas.length;
+
+    // 🆕 Calcular total de pagos de deuda si están en filtros
+    if (this.tiposSeleccionados.includes('FACTURAS_DEUDA') || this.tiposSeleccionados.length === 0) {
+      this.totalPagosDeuda = this.pagosDeuda.reduce((sum, p) => sum + p.montoPagado, 0);
+    } else {
+      this.totalPagosDeuda = 0;
+    }
+
+    // 🆕 Calcular total de egresos si están en filtros
+    if (this.tiposSeleccionados.includes('EGRESOS') || this.tiposSeleccionados.length === 0) {
+      this.totalEgresos = this.egresos.reduce((sum, e) => sum + e.monto, 0);
+    } else {
+      this.totalEgresos = 0;
+    }
 
     // Agrupar por método de pago
     this.totalesPorMetodo = {};
@@ -328,6 +376,8 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     });
 
     console.log('📊 Totales por método de pago:', this.totalesPorMetodo);
+    console.log('💳 Total pagos de deuda:', this.totalPagosDeuda);
+    console.log('📤 Total egresos:', this.totalEgresos);
   }
 
   /**
@@ -339,6 +389,8 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     this.tiposSeleccionados = [];
     this.facturasFiltradas = [];
     this.totalVendido = 0;
+    this.totalPagosDeuda = 0; // 🆕
+    this.totalEgresos = 0; // 🆕
     this.cantidadRegistros = 0;
     this.totalesPorMetodo = {};
   }
@@ -416,6 +468,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   /**
    * Genera el HTML del reporte para impresión basado en facturas.
    * Compatible con impresoras POS y normales.
+   * 🆕 Ahora incluye facturas de deuda y egresos.
    */
   private generarHTMLReporte(): string {
     const fechaReporte = new Date().toLocaleString('es-ES');
@@ -438,7 +491,9 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
         'VENTAS': 'Ventas (Facturas)',
         'PAGOS_EFECTIVO': 'Pagos en Efectivo',
         'PAGOS_TRANSFERENCIA': 'Pagos por Transferencia',
-        'PAGOS_TARJETA': 'Pagos por Tarjeta'
+        'PAGOS_TARJETA': 'Pagos por Tarjeta',
+        'FACTURAS_DEUDA': 'Facturas de Deuda',
+        'EGRESOS': 'Egresos'
       };
       const tiposTexto = this.tiposSeleccionados.map(t => tipoLabels[t] || t).join(', ');
       filtrosAplicados.push(`Tipos: ${tiposTexto}`);
@@ -448,21 +503,52 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       ? `<div class="filtros">${filtrosAplicados.join(' | ')}</div>`
       : '';
 
-    // Generar filas de la tabla basadas en facturas
-    const filas = this.facturasFiltradas.map(factura => {
+    // 🆕 Generar filas combinadas: facturas normales + facturas de deuda + egresos
+    const filasVentas = this.facturasFiltradas.map(factura => {
       return `
         <tr>
           <td>${this.formatoFecha(factura.fecha)}</td>
+          <td>Venta</td>
           <td>${factura.idPersonalizado || factura.id || '-'}</td>
           <td>${factura.clienteNombre || 'Sin nombre'}</td>
-          <td>${factura.tipoVenta || 'CONTADO'}</td>
           <td>${factura.metodoPago}</td>
           <td class="text-right">${this.formatoMoneda(factura.total)}</td>
           <td class="text-right">${this.formatoMoneda(factura.saldoPendiente || 0)}</td>
-          <td class="text-center">${factura.esCredito ? 'Sí' : 'No'}</td>
         </tr>
       `;
     }).join('');
+
+    // 🆕 Filas de facturas de deuda
+    const mostrarFacturasDeuda = this.tiposSeleccionados.includes('FACTURAS_DEUDA') || this.tiposSeleccionados.length === 0;
+    const filasDeuda = mostrarFacturasDeuda ? this.pagosDeuda.map(deuda => {
+      return `
+        <tr style="background-color: #fff3e0;">
+          <td>${this.formatoFecha(deuda.fechaPago)}</td>
+          <td>💳 Pago Deuda</td>
+          <td>${deuda.facturaIdPersonalizado || deuda.facturaId || '-'}</td>
+          <td>${deuda.clienteNombre || 'Sin nombre'}</td>
+          <td>${deuda.metodoPago}</td>
+          <td class="text-right">${this.formatoMoneda(deuda.montoPagado)}</td>
+          <td class="text-right">${this.formatoMoneda(deuda.saldoRestante || 0)}</td>
+        </tr>
+      `;
+    }).join('') : '';
+
+    // 🆕 Filas de egresos
+    const mostrarEgresos = this.tiposSeleccionados.includes('EGRESOS') || this.tiposSeleccionados.length === 0;
+    const filasEgresos = mostrarEgresos ? this.egresos.map(egreso => {
+      return `
+        <tr style="background-color: #ffebee;">
+          <td>${this.formatoFecha(egreso.fecha)}</td>
+          <td>📤 Egreso</td>
+          <td>${egreso.comprobante || '-'}</td>
+          <td>${egreso.descripcion || 'Sin descripción'}</td>
+          <td>Efectivo</td>
+          <td class="text-right">${this.formatoMoneda(egreso.monto)}</td>
+          <td class="text-right">-</td>
+        </tr>
+      `;
+    }).join('') : '';
 
     // Generar filas de totales por método
     const totalesMetodo = Object.entries(this.totalesPorMetodo)
@@ -602,17 +688,18 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
           <thead>
             <tr>
               <th>Fecha</th>
-              <th>Nº Factura</th>
-              <th>Cliente</th>
-              <th>Tipo Venta</th>
+              <th>Tipo</th>
+              <th>Nº Doc</th>
+              <th>Cliente/Descripción</th>
               <th>Método Pago</th>
-              <th class="text-right">Total</th>
+              <th class="text-right">Monto</th>
               <th class="text-right">Saldo</th>
-              <th class="text-center">Crédito</th>
             </tr>
           </thead>
           <tbody>
-            ${filas}
+            ${filasVentas}
+            ${filasDeuda}
+            ${filasEgresos}
           </tbody>
         </table>
 
@@ -622,12 +709,28 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
             <span>Total Ventas (Facturas):</span>
             <span>${this.cantidadRegistros}</span>
           </div>
+          ${mostrarFacturasDeuda ? `<div class="resumen-item">
+            <span>Total Pagos de Deuda:</span>
+            <span>${this.pagosDeuda.length}</span>
+          </div>` : ''}
+          ${mostrarEgresos ? `<div class="resumen-item">
+            <span>Total Egresos:</span>
+            <span>${this.egresos.length}</span>
+          </div>` : ''}
           <h4 style="font-size: 10px; margin: 6px 0 4px 0; font-weight: bold;">Desglose por Forma de Pago:</h4>
           ${totalesMetodo}
           <div class="resumen-item total">
             <span>TOTAL VENDIDO:</span>
             <span>${this.formatoMoneda(this.totalVendido)}</span>
           </div>
+          ${mostrarFacturasDeuda ? `<div class="resumen-item">
+            <span>Total Pagos Deuda:</span>
+            <span>${this.formatoMoneda(this.totalPagosDeuda)}</span>
+          </div>` : ''}
+          ${mostrarEgresos ? `<div class="resumen-item">
+            <span>Total Egresos:</span>
+            <span>${this.formatoMoneda(this.totalEgresos)}</span>
+          </div>` : ''}
         </div>
       </body>
       </html>
