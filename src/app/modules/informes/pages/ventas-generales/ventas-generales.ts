@@ -135,9 +135,12 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   cargarFacturas(): void {
     this.loading = true;
 
-    const fechaDesde = new Date(this.fechaDesde);
-    const fechaHasta = new Date(this.fechaHasta);
-    fechaHasta.setHours(23, 59, 59, 999);
+    // Convertir fechas del input a Date, asegurando zona horaria local
+    const [añoDesde, mesDesde, diaDesde] = this.fechaDesde.split('-').map(Number);
+    const [añoHasta, mesHasta, diaHasta] = this.fechaHasta.split('-').map(Number);
+    
+    const fechaDesde = new Date(añoDesde, mesDesde - 1, diaDesde, 0, 0, 0, 0);
+    const fechaHasta = new Date(añoHasta, mesHasta - 1, diaHasta, 23, 59, 59, 999);
 
     console.log('📅 Cargando facturas desde:', fechaDesde);
     console.log('📅 Cargando facturas hasta:', fechaHasta);
