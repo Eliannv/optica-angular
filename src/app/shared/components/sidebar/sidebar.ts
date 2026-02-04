@@ -165,14 +165,14 @@ export class SidebarComponent implements OnInit {
             route: '/informes/ventas-generales',
             active: false,
             roles: [RolUsuario.ADMINISTRADOR]
-          },
+          }/*,
           {
             label: 'Cobros Cliente',
             icon: '',
             route: '/informes/cobros-cliente',
             active: false,
             roles: [RolUsuario.ADMINISTRADOR]
-          }
+          }*/
         ]
       },
       {

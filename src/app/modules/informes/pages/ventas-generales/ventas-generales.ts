@@ -10,23 +10,26 @@ import { CobrosService } from '../../../../core/services/cobros.service';
 import { ClientesService } from '../../../../core/services/clientes';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
+import { FacturasService } from '../../../../core/services/facturas';
 import { Cobro } from '../../../../core/models/cobro.model';
+import { Factura } from '../../../../core/models/factura.model';
 
 /**
  * Componente de Reporte de Ventas Generales.
  * 
  * **Funcionalidades:**
- * - Reporte basado exclusivamente en registros de cobros de clientes
+ * - Reporte basado exclusivamente en facturas del sistema
  * - Filtros por rango de fechas (Desde/Hasta)
- * - Filtros por tipo de documento/operación
+ * - Filtros por tipo de venta y forma de pago
  * - Impresión compatible con impresoras POS y normales
  * - Sin filtro de bodega (sistema de una sola bodega)
  * 
  * **Flujo:**
- * 1. Carga todos los cobros desde Firestore
+ * 1. Carga todas las facturas desde Firestore
  * 2. Aplica filtros de fecha y tipo seleccionados
- * 3. Muestra resultados en tabla
- * 4. Permite imprimir reporte con filtros aplicados
+ * 3. Calcula totales de ventas y desglose por forma de pago
+ * 4. Muestra resultados en tabla
+ * 5. Permite imprimir reporte con filtros aplicados
  */
 @Component({
   selector: 'app-ventas-generales',
@@ -37,32 +40,28 @@ import { Cobro } from '../../../../core/models/cobro.model';
 })
 export class VentasGeneralesComponent implements OnInit, OnDestroy {
   loading = true;
-  cobros: Cobro[] = [];
-  cobrosFiltrados: any[] = []; // Puede contener Cobros o Egresos
-  movimientosCajaChica: any[] = []; // Movimientos de caja chica
-  movimientosCajaBanco: any[] = []; // Movimientos de caja banco (transferencias/tarjetas)
-  registrosCombinados: any[] = []; // Cobros + Egresos combinados
+  facturas: Factura[] = []; // Todas las facturas del sistema
+  facturasFiltradas: Factura[] = []; // Facturas después de aplicar filtros
+  movimientosCajaChica: any[] = []; // Movimientos de caja chica (para desglose de pagos)
+  movimientosCajaBanco: any[] = []; // Movimientos de caja banco (para desglose de pagos)
   
   // Filtros
   fechaDesde = '';
   fechaHasta = '';
   tiposSeleccionados: string[] = []; // Array para múltiples selecciones
   
-  // Opciones de tipos disponibles
+  // Opciones de tipos disponibles (nuevos filtros basados en facturas)
   tiposDisponibles = [
-    { valor: 'ORDEN_TRABAJO', label: 'Orden de Trabajo' },
-    { valor: 'ORDEN_SIN_HISTORIA', label: 'Orden Sin Historia' },
-    { valor: 'PAGOS', label: 'Pagos (Efectivo)' },
-    { valor: 'TARJETA', label: 'Tarjeta de Crédito/Débito' },
-    { valor: 'TRANSFERENCIAS', label: 'Transferencias' },
-    { valor: 'EGRESO', label: 'Egreso' }
+    { valor: 'VENTAS', label: 'Ventas (Facturas)' },
+    { valor: 'PAGOS_EFECTIVO', label: 'Pagos en Efectivo' },
+    { valor: 'PAGOS_TRANSFERENCIA', label: 'Pagos por Transferencia' },
+    { valor: 'PAGOS_TARJETA', label: 'Pagos por Tarjeta' }
   ];
 
-  // Totales
-  totalCobrado = 0;
-  cantidadRegistros = 0;
-  totalesPorMetodo: { [key: string]: number } = {};
-  totalesPorTipo: { [key: string]: number } = {};
+  // Totales (basados en facturas)
+  totalVendido = 0; // Total de ventas (suma de facturas)
+  cantidadRegistros = 0; // Cantidad de facturas
+  totalesPorMetodo: { [key: string]: number } = {}; // Desglose por forma de pago
 
   private subscription?: Subscription;
 
@@ -71,6 +70,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     private clientesService: ClientesService,
     private cajaChicaService: CajaChicaService,
     private cajaBancoService: CajaBancoService,
+    private facturasService: FacturasService,
     private firestore: Firestore,
     private router: Router
   ) {}
@@ -84,7 +84,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     this.fechaDesde = this.formatearFechaInput(primerDiaMes);
     this.fechaHasta = this.formatearFechaInput(hoy);
     
-    this.cargarCobros();
+    this.cargarFacturas();
   }
 
   /**
@@ -123,103 +123,96 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Carga cobros y movimientos de caja chica CON FILTRO DE FECHAS
-   * 🎯 OPTIMIZADO: Carga solo el período seleccionado
+   * Carga todas las facturas y movimientos de pago, luego filtra en memoria
+   * 🎯 Evita problemas de índices compuestos en Firestore
+   * 
+   * **Proceso:**
+   * 1. Carga todas las facturas del sistema
+   * 2. Carga movimientos de caja chica (pagos en efectivo)
+   * 3. Carga movimientos de caja banco (transferencias y tarjetas)
+   * 4. Filtra por rango de fechas en memoria
    */
-  cargarCobros(): void {
+  cargarFacturas(): void {
     this.loading = true;
 
-    // 🎯 Usar filtro de fechas DENTRO del query de Firestore
     const fechaDesde = new Date(this.fechaDesde);
     const fechaHasta = new Date(this.fechaHasta);
-    fechaHasta.setHours(23, 59, 59, 999); // Incluir todo el día final
+    fechaHasta.setHours(23, 59, 59, 999);
 
-    // Cargar cobros del período
-    this.subscription = this.cobrosService.getCobrosEnRangoOptimizado(fechaDesde, fechaHasta).subscribe({
-      next: (cobros) => {
-        this.cobros = cobros;
-        
-        // 🏦 Cargar movimientos de CAJA BANCO del período
-        const movimientosBancoRef = collection(this.firestore, 'movimientos_cajas_banco');
-        const qBanco = query(
-          movimientosBancoRef,
-          where('fecha', '>=', Timestamp.fromDate(fechaDesde)),
-          where('fecha', '<=', Timestamp.fromDate(fechaHasta))
-        );
-        
-        getDocs(qBanco).then(snapshotBanco => {
-          this.movimientosCajaBanco = snapshotBanco.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          
-          // Ordenar movimientos por fecha DESC
-          this.movimientosCajaBanco.sort((a, b) => {
-            const fechaA = a.fecha?.toDate?.() || new Date(a.fecha);
-            const fechaB = b.fecha?.toDate?.() || new Date(b.fecha);
-            return fechaB.getTime() - fechaA.getTime();
+    console.log('📅 Cargando facturas desde:', fechaDesde);
+    console.log('📅 Cargando facturas hasta:', fechaHasta);
+
+    // 🏦 Cargar movimientos de CAJA BANCO (para desglose de pagos)
+    const movimientosBancoRef = collection(this.firestore, 'movimientos_cajas_banco');
+    getDocs(movimientosBancoRef).then(snapshotBanco => {
+      const todosBanco = snapshotBanco.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      // Filtrar por fecha en memoria
+      this.movimientosCajaBanco = todosBanco.filter((m: any) => {
+        const fecha = m.fecha instanceof Date ? m.fecha : 
+                      (typeof m.fecha?.toDate === 'function' ? m.fecha.toDate() : new Date(m.fecha));
+        return fecha >= fechaDesde && fecha <= fechaHasta;
+      });
+      
+      console.log('🏦 Total movimientos banco en BD:', todosBanco.length);
+      console.log('🏦 Movimientos banco en rango:', this.movimientosCajaBanco.length);
+      
+      // Cargar movimientos de CAJA CHICA (para desglose de pagos)
+      const movimientosChicaRef = collection(this.firestore, 'movimientos_cajas_chicas');
+      return getDocs(movimientosChicaRef);
+    }).then(snapshotChica => {
+      const todosChica = snapshotChica.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      // Filtrar por fecha en memoria
+      this.movimientosCajaChica = todosChica.filter((m: any) => {
+        const fecha = m.fecha instanceof Date ? m.fecha : 
+                      (typeof m.fecha?.toDate === 'function' ? m.fecha.toDate() : new Date(m.fecha));
+        return fecha >= fechaDesde && fecha <= fechaHasta;
+      });
+      
+      console.log('💰 Total movimientos caja chica en BD:', todosChica.length);
+      console.log('💰 Movimientos caja chica en rango:', this.movimientosCajaChica.length);
+      
+      // Cargar FACTURAS usando el servicio
+      this.subscription = this.facturasService.getFacturas().subscribe({
+        next: (todasFacturas) => {
+          // Filtrar facturas por fecha en memoria
+          this.facturas = todasFacturas.filter(f => {
+            const fecha = (f.fecha as any) instanceof Date ? f.fecha as Date : 
+                          (typeof (f.fecha as any)?.toDate === 'function' ? (f.fecha as any).toDate() : new Date(f.fecha as any));
+            return fecha >= fechaDesde && fecha <= fechaHasta;
           });
           
-          console.log('🏦 Movimientos caja banco cargados:', this.movimientosCajaBanco.length);
-          console.log('📊 Ejemplo movimientos banco:', this.movimientosCajaBanco.slice(0, 3));
-          
-          // Ahora cargar movimientos de caja chica
-          const movimientosRef = collection(this.firestore, 'movimientos_cajas_chicas');
-          const q = query(
-            movimientosRef,
-            where('fecha', '>=', Timestamp.fromDate(fechaDesde)),
-            where('fecha', '<=', Timestamp.fromDate(fechaHasta))
-          );
-          
-          return getDocs(q);
-        }).then(snapshot => {
-          this.movimientosCajaChica = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          
-          // Ordenar movimientos por fecha DESC en memoria
-          this.movimientosCajaChica.sort((a, b) => {
-            const fechaA = a.fecha?.toDate?.() || new Date(a.fecha);
-            const fechaB = b.fecha?.toDate?.() || new Date(b.fecha);
-            return fechaB.getTime() - fechaA.getTime();
-          });
+          console.log('📄 Total facturas en BD:', todasFacturas.length);
+          console.log('📄 Facturas en rango:', this.facturas.length);
           
           this.loading = false;
-          console.log('✅ Cobros cargados:', this.cobros.length);
-          console.log('✅ Movimientos caja chica cargados:', this.movimientosCajaChica.length);
-          console.log('📊 Ejemplo movimientos:', this.movimientosCajaChica.slice(0, 3));
           
-          // Contar egresos
-          const egresos = this.movimientosCajaChica.filter(m => m.tipo === 'EGRESO');
-          console.log('💰 Total egresos:', egresos.length);
-          if (egresos.length > 0) {
-            console.log('📋 Ejemplo egresos:', egresos.slice(0, 3));
-          }
-          
-          // 🎯 Después de cargar todos los datos, aplicar filtros en memoria
+          // Aplicar filtros en memoria
           this.filtrarDatosEnMemoria();
-        }).catch(error => {
-          console.error('❌ Error cargando movimientos de caja chica:', error);
-          // Continuar sin movimientos de caja chica
-          this.movimientosCajaChica = [];
+        },
+        error: (error) => {
+          console.error('❌ Error cargando facturas:', error);
           this.loading = false;
-        });
-      },
-      error: (error) => {
-        console.error('Error cargando cobros:', error);
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'No se pudieron cargar los datos. Intente nuevamente.'
-        });
-        this.loading = false;
-      }
+          this.filtrarDatosEnMemoria();
+        }
+      });
+    }).catch(error => {
+      console.error('❌ Error cargando movimientos:', error);
+      this.movimientosCajaChica = [];
+      this.movimientosCajaBanco = [];
+      this.loading = false;
     });
   }
 
   /**
-   * Aplica los filtros seleccionados a la lista de cobros y movimientos de caja chica.
+   * Aplica los filtros seleccionados a la lista de facturas.
    * Se ejecuta al presionar el botón "Mostrar".
    * RECARGA los datos desde Firestore con el nuevo rango de fechas.
    */
@@ -235,7 +228,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
 
     // 🔄 RECARGAR datos con el nuevo rango de fechas
     console.log('🔄 Recargando datos con nuevo rango de fechas...');
-    this.cargarCobros();
+    this.cargarFacturas();
     
     // Esperar a que se carguen los datos antes de filtrar
     // El filtrado se hará automáticamente después de cargar en filtrarDatosEnMemoria()
@@ -244,99 +237,51 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   /**
    * Filtra los datos ya cargados en memoria según los tipos seleccionados.
    * Este método se llama después de cargar los datos desde Firestore.
+   * 
+   * **Nueva lógica basada en facturas:**
+   * - Las facturas son la fuente principal de ventas
+   * - Los movimientos de caja solo se usan para desglosar formas de pago
    */
   private filtrarDatosEnMemoria(): void {
-    console.log('🔍 Aplicando filtros en memoria...');
+    console.log('🔍 Aplicando filtros en memoria (basado en facturas)...');
     console.log('📅 Fecha DESDE:', this.fechaDesde);
     console.log('📅 Fecha HASTA:', this.fechaHasta);
-    console.log('📊 Total cobros disponibles:', this.cobros.length);
-    console.log('📊 Total movimientos caja banco:', this.movimientosCajaBanco.length);
-    console.log('📊 Total movimientos caja chica:', this.movimientosCajaChica.length);
+    console.log('📊 Total facturas disponibles:', this.facturas.length);
 
-    const [añoDesde, mesDesde, diaDesde] = this.fechaDesde.split('-').map(Number);
-    const [añoHasta, mesHasta, diaHasta] = this.fechaHasta.split('-').map(Number);
+    // ========== FACTURAS (fuente principal de ventas) ==========
+    let facturasFiltradas = [...this.facturas];
 
-    console.log('🕐 Filtro DESDE:', diaDesde, '/', mesDesde, '/', añoDesde);
-    console.log('🕐 Filtro HASTA:', diaHasta, '/', mesHasta, '/', añoHasta);
-
-    // ========== COBROS (ya filtrados por Firestore) ==========
-    let resultadoCobros = [...this.cobros];
-    console.log('✅ Cobros disponibles:', resultadoCobros.length);
-
-    // ========== TRANSFERENCIAS Y TARJETAS DE CAJA BANCO (ya filtradas por Firestore) ==========
-    let transferenciasYTarjetas = this.movimientosCajaBanco
-      .filter(m => m.categoria === 'TRANSFERENCIA_CLIENTE' || m.categoria === 'PAGO_TARJETA')
-      .map(m => ({
-        ...m,
-        clienteNombre: m.descripcion || 'Cliente',
-        metodoPago: m.categoria === 'TRANSFERENCIA_CLIENTE' ? 'Transferencia' : 'Tarjeta',
-        fecha: m.fecha,
-        monto: m.monto,
-        esMovimientoBanco: true
-      }));
-
-    console.log('🏦 Movimientos banco disponibles:', this.movimientosCajaBanco.length);
-    console.log('💳 Transferencias y tarjetas:', transferenciasYTarjetas.length);
-
-    // ========== EGRESOS DE CAJA CHICA (ya filtrados por Firestore) ==========
-    let egresos: any[] = [];
-    
-    const mostrarEgresos = this.tiposSeleccionados.length === 0 || this.tiposSeleccionados.includes('EGRESO');
-    
-    console.log('🔍 Mostrar egresos?', mostrarEgresos);
-    console.log('🔍 Movimientos caja chica disponibles:', this.movimientosCajaChica.length);
-    
-    if (mostrarEgresos) {
-      egresos = this.movimientosCajaChica
-        .filter(m => m.tipo === 'EGRESO')
-        .map(m => ({
-          ...m,
-          esEgreso: true,
-          clienteNombre: m.descripcion || 'Egreso',
-          monto: m.monto,
-          fecha: m.fecha
-        }));
-      
-      console.log('💰 Total egresos:', egresos.length);
-    }
-
-    // ========== FILTRAR POR TIPO (SOLO COBROS) ==========
+    // Aplicar filtro por tipo si hay selecciones
     if (this.tiposSeleccionados.length > 0) {
-      // Si EGRESO está seleccionado, excluirlo del filtro de cobros
-      const tiposCobros = this.tiposSeleccionados.filter(t => t !== 'EGRESO');
-      
-      if (tiposCobros.length > 0) {
-        // Filtrar cobros normales
-        resultadoCobros = resultadoCobros.filter(c => tiposCobros.includes(this.clasificarTipoCobro(c)));
-        console.log('✅ Tipos seleccionados para cobros:', tiposCobros);
-        console.log('✅ Cobros después de filtro de tipo:', resultadoCobros.length);
-        
-        // Filtrar transferencias y tarjetas de caja banco
-        const incluirTransferencias = tiposCobros.includes('TRANSFERENCIAS');
-        const incluirTarjetas = tiposCobros.includes('TARJETA');
-        
-        transferenciasYTarjetas = transferenciasYTarjetas.filter(m => {
-          if (m.metodoPago === 'Transferencia') return incluirTransferencias;
-          if (m.metodoPago === 'Tarjeta') return incluirTarjetas;
+      const mostrarVentas = this.tiposSeleccionados.includes('VENTAS');
+      const mostrarEfectivo = this.tiposSeleccionados.includes('PAGOS_EFECTIVO');
+      const mostrarTransferencia = this.tiposSeleccionados.includes('PAGOS_TRANSFERENCIA');
+      const mostrarTarjeta = this.tiposSeleccionados.includes('PAGOS_TARJETA');
+
+      // Si se seleccionó VENTAS, mostrar todas las facturas
+      if (mostrarVentas) {
+        // No filtrar, mostrar todas
+        facturasFiltradas = [...this.facturas];
+      } else {
+        // Filtrar por método de pago
+        facturasFiltradas = this.facturas.filter(f => {
+          if (mostrarEfectivo && f.metodoPago === 'Efectivo') return true;
+          if (mostrarTransferencia && f.metodoPago === 'Transferencia') return true;
+          if (mostrarTarjeta && f.metodoPago === 'Tarjeta') return true;
           return false;
         });
-        
-        console.log('💳 Transferencias/tarjetas después de filtro de tipo:', transferenciasYTarjetas.length);
-      } else {
-        // Solo se seleccionó EGRESO, no mostrar cobros ni transferencias/tarjetas
-        resultadoCobros = [];
-        transferenciasYTarjetas = [];
-        console.log('✅ Solo EGRESO seleccionado, ocultando todos los cobros y transferencias');
       }
+
+      console.log('✅ Facturas después de filtro de tipo:', facturasFiltradas.length);
     } else {
-      console.log('ℹ️ No hay tipos seleccionados, mostrando todos');
+      console.log('ℹ️ No hay tipos seleccionados, mostrando todas las facturas');
     }
 
-    // ========== COMBINAR COBROS, TRANSFERENCIAS/TARJETAS Y EGRESOS ==========
-    this.cobrosFiltrados = [...resultadoCobros, ...transferenciasYTarjetas, ...egresos];
+    // Asignar facturas filtradas
+    this.facturasFiltradas = facturasFiltradas;
     
     // Ordenar por fecha (más reciente primero)
-    this.cobrosFiltrados.sort((a, b) => {
+    this.facturasFiltradas.sort((a, b) => {
       const fechaA = this.obtenerFechaDate(a.fecha);
       const fechaB = this.obtenerFechaDate(b.fecha);
       return fechaB.getTime() - fechaA.getTime();
@@ -344,8 +289,8 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     
     this.calcularTotales();
     
-    console.log('💰 Total combinado (cobros + egresos):', this.totalCobrado);
-    console.log('📋 Registros finales:', this.cobrosFiltrados.length);
+    console.log('💰 Total vendido:', this.totalVendido);
+    console.log('📋 Facturas finales:', this.facturasFiltradas.length);
   }
 
   /**
@@ -362,90 +307,24 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Clasifica un cobro según su tipo.
-   * Criterios:
-   * - TRANSFERENCIAS: Cobros con transferencia bancaria
-   * - TARJETA: Cobros con tarjeta de crédito/débito
-   * - PAGOS: Cobros en efectivo
-   * - ORDEN_TRABAJO: Cobros con historial clínico (esCredito)
-   * - ORDEN_SIN_HISTORIA: Cobros sin historial clínico
-   * - EGRESO: (reservado para futura implementación)
-   */
-  private clasificarTipoCobro(cobro: Cobro): string {
-    // Primero clasificar por método de pago
-    if (cobro.metodoPago === 'Transferencia') {
-      return 'TRANSFERENCIAS';
-    } else if (cobro.metodoPago === 'Tarjeta') {
-      return 'TARJETA';
-    } else if (cobro.metodoPago === 'Efectivo') {
-      return 'PAGOS';
-    }
-    
-    // Si no es ninguno de los anteriores, clasificar por características del cobro
-    const tieneHistorial = cobro.esCredito !== undefined;
-    
-    if (tieneHistorial && cobro.esCredito) {
-      return 'ORDEN_TRABAJO';
-    } else if (!tieneHistorial) {
-      return 'ORDEN_SIN_HISTORIA';
-    }
-    
-    return 'ORDEN_TRABAJO'; // Default
-  }
-
-  /**
-   * Obtiene la etiqueta legible del tipo de cobro o egreso.
-   */
-  getTipoCobroLabel(cobro: any): string {
-    // Si es un egreso de caja chica
-    if (cobro.esEgreso) {
-      return 'Egreso';
-    }
-    
-    // Si es un cobro normal, clasificar por tipo
-    const tipo = this.clasificarTipoCobro(cobro);
-    const labels: { [key: string]: string } = {
-      'ORDEN_TRABAJO': 'Orden de Trabajo',
-      'ORDEN_SIN_HISTORIA': 'Orden Sin Historia',
-      'PAGOS': 'Pago Efectivo',
-      'TARJETA': 'Tarjeta Crédito/Débito',
-      'TRANSFERENCIAS': 'Transferencia',
-      'EGRESO': 'Egreso'
-    };
-    return labels[tipo] || tipo;
-  }
-
-  /**
-   * Calcula totales y estadísticas de los cobros filtrados.
-   * Los egresos se suman normalmente (pero se mostrarán como negativos en la UI).
+   * Calcula totales y estadísticas basadas en facturas filtradas.
+   * El total vendido es la suma de todas las facturas.
+   * Los totales por método de pago se calculan desde las facturas.
    */
   calcularTotales(): void {
-    // Total combinado (cobros - egresos)
-    this.totalCobrado = this.cobrosFiltrados.reduce((sum, c) => {
-      return c.esEgreso ? sum - c.monto : sum + c.monto;
-    }, 0);
+    // Total vendido = suma de todas las facturas
+    this.totalVendido = this.facturasFiltradas.reduce((sum, f) => sum + f.total, 0);
     
-    this.cantidadRegistros = this.cobrosFiltrados.length;
+    this.cantidadRegistros = this.facturasFiltradas.length;
 
-    // Agrupar por método de pago (solo cobros)
-    const soloCobros = this.cobrosFiltrados.filter(c => !c.esEgreso);
-    this.totalesPorMetodo = this.cobrosService.agruparPorMetodoPago(soloCobros);
-    
-    // Agregar egresos como categoría separada
-    const totalEgresos = this.cobrosFiltrados
-      .filter(c => c.esEgreso)
-      .reduce((sum, c) => sum + c.monto, 0);
-    
-    if (totalEgresos > 0) {
-      this.totalesPorMetodo['Egresos'] = totalEgresos;
-    }
-
-    // Agrupar por tipo de documento
-    this.totalesPorTipo = {};
-    this.cobrosFiltrados.forEach(c => {
-      const tipo = c.esEgreso ? 'EGRESO' : this.clasificarTipoCobro(c);
-      this.totalesPorTipo[tipo] = (this.totalesPorTipo[tipo] || 0) + c.monto;
+    // Agrupar por método de pago
+    this.totalesPorMetodo = {};
+    this.facturasFiltradas.forEach(f => {
+      const metodo = f.metodoPago || 'Sin Método';
+      this.totalesPorMetodo[metodo] = (this.totalesPorMetodo[metodo] || 0) + f.total;
     });
+
+    console.log('📊 Totales por método de pago:', this.totalesPorMetodo);
   }
 
   /**
@@ -455,11 +334,10 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     this.fechaDesde = '';
     this.fechaHasta = '';
     this.tiposSeleccionados = [];
-    this.cobrosFiltrados = [];
-    this.totalCobrado = 0;
+    this.facturasFiltradas = [];
+    this.totalVendido = 0;
     this.cantidadRegistros = 0;
     this.totalesPorMetodo = {};
-    this.totalesPorTipo = {};
   }
 
   /**
@@ -495,10 +373,10 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Genera e imprime el reporte de ventas generales.
+   * Genera e imprime el reporte de ventas generales basado en facturas.
    */
   imprimirReporte(): void {
-    if (this.cobrosFiltrados.length === 0) {
+    if (this.facturasFiltradas.length === 0) {
       Swal.fire({
         icon: 'warning',
         title: 'Sin Datos',
@@ -533,7 +411,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Genera el HTML del reporte para impresión.
+   * Genera el HTML del reporte para impresión basado en facturas.
    * Compatible con impresoras POS y normales.
    */
   private generarHTMLReporte(): string {
@@ -554,12 +432,10 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     
     if (this.tiposSeleccionados.length > 0) {
       const tipoLabels: { [key: string]: string } = {
-        'ORDEN_TRABAJO': 'Orden de Trabajo',
-        'ORDEN_SIN_HISTORIA': 'Orden Sin Historia',
-        'PAGOS': 'Pagos',
-        'TARJETA': 'Tarjeta Crédito/Débito',
-        'TRANSFERENCIAS': 'Transferencias',
-        'EGRESO': 'Egreso'
+        'VENTAS': 'Ventas (Facturas)',
+        'PAGOS_EFECTIVO': 'Pagos en Efectivo',
+        'PAGOS_TRANSFERENCIA': 'Pagos por Transferencia',
+        'PAGOS_TARJETA': 'Pagos por Tarjeta'
       };
       const tiposTexto = this.tiposSeleccionados.map(t => tipoLabels[t] || t).join(', ');
       filtrosAplicados.push(`Tipos: ${tiposTexto}`);
@@ -569,35 +445,18 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       ? `<div class="filtros">${filtrosAplicados.join(' | ')}</div>`
       : '';
 
-    // Generar filas de la tabla
-    const filas = this.cobrosFiltrados.map(cobro => {
-      // Si es un egreso, mostrar diferente
-      if (cobro.esEgreso) {
-        return `
-          <tr class="fila-egreso" style="background-color: #ffe0e0;">
-            <td>${this.formatoFecha(cobro.fecha)}</td>
-            <td style="color: #d00; font-weight: bold;">EGRESO</td>
-            <td>${cobro.clienteNombre}</td>
-            <td>${this.getTipoCobroLabel(cobro)}</td>
-            <td>Caja Chica</td>
-            <td class="text-right" style="color: #d00;">-${this.formatoMoneda(cobro.monto)}</td>
-            <td class="text-right">-</td>
-            <td class="text-center">-</td>
-          </tr>
-        `;
-      }
-      
-      // Si es un cobro normal
+    // Generar filas de la tabla basadas en facturas
+    const filas = this.facturasFiltradas.map(factura => {
       return `
         <tr>
-          <td>${this.formatoFecha(cobro.fecha)}</td>
-          <td>${cobro.facturaIdPersonalizado || cobro.facturaId || '-'}</td>
-          <td>${cobro.clienteNombre}</td>
-          <td>${this.getTipoCobroLabel(cobro)}</td>
-          <td>${cobro.metodoPago}</td>
-          <td class="text-right">${this.formatoMoneda(cobro.monto)}</td>
-          <td class="text-right">${this.formatoMoneda(cobro.saldoPendiente || 0)}</td>
-          <td class="text-center">${cobro.esCredito ? 'Sí' : 'No'}</td>
+          <td>${this.formatoFecha(factura.fecha)}</td>
+          <td>${factura.idPersonalizado || factura.id || '-'}</td>
+          <td>${factura.clienteNombre || 'Sin nombre'}</td>
+          <td>${factura.tipoVenta || 'CONTADO'}</td>
+          <td>${factura.metodoPago}</td>
+          <td class="text-right">${this.formatoMoneda(factura.total)}</td>
+          <td class="text-right">${this.formatoMoneda(factura.saldoPendiente || 0)}</td>
+          <td class="text-center">${factura.esCredito ? 'Sí' : 'No'}</td>
         </tr>
       `;
     }).join('');
@@ -610,25 +469,6 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
           <span class="total-value">${this.formatoMoneda(total)}</span>
         </div>
       `).join('');
-
-    // Generar filas de totales por tipo
-    const totalesTipo = Object.entries(this.totalesPorTipo)
-      .map(([tipo, total]) => {
-        const labels: { [key: string]: string } = {
-          'ORDEN_TRABAJO': 'Órdenes de Trabajo',
-          'ORDEN_SIN_HISTORIA': 'Órdenes Sin Historia',
-          'PAGOS': 'Pagos Efectivo',
-          'TARJETA': 'Tarjeta Crédito/Débito',
-          'TRANSFERENCIAS': 'Transferencias',
-          'EGRESO': 'Egresos'
-        };
-        return `
-        <div class="total-item">
-          <span>${labels[tipo] || tipo}:</span>
-          <span class="total-value">${this.formatoMoneda(total)}</span>
-        </div>
-      `;
-      }).join('');
 
     return `
       <!DOCTYPE html>
@@ -710,11 +550,6 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
             padding-bottom: 4px;
             text-transform: uppercase;
           }
-          .resumen-grid { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 8px; 
-          }
           .resumen-item { 
             display: flex; 
             justify-content: space-between; 
@@ -751,7 +586,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
         <div class="header">
           <div class="empresa">ÓPTICA MACÍAS PASAJE</div>
           <h1>REPORTE DE VENTAS GENERALES</h1>
-          <div class="subtitulo">Basado en Cobros de Clientes</div>
+          <div class="subtitulo">Basado en Facturas del Sistema</div>
         </div>
 
         <div class="fecha-reporte">
@@ -764,11 +599,11 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
           <thead>
             <tr>
               <th>Fecha</th>
-              <th>Factura/Orden</th>
+              <th>Nº Factura</th>
               <th>Cliente</th>
-              <th>Tipo</th>
+              <th>Tipo Venta</th>
               <th>Método Pago</th>
-              <th class="text-right">Cobrado</th>
+              <th class="text-right">Total</th>
               <th class="text-right">Saldo</th>
               <th class="text-center">Crédito</th>
             </tr>
@@ -780,23 +615,15 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
 
         <div class="resumen">
           <h3>RESUMEN</h3>
-          <div class="resumen-grid">
-            <div>
-              <div class="resumen-item">
-                <span>Total Registros:</span>
-                <span>${this.cantidadRegistros}</span>
-              </div>
-              <h4 style="font-size: 10px; margin: 6px 0 4px 0; font-weight: bold;">Por Método de Pago:</h4>
-              ${totalesMetodo}
-            </div>
-            <div>
-              <h4 style="font-size: 10px; margin-bottom: 4px; font-weight: bold;">Por Tipo de Documento:</h4>
-              ${totalesTipo}
-            </div>
+          <div class="resumen-item">
+            <span>Total Ventas (Facturas):</span>
+            <span>${this.cantidadRegistros}</span>
           </div>
+          <h4 style="font-size: 10px; margin: 6px 0 4px 0; font-weight: bold;">Desglose por Forma de Pago:</h4>
+          ${totalesMetodo}
           <div class="resumen-item total">
-            <span>TOTAL COBRADO:</span>
-            <span>${this.formatoMoneda(this.totalCobrado)}</span>
+            <span>TOTAL VENDIDO:</span>
+            <span>${this.formatoMoneda(this.totalVendido)}</span>
           </div>
         </div>
       </body>

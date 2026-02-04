@@ -4,7 +4,7 @@
         <div class="header-content">
             <h2 class="titulo">Reporte de Ventas Generales</h2>
             <div class="header-actions">
-                <button class="btn-reimprimir" type="button" (click)="imprimirReporte()" [disabled]="cobrosFiltrados.length === 0">
+                <button class="btn-reimprimir" type="button" (click)="imprimirReporte()" [disabled]="facturasFiltradas.length === 0">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
             <path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/>
@@ -13,7 +13,7 @@
         </button>
             </div>
         </div>
-        <p class="subtitulo">Informe de ventas generales con cobros y egresos de caja chica</p>
+        <p class="subtitulo">Reporte de ventas basado en facturas del sistema</p>
     </div>
 
     <!-- FILTROS -->
@@ -58,7 +58,7 @@
         </button>
             </div>
             <span class="filtros-resultado">
-        {{ cobrosFiltrados.length }} registro(s) encontrado(s)
+        {{ facturasFiltradas.length }} factura(s) encontrada(s)
       </span>
         </div>
     </div>
@@ -73,8 +73,8 @@
         </svg>
             </div>
             <div class="stat-content">
-                <span class="stat-label">Total Neto</span>
-                <span class="stat-value">{{ formatoMoneda(totalCobrado) }}</span>
+                <span class="stat-label">Total Vendido</span>
+                <span class="stat-value">{{ formatoMoneda(totalVendido) }}</span>
             </div>
         </div>
 
@@ -143,61 +143,56 @@
             <thead>
                 <tr>
                     <th class="col-fecha">Fecha</th>
-                    <th class="col-factura">Factura/Orden</th>
+                    <th class="col-factura">Nº Factura</th>
                     <th class="col-cliente">Cliente</th>
-                    <th class="col-tipo">Tipo</th>
-                    <th class="col-metodo">Método</th>
-                    <th class="col-monto">Monto</th>
+                    <th class="col-tipo">Tipo Venta</th>
+                    <th class="col-metodo">Método Pago</th>
+                    <th class="col-monto">Total</th>
                     <th class="col-saldo">Saldo Pend.</th>
                     <th class="col-credito">Crédito</th>
                 </tr>
             </thead>
             <tbody>
-                <tr *ngFor="let cobro of cobrosFiltrados" class="registro-row" [class.row-egreso]="cobro.esEgreso">
+                <tr *ngFor="let factura of facturasFiltradas" class="registro-row">
                     <td class="col-fecha">
-                        <span class="fecha-text">{{ formatoFecha(cobro.fecha) }}</span>
+                        <span class="fecha-text">{{ formatoFecha(factura.fecha) }}</span>
                     </td>
                     <td class="col-factura">
-                        <strong *ngIf="!cobro.esEgreso">{{ cobro.facturaIdPersonalizado || cobro.facturaId || '-' }}</strong>
-                        <strong *ngIf="cobro.esEgreso" class="egreso-label">EGRESO</strong>
+                        <strong>{{ factura.idPersonalizado || factura.id || '-' }}</strong>
                     </td>
                     <td class="col-cliente">
-                        <span>{{ cobro.clienteNombre }}</span>
+                        <span>{{ factura.clienteNombre || 'Sin nombre' }}</span>
                     </td>
                     <td class="col-tipo">
-                        <span class="badge-tipo" [class.badge-danger]="cobro.esEgreso" [class.badge-info]="!cobro.esEgreso">
-              {{ getTipoCobroLabel(cobro) }}
+                        <span class="badge-tipo badge-info">
+              {{ factura.tipoVenta || 'CONTADO' }}
             </span>
                     </td>
                     <td class="col-metodo">
-                        <span *ngIf="!cobro.esEgreso" class="badge-metodo" [class.bg-success]="cobro.metodoPago === 'Efectivo'" [class.bg-primary]="cobro.metodoPago === 'Tarjeta'" [class.bg-warning]="cobro.metodoPago === 'Transferencia'">
-              {{ cobro.metodoPago }}
-            </span>
-                        <span *ngIf="cobro.esEgreso" class="badge-metodo bg-secondary">
-              Caja Chica
+                        <span class="badge-metodo" 
+                              [class.bg-success]="factura.metodoPago === 'Efectivo'" 
+                              [class.bg-primary]="factura.metodoPago === 'Tarjeta'" 
+                              [class.bg-warning]="factura.metodoPago === 'Transferencia'">
+              {{ factura.metodoPago }}
             </span>
                     </td>
                     <td class="col-monto">
-                        <span class="monto" [class.monto-egreso]="cobro.esEgreso">
-              <span *ngIf="cobro.esEgreso">-</span>{{ formatoMoneda(cobro.monto) }}
-                        </span>
+                        <span class="monto">{{ formatoMoneda(factura.total) }}</span>
                     </td>
                     <td class="col-saldo">
-                        <span *ngIf="!cobro.esEgreso">{{ formatoMoneda(cobro.saldoPendiente || 0) }}</span>
-                        <span *ngIf="cobro.esEgreso">-</span>
+                        <span>{{ formatoMoneda(factura.saldoPendiente || 0) }}</span>
                     </td>
                     <td class="col-credito">
-                        <span *ngIf="cobro.esCredito && !cobro.esEgreso" class="badge-credito bg-success">SÍ</span>
-                        <span *ngIf="!cobro.esCredito && !cobro.esEgreso" class="badge-credito bg-secondary">NO</span>
-                        <span *ngIf="cobro.esEgreso">-</span>
+                        <span *ngIf="factura.esCredito" class="badge-credito bg-success">SÍ</span>
+                        <span *ngIf="!factura.esCredito" class="badge-credito bg-secondary">NO</span>
                     </td>
                 </tr>
 
                 <!-- Sin resultados -->
-                <tr *ngIf="cobrosFiltrados.length === 0">
+                <tr *ngIf="facturasFiltradas.length === 0">
                     <td colspan="8" class="sin-datos">
                         <div class="mensaje-vacio">
-                            <p>📭 No se encontraron registros con los filtros aplicados</p>
+                            <p>📭 No se encontraron facturas con los filtros aplicados</p>
                             <button class="btn-limpiar" (click)="limpiarFiltros()" type="button">
                 Limpiar Filtros
               </button>
