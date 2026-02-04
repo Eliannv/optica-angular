@@ -3,11 +3,13 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { FacturasService } from '../../../../core/services/facturas';
+import { FacturasDeudaService } from '../../../../core/services/facturas-deuda.service';
 import { ProductosService } from '../../../../core/services/productos';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { RolUsuario } from '../../../../core/models/usuario.model';
+import { combineLatest } from 'rxjs';
 import Swal from 'sweetalert2';
 
 /**
@@ -200,6 +202,7 @@ export class ListarFacturasComponent {
    */
   constructor(
     private facturasSrv: FacturasService,
+    private facturasDeudaSrv: FacturasDeudaService,
     private router: Router,
     private productosSrv: ProductosService,
     private cajaChicaSrv: CajaChicaService,
@@ -209,12 +212,46 @@ export class ListarFacturasComponent {
     // Verificar si hay caja chica abierta
     this.verificarCajaAbierta();
 
-    this.facturasSrv.getFacturas().subscribe((data: any[]) => {
-      this.facturas = (data || []).map(f => ({
+    // Combinar facturas normales y facturas de deuda
+    combineLatest([
+      this.facturasSrv.getFacturas(),
+      this.facturasDeudaSrv.getTodosPagos()
+    ]).subscribe(([facturasNormales, facturasDeuda]) => {
+      // Procesar facturas normales
+      const facturas = (facturasNormales || []).map(f => ({
         ...f,
         total: Number(f?.total || 0),
         saldoPendiente: Number(f?.saldoPendiente || 0),
+        tipoFactura: f.tipoFactura || 'NORMAL' // Asegurar que tenga tipo
       }));
+
+      // Procesar facturas de deuda y convertirlas al formato de factura
+      const facturasDeudaConvertidas = (facturasDeuda || []).map((deuda: any) => ({
+        id: deuda.facturaIdPersonalizado || deuda.id,
+        idPersonalizado: deuda.facturaIdPersonalizado || deuda.id,
+        clienteNombre: deuda.clienteNombre || '',
+        clienteTelefono: deuda.clienteTelefono || '',
+        clienteId: deuda.clienteId || '',
+        fecha: deuda.fechaPago || new Date(),
+        total: Number(deuda.totalFactura || 0),
+        abonado: Number(deuda.abonadoNuevo || 0),
+        saldoPendiente: Number(deuda.saldoNuevo || 0),
+        metodoPago: deuda.metodoPago || '',
+        items: deuda.items || [],
+        esCredito: deuda.esCreditoPersonal || false,
+        estadoPago: (Number(deuda.saldoNuevo || 0) <= 0) ? 'PAGADA' : 'PENDIENTE',
+        tipoFactura: 'COBRO_DEUDA', // Marcar como cobro de deuda
+        // Campos adicionales
+        usuarioId: deuda.usuarioId || '',
+        usuarioNombre: deuda.usuarioNombre || '',
+        createdAt: deuda.createdAt || new Date(),
+        updatedAt: deuda.updatedAt || new Date(),
+        origenCaja: deuda.origenCaja || '',
+        cajaChicaId: deuda.cajaChicaId || ''
+      }));
+
+      // Combinar ambos arrays
+      this.facturas = [...facturas, ...facturasDeudaConvertidas];
 
       // Ordenar por más recientes al inicio
       this.facturas.sort((a, b) => this.getFechaMs(b) - this.getFechaMs(a));

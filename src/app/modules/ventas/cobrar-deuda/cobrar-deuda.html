@@ -197,11 +197,38 @@
 
                         <div class="metodo-pago">
                             <label>Método de Pago</label>
-                            <select class="select-pago" [(ngModel)]="metodoPago">
+                            <select class="select-pago" [(ngModel)]="metodoPago" (ngModelChange)="onMetodoPagoChange()">
                 <option value="Efectivo">💵 Efectivo</option>
                 <option value="Transferencia">🏦 Transferencia</option>
                 <option value="Tarjeta">💳 Tarjeta</option>
               </select>
+                        </div>
+
+                        <!-- ✅ REGISTRAR EN CAJA CHICA (solo si es efectivo) -->
+                        <div class="metodo-pago" *ngIf="metodoPago === 'Efectivo'" style="background-color: #fff9c4; border: 2px solid #fbc02d; padding: 12px; border-radius: 6px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0; padding: 8px 0;">
+                                <input type="checkbox" [(ngModel)]="registrarEnCajaChica" style="width: 16px; height: 16px; cursor: pointer; flex-shrink: 0;" />
+                                <span style="font-weight: 600; color: #f57f17; flex: 1;">💰 Registrar en Caja Chica</span>
+                            </label>
+                            
+                            <!-- Selector de caja chica (solo visible si el checkbox está marcado) -->
+                            <div *ngIf="registrarEnCajaChica" style="margin-top: 8px;">
+                                <label style="font-weight: 500; color: #f57f17; display: block; margin-bottom: 4px;">
+                                    Selecciona la caja chica:
+                                </label>
+                                <select class="search-input" [(ngModel)]="cajaChicaSeleccionada" style="width: 100%; font-size: 0.95rem;">
+                                    <option value="">-- Seleccionar caja --</option>
+                                    <option *ngFor="let caja of cajasChicasDisponibles" [value]="caja.id">
+                                        {{caja.fecha?.toDate ? (caja.fecha.toDate() | date:'dd/MM/yyyy') : (caja.fecha | date:'dd/MM/yyyy')}} - 
+                                        ${{caja.monto_actual | number:'1.2-2'}} 
+                                        <span *ngIf="caja.estado === 'ABIERTA'">(ABIERTA)</span>
+                                        <span *ngIf="caja.estado === 'CERRADA'">(CERRADA)</span>
+                                    </option>
+                                </select>
+                                <small class="muted" style="color: #f57f17; display: block; margin-top: 4px;">
+                                    Elige la caja donde se registrará el cobro (puede estar abierta o cerrada)
+                                </small>
+                            </div>
                         </div>
 
                         <!-- 🕐 FECHA Y HORA DE PAGO (SOLO PARA ADMINISTRADORES) -->

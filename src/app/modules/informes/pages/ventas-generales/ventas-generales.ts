@@ -9,6 +9,7 @@ import { collection, query, getDocs, Firestore, where, orderBy, Timestamp } from
 import { CobrosService } from '../../../../core/services/cobros.service';
 import { ClientesService } from '../../../../core/services/clientes';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
+import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { Cobro } from '../../../../core/models/cobro.model';
 
 /**
@@ -39,6 +40,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   cobros: Cobro[] = [];
   cobrosFiltrados: any[] = []; // Puede contener Cobros o Egresos
   movimientosCajaChica: any[] = []; // Movimientos de caja chica
+  movimientosCajaBanco: any[] = []; // Movimientos de caja banco (transferencias/tarjetas)
   registrosCombinados: any[] = []; // Cobros + Egresos combinados
   
   // Filtros
@@ -68,6 +70,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     private cobrosService: CobrosService,
     private clientesService: ClientesService,
     private cajaChicaService: CajaChicaService,
+    private cajaBancoService: CajaBancoService,
     private firestore: Firestore,
     private router: Router
   ) {}
@@ -136,15 +139,40 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       next: (cobros) => {
         this.cobros = cobros;
         
-        // Cargar movimientos de caja chica del período
-        const movimientosRef = collection(this.firestore, 'movimientos_cajas_chicas');
-        const q = query(
-          movimientosRef,
+        // 🏦 Cargar movimientos de CAJA BANCO del período
+        const movimientosBancoRef = collection(this.firestore, 'movimientos_cajas_banco');
+        const qBanco = query(
+          movimientosBancoRef,
           where('fecha', '>=', Timestamp.fromDate(fechaDesde)),
           where('fecha', '<=', Timestamp.fromDate(fechaHasta))
         );
         
-        getDocs(q).then(snapshot => {
+        getDocs(qBanco).then(snapshotBanco => {
+          this.movimientosCajaBanco = snapshotBanco.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          
+          // Ordenar movimientos por fecha DESC
+          this.movimientosCajaBanco.sort((a, b) => {
+            const fechaA = a.fecha?.toDate?.() || new Date(a.fecha);
+            const fechaB = b.fecha?.toDate?.() || new Date(b.fecha);
+            return fechaB.getTime() - fechaA.getTime();
+          });
+          
+          console.log('🏦 Movimientos caja banco cargados:', this.movimientosCajaBanco.length);
+          console.log('📊 Ejemplo movimientos banco:', this.movimientosCajaBanco.slice(0, 3));
+          
+          // Ahora cargar movimientos de caja chica
+          const movimientosRef = collection(this.firestore, 'movimientos_cajas_chicas');
+          const q = query(
+            movimientosRef,
+            where('fecha', '>=', Timestamp.fromDate(fechaDesde)),
+            where('fecha', '<=', Timestamp.fromDate(fechaHasta))
+          );
+          
+          return getDocs(q);
+        }).then(snapshot => {
           this.movimientosCajaChica = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
@@ -168,6 +196,9 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
           if (egresos.length > 0) {
             console.log('📋 Ejemplo egresos:', egresos.slice(0, 3));
           }
+          
+          // 🎯 Después de cargar todos los datos, aplicar filtros en memoria
+          this.filtrarDatosEnMemoria();
         }).catch(error => {
           console.error('❌ Error cargando movimientos de caja chica:', error);
           // Continuar sin movimientos de caja chica
@@ -190,6 +221,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   /**
    * Aplica los filtros seleccionados a la lista de cobros y movimientos de caja chica.
    * Se ejecuta al presionar el botón "Mostrar".
+   * RECARGA los datos desde Firestore con el nuevo rango de fechas.
    */
   aplicarFiltros(): void {
     if (!this.fechaDesde || !this.fechaHasta) {
@@ -201,10 +233,24 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       return;
     }
 
-    console.log('🔍 Aplicando filtros...');
+    // 🔄 RECARGAR datos con el nuevo rango de fechas
+    console.log('🔄 Recargando datos con nuevo rango de fechas...');
+    this.cargarCobros();
+    
+    // Esperar a que se carguen los datos antes de filtrar
+    // El filtrado se hará automáticamente después de cargar en filtrarDatosEnMemoria()
+  }
+
+  /**
+   * Filtra los datos ya cargados en memoria según los tipos seleccionados.
+   * Este método se llama después de cargar los datos desde Firestore.
+   */
+  private filtrarDatosEnMemoria(): void {
+    console.log('🔍 Aplicando filtros en memoria...');
     console.log('📅 Fecha DESDE:', this.fechaDesde);
     console.log('📅 Fecha HASTA:', this.fechaHasta);
     console.log('📊 Total cobros disponibles:', this.cobros.length);
+    console.log('📊 Total movimientos caja banco:', this.movimientosCajaBanco.length);
     console.log('📊 Total movimientos caja chica:', this.movimientosCajaChica.length);
 
     const [añoDesde, mesDesde, diaDesde] = this.fechaDesde.split('-').map(Number);
@@ -213,84 +259,45 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     console.log('🕐 Filtro DESDE:', diaDesde, '/', mesDesde, '/', añoDesde);
     console.log('🕐 Filtro HASTA:', diaHasta, '/', mesHasta, '/', añoHasta);
 
-    // ========== FILTRAR COBROS ==========
+    // ========== COBROS (ya filtrados por Firestore) ==========
     let resultadoCobros = [...this.cobros];
+    console.log('✅ Cobros disponibles:', resultadoCobros.length);
 
-    resultadoCobros = resultadoCobros.filter(c => {
-      // Convertir Timestamp de Firestore a Date
-      let fechaCobro: Date;
-      if (c.fecha && (c.fecha as any).toDate) {
-        fechaCobro = (c.fecha as any).toDate();
-      } else if (c.fecha instanceof Date) {
-        fechaCobro = c.fecha;
-      } else {
-        fechaCobro = new Date(c.fecha);
-      }
-      
-      const añoCobro = fechaCobro.getFullYear();
-      const mesCobro = fechaCobro.getMonth() + 1;
-      const diaCobro = fechaCobro.getDate();
-      
-      const fechaCobroNum = añoCobro * 10000 + mesCobro * 100 + diaCobro;
-      const fechaDesdeNum = añoDesde * 10000 + mesDesde * 100 + diaDesde;
-      const fechaHastaNum = añoHasta * 10000 + mesHasta * 100 + diaHasta;
-      
-      return fechaCobroNum >= fechaDesdeNum && fechaCobroNum <= fechaHastaNum;
-    });
+    // ========== TRANSFERENCIAS Y TARJETAS DE CAJA BANCO (ya filtradas por Firestore) ==========
+    let transferenciasYTarjetas = this.movimientosCajaBanco
+      .filter(m => m.categoria === 'TRANSFERENCIA_CLIENTE' || m.categoria === 'PAGO_TARJETA')
+      .map(m => ({
+        ...m,
+        clienteNombre: m.descripcion || 'Cliente',
+        metodoPago: m.categoria === 'TRANSFERENCIA_CLIENTE' ? 'Transferencia' : 'Tarjeta',
+        fecha: m.fecha,
+        monto: m.monto,
+        esMovimientoBanco: true
+      }));
 
-    console.log('✅ Cobros después de filtro de fecha:', resultadoCobros.length);
+    console.log('🏦 Movimientos banco disponibles:', this.movimientosCajaBanco.length);
+    console.log('💳 Transferencias y tarjetas:', transferenciasYTarjetas.length);
 
-    // ========== FILTRAR EGRESOS DE CAJA CHICA ==========
+    // ========== EGRESOS DE CAJA CHICA (ya filtrados por Firestore) ==========
     let egresos: any[] = [];
     
-    // Si EGRESO está seleccionado o no hay tipos seleccionados (mostrar todos)
     const mostrarEgresos = this.tiposSeleccionados.length === 0 || this.tiposSeleccionados.includes('EGRESO');
     
     console.log('🔍 Mostrar egresos?', mostrarEgresos);
     console.log('🔍 Movimientos caja chica disponibles:', this.movimientosCajaChica.length);
     
     if (mostrarEgresos) {
-      // Primero filtrar por tipo EGRESO
-      const egresosDisponibles = this.movimientosCajaChica.filter(m => m.tipo === 'EGRESO');
-      console.log('💰 Egresos totales disponibles:', egresosDisponibles.length);
-      
-      egresos = egresosDisponibles
-        .filter(m => {
-          // Convertir Timestamp de Firestore a Date
-          let fechaMovimiento: Date;
-          if (m.fecha && (m.fecha as any).toDate) {
-            fechaMovimiento = (m.fecha as any).toDate();
-          } else if (m.fecha instanceof Date) {
-            fechaMovimiento = m.fecha;
-          } else {
-            fechaMovimiento = new Date(m.fecha);
-          }
-          
-          const añoMov = fechaMovimiento.getFullYear();
-          const mesMov = fechaMovimiento.getMonth() + 1;
-          const diaMov = fechaMovimiento.getDate();
-          
-          const fechaMovNum = añoMov * 10000 + mesMov * 100 + diaMov;
-          const fechaDesdeNum = añoDesde * 10000 + mesDesde * 100 + diaDesde;
-          const fechaHastaNum = añoHasta * 10000 + mesHasta * 100 + diaHasta;
-          
-          const cumpleFiltro = fechaMovNum >= fechaDesdeNum && fechaMovNum <= fechaHastaNum;
-          
-          if (cumpleFiltro) {
-            console.log('✅ Egreso aceptado:', diaMov + '/' + mesMov + '/' + añoMov, 'Descripción:', m.descripcion, 'Monto:', m.monto);
-          }
-          
-          return cumpleFiltro;
-        })
+      egresos = this.movimientosCajaChica
+        .filter(m => m.tipo === 'EGRESO')
         .map(m => ({
           ...m,
-          esEgreso: true, // Marca para identificar egresos en la tabla
-          clienteNombre: m.descripcion || 'Egreso', // Usar descripción como nombre
+          esEgreso: true,
+          clienteNombre: m.descripcion || 'Egreso',
           monto: m.monto,
           fecha: m.fecha
         }));
       
-      console.log('✅ Egresos después de filtro de fecha:', egresos.length);
+      console.log('💰 Total egresos:', egresos.length);
     }
 
     // ========== FILTRAR POR TIPO (SOLO COBROS) ==========
@@ -299,21 +306,34 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       const tiposCobros = this.tiposSeleccionados.filter(t => t !== 'EGRESO');
       
       if (tiposCobros.length > 0) {
-        // Hay tipos de cobros seleccionados, filtrar
+        // Filtrar cobros normales
         resultadoCobros = resultadoCobros.filter(c => tiposCobros.includes(this.clasificarTipoCobro(c)));
         console.log('✅ Tipos seleccionados para cobros:', tiposCobros);
         console.log('✅ Cobros después de filtro de tipo:', resultadoCobros.length);
+        
+        // Filtrar transferencias y tarjetas de caja banco
+        const incluirTransferencias = tiposCobros.includes('TRANSFERENCIAS');
+        const incluirTarjetas = tiposCobros.includes('TARJETA');
+        
+        transferenciasYTarjetas = transferenciasYTarjetas.filter(m => {
+          if (m.metodoPago === 'Transferencia') return incluirTransferencias;
+          if (m.metodoPago === 'Tarjeta') return incluirTarjetas;
+          return false;
+        });
+        
+        console.log('💳 Transferencias/tarjetas después de filtro de tipo:', transferenciasYTarjetas.length);
       } else {
-        // Solo se seleccionó EGRESO, no mostrar cobros
+        // Solo se seleccionó EGRESO, no mostrar cobros ni transferencias/tarjetas
         resultadoCobros = [];
-        console.log('✅ Solo EGRESO seleccionado, ocultando todos los cobros');
+        transferenciasYTarjetas = [];
+        console.log('✅ Solo EGRESO seleccionado, ocultando todos los cobros y transferencias');
       }
     } else {
       console.log('ℹ️ No hay tipos seleccionados, mostrando todos');
     }
 
-    // ========== COMBINAR COBROS Y EGRESOS ==========
-    this.cobrosFiltrados = [...resultadoCobros, ...egresos];
+    // ========== COMBINAR COBROS, TRANSFERENCIAS/TARJETAS Y EGRESOS ==========
+    this.cobrosFiltrados = [...resultadoCobros, ...transferenciasYTarjetas, ...egresos];
     
     // Ordenar por fecha (más reciente primero)
     this.cobrosFiltrados.sort((a, b) => {
