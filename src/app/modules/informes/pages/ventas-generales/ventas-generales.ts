@@ -10,7 +10,9 @@ import { CobrosService } from '../../../../core/services/cobros.service';
 import { ClientesService } from '../../../../core/services/clientes';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
+import { FacturasDeudaService } from '../../../../core/services/facturas-deuda.service';
 import { Cobro } from '../../../../core/models/cobro.model';
+import { FacturaDeuda } from '../../../../core/models/factura-deuda.model';
 
 /**
  * Componente de Reporte de Ventas Generales.
@@ -38,7 +40,8 @@ import { Cobro } from '../../../../core/models/cobro.model';
 export class VentasGeneralesComponent implements OnInit, OnDestroy {
   loading = true;
   cobros: Cobro[] = [];
-  cobrosFiltrados: any[] = []; // Puede contener Cobros o Egresos
+  pagosDeuda: FacturaDeuda[] = []; // 🆕 Pagos de deuda desde facturas_deudas
+  cobrosFiltrados: any[] = []; // Puede contener Cobros, Pagos de Deuda o Egresos
   movimientosCajaChica: any[] = []; // Movimientos de caja chica
   movimientosCajaBanco: any[] = []; // Movimientos de caja banco (transferencias/tarjetas)
   registrosCombinados: any[] = []; // Cobros + Egresos combinados
@@ -53,6 +56,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     { valor: 'ORDEN_TRABAJO', label: 'Orden de Trabajo' },
     { valor: 'ORDEN_SIN_HISTORIA', label: 'Orden Sin Historia' },
     { valor: 'PAGOS', label: 'Pagos (Efectivo)' },
+    { valor: 'PAGOS_DEUDA', label: 'Pagos de Deuda' }, // 🆕 Nuevo tipo
     { valor: 'TARJETA', label: 'Tarjeta de Crédito/Débito' },
     { valor: 'TRANSFERENCIAS', label: 'Transferencias' },
     { valor: 'EGRESO', label: 'Egreso' }
@@ -71,6 +75,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     private clientesService: ClientesService,
     private cajaChicaService: CajaChicaService,
     private cajaBancoService: CajaBancoService,
+    private facturasDeudaService: FacturasDeudaService, // 🆕 Inyectar servicio
     private firestore: Firestore,
     private router: Router
   ) {}
@@ -185,7 +190,6 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
             return fechaB.getTime() - fechaA.getTime();
           });
           
-          this.loading = false;
           console.log('✅ Cobros cargados:', this.cobros.length);
           console.log('✅ Movimientos caja chica cargados:', this.movimientosCajaChica.length);
           console.log('📊 Ejemplo movimientos:', this.movimientosCajaChica.slice(0, 3));
@@ -197,8 +201,33 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
             console.log('📋 Ejemplo egresos:', egresos.slice(0, 3));
           }
           
-          // 🎯 Después de cargar todos los datos, aplicar filtros en memoria
-          this.filtrarDatosEnMemoria();
+          // 🆕 CARGAR PAGOS DE DEUDA del período
+          this.facturasDeudaService.getTodosPagos().subscribe({
+            next: (pagosTodos) => {
+              // Filtrar por rango de fechas (fechaPago entre fechaDesde y fechaHasta)
+              this.pagosDeuda = pagosTodos.filter(p => {
+                const fechaPago = p.fechaPago instanceof Date ? p.fechaPago : new Date(p.fechaPago);
+                return fechaPago >= fechaDesde && fechaPago <= fechaHasta;
+              });
+              
+              console.log('💳 Pagos de deuda cargados:', this.pagosDeuda.length);
+              if (this.pagosDeuda.length > 0) {
+                console.log('📋 Ejemplo pagos deuda:', this.pagosDeuda.slice(0, 3));
+              }
+              
+              this.loading = false;
+              
+              // 🎯 Después de cargar todos los datos, aplicar filtros en memoria
+              this.filtrarDatosEnMemoria();
+            },
+            error: (error) => {
+              console.error('❌ Error cargando pagos de deuda:', error);
+              // Continuar sin pagos de deuda
+              this.pagosDeuda = [];
+              this.loading = false;
+              this.filtrarDatosEnMemoria();
+            }
+          });
         }).catch(error => {
           console.error('❌ Error cargando movimientos de caja chica:', error);
           // Continuar sin movimientos de caja chica
@@ -250,6 +279,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     console.log('📅 Fecha DESDE:', this.fechaDesde);
     console.log('📅 Fecha HASTA:', this.fechaHasta);
     console.log('📊 Total cobros disponibles:', this.cobros.length);
+    console.log('📊 Total pagos de deuda:', this.pagosDeuda.length);
     console.log('📊 Total movimientos caja banco:', this.movimientosCajaBanco.length);
     console.log('📊 Total movimientos caja chica:', this.movimientosCajaChica.length);
 
@@ -300,10 +330,32 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       console.log('💰 Total egresos:', egresos.length);
     }
 
+    // ========== 🆕 PAGOS DE DEUDA (ya filtrados por fecha) ==========
+    let pagosDeudaFiltrados: any[] = [];
+    
+    const mostrarPagosDeuda = this.tiposSeleccionados.length === 0 || this.tiposSeleccionados.includes('PAGOS_DEUDA');
+    
+    console.log('🔍 Mostrar pagos de deuda?', mostrarPagosDeuda);
+    
+    if (mostrarPagosDeuda) {
+      pagosDeudaFiltrados = this.pagosDeuda.map(p => ({
+        ...p,
+        esPagoDeuda: true, // Marcador para identificar en la tabla
+        clienteNombre: p.clienteNombre,
+        monto: p.montoPagado,
+        fecha: p.fechaPago,
+        metodoPago: p.metodoPago,
+        facturaRef: p.facturaIdPersonalizado || p.facturaId, // Para mostrar referencia
+        observacion: `Pago de deuda - Factura #${p.facturaIdPersonalizado || p.facturaId.substring(0, 8)}`
+      }));
+      
+      console.log('💳 Total pagos de deuda filtrados:', pagosDeudaFiltrados.length);
+    }
+
     // ========== FILTRAR POR TIPO (SOLO COBROS) ==========
     if (this.tiposSeleccionados.length > 0) {
-      // Si EGRESO está seleccionado, excluirlo del filtro de cobros
-      const tiposCobros = this.tiposSeleccionados.filter(t => t !== 'EGRESO');
+      // Si EGRESO o PAGOS_DEUDA están seleccionados, excluirlos del filtro de cobros
+      const tiposCobros = this.tiposSeleccionados.filter(t => t !== 'EGRESO' && t !== 'PAGOS_DEUDA');
       
       if (tiposCobros.length > 0) {
         // Filtrar cobros normales
@@ -323,17 +375,17 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
         
         console.log('💳 Transferencias/tarjetas después de filtro de tipo:', transferenciasYTarjetas.length);
       } else {
-        // Solo se seleccionó EGRESO, no mostrar cobros ni transferencias/tarjetas
+        // Solo se seleccionaron EGRESO o PAGOS_DEUDA, no mostrar cobros ni transferencias/tarjetas
         resultadoCobros = [];
         transferenciasYTarjetas = [];
-        console.log('✅ Solo EGRESO seleccionado, ocultando todos los cobros y transferencias');
+        console.log('✅ Solo EGRESO o PAGOS_DEUDA seleccionados, ocultando todos los cobros y transferencias');
       }
     } else {
       console.log('ℹ️ No hay tipos seleccionados, mostrando todos');
     }
 
-    // ========== COMBINAR COBROS, TRANSFERENCIAS/TARJETAS Y EGRESOS ==========
-    this.cobrosFiltrados = [...resultadoCobros, ...transferenciasYTarjetas, ...egresos];
+    // ========== COMBINAR COBROS, TRANSFERENCIAS/TARJETAS, PAGOS DE DEUDA Y EGRESOS ==========
+    this.cobrosFiltrados = [...resultadoCobros, ...transferenciasYTarjetas, ...pagosDeudaFiltrados, ...egresos];
     
     // Ordenar por fecha (más reciente primero)
     this.cobrosFiltrados.sort((a, b) => {
@@ -402,6 +454,11 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       return 'Egreso';
     }
     
+    // 🆕 Si es un pago de deuda
+    if (cobro.esPagoDeuda) {
+      return 'Pago de Deuda';
+    }
+    
     // Si es un cobro normal, clasificar por tipo
     const tipo = this.clasificarTipoCobro(cobro);
     const labels: { [key: string]: string } = {
@@ -410,7 +467,8 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       'PAGOS': 'Pago Efectivo',
       'TARJETA': 'Tarjeta Crédito/Débito',
       'TRANSFERENCIAS': 'Transferencia',
-      'EGRESO': 'Egreso'
+      'EGRESO': 'Egreso',
+      'PAGOS_DEUDA': 'Pago de Deuda' // 🆕
     };
     return labels[tipo] || tipo;
   }
@@ -420,14 +478,14 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
    * Los egresos se suman normalmente (pero se mostrarán como negativos en la UI).
    */
   calcularTotales(): void {
-    // Total combinado (cobros - egresos)
+    // Total combinado (cobros + pagos de deuda - egresos)
     this.totalCobrado = this.cobrosFiltrados.reduce((sum, c) => {
       return c.esEgreso ? sum - c.monto : sum + c.monto;
     }, 0);
     
     this.cantidadRegistros = this.cobrosFiltrados.length;
 
-    // Agrupar por método de pago (solo cobros)
+    // Agrupar por método de pago (solo cobros y pagos de deuda)
     const soloCobros = this.cobrosFiltrados.filter(c => !c.esEgreso);
     this.totalesPorMetodo = this.cobrosService.agruparPorMetodoPago(soloCobros);
     
@@ -443,7 +501,14 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     // Agrupar por tipo de documento
     this.totalesPorTipo = {};
     this.cobrosFiltrados.forEach(c => {
-      const tipo = c.esEgreso ? 'EGRESO' : this.clasificarTipoCobro(c);
+      let tipo: string;
+      if (c.esEgreso) {
+        tipo = 'EGRESO';
+      } else if (c.esPagoDeuda) {
+        tipo = 'PAGOS_DEUDA'; // 🆕 Tipo para pagos de deuda
+      } else {
+        tipo = this.clasificarTipoCobro(c);
+      }
       this.totalesPorTipo[tipo] = (this.totalesPorTipo[tipo] || 0) + c.monto;
     });
   }

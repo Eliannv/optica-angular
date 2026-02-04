@@ -258,6 +258,18 @@ export class FacturasService {
   }
 
   /**
+   * Marca una factura como PAGADA sin modificar ningún otro campo.
+   * NO modifica: total, abonado, saldoPendiente, fecha, items, cliente, impuestos, etc.
+   * Solo actualiza el campo estadoPago para indicar que está saldada.
+   */
+  async marcarFacturaComoPagada(facturaId: string) {
+    const ref = doc(this.fs, `facturas/${facturaId}`);
+    await updateDoc(ref, {
+      estadoPago: 'PAGADA'
+    } as any);
+  }
+
+  /**
    * Actualiza una factura completa.
    * Permite editar productos, montos, método de pago, etc.
    * NO modifica el historialSnapshot (registro clínico inmutable).
