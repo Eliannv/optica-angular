@@ -43,9 +43,9 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
 
   // 🕐 FECHA Y HORA DE PAGO
   horaPago = ''; // Hora del pago (HH:mm)
-  fechaPago = ''; // Fecha del pago (YYYY-MM-DD) - solo para transferencia/tarjeta
-  fechaMinima = ''; // Fecha mínima permitida (inicio del periodo de caja banco)
-  fechaMaxima = ''; // Fecha máxima permitida (fin del periodo de caja banco o hoy)
+  fechaPago = ''; // Fecha del pago (YYYY-MM-DD) - para todos los métodos
+  fechaMinima = ''; // Fecha mínima permitida (inicio del periodo de caja)
+  fechaMaxima = ''; // Fecha máxima permitida (fin del periodo de caja o hoy)
   periodoNombre = ''; // Nombre del periodo para mostrar (ej: "Diciembre 2025")
 
   // ✅ CONTROL DE CRÉDITO PERSONAL
@@ -286,11 +286,17 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
   /**
    * Maneja el cambio de método de pago
    * Si no es efectivo, resetea el checkbox de caja chica
+   * Ajusta restricciones de fecha según el método seleccionado
    */
-  onMetodoPagoChange() {
+  async onMetodoPagoChange() {
     if (this.metodoPago !== 'Efectivo') {
       this.registrarEnCajaChica = false;
       this.cajaChicaSeleccionada = '';
+      // Para transferencia/tarjeta: cargar restricciones de caja banco
+      await this.cargarRestriccionesFechaCajaBanco();
+    } else {
+      // Para efectivo: cargar restricciones de caja chica
+      await this.cargarRestriccionesFechaCajaAbierta();
     }
   }
 
@@ -401,29 +407,15 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
           return;
         }
         
-        // ✅ Usar FECHA DE CAJA CHICA como fecha contable oficial
+        // ✅ Para transferencia/tarjeta: usar fecha seleccionada por el usuario
         try {
-          console.log('📅 Caja chica abierta obtenida (no efectivo):', cajaChicaAbierta);
-
-          if (cajaChicaAbierta?.fecha) {
-            let fechaCaja: Date;
-            if ((cajaChicaAbierta.fecha as any).toDate) {
-              fechaCaja = (cajaChicaAbierta.fecha as any).toDate();
-            } else if (cajaChicaAbierta.fecha instanceof Date) {
-              fechaCaja = cajaChicaAbierta.fecha;
-            } else {
-              fechaCaja = new Date(cajaChicaAbierta.fecha);
-            }
-
-            console.log('📅 Fecha de caja chica convertida (no efectivo):', fechaCaja);
-            fechaFinal = this.combinarFechaHora(fechaCaja, this.horaPago);
-            console.log('✅ Fecha final TRANSFERENCIA/TARJETA (caja chica):', fechaFinal);
-          } else {
-            console.warn('⚠️ No hay fecha en caja chica, usando fecha actual');
-            fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
-          }
+          console.log('📅 Fecha seleccionada por usuario (no efectivo):', this.fechaPago);
+          console.log('🕐 Hora de pago seleccionada:', this.horaPago);
+          
+          fechaFinal = this.combinarFechaHora(this.fechaPago, this.horaPago);
+          console.log('✅ Fecha final TRANSFERENCIA/TARJETA:', fechaFinal);
         } catch (err) {
-          console.error('❌ Error obteniendo fecha de caja chica (no efectivo):', err);
+          console.error('❌ Error combinando fecha y hora (no efectivo):', err);
           fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
         }
       }
@@ -470,6 +462,11 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
 
       // Guardar en la nueva colección (factura original no se modifica)
       await this.facturasDeudaService.crearPagoDeuda(deuda);
+
+      // ✅ Si la deuda quedó saldada, marcar SOLO el estado de la factura original como PAGADA
+      if (estadoPago === 'PAGADA') {
+        await this.facturasSrv.marcarFacturaComoPagada(f.id);
+      }
 
       // ✅ enriquecer ítems con código real si falta
       const items = Array.isArray(f.items) ? [...f.items] : [];
@@ -705,8 +702,59 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
   }
   
   /**
+   * Carga las restricciones de fecha min/max basadas en la caja chica abierta.
+   * Limita la selección de fecha al día de la caja chica activa.
+   */
+  async cargarRestriccionesFechaCajaAbierta(): Promise<void> {
+    try {
+      const cajaChica = await this.cajaChicaService.getCajaAbierta();
+      
+      if (!cajaChica?.fecha) {
+        console.warn('⚠️ No hay caja chica abierta, usando fecha actual');
+        const hoy = new Date();
+        this.fechaMinima = this.formatearFecha(hoy);
+        this.fechaMaxima = this.formatearFecha(hoy);
+        this.fechaPago = this.formatearFecha(hoy);
+        return;
+      }
+
+      // Convertir fecha de Firestore a Date
+      let fechaCaja: Date;
+      if ((cajaChica.fecha as any)?.toDate) {
+        fechaCaja = (cajaChica.fecha as any).toDate();
+      } else if (cajaChica.fecha instanceof Date) {
+        fechaCaja = cajaChica.fecha;
+      } else {
+        fechaCaja = new Date(cajaChica.fecha);
+      }
+
+      // Para efectivo: usar fecha de caja chica (puede ser mes actual o anterior)
+      this.fechaMinima = this.formatearFecha(fechaCaja);
+      this.fechaMaxima = this.formatearFecha(fechaCaja);
+      this.fechaPago = this.formatearFecha(fechaCaja);
+      
+      // Nombre del periodo para mostrar
+      const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+      const mes = fechaCaja.getMonth();
+      const año = fechaCaja.getFullYear();
+      this.periodoNombre = `${fechaCaja.getDate()} de ${meses[mes]} ${año}`;
+
+      console.log(`📅 Fecha de pago establecida: ${this.fechaPago} (Caja chica: ${this.periodoNombre})`);
+    } catch (error) {
+      console.error('❌ Error cargando restricciones de fecha:', error);
+      // Fallback a fecha actual
+      const hoy = new Date();
+      this.fechaMinima = this.formatearFecha(hoy);
+      this.fechaMaxima = this.formatearFecha(hoy);
+      this.fechaPago = this.formatearFecha(hoy);
+    }
+  }
+
+  /**
    * Carga las restricciones de fecha min/max basadas en el periodo de la caja banco abierta.
    * Limita la selección de fecha al mes de la caja banco activa.
+   * Se usa cuando el usuario cambia a Transferencia o Tarjeta.
    */
   async cargarRestriccionesFechaCajaBanco(): Promise<void> {
     try {
