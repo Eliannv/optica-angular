@@ -51,11 +51,6 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
   // ✅ CONTROL DE CRÉDITO PERSONAL
   esCreditoPersonal = false; // Checkbox para marcar si es crédito personal
 
-  // ✅ CONTROL DE REGISTRO EN CAJA CHICA
-  registrarEnCajaChica = false; // Checkbox para marcar si se registra en caja chica (solo efectivo)
-  cajasChicasDisponibles: any[] = []; // Lista de cajas chicas disponibles
-  cajaChicaSeleccionada: string = ''; // ID de la caja chica seleccionada
-
   pagando = false;
   sub?: Subscription;
 
@@ -138,9 +133,7 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
   async ngOnInit() {
     // � Inicializar fecha y hora por defecto
     this.inicializarFechaHora();
-    
-    // 📦 Cargar cajas chicas disponibles
-    this.cargarCajasChicas();
+
 
     this.clienteId = this.route.snapshot.queryParamMap.get('clienteId') || '';
     if (!this.clienteId) {
@@ -218,8 +211,6 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
           this.codigoTransferencia = '';
           this.ultimosCuatroTarjeta = '';
           this.esCreditoPersonal = f?.esCredito || false;
-          this.registrarEnCajaChica = false; // Resetear checkbox de caja chica
-          this.cajaChicaSeleccionada = ''; // Resetear caja seleccionada
           this.recalcularSaldoNuevo();
         }
       }
@@ -268,8 +259,6 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     this.ultimosCuatroTarjeta = '';
     // ✅ Cargar estado de crédito personal si aplica
     this.esCreditoPersonal = f?.esCredito || false;
-    this.registrarEnCajaChica = false; // Resetear checkbox de caja chica
-    this.cajaChicaSeleccionada = ''; // Resetear caja seleccionada
     this.recalcularSaldoNuevo();
     // Solo recalcular índice si se hizo click (no desde keyboard)
     if (!desdeKeyboard) {
@@ -285,29 +274,16 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
 
   /**
    * Maneja el cambio de método de pago
-   * Si no es efectivo, resetea el checkbox de caja chica
    * Ajusta restricciones de fecha según el método seleccionado
    */
   async onMetodoPagoChange() {
     if (this.metodoPago !== 'Efectivo') {
-      this.registrarEnCajaChica = false;
-      this.cajaChicaSeleccionada = '';
       // Para transferencia/tarjeta: cargar restricciones de caja banco
       await this.cargarRestriccionesFechaCajaBanco();
     } else {
       // Para efectivo: cargar restricciones de caja chica
       await this.cargarRestriccionesFechaCajaAbierta();
     }
-  }
-
-  /**
-   * Carga todas las cajas chicas disponibles (abiertas y cerradas)
-   */
-  private cargarCajasChicas() {
-    this.cajaChicaService.getCajasChicas().subscribe(cajas => {
-      this.cajasChicasDisponibles = cajas || [];
-      console.log('📦 Cajas chicas disponibles:', this.cajasChicasDisponibles.length);
-    });
   }
 
   private recalcularSaldoNuevo() {
@@ -561,12 +537,12 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
       this.abono = 0;
       this.saldoNuevo = 0;
 
-      // 💰 Registrar en Caja Chica si el usuario eligió una caja (solo efectivo)
-      if (this.metodoPago === 'Efectivo' && this.registrarEnCajaChica && this.cajaChicaSeleccionada && abonoReal > 0) {
+      // 💰 Registrar en Caja Chica ABIERTA automáticamente (solo efectivo)
+      if (this.metodoPago === 'Efectivo' && cajaChicaAbierta?.id && abonoReal > 0) {
         try {
           const usuario = this.authService.getCurrentUser();
           const movimiento = {
-            caja_chica_id: this.cajaChicaSeleccionada,
+            caja_chica_id: cajaChicaAbierta.id,
             fecha: fechaFinal,  // Mantener como Date para el servicio de caja chica
             tipo: 'INGRESO' as const,
             descripcion: `Pago de deuda - ${this.clienteNombre} - Factura #${f.id}`,
@@ -577,8 +553,8 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
             (movimiento as any).usuario_id = usuario.id;
             (movimiento as any).usuario_nombre = usuario.nombre || 'Usuario';
           }
-          await this.cajaChicaService.registrarMovimiento(this.cajaChicaSeleccionada, movimiento);
-          console.log('✅ Pago de deuda registrado en Caja Chica:', this.cajaChicaSeleccionada, abonoReal);
+          await this.cajaChicaService.registrarMovimiento(cajaChicaAbierta.id, movimiento);
+          console.log('✅ Pago de deuda registrado en Caja Chica:', cajaChicaAbierta.id, abonoReal);
         } catch (err) {
           console.warn('No se pudo registrar el pago en Caja Chica:', err);
           // Mostrar advertencia pero no fallar la operación

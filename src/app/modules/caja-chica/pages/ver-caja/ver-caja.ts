@@ -227,6 +227,17 @@ export class VerCajaComponent implements OnInit {
    * @returns Promise<void>
    */
   async eliminarMovimiento(movimientoId: string): Promise<void> {
+    // ✅ Validar que la caja esté abierta
+    if (this.caja?.estado === 'CERRADA') {
+      Swal.fire({
+        icon: 'error',
+        title: 'Caja Cerrada',
+        text: 'No se pueden eliminar movimientos de una caja cerrada.',
+        confirmButtonText: 'Entendido'
+      });
+      return;
+    }
+
     // Buscar el movimiento para obtener el comprobante (facturaId)
     const movimiento = this.movimientos.find(m => m.id === movimientoId);
     
