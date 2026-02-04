@@ -26,16 +26,23 @@ import {
   updateDoc,
   orderBy,
   setDoc,
-  deleteDoc
+  deleteDoc,
+  limit,
+  startAfter,
+  QueryDocumentSnapshot
 } from '@angular/fire/firestore';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Observable, BehaviorSubject, shareReplay, map, tap } from 'rxjs';
 import { Factura } from '../models/factura.model';
+import { PaginationResult } from '../models/pagination.model';
 
 @Injectable({ providedIn: 'root' })
 export class FacturasService {
   private fs = inject(Firestore);
   private facturasRef = collection(this.fs, 'facturas');
+
+  // 🎯 CACHÉ con shareReplay
+  private facturasCache$ = new BehaviorSubject<Factura[]>([]);
+  private cachedAllFacturas$: Observable<Factura[]> | null = null;
 
   /**
    * Genera un ID secuencial de 10 dígitos (0000000001, 0000000002, etc.)
@@ -92,9 +99,66 @@ export class FacturasService {
     return docRef;
   }
 
-  // EXISTENTE
+  // EXISTENTE - ACTUALIZADO CON CACHÉ
   getFacturas(): Observable<Factura[]> {
-    return collectionData(this.facturasRef, { idField: 'id' }) as Observable<Factura[]>;
+    if (!this.cachedAllFacturas$) {
+      this.cachedAllFacturas$ = collectionData(this.facturasRef, { idField: 'id' }).pipe(
+        map(data => data as Factura[]),
+        tap(facturas => this.facturasCache$.next(facturas)),
+        shareReplay(1) // 🎯 Compartir resultado entre suscriptores
+      );
+    }
+    return this.cachedAllFacturas$;
+  }
+
+  /**
+   * 🆕 Obtener facturas con paginación
+   * @param pageSize - Cantidad de documentos por página (default: 50)
+   * @param startAfterDoc - Documento desde el cual continuar (para siguiente página)
+   */
+  getFacturasPaginadas(
+    pageSize: number = 50,
+    startAfterDoc?: QueryDocumentSnapshot<any>
+  ): Observable<PaginationResult<Factura>> {
+    let q: any;
+
+    if (startAfterDoc) {
+      q = query(
+        this.facturasRef,
+        orderBy('fecha', 'desc'),
+        startAfter(startAfterDoc),
+        limit(pageSize + 1) // +1 para detectar si hay más páginas
+      );
+    } else {
+      q = query(
+        this.facturasRef,
+        orderBy('fecha', 'desc'),
+        limit(pageSize + 1)
+      );
+    }
+
+    return collectionData(q, { idField: 'id' }).pipe(
+      map((facturas: any[]) => {
+        const hasNextPage = facturas.length > pageSize;
+        const items = facturas.slice(0, pageSize);
+        const lastDoc = items.length > 0 ? items[items.length - 1] : null;
+
+        return {
+          items: items as Factura[],
+          pageSize,
+          hasNextPage,
+          cursor: {
+            next: hasNextPage ? lastDoc : undefined
+          }
+        };
+      })
+    );
+  }
+
+  // 🎯 Recargar caché
+  reloadFacturas() {
+    this.cachedAllFacturas$ = null;
+    return this.getFacturas();
   }
 
   // EXISTENTE

@@ -24,7 +24,7 @@ import {
   query,
   where,
 } from '@angular/fire/firestore';
-import { Observable } from 'rxjs';
+import { Observable, shareReplay, map } from 'rxjs';
 import { Cliente } from '../models/cliente.model';
 
 @Injectable({
@@ -34,8 +34,12 @@ export class ClientesService {
   private readonly firestore = inject(Firestore);
   private readonly clientesRef = collection(this.firestore, 'clientes');
 
+  // 🎯 CACHÉ con shareReplay
+  private cachedClientes$: Observable<Cliente[]> | null = null;
+
   /**
    * Recupera todos los clientes activos del sistema.
+   * 🎯 ACTUALIZADO: Con caché compartido
    *
    * Este método filtra automáticamente los clientes desactivados (soft-delete),
    * retornando únicamente aquellos cuyo campo 'activo' es diferente de false.
@@ -44,10 +48,22 @@ export class ClientesService {
    * @returns Observable<Cliente[]> Stream reactivo con la lista de clientes activos.
    */
   getClientes(): Observable<Cliente[]> {
-    const q = query(this.clientesRef, where('activo', '!=', false));
-    return collectionData(q, {
-      idField: 'id',
-    }) as Observable<Cliente[]>;
+    if (!this.cachedClientes$) {
+      const q = query(this.clientesRef, where('activo', '!=', false));
+      this.cachedClientes$ = collectionData(q, {
+        idField: 'id',
+      }).pipe(
+        map(data => data as Cliente[]),
+        shareReplay(1) // 🎯 Compartir resultado entre suscriptores
+      );
+    }
+    return this.cachedClientes$;
+  }
+
+  // 🎯 Recargar caché
+  reloadClientes() {
+    this.cachedClientes$ = null;
+    return this.getClientes();
   }
 
   /**

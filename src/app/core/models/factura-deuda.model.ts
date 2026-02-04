@@ -22,8 +22,11 @@ export interface FacturaDeuda {
   /** Identificador del cliente */
   clienteId: string;
 
-  /** Nombre completo del cliente */
+  /** Nombre completo del cliente - DESNORMALIZADO para evitar lookup extra */
   clienteNombre: string;
+
+  /** Método de pago utilizado - DESNORMALIZADO para evitar lookup extra */
+  metodoPago: string;
 
   /** Teléfono del cliente (opcional) */
   clienteTelefono?: string;
@@ -39,9 +42,6 @@ export interface FacturaDeuda {
 
   /** Saldo restante DESPUÉS de este pago */
   saldoRestante: number;
-
-  /** Método de pago utilizado (Efectivo, Transferencia, Tarjeta) */
-  metodoPago: string;
 
   /** Código de transferencia bancaria (si aplica) */
   codigoTransferencia?: string;

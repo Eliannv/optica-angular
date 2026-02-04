@@ -14,8 +14,9 @@ import {
   serverTimestamp,
   Timestamp,
 } from '@angular/fire/firestore';
-import { Observable, from, map } from 'rxjs';
+import { Observable, from, map, tap } from 'rxjs';
 import { MaquinaAutorizada } from '../models/maquina-autorizada.model';
+import { CacheLocalStorageService } from './cache-local-storage.service';
 
 @Injectable({
   providedIn: 'root',
@@ -23,17 +24,35 @@ import { MaquinaAutorizada } from '../models/maquina-autorizada.model';
 export class MaquinasAutorizadasService {
   private collectionName = 'maquinas_autorizadas';
 
-  constructor(private firestore: Firestore) {}
+  constructor(
+    private firestore: Firestore,
+    private cache: CacheLocalStorageService
+  ) {}
 
   /**
    * Obtener todas las máquinas autorizadas
+   * 🎯 FASE 2: Con localStorage cache (24h TTL)
    */
   getMaquinasAutorizadas(): Observable<MaquinaAutorizada[]> {
+    // Primero intentar desde cache local
+    const cached = this.cache.obtenerMaquinas();
+    if (cached) {
+      return new Observable(observer => {
+        observer.next(cached);
+        observer.complete();
+      });
+    }
+
+    // Si no está en cache, traer de Firestore y cachear
     const colRef = collection(this.firestore, this.collectionName);
     return collectionData(colRef, { idField: 'id' }).pipe(
       map((maquinas: any[]) =>
         maquinas.map((m) => this.convertirTimestamps(m))
-      )
+      ),
+      tap(maquinas => {
+        // 🎯 Cachear en localStorage después de obtener de Firestore
+        this.cache.guardarMaquinas(maquinas);
+      })
     );
   }
 
@@ -81,6 +100,7 @@ export class MaquinasAutorizadasService {
 
   /**
    * Registrar o actualizar una máquina autorizada
+   * 🎯 FASE 2: Invalidar cache cuando cambia
    */
   async guardarMaquina(
     maquina: Partial<MaquinaAutorizada>,
@@ -111,10 +131,13 @@ export class MaquinasAutorizadasService {
       delete nuevaMaquina.id;
       await setDoc(docRef, nuevaMaquina);
     }
+    // ⚠️ Invalidar cache para forzar recarga en próxima consulta
+    this.cache.invalidarMaquinas();
   }
 
   /**
    * Activar/Desactivar una máquina
+   * 🎯 FASE 2: Invalidar cache cuando cambia
    */
   async cambiarEstadoMaquina(
     maquinaId: string,
@@ -122,6 +145,8 @@ export class MaquinasAutorizadasService {
   ): Promise<void> {
     const docRef = doc(this.firestore, this.collectionName, maquinaId);
     await updateDoc(docRef, { activo });
+    // ⚠️ Invalidar cache para forzar recarga en próxima consulta
+    this.cache.invalidarMaquinas();
   }
 
   /**

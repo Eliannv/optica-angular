@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Firestore, collection, collectionData, query, where, orderBy, Timestamp } from '@angular/fire/firestore';
-import { Observable, map } from 'rxjs';
+import { Observable, map, shareReplay } from 'rxjs';
 import { Cobro, FiltrosCobros } from '../models/cobro.model';
 
 /**
@@ -28,6 +28,7 @@ export class CobrosService {
 
   /**
    * Obtiene todos los cobros (facturas con abonos) aplicando filtros opcionales.
+   * 🎯 ACTUALIZADO: Con shareReplay para caché
    * 
    * **Lógica:**
    * 1. Consulta todas las facturas que tienen abonos > 0
@@ -60,7 +61,40 @@ export class CobrosService {
         }
 
         return cobros;
-      })
+      }),
+      shareReplay(1) // 🎯 Caché compartido
+    );
+  }
+
+  /**
+   * 🆕 Obtener cobros en un rango de fechas OPTIMIZADO
+   * Filtra en Firestore para reducir documentos cargados
+   * 
+   * @param fechaInicio Fecha de inicio
+   * @param fechaFin Fecha de fin
+   * @returns Observable con cobros del período
+   */
+  getCobrosEnRangoOptimizado(fechaInicio: Date, fechaFin: Date): Observable<Cobro[]> {
+    // Query: facturas con abonos ordenadas por fecha DESC
+    // Sin orderBy para evitar requerir índice compuesto
+    const q = query(
+      this.facturasCollection,
+      where('abonado', '>', 0),
+      where('fecha', '>=', Timestamp.fromDate(fechaInicio)),
+      where('fecha', '<=', Timestamp.fromDate(fechaFin))
+    );
+
+    return collectionData(q, { idField: 'id' }).pipe(
+      map((facturas: any[]) => {
+        // Ordenar en memoria por fecha DESC
+        const sorted = facturas.sort((a, b) => {
+          const fechaA = a.fecha?.toDate?.() || new Date(a.fecha);
+          const fechaB = b.fecha?.toDate?.() || new Date(b.fecha);
+          return fechaB.getTime() - fechaA.getTime();
+        });
+        return sorted.map(f => this.facturaACobro(f));
+      }),
+      shareReplay(1) // 🎯 Caché compartido
     );
   }
 

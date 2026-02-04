@@ -158,12 +158,13 @@ export class CrearCliente implements OnInit {
 
   /**
    * Configura validaciones reactivas para cédula y email.
+   * 🎯 FASE 2: Debounce 500ms para evitar queries intermedias
    */
   private setupValidacionesReactivas() {
     // Validación reactiva de cédula
     this.clienteForm.get('cedula')?.valueChanges
       .pipe(
-        debounceTime(400),
+        debounceTime(500), // 🎯 FASE 2: Aumentado de 400ms a 500ms
         distinctUntilChanged()
       )
       .subscribe(async (cedula: string) => {
@@ -193,7 +194,7 @@ export class CrearCliente implements OnInit {
     // Validación reactiva de email
     this.clienteForm.get('email')?.valueChanges
       .pipe(
-        debounceTime(400),
+        debounceTime(500), // 🎯 FASE 2: Aumentado de 400ms a 500ms
         distinctUntilChanged()
       )
       .subscribe(async (email: string) => {

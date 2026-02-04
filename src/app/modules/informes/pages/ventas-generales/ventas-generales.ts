@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import Swal from 'sweetalert2';
-import { collection, query, getDocs, Firestore } from '@angular/fire/firestore';
+import { collection, query, getDocs, Firestore, where, orderBy, Timestamp } from '@angular/fire/firestore';
 
 import { CobrosService } from '../../../../core/services/cobros.service';
 import { ClientesService } from '../../../../core/services/clientes';
@@ -120,23 +120,42 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Carga todos los cobros y movimientos de caja chica desde Firestore.
+   * Carga cobros y movimientos de caja chica CON FILTRO DE FECHAS
+   * 🎯 OPTIMIZADO: Carga solo el período seleccionado
    */
   cargarCobros(): void {
     this.loading = true;
 
-    // Cargar cobros
-    this.subscription = this.cobrosService.getCobros().subscribe({
+    // 🎯 Usar filtro de fechas DENTRO del query de Firestore
+    const fechaDesde = new Date(this.fechaDesde);
+    const fechaHasta = new Date(this.fechaHasta);
+    fechaHasta.setHours(23, 59, 59, 999); // Incluir todo el día final
+
+    // Cargar cobros del período
+    this.subscription = this.cobrosService.getCobrosEnRangoOptimizado(fechaDesde, fechaHasta).subscribe({
       next: (cobros) => {
         this.cobros = cobros;
         
-        // Cargar todos los movimientos de caja chica directamente desde Firestore
+        // Cargar movimientos de caja chica del período
         const movimientosRef = collection(this.firestore, 'movimientos_cajas_chicas');
-        getDocs(movimientosRef).then(snapshot => {
+        const q = query(
+          movimientosRef,
+          where('fecha', '>=', Timestamp.fromDate(fechaDesde)),
+          where('fecha', '<=', Timestamp.fromDate(fechaHasta))
+        );
+        
+        getDocs(q).then(snapshot => {
           this.movimientosCajaChica = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
           }));
+          
+          // Ordenar movimientos por fecha DESC en memoria
+          this.movimientosCajaChica.sort((a, b) => {
+            const fechaA = a.fecha?.toDate?.() || new Date(a.fecha);
+            const fechaB = b.fecha?.toDate?.() || new Date(b.fecha);
+            return fechaB.getTime() - fechaA.getTime();
+          });
           
           this.loading = false;
           console.log('✅ Cobros cargados:', this.cobros.length);

@@ -107,12 +107,9 @@ export class VerIngresoComponent implements OnDestroy {
           const ids = Array.from(new Set(movs.map(m => m.productoId).filter(Boolean)));
           if (ids.length === 0) return of([]);
 
-          const productos$ = ids.map(id => this.productosSrv.getProductoById(id).pipe(take(1)));
-
-          return forkJoin(productos$).pipe(
-            map(productos => {
-              const mapa = new Map(ids.map((id, idx) => [id, productos[idx]]));
-
+          // 🎯 OPTIMIZADO: Usar batch query en lugar de N×getProductoById
+          return this.productosSrv.getProductosPorIdsOptimizado(ids).pipe(
+            map(mapa => {
               return movs.map(m => {
                 const prod = mapa.get(m.productoId || '');
 

@@ -32,10 +32,14 @@ import {
   where,
   getDocs,
   runTransaction,
+  limit,
+  startAfter,
+  QueryDocumentSnapshot,
+  orderBy
 } from '@angular/fire/firestore';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Observable, BehaviorSubject, shareReplay, forkJoin, map, tap } from 'rxjs';
 import { Producto } from '../models/producto.model';
+import { PaginationResult } from '../models/pagination.model';
 
 @Injectable({
   providedIn: 'root',
@@ -44,34 +48,145 @@ export class ProductosService {
   private firestore = inject(Firestore);
   private productosRef = collection(this.firestore, 'productos');
 
+  // 🎯 CACHÉ con shareReplay
+  private cachedProductos$: Observable<Producto[]> | null = null;
+  private cachedProductosTodos$: Observable<Producto[]> | null = null;
+  private productosCache$ = new BehaviorSubject<Producto[]>([]);
+
   /**
    * Recupera todos los productos activos del sistema.
    * Incluye productos con activo:true O sin el campo (compatibilidad con datos legacy).
    * Filtra en el cliente para evitar requerimiento de índice Firestore.
+   * 🎯 ACTUALIZADO: Con caché compartido
    *
    * @returns Observable<Producto[]> Stream reactivo con los productos activos.
    */
   getProductos(): Observable<Producto[]> {
-    return collectionData(this.productosRef, {
-      idField: 'id',
-    }).pipe(
-      // Filtrar en cliente: incluir si activo es true o no está definido (legacy), excluir si es false
-      map((productos: any[]) =>
-        productos.filter((p) => p.activo !== false)
-      )
-    ) as Observable<Producto[]>;
+    if (!this.cachedProductos$) {
+      this.cachedProductos$ = collectionData(this.productosRef, {
+        idField: 'id',
+      }).pipe(
+        map((productos: any[]) =>
+          productos.filter((p) => p.activo !== false) as Producto[]
+        ),
+        tap(productos => this.productosCache$.next(productos)),
+        shareReplay(1) // 🎯 Compartir resultado
+      );
+    }
+    return this.cachedProductos$;
+  }
+
+  /**
+   * 🆕 Obtener productos activos con paginación
+   */
+  getProductosPaginadas(
+    pageSize: number = 50,
+    startAfterDoc?: QueryDocumentSnapshot<any>
+  ): Observable<PaginationResult<Producto>> {
+    let q: any;
+
+    if (startAfterDoc) {
+      q = query(
+        this.productosRef,
+        where('activo', '!=', false),
+        orderBy('activo'),
+        orderBy('nombre'),
+        startAfter(startAfterDoc),
+        limit(pageSize + 1)
+      );
+    } else {
+      q = query(
+        this.productosRef,
+        where('activo', '!=', false),
+        orderBy('activo'),
+        orderBy('nombre'),
+        limit(pageSize + 1)
+      );
+    }
+
+    return collectionData(q, { idField: 'id' }).pipe(
+      map((productos: any[]) => {
+        const hasNextPage = productos.length > pageSize;
+        const items = productos.slice(0, pageSize);
+        const lastDoc = items.length > 0 ? items[items.length - 1] : null;
+
+        return {
+          items: items as Producto[],
+          pageSize,
+          hasNextPage,
+          cursor: {
+            next: hasNextPage ? lastDoc : undefined
+          }
+        };
+      })
+    );
   }
 
   /**
    * Recupera TODOS los productos incluyendo los desactivados.
-   * Utilizado para importaciones y reportes históricos.
+   * 🎯 ACTUALIZADO: Con caché compartido
    *
    * @returns Observable<Producto[]> Stream con todos los productos sin filtrar.
    */
   getProductosTodosInclusoInactivos(): Observable<Producto[]> {
-    return collectionData(this.productosRef, {
-      idField: 'id',
-    }) as Observable<Producto[]>;
+    if (!this.cachedProductosTodos$) {
+      this.cachedProductosTodos$ = collectionData(this.productosRef, {
+        idField: 'id',
+      }).pipe(
+        map(data => data as Producto[]),
+        shareReplay(1) // 🎯 Compartir resultado
+      );
+    }
+    return this.cachedProductosTodos$;
+  }
+
+  // 🎯 Recargar caché
+  reloadProductos() {
+    this.cachedProductos$ = null;
+    this.cachedProductosTodos$ = null;
+    return this.getProductos();
+  }
+
+  /**
+   * 🆕 OPTIMIZADO: Cargar múltiples productos por IDs en batch
+   * Evita N+1 problem cargando hasta 10 productos en una sola query
+   * 
+   * @param ids Array de IDs de productos
+   * @returns Observable con mapa de ID → Producto
+   */
+  getProductosPorIdsOptimizado(ids: string[]): Observable<Map<string, Producto>> {
+    if (!ids || ids.length === 0) {
+      return new Observable(observer => {
+        observer.next(new Map());
+        observer.complete();
+      });
+    }
+
+    // Dividir en batches de 10 (límite de Firestore "in" queries)
+    const batches: Observable<Producto[]>[] = [];
+    for (let i = 0; i < ids.length; i += 10) {
+      const batch = ids.slice(i, i + 10);
+      const q = query(
+        this.productosRef,
+        where('__name__' as any, 'in', batch)  // Buscar por ID del documento
+      );
+      batches.push(
+        collectionData(q, { idField: 'id' }) as Observable<Producto[]>
+      );
+    }
+
+    // Combinar resultados
+    return forkJoin(batches).pipe(
+      map(results => {
+        const mapa = new Map<string, Producto>();
+        results.forEach(batch => {
+          batch.forEach(producto => {
+            mapa.set(producto.id!, producto);
+          });
+        });
+        return mapa;
+      })
+    );
   }
 
   /**

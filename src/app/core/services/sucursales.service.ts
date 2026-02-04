@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
 import { Firestore, collection, collectionData, doc, setDoc, updateDoc, deleteDoc, getDoc, query, where, getDocs } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { map, tap } from 'rxjs/operators';
 import { Sucursal } from '../models/sucursal.model';
+import { CacheLocalStorageService } from './cache-local-storage.service';
 
 @Injectable({
   providedIn: 'root'
@@ -10,17 +11,35 @@ import { Sucursal } from '../models/sucursal.model';
 export class SucursalesService {
   private collectionName = 'sucursales';
 
-  constructor(private firestore: Firestore) {}
+  constructor(
+    private firestore: Firestore,
+    private cache: CacheLocalStorageService
+  ) {}
 
   /**
    * Obtener todas las sucursales
+   * 🎯 FASE 2: Con localStorage cache (24h TTL)
    */
   getSucursales(): Observable<Sucursal[]> {
+    // Primero intentar desde cache local
+    const cached = this.cache.obtenerSucursales();
+    if (cached) {
+      return new Observable(observer => {
+        observer.next(cached);
+        observer.complete();
+      });
+    }
+
+    // Si no está en cache, traer de Firestore y cachear
     const colRef = collection(this.firestore, this.collectionName);
     return collectionData(colRef, { idField: 'id' }).pipe(
       map((sucursales: any[]) =>
         sucursales.map((s) => this.convertirTimestamps(s))
-      )
+      ),
+      tap(sucursales => {
+        // 🎯 Cachear en localStorage después de obtener de Firestore
+        this.cache.guardarSucursales(sucursales);
+      })
     );
   }
 
@@ -86,10 +105,13 @@ export class SucursalesService {
 
   /**
    * Cambiar estado de una sucursal
+   * 🎯 FASE 2: Invalidar cache cuando cambia
    */
   async cambiarEstadoSucursal(sucursalId: string, activo: boolean): Promise<void> {
     const docRef = doc(this.firestore, this.collectionName, sucursalId);
     await updateDoc(docRef, { activo });
+    // ⚠️ Invalidar cache para forzar recarga en próxima consulta
+    this.cache.invalidarSucursales();
   }
 
   /**
@@ -112,10 +134,13 @@ export class SucursalesService {
 
   /**
    * Eliminar una sucursal
+   * 🎯 FASE 2: Invalidar cache cuando cambia
    */
   async eliminarSucursal(sucursalId: string): Promise<void> {
     const docRef = doc(this.firestore, this.collectionName, sucursalId);
     await deleteDoc(docRef);
+    // ⚠️ Invalidar cache para forzar recarga en próxima consulta
+    this.cache.invalidarSucursales();
   }
 
   /**
