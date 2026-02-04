@@ -115,6 +115,9 @@ export interface Factura {
 
   /** Monto del descuento aplicado */
   descuentoMonto?: number;
+
+  /** Tipo de factura: 'NORMAL' (venta convencional) o 'COBRO_DEUDA' (abono de deuda pendiente) */
+  tipoFactura?: 'NORMAL' | 'COBRO_DEUDA';
 }
 
 /**

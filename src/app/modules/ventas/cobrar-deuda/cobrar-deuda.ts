@@ -11,7 +11,9 @@ import { ProductosService } from '../../../core/services/productos';
 import { CajaChicaService } from '../../../core/services/caja-chica.service';
 import { CajaBancoService } from '../../../core/services/caja-banco.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { FacturasDeudaService } from '../../../core/services/facturas-deuda.service';
 import { obtenerPeriodo } from '../../../core/utils/fecha-helpers';
+import { FacturaDeuda } from '../../../core/models/factura-deuda.model';
 
 @Component({
   selector: 'app-cobrar-deuda',
@@ -124,7 +126,8 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     private productosSrv: ProductosService,
     private cajaChicaService: CajaChicaService,
     private cajaBancoService: CajaBancoService,
-    private authService: AuthService
+    private authService: AuthService,
+    private facturasDeudaService: FacturasDeudaService
   ) {}
 
   async ngOnInit() {
@@ -327,24 +330,31 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
       const saldoNuevo = +(total - abonadoNuevo).toFixed(2);
       const estadoPago = saldoNuevo <= 0 ? 'PAGADA' : 'PENDIENTE';
 
+      // 🕐 OBTENER CAJA CHICA ABIERTA (necesaria para ambas ramas)
+      let cajaChicaAbierta: any = null;
+      try {
+        cajaChicaAbierta = await this.cajaChicaService.getCajaAbierta();
+      } catch (err) {
+        console.warn('⚠️ No se pudo obtener caja abierta:', err);
+      }
+
       // 🕐 CONSTRUIR FECHA FINAL CON HORA
       let fechaFinal: Date;
       if (this.metodoPago === 'Efectivo') {
         // Para efectivo: usar fecha de caja chica + hora seleccionada
         try {
-          const cajaAbierta = await this.cajaChicaService.getCajaAbierta();
-          console.log('📅 Caja abierta obtenida:', cajaAbierta);
+          console.log('📅 Caja abierta obtenida:', cajaChicaAbierta);
           
-          if (cajaAbierta?.fecha) {
+          if (cajaChicaAbierta?.fecha) {
             // Convertir correctamente Timestamp de Firestore a Date
             let fechaCaja: Date;
-            if ((cajaAbierta.fecha as any).toDate) {
+            if ((cajaChicaAbierta.fecha as any).toDate) {
               // Es un Timestamp de Firestore
-              fechaCaja = (cajaAbierta.fecha as any).toDate();
-            } else if (cajaAbierta.fecha instanceof Date) {
-              fechaCaja = cajaAbierta.fecha;
+              fechaCaja = (cajaChicaAbierta.fecha as any).toDate();
+            } else if (cajaChicaAbierta.fecha instanceof Date) {
+              fechaCaja = cajaChicaAbierta.fecha;
             } else {
-              fechaCaja = new Date(cajaAbierta.fecha);
+              fechaCaja = new Date(cajaChicaAbierta.fecha);
             }
             
             console.log('📅 Fecha de caja convertida:', fechaCaja);
@@ -395,7 +405,6 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
         
         // ✅ Usar FECHA DE CAJA CHICA como fecha contable oficial
         try {
-          const cajaChicaAbierta = await this.cajaChicaService.getCajaAbierta();
           console.log('📅 Caja chica abierta obtenida (no efectivo):', cajaChicaAbierta);
 
           if (cajaChicaAbierta?.fecha) {
@@ -423,30 +432,46 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
 
       console.log('🎯 FECHA FINAL QUE SE GUARDARÁ EN COBRO DE DEUDA:', fechaFinal);
 
-      // ✅ ACTUALIZAR ESTADO DEL CRÉDITO Y OTROS CAMPOS
-      const actualizacion: any = {
-        abonado: abonadoNuevo,
-        saldoPendiente: Math.max(0, saldoNuevo),
-        estadoPago,
+      // ✅ CREAR REGISTRO DE PAGO EN NUEVA COLECCIÓN facturas_deudas
+      // En lugar de modificar la factura original, creamos un documento separado
+      const usuario = this.authService.getCurrentUser();
+      
+      // Determinar origen de caja según método de pago
+      const origenCaja = this.metodoPago === 'Efectivo' ? 'CAJA_CHICA' : 'CAJA_BANCO';
+      
+      // Construir objeto deuda SIN campos undefined (Firestore no los permite)
+      const deuda: FacturaDeuda = {
+        facturaId: f.id,
+        facturaIdPersonalizado: f.idPersonalizado || '',
+        clienteId: this.clienteId,
+        clienteNombre: this.clienteNombre,
+        clienteTelefono: this.clienteTelefono,
+        fechaPago: fechaFinal,
+        montoPagado: abonoReal,
+        totalFactura: total,
+        saldoRestante: Math.max(0, saldoNuevo),
         metodoPago: this.metodoPago,
+        estadoPago,
+        tipoMovimiento: 'PAGO_DEUDA',
+        origenCaja: origenCaja,
+        esCredito: this.esCreditoPersonal,
+        cajaChicaId: cajaChicaAbierta?.id,
+        usuarioId: usuario?.id,
+        usuarioNombre: usuario?.nombre || 'Desconocido',
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
 
-      // ✅ SI EL USUARIO MARCÓ CRÉDITO PERSONAL, GUARDAR ESE ESTADO
-      if (this.esCreditoPersonal) {
-        actualizacion.esCredito = true;
-        // Si es crédito personal y el saldo se cancela completamente
-        if (saldoNuevo <= 0) {
-          actualizacion.estadoCredito = 'CANCELADO';
-        } else {
-          actualizacion.estadoCredito = 'ACTIVO';
-        }
-      } else {
-        // Si el usuario NO marca crédito, asegurar que se registre como normal
-        actualizacion.esCredito = false;
-        actualizacion.estadoCredito = 'CANCELADO'; // No aplica estado de crédito
+      // Agregar campos opcionales solo si tienen valor
+      if (this.codigoTransferencia) {
+        deuda.codigoTransferencia = this.codigoTransferencia;
+      }
+      if (this.ultimosCuatroTarjeta) {
+        deuda.ultimosCuatroTarjeta = this.ultimosCuatroTarjeta;
       }
 
-      await this.facturasSrv.actualizarPagoFactura(f.id, actualizacion);
+      // Guardar en la nueva colección (factura original no se modifica)
+      await this.facturasDeudaService.crearPagoDeuda(deuda);
 
       // ✅ enriquecer ítems con código real si falta
       const items = Array.isArray(f.items) ? [...f.items] : [];

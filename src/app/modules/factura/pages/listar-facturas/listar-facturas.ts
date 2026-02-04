@@ -17,6 +17,12 @@ import Swal from 'sweetalert2';
 type FiltroEstado = 'TODAS' | 'PENDIENTES' | 'PAGADAS';
 
 /**
+ * Tipo literal para filtro de tipo de factura.
+ * @typedef {'TODAS' | 'NORMALES' | 'COBROS_DEUDA'} FiltroTipoFactura
+ */
+type FiltroTipoFactura = 'TODAS' | 'NORMALES' | 'COBROS_DEUDA';
+
+/**
  * Componente ListarFacturasComponent - Listado paginado y filtrable de facturas.
  *
  * **Responsabilidades:**
@@ -78,6 +84,14 @@ export class ListarFacturasComponent {
    * @default 'TODAS'
    */
   filtroEstado: FiltroEstado = 'TODAS';
+
+  /**
+   * Tipo de factura actual del filtro seleccionado en UI.
+   * Valores válidos: 'TODAS', 'NORMALES' (venta convencional), 'COBROS_DEUDA' (abono de deuda)
+   * @type {FiltroTipoFactura}
+   * @default 'TODAS'
+   */
+  filtroTipoFactura: FiltroTipoFactura = 'TODAS';
 
   /**
    * Término de búsqueda ingresado por el usuario en campo de texto.
@@ -382,6 +396,16 @@ export class ListarFacturasComponent {
     } else if (this.filtroEstado === 'PAGADAS') {
       base = base.filter(f => (Number(f.saldoPendiente) || 0) <= 0);
     }
+
+    // 1.5) ✅ filtro por tipo de factura
+    if (this.filtroTipoFactura === 'NORMALES') {
+      // Solo facturas normales (sin marca o tipoFactura === 'NORMAL')
+      base = base.filter(f => f.tipoFactura === 'NORMAL' || !f.tipoFactura);
+    } else if (this.filtroTipoFactura === 'COBROS_DEUDA') {
+      // Solo facturas que son cobros de deuda
+      base = base.filter(f => f.tipoFactura === 'COBRO_DEUDA');
+    }
+    // Si filtroTipoFactura === 'TODAS': no aplicar filtro
 
     // 2) filtro texto
     if (!t) {

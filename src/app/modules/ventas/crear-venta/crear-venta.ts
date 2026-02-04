@@ -1112,7 +1112,10 @@ async guardarEImprimir() {
       abonado: +abonado.toFixed(2),
       saldoPendiente,
       estadoPago: saldoPendiente > 0 ? 'PENDIENTE' : 'PAGADA',
-      estadoCredito: this.esCredito && saldoPendiente > 0 ? 'ACTIVO' : 'CANCELADO'
+      estadoCredito: this.esCredito && saldoPendiente > 0 ? 'ACTIVO' : 'CANCELADO',
+      
+      // ✅ NUEVO: TIPO DE FACTURA (Normal = venta convencional, NO cobro de deuda)
+      tipoFactura: 'NORMAL'
     };
 
     console.log('📄 FACTURA A GUARDAR:', factura);
