@@ -4,28 +4,34 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import Swal from 'sweetalert2';
+import { collection, query, getDocs, Firestore, where, orderBy, Timestamp } from '@angular/fire/firestore';
 
-import { ReportesService } from '../../../../core/services/reportes.service';
+import { CobrosService } from '../../../../core/services/cobros.service';
+import { ClientesService } from '../../../../core/services/clientes';
+import { CajaChicaService } from '../../../../core/services/caja-chica.service';
+import { CajaBancoService } from '../../../../core/services/caja-banco.service';
+import { FacturasService } from '../../../../core/services/facturas';
+import { FacturasDeudaService } from '../../../../core/services/facturas-deuda.service';
+import { Cobro } from '../../../../core/models/cobro.model';
 import { Factura } from '../../../../core/models/factura.model';
 import { FacturaDeuda } from '../../../../core/models/factura-deuda.model';
 
 /**
- * 🚀 Componente OPTIMIZADO de Reporte de Ventas Generales
- * 
- * **Optimizaciones implementadas:**
- * ✅ 1. Carga bajo demanda (NO carga nada al iniciar, solo al presionar "Mostrar")
- * ✅ 2. Filtros obligatorios por fecha (no trae colecciones completas)
- * ✅ 3. Paginación real con limit() y startAfter() de Firestore
- * ✅ 4. Solo usa getDocs() (sin listeners en tiempo real)
- * ✅ 5. Cache en memoria para evitar consultas repetidas
- * ✅ 6. Consultas optimizadas con índices
+ * Componente de Reporte de Ventas Generales.
  * 
  * **Funcionalidades:**
  * - Reporte basado exclusivamente en facturas del sistema
- * - Filtros por rango de fechas (OBLIGATORIOS)
+ * - Filtros por rango de fechas (Desde/Hasta)
  * - Filtros por tipo de venta y forma de pago
- * - Paginación de resultados (100 docs por página)
  * - Impresión compatible con impresoras POS y normales
+ * - Sin filtro de bodega (sistema de una sola bodega)
+ * 
+ * **Flujo:**
+ * 1. Carga todas las facturas desde Firestore
+ * 2. Aplica filtros de fecha y tipo seleccionados
+ * 3. Calcula totales de ventas y desglose por forma de pago
+ * 4. Muestra resultados en tabla
+ * 5. Permite imprimir reporte con filtros aplicados
  */
 @Component({
   selector: 'app-ventas-generales',
@@ -47,10 +53,9 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   // Filtros
   fechaDesde = '';
   fechaHasta = '';
-  metodoPagoFiltro = 'TODOS'; // Filtro por método de pago
-  tipoReporte: 'VENTAS' | 'DEUDAS' | 'EGRESOS' | 'COMPLETO' = 'VENTAS';
+  tiposSeleccionados: string[] = []; // Array para múltiples selecciones
   
-  // Opciones de tipos disponibles
+  // Opciones de tipos disponibles (nuevos filtros basados en facturas)
   tiposDisponibles = [
     { valor: 'VENTAS', label: 'Ventas (Facturas)' },
     { valor: 'PAGOS_EFECTIVO', label: 'Pagos en Efectivo' },
@@ -73,20 +78,26 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   private subscription?: Subscription;
 
   constructor(
-    private reportesService: ReportesService, // ✅ Servicio optimizado
+    private cobrosService: CobrosService,
+    private clientesService: ClientesService,
+    private cajaChicaService: CajaChicaService,
+    private cajaBancoService: CajaBancoService,
+    private facturasService: FacturasService,
+    private facturasDeudaService: FacturasDeudaService, // 🆕 Inyectar servicio
+    private firestore: Firestore,
     private router: Router
   ) {}
 
   ngOnInit(): void {
-    // ✅ Establecer fechas por defecto PERO NO CARGAR DATOS
+    // Establecer fechas por defecto: primer día del mes actual hasta hoy
     const hoy = new Date();
     const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
     
+    // Formatear fechas a formato YYYY-MM-DD requerido por input type="date"
     this.fechaDesde = this.formatearFechaInput(primerDiaMes);
     this.fechaHasta = this.formatearFechaInput(hoy);
     
-    // ✅ NO llamar cargarFacturas() aquí - solo cuando usuario presione "Mostrar"
-    console.log('📊 Reporte inicializado. Presione "Mostrar" para cargar datos.');
+    this.cargarFacturas();
   }
 
   /**
@@ -263,7 +274,6 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
    * RECARGA los datos desde Firestore con el nuevo rango de fechas.
    */
   aplicarFiltros(): void {
-    // Validar fechas obligatorias
     if (!this.fechaDesde || !this.fechaHasta) {
       Swal.fire({
         icon: 'warning',
@@ -273,9 +283,9 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.loading = true;
-    this.datosReporte = true;
-    this.paginaActual = 1;
+    // 🔄 RECARGAR datos con el nuevo rango de fechas
+    console.log('🔄 Recargando datos con nuevo rango de fechas...');
+    this.cargarFacturas();
     
     // Esperar a que se carguen los datos antes de filtrar
     // El filtrado se hará automáticamente después de cargar en filtrarDatosEnMemoria()
@@ -363,9 +373,10 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
    * ✅ Desglose de transferencias: Transferencia (Ventas) vs Transferencia (Cobro de Deudas)
    */
   calcularTotales(): void {
-    // Total vendido
-    this.totalVendido = this.facturas.reduce((sum, f) => sum + (f.total || 0), 0);
-    this.cantidadRegistros = this.facturas.length;
+    // Total vendido = suma de todas las facturas
+    this.totalVendido = this.facturasFiltradas.reduce((sum, f) => sum + f.total, 0);
+    
+    this.cantidadRegistros = this.facturasFiltradas.length;
 
     // 🆕 Calcular total de pagos de deuda si están en filtros
     const mostrarFacturasDeuda = this.tiposSeleccionados.includes('FACTURAS_DEUDA') || 
@@ -507,25 +518,16 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Limpia todos los filtros y datos
+   * Limpia todos los filtros aplicados.
    */
   limpiarFiltros(): void {
-    // Limpiar cache del servicio
-    this.reportesService.clearCache();
-    
-    // Limpiar datos locales
-    this.facturas = [];
-    this.pagosDeuda = [];
-    this.egresos = [];
-    this.registrosCombinados = [];
-    this.datosReporte = false;
-    this.paginaActual = 1;
-    this.hayMasPaginas = false;
-    
-    // Resetear totales
+    this.fechaDesde = '';
+    this.fechaHasta = '';
+    this.tiposSeleccionados = [];
+    this.facturasFiltradas = [];
     this.totalVendido = 0;
-    this.totalPagosDeuda = 0;
-    this.totalEgresos = 0;
+    this.totalPagosDeuda = 0; // 🆕
+    this.totalEgresos = 0; // 🆕
     this.cantidadRegistros = 0;
     this.totalesPorMetodo = {};
   }
@@ -591,10 +593,10 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Genera e imprime el reporte optimizado
+   * Genera e imprime el reporte de ventas generales basado en facturas.
    */
   imprimirReporte(): void {
-    if (!this.datosReporte || this.facturas.length === 0) {
+    if (this.facturasFiltradas.length === 0) {
       Swal.fire({
         icon: 'warning',
         title: 'Sin Datos',
@@ -610,7 +612,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'No se pudo abrir la ventana de impresión.'
+        text: 'No se pudo abrir la ventana de impresión. Verifique que no esté bloqueada por el navegador.'
       });
       return;
     }
@@ -621,18 +623,25 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     ventana.addEventListener('load', () => {
       ventana.focus();
       ventana.print();
-      ventana.addEventListener('afterprint', () => ventana.close());
+      
+      ventana.addEventListener('afterprint', () => {
+        ventana.close();
+      });
     });
   }
 
   /**
-   * Genera HTML optimizado del reporte
+   * Genera el HTML del reporte para impresión basado en facturas.
+   * Compatible con impresoras POS y normales.
+   * 🆕 Ahora incluye facturas de deuda y egresos.
    */
   private generarHTMLReporte(): string {
     const fechaReporte = new Date().toLocaleString('es-ES');
     
-    // Filtros aplicados
+    // Descripción de filtros aplicados
     const filtrosAplicados: string[] = [];
+    
+    // ✅ Convertir fechas sin desfase de zona horaria
     if (this.fechaDesde) {
       const [año, mes, dia] = this.fechaDesde.split('-');
       filtrosAplicados.push(`Desde: ${dia}/${mes}/${año}`);
@@ -641,12 +650,23 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       const [año, mes, dia] = this.fechaHasta.split('-');
       filtrosAplicados.push(`Hasta: ${dia}/${mes}/${año}`);
     }
-    filtrosAplicados.push(`Tipo: ${this.tipoReporte}`);
-    if (this.metodoPagoFiltro !== 'TODOS') {
-      filtrosAplicados.push(`Método: ${this.metodoPagoFiltro}`);
+    
+    if (this.tiposSeleccionados.length > 0) {
+      const tipoLabels: { [key: string]: string } = {
+        'VENTAS': 'Ventas (Facturas)',
+        'PAGOS_EFECTIVO': 'Pagos en Efectivo',
+        'PAGOS_TRANSFERENCIA': 'Pagos por Transferencia',
+        'PAGOS_TARJETA': 'Pagos por Tarjeta',
+        'FACTURAS_DEUDA': 'Facturas de Deuda',
+        'EGRESOS': 'Egresos'
+      };
+      const tiposTexto = this.tiposSeleccionados.map(t => tipoLabels[t] || t).join(', ');
+      filtrosAplicados.push(`Tipos: ${tiposTexto}`);
     }
 
-    const filtrosTexto = `<div class="filtros">${filtrosAplicados.join(' | ')}</div>`;
+    const filtrosTexto = filtrosAplicados.length > 0 
+      ? `<div class="filtros">${filtrosAplicados.join(' | ')}</div>`
+      : '';
 
     // 🆕 Generar filas combinadas: facturas normales + facturas de deuda + egresos
     const filasVentas = this.facturasFiltradas.map(factura => {
@@ -658,7 +678,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       
       return `
         <tr>
-          <td>${this.formatoFecha(f.fecha)}</td>
+          <td>${this.formatoFecha(factura.fecha)}</td>
           <td>Venta</td>
           <td>${factura.idPersonalizado || factura.id || '-'}</td>
           <td>${factura.clienteNombre || 'Sin nombre'}</td>
@@ -690,23 +710,26 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
           <td class="text-right">${this.formatoMoneda(deuda.montoPagado)}</td>
           <td class="text-right">${this.formatoMoneda(deuda.saldoRestante || 0)}</td>
         </tr>
-      `).join('');
-    }
-    
-    if (this.tipoReporte === 'EGRESOS' || this.tipoReporte === 'COMPLETO') {
-      filas += this.egresos.map(e => `
-        <tr style="background-color: #ffebee;">
-          <td>${this.formatoFecha(e.fecha)}</td>
-          <td>Egreso</td>
-          <td>${e.comprobante || '-'}</td>
-          <td>${e.descripcion || 'Sin descripción'}</td>
-          <td>Efectivo</td>
-          <td class="text-right">${this.formatoMoneda(e.monto)}</td>
-        </tr>
-      `).join('');
-    }
+      `;
+    }).join('') : '';
 
-    // Totales por método
+    // 🆕 Filas de egresos
+    const mostrarEgresos = this.tiposSeleccionados.includes('EGRESOS') || this.tiposSeleccionados.length === 0;
+    const filasEgresos = mostrarEgresos ? this.egresos.map(egreso => {
+      return `
+        <tr style="background-color: #ffebee;">
+          <td>${this.formatoFecha(egreso.fecha)}</td>
+          <td>📤 Egreso</td>
+          <td>${egreso.comprobante || '-'}</td>
+          <td>${egreso.descripcion || 'Sin descripción'}</td>
+          <td>Efectivo</td>
+          <td class="text-right">${this.formatoMoneda(egreso.monto)}</td>
+          <td class="text-right">-</td>
+        </tr>
+      `;
+    }).join('') : '';
+
+    // Generar filas de totales por método
     const totalesMetodo = Object.entries(this.totalesPorMetodo)
       .map(([metodo, total]) => `
         <div class="total-item">
@@ -736,17 +759,38 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
             border-bottom: 2px solid #000; 
             padding-bottom: 10px; 
           }
-          .header h1 { font-size: 16px; font-weight: bold; text-transform: uppercase; }
-          .header .empresa { font-size: 12px; font-weight: bold; margin-bottom: 2px; }
-          .fecha-reporte { text-align: right; font-size: 8px; margin-bottom: 10px; }
+          .header h1 { 
+            font-size: 16px; 
+            margin-bottom: 3px;
+            font-weight: bold;
+            text-transform: uppercase;
+          }
+          .header .empresa { 
+            font-size: 12px; 
+            font-weight: bold;
+            margin-bottom: 2px;
+          }
+          .header .subtitulo { 
+            font-size: 10px;
+          }
+          .fecha-reporte { 
+            text-align: right; 
+            font-size: 8px;
+            margin-bottom: 10px; 
+          }
           .filtros { 
             background: #f5f5f5; 
             padding: 6px; 
             margin-bottom: 12px; 
             font-size: 9px; 
+            border-left: 2px solid #000;
             border: 1px solid #000;
           }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+          table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 15px; 
+          }
           th { 
             background: #000; 
             color: #fff; 
@@ -755,14 +799,24 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
             font-size: 9px;
             border: 1px solid #000;
           }
-          td { padding: 5px 4px; border: 1px solid #000; font-size: 9px; }
+          td { 
+            padding: 5px 4px; 
+            border: 1px solid #000; 
+            font-size: 9px; 
+          }
           .text-right { text-align: right; }
-          .resumen { border: 2px solid #000; padding: 10px; margin-top: 15px; }
+          .text-center { text-align: center; }
+          .resumen { 
+            border: 2px solid #000; 
+            padding: 10px; 
+            margin-top: 15px; 
+          }
           .resumen h3 { 
             font-size: 11px; 
             margin-bottom: 8px; 
             border-bottom: 1px solid #000; 
             padding-bottom: 4px;
+            text-transform: uppercase;
           }
           .resumen-item { 
             display: flex; 
@@ -783,8 +837,14 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
             padding: 3px 0; 
             font-size: 9px; 
           }
+          .total-value { 
+            font-weight: bold;
+          }
           @media print {
-            @page { margin: 0.5cm; size: auto; }
+            @page { 
+              margin: 0.5cm; 
+              size: auto;
+            }
             body { padding: 0; }
             tr { page-break-inside: avoid; }
           }
@@ -794,9 +854,13 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
         <div class="header">
           <div class="empresa">ÓPTICA MACÍAS PASAJE</div>
           <h1>REPORTE DE VENTAS GENERALES</h1>
+          <div class="subtitulo">Basado en Facturas del Sistema</div>
         </div>
 
-        <div class="fecha-reporte">Generado: ${fechaReporte}</div>
+        <div class="fecha-reporte">
+          Generado: ${fechaReporte}
+        </div>
+
         ${filtrosTexto}
 
         <table>
@@ -808,9 +872,14 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
               <th>Cliente/Descripción</th>
               <th>Método Pago</th>
               <th class="text-right">Monto</th>
+              <th class="text-right">Saldo</th>
             </tr>
           </thead>
-          <tbody>${filas}</tbody>
+          <tbody>
+            ${filasVentas}
+            ${filasDeuda}
+            ${filasEgresos}
+          </tbody>
         </table>
 
         <div class="resumen">
@@ -857,31 +926,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Formatear fecha
-   */
-  formatoFecha(fecha: Date | any): string {
-    if (!fecha) return '-';
-    
-    const f = fecha.toDate ? fecha.toDate() : (fecha instanceof Date ? fecha : new Date(fecha));
-    
-    return f.toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }
-
-  /**
-   * Formatear moneda
-   */
-  formatoMoneda(monto: number): string {
-    return `$${monto.toFixed(2)}`;
-  }
-
-  /**
-   * Volver al inicio
+   * Navega de regreso al inicio.
    */
   volver(): void {
     this.router.navigate(['/']);
