@@ -125,8 +125,8 @@ export class CajaBancoService {
     return collectionData(q, { idField: 'id' }).pipe(
       map((movimientos: any[]) => {
         return (movimientos || []).sort((a, b) => {
-          const timeA = a?.createdAt?.toMillis?.() || 0;
-          const timeB = b?.createdAt?.toMillis?.() || 0;
+          const timeA = a?.fecha?.toMillis?.() || 0;
+          const timeB = b?.fecha?.toMillis?.() || 0;
           return timeB - timeA;
         });
       })
@@ -565,8 +565,8 @@ export class CajaBancoService {
       return collectionData(q, { idField: 'id' }).pipe(
         map((movimientos: any[]) => {
           return (movimientos || []).sort((a, b) => {
-            const timeA = a?.createdAt?.toMillis?.() || 0;
-            const timeB = b?.createdAt?.toMillis?.() || 0;
+            const timeA = a?.fecha?.toMillis?.() || 0;
+            const timeB = b?.fecha?.toMillis?.() || 0;
             return timeB - timeA; // descendente
           });
         })
@@ -577,8 +577,8 @@ export class CajaBancoService {
       return collectionData(q, { idField: 'id' }).pipe(
         map((movimientos: any[]) => {
           return (movimientos || []).sort((a, b) => {
-            const timeA = a?.createdAt?.toMillis?.() || 0;
-            const timeB = b?.createdAt?.toMillis?.() || 0;
+            const timeA = a?.fecha?.toMillis?.() || 0;
+            const timeB = b?.fecha?.toMillis?.() || 0;
             return timeB - timeA; // descendente
           });
         })
