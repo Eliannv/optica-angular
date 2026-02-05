@@ -95,6 +95,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   // 🆕 Totales de cajas
   totalCajaChica = 0; // Total de cajas chicas en el rango
   totalCajaBanco = 0; // Total de cajas banco en el rango
+  totalCajas = 0; // 🆕 Total de ambas cajas (chica + banco)
 
   private subscriptions: Subscription[] = [];
 
@@ -436,68 +437,101 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     console.log('  - Total pagos deuda:', this.totalPagosDeuda);
     console.log('  - Total egresos:', this.totalEgresos);
     console.log('  - Desglose por método:', this.totalesPorMetodo);
+    
+    // 🆕 Calcular totales de cajas basándose en métodos de pago
+    this.calcularTotalesCajas();
+  }
+  
+  /**
+   * 🆕 Calcula los totales de Caja Chica y Caja Banco basándose en los métodos de pago
+   */
+  private calcularTotalesCajas(): void {
+    // Total Caja Chica = Efectivo + Tarjeta
+    this.totalCajaChica = 0;
+    
+    // Facturas en efectivo
+    const facturasEfectivo = this.facturasFiltradas.filter(f => f.metodoPago === 'Efectivo');
+    this.totalCajaChica += facturasEfectivo.reduce((sum, f) => sum + f.total, 0);
+    
+    // Pagos de deuda en efectivo
+    const mostrarFacturasDeuda = this.tiposSeleccionados.includes('FACTURAS_DEUDA') || 
+                                  this.tiposSeleccionados.includes('TRANSFERENCIA_DEUDAS') || 
+                                  this.tiposSeleccionados.length === 0;
+    
+    if (mostrarFacturasDeuda) {
+      const deudasEfectivo = this.getPagosDeudaFiltrados().filter(d => d.metodoPago === 'Efectivo');
+      this.totalCajaChica += deudasEfectivo.reduce((sum, d) => sum + d.montoPagado, 0);
+    }
+    
+    // Restar egresos
+    if (this.tiposSeleccionados.includes('EGRESOS') || this.tiposSeleccionados.length === 0) {
+      this.totalCajaChica -= this.totalEgresos;
+    }
+    
+    // Total Caja Banco = Transferencias + Tarjeta
+    this.totalCajaBanco = 0;
+    
+    // Facturas con transferencia o tarjeta
+    const facturasBanco = this.facturasFiltradas.filter(f => 
+      f.metodoPago === 'Transferencia' || f.metodoPago === 'Tarjeta'
+    );
+    this.totalCajaBanco += facturasBanco.reduce((sum, f) => sum + f.total, 0);
+    
+    // Pagos de deuda con transferencia o tarjeta
+    if (mostrarFacturasDeuda) {
+      const deudasBanco = this.getPagosDeudaFiltrados().filter(d => 
+        d.metodoPago === 'Transferencia' || d.metodoPago === 'Tarjeta'
+      );
+      this.totalCajaBanco += deudasBanco.reduce((sum, d) => sum + d.montoPagado, 0);
+    }
+    
+    // Calcular total combinado
+    this.calcularTotalCajas();
+    
+    console.log('💰 Totales de cajas:');
+    console.log('  - Total Caja Chica:', this.totalCajaChica);
+    console.log('  - Total Caja Banco:', this.totalCajaBanco);
+    console.log('  - TOTAL CAJAS:', this.totalCajas);
   }
 
   /**
    * 🆕 Carga el total de cajas chicas en el rango de fechas
+   * Calcula basándose en los datos ya cargados (facturas y pagos en efectivo)
    */
   private async cargarTotalCajaChica(fechaDesde: Date, fechaHasta: Date): Promise<void> {
     try {
-      const cajasRef = collection(this.firestore, 'cajas_chicas');
-      const q = query(
-        cajasRef,
-        where('fecha', '>=', Timestamp.fromDate(fechaDesde)),
-        where('fecha', '<=', Timestamp.fromDate(fechaHasta)),
-        where('activo', '==', true)
-      );
-
-      const snapshot = await getDocs(q);
-      const cajas: CajaChica[] = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as CajaChica));
-
-      // Sumar monto_actual de todas las cajas
-      this.totalCajaChica = cajas.reduce((sum, caja) => sum + (caja.monto_actual || 0), 0);
-      
-      console.log(`✅ Total Caja Chica calculado: $${this.totalCajaChica.toFixed(2)} (${cajas.length} cajas)`);
+      // No necesitamos consultar nada, calculamos con los datos ya cargados
+      // Este método solo marca como completado para el contador
+      console.log('ℹ️ Total Caja Chica se calculará con los datos filtrados');
       this.verificarCargaCompleta();
     } catch (error) {
-      console.error('❌ Error cargando total caja chica:', error);
-      this.totalCajaChica = 0;
+      console.error('❌ Error en carga de caja chica:', error);
       this.verificarCargaCompleta();
     }
   }
 
   /**
    * 🆕 Carga el total de cajas banco en el rango de fechas
+   * Calcula basándose en los datos ya cargados (facturas y pagos de deuda con transferencia)
    */
   private async cargarTotalCajaBanco(fechaDesde: Date, fechaHasta: Date): Promise<void> {
     try {
-      const cajasRef = collection(this.firestore, 'cajas_banco');
-      const q = query(
-        cajasRef,
-        where('fecha', '>=', Timestamp.fromDate(fechaDesde)),
-        where('fecha', '<=', Timestamp.fromDate(fechaHasta)),
-        where('activo', '==', true)
-      );
-
-      const snapshot = await getDocs(q);
-      const cajas: CajaBanco[] = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as CajaBanco));
-
-      // Sumar saldo_actual de todas las cajas
-      this.totalCajaBanco = cajas.reduce((sum, caja) => sum + (caja.saldo_actual || 0), 0);
-      
-      console.log(`✅ Total Caja Banco calculado: $${this.totalCajaBanco.toFixed(2)} (${cajas.length} cajas)`);
+      // No necesitamos consultar nada, calculamos con los datos ya cargados
+      // Este método solo marca como completado para el contador
+      console.log('ℹ️ Total Caja Banco se calculará con los datos filtrados');
       this.verificarCargaCompleta();
     } catch (error) {
-      console.error('❌ Error cargando total caja banco:', error);
-      this.totalCajaBanco = 0;
+      console.error('❌ Error en carga de caja banco:', error);
       this.verificarCargaCompleta();
     }
+  }
+
+  /**
+   * 🆕 Calcula el total combinado de cajas chica + banco
+   */
+  private calcularTotalCajas(): void {
+    this.totalCajas = this.totalCajaChica + this.totalCajaBanco;
+    console.log(`💰 TOTAL CAJAS: $${this.totalCajas.toFixed(2)} (Chica: $${this.totalCajaChica.toFixed(2)} + Banco: $${this.totalCajaBanco.toFixed(2)})`);
   }
 
   /**
@@ -525,6 +559,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     this.totalesPorMetodo = {};
     this.totalCajaChica = 0; // 🆕
     this.totalCajaBanco = 0; // 🆕
+    this.totalCajas = 0; // 🆕
     
     // Reiniciar paginación
     this.lastVisibleFactura = null;
@@ -601,10 +636,26 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Verifica si hay datos disponibles para imprimir
+   */
+  get hayDatosParaImprimir(): boolean {
+    const hayFacturas = this.facturasFiltradas.length > 0;
+    const hayPagosDeuda = this.getPagosDeudaFiltrados().length > 0;
+    const hayEgresos = (this.tiposSeleccionados.includes('EGRESOS') || this.tiposSeleccionados.length === 0) && this.egresos.length > 0;
+    
+    return hayFacturas || hayPagosDeuda || hayEgresos;
+  }
+
+  /**
    * Genera e imprime el reporte de ventas generales basado en facturas.
    */
   imprimirReporte(): void {
-    if (this.facturasFiltradas.length === 0) {
+    // Validar que haya al menos algún tipo de registro (facturas, pagos deuda o egresos)
+    const hayFacturas = this.facturasFiltradas.length > 0;
+    const hayPagosDeuda = this.getPagosDeudaFiltrados().length > 0;
+    const hayEgresos = (this.tiposSeleccionados.includes('EGRESOS') || this.tiposSeleccionados.length === 0) && this.egresos.length > 0;
+    
+    if (!hayFacturas && !hayPagosDeuda && !hayEgresos) {
       Swal.fire({
         icon: 'warning',
         title: 'Sin Datos',
@@ -692,6 +743,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
           <td>${factura.clienteNombre || 'Sin nombre'}</td>
           <td>${metodoPagoDisplay}</td>
           <td class="text-right">${this.formatoMoneda(factura.total)}</td>
+          <td class="text-right">${this.formatoMoneda(factura.abonado || 0)}</td>
           <td class="text-right">${this.formatoMoneda(factura.saldoPendiente || 0)}</td>
         </tr>
       `;
@@ -716,6 +768,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
           <td>${deuda.clienteNombre || 'Sin nombre'}</td>
           <td>${metodoPagoDisplay}</td>
           <td class="text-right">${this.formatoMoneda(deuda.montoPagado)}</td>
+          <td class="text-right">${this.formatoMoneda(deuda.montoPagado)}</td>
           <td class="text-right">${this.formatoMoneda(deuda.saldoRestante || 0)}</td>
         </tr>
       `;
@@ -732,6 +785,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
           <td>${egreso.descripcion || 'Sin descripción'}</td>
           <td>Efectivo</td>
           <td class="text-right">${this.formatoMoneda(egreso.monto)}</td>
+          <td class="text-right">-</td>
           <td class="text-right">-</td>
         </tr>
       `;
@@ -880,6 +934,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
               <th>Cliente/Descripción</th>
               <th>Método Pago</th>
               <th class="text-right">Monto</th>
+              <th class="text-right">Abono</th>
               <th class="text-right">Saldo</th>
             </tr>
           </thead>
@@ -927,6 +982,10 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
           <div class="resumen-item">
             <span>Total Caja Banco:</span>
             <span class="total-value">${this.formatoMoneda(this.totalCajaBanco)}</span>
+          </div>
+          <div class="resumen-item total">
+            <span>TOTAL CAJAS:</span>
+            <span>${this.formatoMoneda(this.totalCajas)}</span>
           </div>
         </div>
       </body>
