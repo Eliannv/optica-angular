@@ -70,6 +70,15 @@ export class VerCajaComponent implements OnInit {
   };
 
   /**
+   * Calcula el saldo actual de la caja banco.
+   * Fórmula: saldo_inicial + total_ingresos - total_egresos
+   */
+  get saldoActualCalculado(): number {
+    if (!this.caja) return 0;
+    return (this.caja.saldo_inicial || 0) + this.resumen.total_ingresos - this.resumen.total_egresos;
+  }
+
+  /**
    * Hook de inicialización de Angular.
    * Obtiene el ID de la caja del parámetro de ruta y carga sus datos.
    */
@@ -188,8 +197,8 @@ export class VerCajaComponent implements OnInit {
     this.resumen.total_ingresos = ingresosCajasChicas + ingresosOtros;
     this.resumen.total_egresos = egresos;
 
-    // El saldo_actual ahora viene directamente de Firestore en caja.saldo_actual
-    // No es necesario calcularlo aquí
+    // El saldo actual se calcula dinámicamente mediante el getter saldoActualCalculado
+    // Fórmula: saldo_inicial + total_ingresos - total_egresos
   }
 
   /**
@@ -310,7 +319,7 @@ export class VerCajaComponent implements OnInit {
       title: '¿Cerrar Caja Banco?',
       html: `
         <p>Estás a punto de cerrar la caja banco de <strong>${periodo}</strong></p>
-        <p>Saldo actual: <strong>${this.formatoMoneda(this.caja.saldo_actual)}</strong></p>
+        <p>Saldo actual: <strong>${this.formatoMoneda(this.saldoActualCalculado)}</strong></p>
         <p class="text-muted" style="font-size: 0.9rem; margin-top: 1rem;">
           Una vez cerrada, no podrás registrar más movimientos en esta caja.
         </p>
@@ -417,7 +426,8 @@ export class VerCajaComponent implements OnInit {
     // Total de ingresos
     const totalIngresos = ingresosCajasChicas + ingresosOtros;
     const totalEgresos = movimientos.filter(m => m.tipo === 'EGRESO').reduce((sum, m) => sum + (m.monto || 0), 0);
-    const saldoFinal = caja.saldo_inicial! + totalIngresos - totalEgresos;
+    // Saldo Final = Saldo Inicial + Total Ingresos - Total Egresos
+    const saldoFinal = (caja.saldo_inicial || 0) + totalIngresos - totalEgresos;
 
     const filasMovimientos = movimientos.map((mov: any) => `
       <tr>
