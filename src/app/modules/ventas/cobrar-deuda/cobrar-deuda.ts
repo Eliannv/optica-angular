@@ -48,6 +48,9 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
   fechaMaxima = ''; // Fecha máxima permitida (fin del periodo de caja o hoy)
   periodoNombre = ''; // Nombre del periodo para mostrar (ej: "Diciembre 2025")
 
+  // 🔒 CONTROL DE CAJA ABIERTA
+  hayCajaAbierta = false; // Indica si existe una caja chica abierta (para habilitar/deshabilitar efectivo)
+
   // ✅ CONTROL DE CRÉDITO PERSONAL
   esCreditoPersonal = false; // Checkbox para marcar si es crédito personal
 
@@ -134,6 +137,8 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     // � Inicializar fecha y hora por defecto
     this.inicializarFechaHora();
 
+    // 🔒 Verificar si hay caja abierta (para controlar método de pago)
+    await this.verificarCajaAbierta();
 
     this.clienteId = this.route.snapshot.queryParamMap.get('clienteId') || '';
     if (!this.clienteId) {
@@ -654,6 +659,26 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     // Cargar restricciones de fecha según caja banco abierta (solo para admin)
     if (this.esAdmin) {
       this.cargarRestriccionesFechaCajaBanco();
+    }
+  }
+
+  /**
+   * Verifica si hay una caja chica abierta
+   * Actualiza la propiedad hayCajaAbierta y ajusta el método de pago si es necesario
+   */
+  async verificarCajaAbierta(): Promise<void> {
+    try {
+      const caja = await this.cajaChicaService.getCajaAbierta();
+      this.hayCajaAbierta = !!caja;
+      
+      // Si no hay caja abierta y el método de pago es Efectivo, cambiar a Transferencia
+      if (!this.hayCajaAbierta && this.metodoPago === 'Efectivo') {
+        this.metodoPago = 'Transferencia';
+        console.log('⚠️ No hay caja abierta. Método de pago cambiado a Transferencia');
+      }
+    } catch (error) {
+      console.error('Error al verificar caja abierta:', error);
+      this.hayCajaAbierta = false;
     }
   }
 

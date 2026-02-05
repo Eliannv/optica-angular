@@ -198,7 +198,7 @@
                         <div class="metodo-pago">
                             <label>Método de Pago</label>
                             <select class="select-pago" [(ngModel)]="metodoPago" (ngModelChange)="onMetodoPagoChange()">
-                <option value="Efectivo">💵 Efectivo</option>
+                <option value="Efectivo" *ngIf="hayCajaAbierta">💵 Efectivo</option>
                 <option value="Transferencia">🏦 Transferencia</option>
                 <option value="Tarjeta">💳 Tarjeta</option>
               </select>

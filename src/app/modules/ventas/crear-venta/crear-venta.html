@@ -1,8 +1,18 @@
 <!-- crear-venta.html -->
 
-<!-- ✅ ZONA NO IMPRIMIBLE (POS) -->
-<div class="venta-container no-print" *ngIf="!loading">
-    <div class="venta-card">
+<div class="venta-page">
+    <!-- ⏳ OVERLAY DE CARGA PARA FACTURA EN EDICIÓN -->
+    <div class="loading-overlay" *ngIf="cargandoFactura">
+        <div class="loading-card">
+            <div class="spinner-large"></div>
+            <h4 class="loading-title">Cargando factura...</h4>
+            <p class="loading-subtitle">Por favor espera mientras se cargan los datos</p>
+        </div>
+    </div>
+
+    <!-- ✅ ZONA NO IMPRIMIBLE (POS) -->
+    <div class="venta-container no-print" *ngIf="!loading">
+        <div class="venta-card">
         <!-- HEADER -->
         <div class="venta-header">
             <div class="header-content">
@@ -261,9 +271,9 @@
                             <div class="pago-col">
                                 <label class="label-compacto">Método de Pago</label>
                                 <select #metodoPagoSelect class="select-compacto" [(ngModel)]="metodoPago" (keydown.enter)="onInputEnter($event, 'metodo')">
-                                    <option value="Efectivo">Efectivo</option>
-                                    <option value="Transferencia">Transferencia</option>
-                                    <option value="Tarjeta">Tarjeta</option>
+                                    <option value="Efectivo" *ngIf="hayCajaAbierta">💵 Efectivo</option>
+                                    <option value="Transferencia">🏦 Transferencia</option>
+                                    <option value="Tarjeta">💳 Tarjeta</option>
                                 </select>
                             </div>
                             <div class="pago-col">
@@ -281,9 +291,9 @@
                             <div class="pago-col">
                                 <label class="label-compacto">Método de Pago</label>
                                 <select #metodoPagoSelect class="select-compacto" [(ngModel)]="metodoPago" (keydown.enter)="onInputEnter($event, 'metodo')">
-                                    <option value="Efectivo">Efectivo</option>
-                                    <option value="Transferencia">Transferencia</option>
-                                    <option value="Tarjeta">Tarjeta</option>
+                                    <option value="Efectivo" *ngIf="hayCajaAbierta">💵 Efectivo</option>
+                                    <option value="Transferencia">🏦 Transferencia</option>
+                                    <option value="Tarjeta">💳 Tarjeta</option>
                                 </select>
                             </div>
                             <div class="pago-col" *ngIf="esAdmin">
@@ -448,4 +458,5 @@
     <div class="t-center t-small">Gracias por su compra</div>
     <div class="t-center t-small">Conserve su factura</div>
 
+</div>
 </div>

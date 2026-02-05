@@ -23,7 +23,7 @@ import { Factura } from '../../../core/models/factura.model';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './crear-venta.html',
-  styleUrls: ['./crear-venta.css', './crear-venta-compacto.css'],
+  styleUrls: ['./crear-venta.css', './crear-venta-compacto.css', './crear-venta-loading.css'],
 })
 export class CrearVentaComponent implements OnInit, OnDestroy {
   // Listener para navegación con teclado global
@@ -86,6 +86,9 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   fechaMaxima = ''; // Fecha máxima permitida (fin del periodo de caja banco o hoy)
   periodoNombre = ''; // Nombre del periodo para mostrar (ej: "Diciembre 2025")
   
+  // 🔒 CONTROL DE CAJA ABIERTA
+  hayCajaAbierta = false; // Indica si existe una caja chica abierta (para habilitar/deshabilitar efectivo)
+  
   // �💵 VUELTO (solo visual para efectivo)
   montoRecibido = 0; // Cuánto dinero entrega el cliente
 
@@ -105,6 +108,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   facturaId = ''; // ID de la factura a editar
   facturaOriginal: any = null; // Copia de la factura original para comparar cambios
   itemsOriginales: any[] = []; // Items originales para revertir inventario
+  cargandoFactura = false; // Indica si se está cargando la factura para edición
   
   // Getter y Setter para descuentoPorcentaje (limpia "0" inicial)
   get descuentoPorcentaje(): number {
@@ -130,8 +134,17 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   /**
    * Valida si se puede guardar la venta
    * Requiere: al menos un item (producto O servicio) y cliente
+   * En modo edición, también requiere que la factura original esté cargada
    */
   get puedeGuardar(): boolean {
+    // No permitir guardar si está cargando la factura
+    if (this.cargandoFactura) {
+      return false;
+    }
+    // En modo edición, verificar que la factura original esté cargada
+    if (this.modoEdicion && !this.facturaOriginal) {
+      return false;
+    }
     return Boolean(this.clienteId && this.items.length > 0);
   }
 
@@ -177,6 +190,9 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     // ✅ DETECTAR MODO EDICIÓN: Verificar si hay facturaId en la ruta
     this.facturaId = this.route.snapshot.paramMap.get('facturaId') || '';
     this.modoEdicion = !!this.facturaId;
+    
+    // 🔒 Verificar si hay caja abierta (para controlar método de pago)
+    await this.verificarCajaAbierta();
     
     // �🔒 VALIDACIÓN CRÍTICA: Verificar que exista alguna caja chica ABIERTA (solo en modo creación)
     if (!this.modoEdicion) {
@@ -228,10 +244,15 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.cliente = await firstValueFrom(this.clientesSrv.getClienteById(this.clienteId));
-
-    const snap = await this.historialSrv.obtenerHistorial(this.clienteId);
-    this.historial = snap.exists() ? snap.data() : null;
+    // 🔒 Solo cargar cliente e historial si NO están ya cargados (en modo edición ya se cargaron)
+    if (!this.cliente) {
+      this.cliente = await firstValueFrom(this.clientesSrv.getClienteById(this.clienteId));
+    }
+    
+    if (!this.historial) {
+      const snap = await this.historialSrv.obtenerHistorial(this.clienteId);
+      this.historial = snap.exists() ? snap.data() : null;
+    }
 
     // 🚀 OPTIMIZADO: Cargar solo productos limitados inicialmente
     await this.cargarProductosIniciales();
@@ -264,11 +285,14 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   async cargarProductosIniciales() {
     try {
       this.cargandoProductos = true;
+      console.log('🔄 Cargando productos...');
       
       // Cargar TODOS los productos una vez para extraer grupos/proveedores
       const todosProductos = await firstValueFrom(this.productosSrv.getProductos());
       this.productos = todosProductos || [];
       this.extraerGruposYProveedores();
+      
+      console.log(`✅ Productos cargados: ${this.productos.length} productos totales`);
       
       // Cargar solo productos limitados para mostrar
       const productosLimitados = await firstValueFrom(
@@ -891,6 +915,26 @@ private toNumber(v: any): number {
   }
 
   /**
+   * Verifica si hay una caja chica abierta
+   * Actualiza la propiedad hayCajaAbierta y ajusta el método de pago si es necesario
+   */
+  async verificarCajaAbierta(): Promise<void> {
+    try {
+      const caja = await this.cajaChicaService.getCajaAbierta();
+      this.hayCajaAbierta = !!caja;
+      
+      // Si no hay caja abierta y el método de pago es Efectivo, cambiar a Transferencia
+      if (!this.hayCajaAbierta && this.metodoPago === 'Efectivo') {
+        this.metodoPago = 'Transferencia';
+        console.log('⚠️ No hay caja abierta. Método de pago cambiado a Transferencia');
+      }
+    } catch (error) {
+      console.error('Error al verificar caja abierta:', error);
+      this.hayCajaAbierta = false;
+    }
+  }
+
+  /**
    * Actualiza fecha y hora con valores actuales
    */
   private actualizarFechaHoraActual(): void {
@@ -1109,11 +1153,24 @@ async guardarEImprimir() {
     return;
   }
 
+  // 🔒 Protección adicional en modo edición
+  if (this.modoEdicion && !this.facturaOriginal) {
+    console.error('❌ Intento de guardar en modo edición sin factura original cargada');
+    Swal.fire({
+      icon: 'error',
+      title: 'Error de carga',
+      text: 'La factura aún no se ha cargado completamente. Por favor, espere un momento e intente nuevamente.'
+    });
+    return;
+  }
+
+  console.log(`🔄 Iniciando guardado - Modo: ${this.modoEdicion ? 'EDICIÓN' : 'CREACIÓN'}`);
   this.guardando = true;
 
   try {
     // ✅ MODO EDICIÓN: Revertir inventario de items originales PRIMERO
     if (this.modoEdicion) {
+      console.log('🔄 Revirtiendo inventario original...');
       await this.revertirInventarioOriginal();
     }
 
@@ -1715,11 +1772,15 @@ private cleanUndefined(obj: any): any {
    * Pre-llena todos los campos del formulario con los datos de la factura
    */
   async cargarFacturaParaEditar(): Promise<void> {
+    this.cargandoFactura = true;
     try {
+      console.log('🔄 Cargando factura para editar:', this.facturaId);
+      
       // Cargar factura desde Firestore
       const factura: any = await firstValueFrom(this.facturasSrv.getFacturaById(this.facturaId));
       
       if (!factura) {
+        console.error('❌ Factura no encontrada:', this.facturaId);
         await Swal.fire({
           icon: 'error',
           title: 'Factura no encontrada',
@@ -1730,16 +1791,20 @@ private cleanUndefined(obj: any): any {
         return;
       }
 
-      // Guardar copia de la factura original
+      console.log('✅ Factura obtenida:', factura);
+
+      // Guardar copia de la factura original INMEDIATAMENTE
       this.facturaOriginal = { ...factura };
       this.itemsOriginales = factura.items ? JSON.parse(JSON.stringify(factura.items)) : [];
 
       // Pre-llenar datos del cliente
       this.clienteId = factura.clienteId || '';
       if (this.clienteId) {
+        console.log('🔄 Cargando datos del cliente:', this.clienteId);
         this.cliente = await firstValueFrom(this.clientesSrv.getClienteById(this.clienteId));
         const snap = await this.historialSrv.obtenerHistorial(this.clienteId);
         this.historial = snap.exists() ? snap.data() : null;
+        console.log('✅ Cliente e historial cargados');
       }
 
       // Pre-llenar items (productos y servicios)
@@ -1780,6 +1845,10 @@ private cleanUndefined(obj: any): any {
       }
 
       console.log('✅ Factura cargada para edición:', factura);
+      
+      // Pequeño delay para asegurar que todo esté sincronizado
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
     } catch (error) {
       console.error('Error cargando factura:', error);
       await Swal.fire({
@@ -1789,6 +1858,9 @@ private cleanUndefined(obj: any): any {
         confirmButtonText: 'Volver'
       });
       this.router.navigate(['/facturas']);
+    } finally {
+      this.cargandoFactura = false;
+      console.log('✅ Factura completamente lista para editar');
     }
   }
 
