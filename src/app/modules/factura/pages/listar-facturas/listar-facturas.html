@@ -85,10 +85,10 @@
                             <!-- ✅ NUEVO: Mostrar tipo de factura -->
                             <td class="col-pago">
                                 <ng-container *ngIf="f.tipoFactura === 'COBRO_DEUDA'; else normalType">
-                                    <span class="badge" style="background-color: #ff9800; color: white;">💳 Cobro</span>
+                                    <span class="badge" style="background-color: #ff9800; color: white;">Cobro</span>
                                 </ng-container>
                                 <ng-template #normalType>
-                                    <span class="badge" style="background-color: #2196F3; color: white;">🛍️ Normal</span>
+                                    <span class="badge" style="background-color: #2196F3; color: white;">Normal</span>
                                 </ng-template>
                             </td>
 
@@ -118,10 +118,12 @@
 
                                     <!-- ✅ Cobrar deuda -->
                                     <button class="btn-action btn-action-payment" *ngIf="f.estadoPago === 'PENDIENTE'" (click)="cobrarDeuda(f.clienteId, $event)" title="Cobrar deuda">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                            <path d="M16 11h-4"></path>
-                        </svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
+            <path d="M12 18V6"/>
+          </svg>
                     </button>
 
                                     <!-- ✅ NUEVO: Editar factura -->

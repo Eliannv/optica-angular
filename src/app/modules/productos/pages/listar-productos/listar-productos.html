@@ -47,7 +47,15 @@
             </div>
         </div>
         <div class="card-body">
-            <div class="table-responsive">
+            <!-- 🚀 Spinner de carga -->
+            <div *ngIf="isLoading" class="loading-spinner">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="text-muted mt-2">Cargando productos...</p>
+            </div>
+
+            <div class="table-responsive" [class.opacity-50]="isLoading">
                 <table class="table">
                     <thead>
                         <tr>
@@ -101,27 +109,42 @@
                 </table>
 
                 <!-- Controles de paginación -->
-                <div class="pagination-controls" *ngIf="totalProductos > 0">
+                <div class="pagination-controls" *ngIf="productosPaginados.length > 0 && !isLoading">
                     <div class="pagination-info">
-                        <span class="text-muted">Mostrando {{ (paginaActual - 1) * productosPorPagina + 1 }} - {{ Math.min(paginaActual * productosPorPagina, totalProductos) }} de {{ totalProductos }} productos</span>
+                        <span class="text-muted">
+                            Página {{ paginaActual }} - Mostrando {{ productosPaginados.length }} productos
+                            <span class="badge bg-info ms-2" *ngIf="hasMore">Hay más resultados</span>
+                        </span>
                     </div>
                     <div class="pagination-buttons">
-                        <button class="btn btn-secondary" [disabled]="paginaActual === 1" (click)="irPrimeraPagina()">
+                        <button class="btn btn-secondary" 
+                                [disabled]="paginaActual === 1 || isLoading" 
+                                (click)="irPrimeraPagina()"
+                                title="Ir a la primera página">
                             «« Primera
                         </button>
-                        <button class="btn btn-secondary" [disabled]="paginaActual === 1" (click)="paginaAnterior()">
+                        <button class="btn btn-secondary" 
+                                [disabled]="paginaActual === 1 || isLoading" 
+                                (click)="paginaAnterior()"
+                                title="Página anterior">
                             ← Anterior
                         </button>
-                        <button class="btn btn-secondary" [disabled]="paginaActual * productosPorPagina >= totalProductos" (click)="paginaSiguiente()">
+                        <button class="btn btn-secondary" 
+                                [disabled]="!hasMore || isLoading" 
+                                (click)="paginaSiguiente()"
+                                title="Página siguiente">
                             Siguiente →
                         </button>
-                        <button class="btn btn-secondary" [disabled]="paginaActual * productosPorPagina >= totalProductos" (click)="irUltimaPagina()">
+                        <button class="btn btn-secondary" 
+                                [disabled]="true" 
+                                (click)="irUltimaPagina()"
+                                title="Función deshabilitada para mejor rendimiento">
                             Última »»
                         </button>
                     </div>
                 </div>
 
-                <div *ngIf="totalProductos === 0" class="text-center p-4">
+                <div *ngIf="productosPaginados.length === 0 && !isLoading" class="text-center p-4">
                     <p class="text-muted">No hay productos registrados</p>
                     <p class="text-muted text-sm" style="margin-top: 12px;">Importa productos desde un archivo Excel</p>
                 </div>

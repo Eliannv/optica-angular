@@ -6,6 +6,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { Router, ActivatedRoute } from '@angular/router';
 import Swal from 'sweetalert2';
 import { UpperCasePipe } from '@angular/common';
+import { DocumentSnapshot } from '@angular/fire/firestore';
 
 /**
  * Componente para listar y gestionar productos
@@ -26,18 +27,35 @@ import { UpperCasePipe } from '@angular/common';
   styleUrl: './listar-productos.css',
 })
 export class ListarProductos implements OnInit {
-  productos: Producto[] = [];
-  productosFiltrados: Producto[] = [];
+  // 🚀 PAGINACIÓN REAL DESDE FIRESTORE
   productosPaginados: Producto[] = [];
   paginaActual: number = 1;
   productosPorPagina: number = 10;
   totalProductos: number = 0;
   Math = Math;
+  
+  // 🎯 Snapshots para navegación Firestore
+  lastVisible: DocumentSnapshot | null = null;
+  firstVisible: DocumentSnapshot | null = null;
+  hasMore: boolean = false;
+  isLoading: boolean = false;
+  
+  // 🔍 Historial de páginas para navegación hacia atrás
+  paginasHistorial: Array<{
+    firstDoc: DocumentSnapshot | null;
+    lastDoc: DocumentSnapshot | null;
+    pageNumber: number;
+  }> = [];
+  
   productoSeleccionado: Producto | null = null;
   mostrarModal: boolean = false;
   terminoBusqueda: string = '';
   grupoSeleccionado: string = '';
-  ordenamiento: string = 'reciente';
+  ordenamiento: string = 'codigo'; // Cambiado a 'codigo' por defecto para mejor performance
+
+  // ⚠️ Mantenemos productos y productosFiltrados para exportación
+  productos: Producto[] = [];
+  productosFiltrados: Producto[] = [];
 
   constructor(
     private productosService: ProductosService,
@@ -53,62 +71,217 @@ export class ListarProductos implements OnInit {
    * 
    * @description
    * Se suscribe a los parámetros de consulta para detectar cambios en el grupo seleccionado
-   * y carga todos los productos (activos e inactivos) desde Firestore.
+   * y carga SOLO los primeros 10 productos con paginación real desde Firestore.
    */
   ngOnInit() {
     this.route.queryParams.subscribe(params => {
       this.grupoSeleccionado = params['grupo'] || '';
       
-      this.productosService.getProductosTodosInclusoInactivos().subscribe(productos => {
-        this.productos = productos;
-        this.aplicarFiltros();
-      });
+      // 🚀 PAGINACIÓN REAL: Cargar solo primera página
+      this.cargarPrimeraPage();
+      
+      // ⚠️ Cargar todos los productos SOLO para exportación (lazy)
+      this.cargarProductosParaExportacion();
     });
   }
 
   /**
-   * Actualiza la paginación mostrando los productos correspondientes a la página actual
+   * 🚀 Carga la primera página de productos con paginación real
+   */
+  private async cargarPrimeraPage(): Promise<void> {
+    this.isLoading = true;
+    this.paginaActual = 1;
+    this.paginasHistorial = [];
+    
+    try {
+      const resultado = await this.productosService.getProductosPaginadosReal({
+        pageSize: this.productosPorPagina,
+        ordenamiento: this.ordenamiento as 'reciente' | 'codigo',
+        terminoBusqueda: this.terminoBusqueda,
+        grupoSeleccionado: this.grupoSeleccionado
+      });
+      
+      this.productosPaginados = resultado.productos;
+      this.lastVisible = resultado.lastDoc;
+      this.firstVisible = resultado.firstDoc;
+      this.hasMore = resultado.hasMore;
+      
+      // Guardar en historial
+      if (resultado.firstDoc) {
+        this.paginasHistorial.push({
+          firstDoc: resultado.firstDoc,
+          lastDoc: resultado.lastDoc,
+          pageNumber: 1
+        });
+      }
+      
+      // Actualizar total estimado (solo para UI)
+      this.totalProductos = resultado.productos.length;
+      
+    } catch (error) {
+      console.error('Error al cargar productos:', error);
+      Swal.fire('Error', 'No se pudieron cargar los productos', 'error');
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  /**
+   * ⚠️ Carga todos los productos SOLO para exportación
+   * Se ejecuta en background sin bloquear la UI
+   */
+  private cargarProductosParaExportacion(): void {
+    this.productosService.getProductosTodosInclusoInactivos().subscribe(productos => {
+      this.productos = productos;
+      
+      // Aplicar los mismos filtros que en la paginación
+      let filtrados = [...productos];
+      
+      if (this.grupoSeleccionado) {
+        filtrados = filtrados.filter(producto => 
+          producto.grupo?.toUpperCase() === this.grupoSeleccionado.toUpperCase()
+        );
+      }
+      
+      if (this.terminoBusqueda.trim()) {
+        const termino = this.terminoBusqueda.toLowerCase().trim();
+        filtrados = filtrados.filter(producto => {
+          const nombre = producto.nombre?.toLowerCase() || '';
+          const modelo = producto.modelo?.toLowerCase() || '';
+          const color = producto.color?.toLowerCase() || '';
+          const grupo = producto.grupo?.toLowerCase() || '';
+          const proveedor = producto.proveedor?.toLowerCase() || '';
+          const idInterno = producto.idInterno?.toString() || '';
+
+          return nombre.includes(termino) ||
+                 modelo.includes(termino) ||
+                 color.includes(termino) ||
+                 grupo.includes(termino) ||
+                 proveedor.includes(termino) ||
+                 idInterno.includes(termino);
+        });
+      }
+      
+      this.productosFiltrados = filtrados;
+    });
+  }
+
+  /**
+   * ⚠️ DEPRECATED: Ya no se usa paginación en memoria
+   * Ahora la paginación es real desde Firestore
    */
   actualizarPaginacion() {
-    const inicio = (this.paginaActual - 1) * this.productosPorPagina;
-    const fin = inicio + this.productosPorPagina;
-    this.productosPaginados = [...this.productosFiltrados.slice(inicio, fin)];
+    // Método mantenido por compatibilidad pero ya no se usa
+    console.warn('actualizarPaginacion() está deprecated - usando paginación real de Firestore');
   }
 
   /**
-   * Navega a la página siguiente si existe
+   * 🚀 Navega a la página siguiente (PAGINACIÓN REAL)
    */
-  paginaSiguiente() {
-    if (this.paginaActual * this.productosPorPagina < this.totalProductos) {
+  async paginaSiguiente(): Promise<void> {
+    if (!this.hasMore || this.isLoading) {
+      return;
+    }
+    
+    this.isLoading = true;
+    
+    try {
+      const resultado = await this.productosService.getProductosPaginadosReal({
+        pageSize: this.productosPorPagina,
+        lastVisible: this.lastVisible,
+        direction: 'next',
+        ordenamiento: this.ordenamiento as 'reciente' | 'codigo',
+        terminoBusqueda: this.terminoBusqueda,
+        grupoSeleccionado: this.grupoSeleccionado
+      });
+      
+      this.productosPaginados = resultado.productos;
+      this.lastVisible = resultado.lastDoc;
+      this.firstVisible = resultado.firstDoc;
+      this.hasMore = resultado.hasMore;
       this.paginaActual++;
-      this.actualizarPaginacion();
+      
+      // Guardar en historial
+      if (resultado.firstDoc) {
+        this.paginasHistorial.push({
+          firstDoc: resultado.firstDoc,
+          lastDoc: resultado.lastDoc,
+          pageNumber: this.paginaActual
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error al cargar página siguiente:', error);
+      Swal.fire('Error', 'No se pudo cargar la siguiente página', 'error');
+    } finally {
+      this.isLoading = false;
     }
   }
 
   /**
-   * Navega a la página anterior si existe
+   * 🚀 Navega a la página anterior (PAGINACIÓN REAL)
    */
-  paginaAnterior() {
-    if (this.paginaActual > 1) {
-      this.paginaActual--;
-      this.actualizarPaginacion();
+  async paginaAnterior(): Promise<void> {
+    if (this.paginaActual <= 1 || this.isLoading) {
+      return;
+    }
+    
+    this.isLoading = true;
+    
+    try {
+      // Eliminar última página del historial
+      this.paginasHistorial.pop();
+      
+      // Obtener la página anterior del historial
+      const paginaAnterior = this.paginasHistorial[this.paginasHistorial.length - 1];
+      
+      if (paginaAnterior) {
+        const resultado = await this.productosService.getProductosPaginadosReal({
+          pageSize: this.productosPorPagina,
+          firstVisible: paginaAnterior.firstDoc,
+          direction: 'prev',
+          ordenamiento: this.ordenamiento as 'reciente' | 'codigo',
+          terminoBusqueda: this.terminoBusqueda,
+          grupoSeleccionado: this.grupoSeleccionado
+        });
+        
+        this.productosPaginados = resultado.productos;
+        this.lastVisible = resultado.lastDoc;
+        this.firstVisible = resultado.firstDoc;
+        this.hasMore = resultado.hasMore;
+        this.paginaActual--;
+      }
+      
+    } catch (error) {
+      console.error('Error al cargar página anterior:', error);
+      Swal.fire('Error', 'No se pudo cargar la página anterior', 'error');
+    } finally {
+      this.isLoading = false;
     }
   }
 
   /**
-   * Navega a la primera página
+   * 🚀 Navega a la primera página (PAGINACIÓN REAL)
    */
-  irPrimeraPagina(): void {
-    this.paginaActual = 1;
-    this.actualizarPaginacion();
+  async irPrimeraPagina(): Promise<void> {
+    if (this.paginaActual === 1 || this.isLoading) {
+      return;
+    }
+    
+    await this.cargarPrimeraPage();
   }
 
   /**
-   * Navega a la última página
+   * ⚠️ Navegar a última página no es eficiente con paginación cursor
+   * Se deshabilita esta funcionalidad
    */
   irUltimaPagina(): void {
-    this.paginaActual = Math.ceil(this.totalProductos / this.productosPorPagina);
-    this.actualizarPaginacion();
+    Swal.fire({
+      icon: 'info',
+      title: 'Navegación optimizada',
+      text: 'Para mejor rendimiento, usa los botones Siguiente/Anterior para navegar por las páginas.',
+      confirmButtonText: 'Entendido'
+    });
   }
 
   /**
@@ -125,7 +298,7 @@ export class ListarProductos implements OnInit {
    * 
    * @description
    * Muestra un diálogo de confirmación y alterna el estado activo/inactivo del producto.
-   * Recarga automáticamente la lista tras el cambio.
+   * Recarga automáticamente la página actual tras el cambio.
    */
   toggleEstadoProducto(producto: Producto) {
     const esActivo = producto.activo !== false;
@@ -151,7 +324,9 @@ export class ListarProductos implements OnInit {
               ? 'Producto desactivado exitosamente' 
               : 'Producto activado exitosamente';
             Swal.fire(esActivo ? 'Desactivado' : 'Activado', mensaje, 'success');
-            this.recargarProductos();
+            
+            // 🚀 Recargar página actual con paginación real
+            this.recargarPaginaActual();
           })
           .catch(error => {
             console.error('Error al cambiar estado del producto:', error);
@@ -162,15 +337,17 @@ export class ListarProductos implements OnInit {
   }
 
   /**
-   * Recarga la lista de productos desde Firestore
+   * 🚀 Recarga la página actual de productos
    * 
    * @private
    */
-  private recargarProductos() {
-    this.productosService.getProductosTodosInclusoInactivos().subscribe(productos => {
-      this.productos = productos;
-      this.aplicarFiltros();
-    });
+  private async recargarPaginaActual(): Promise<void> {
+    if (this.paginaActual === 1) {
+      await this.cargarPrimeraPage();
+    } else {
+      // Si no estamos en la primera página, ir a la primera por simplicidad
+      await this.irPrimeraPagina();
+    }
   }
 
   /**
@@ -202,9 +379,10 @@ export class ListarProductos implements OnInit {
           observacion: nuevaObservacion || ''
         });
         
-        const index = this.productos.findIndex(p => p.id === producto.id);
+        // 🚀 Actualizar en la lista paginada actual
+        const index = this.productosPaginados.findIndex(p => p.id === producto.id);
         if (index !== -1) {
-          this.productos[index].observacion = nuevaObservacion || '';
+          this.productosPaginados[index].observacion = nuevaObservacion || '';
         }
         
         Swal.fire('Guardado', 'Observación actualizada exitosamente', 'success');
@@ -245,84 +423,40 @@ export class ListarProductos implements OnInit {
   }
 
   /**
-   * Aplica filtros combinados de grupo, búsqueda y ordenamiento
+   * 🚀 Aplica filtros y recarga desde la primera página
    * 
    * @description
-   * Filtra por grupo (desde URL), por término de búsqueda (nombre, modelo, color, grupo, 
-   * proveedor, idInterno) y aplica ordenamiento (reciente o por código).
-   * Resetea la paginación a la primera página.
+   * Resetea la paginación y vuelve a consultar Firestore con los nuevos filtros.
    */
-  aplicarFiltros() {
-    let productosFiltrados = [...this.productos];
-
-    if (this.grupoSeleccionado) {
-      productosFiltrados = productosFiltrados.filter(producto => 
-        producto.grupo?.toUpperCase() === this.grupoSeleccionado.toUpperCase()
-      );
-    }
-
-    if (this.terminoBusqueda.trim()) {
-      const termino = this.terminoBusqueda.toLowerCase().trim();
-      productosFiltrados = productosFiltrados.filter(producto => {
-        const nombre = producto.nombre?.toLowerCase() || '';
-        const modelo = producto.modelo?.toLowerCase() || '';
-        const color = producto.color?.toLowerCase() || '';
-        const grupo = producto.grupo?.toLowerCase() || '';
-        const proveedor = producto.proveedor?.toLowerCase() || '';
-        const idInterno = producto.idInterno?.toString() || '';
-
-        return nombre.includes(termino) ||
-               modelo.includes(termino) ||
-               color.includes(termino) ||
-               grupo.includes(termino) ||
-               proveedor.includes(termino) ||
-               idInterno.includes(termino);
-      });
-    }
-
-    if (this.ordenamiento === 'codigo') {
-      productosFiltrados.sort((a, b) => {
-        const codigoA = (a.idInterno || 0) as number;
-        const codigoB = (b.idInterno || 0) as number;
-        return codigoA - codigoB;
-      });
-    } else if (this.ordenamiento === 'reciente') {
-      productosFiltrados.sort((a, b) => {
-        const fechaA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const fechaB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return fechaB - fechaA;
-      });
-    }
-
-    this.productosFiltrados = productosFiltrados;
-    this.totalProductos = this.productosFiltrados.length;
-    this.paginaActual = 1;
-    this.actualizarPaginacion();
+  async aplicarFiltros(): Promise<void> {
+    await this.cargarPrimeraPage();
+    // También actualizar los productos para exportación
+    this.cargarProductosParaExportacion();
   }
 
   /**
-   * Ejecuta la búsqueda aplicando todos los filtros activos
+   * 🚀 Ejecuta la búsqueda aplicando todos los filtros activos
    */
-  buscarProductos() {
-    this.aplicarFiltros();
+  async buscarProductos(): Promise<void> {
+    await this.aplicarFiltros();
   }
 
   /**
-   * Limpia el campo de búsqueda y recarga todos los productos filtrados
+   * 🚀 Limpia el campo de búsqueda y recarga productos
    */
-  limpiarBusqueda() {
+  async limpiarBusqueda(): Promise<void> {
     this.terminoBusqueda = '';
-    this.aplicarFiltros();
+    await this.aplicarFiltros();
   }
 
   /**
-   * Cambia el tipo de ordenamiento de la lista
+   * 🚀 Cambia el tipo de ordenamiento y recarga
    * 
    * @param nuevoOrdenamiento - Tipo de ordenamiento ('reciente' o 'codigo')
    */
-  cambiarOrdenamiento(nuevoOrdenamiento: string) {
+  async cambiarOrdenamiento(nuevoOrdenamiento: string): Promise<void> {
     this.ordenamiento = nuevoOrdenamiento;
-    this.aplicarFiltros();
+    await this.aplicarFiltros();
   }
 
   /**

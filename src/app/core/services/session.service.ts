@@ -8,10 +8,14 @@
  * abandonadas permanezcan abiertas indefinidamente, especialmente importante
  * en entornos de uso compartido.
  *
+ * Además, implementa renovación automática del token JWT de Firebase basada en
+ * actividad del usuario, extendiendo la sesión mientras haya interacción activa.
+ *
  * Forma parte del módulo core y se activa automáticamente tras el login exitoso.
  */
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { Auth } from '@angular/fire/auth';
 import { AuthService } from './auth.service';
 import { fromEvent, merge, Subject, takeUntil, throttleTime } from 'rxjs';
 import Swal from 'sweetalert2';
@@ -22,11 +26,17 @@ import Swal from 'sweetalert2';
 export class SessionService {
   private router = inject(Router);
   private authService = inject(AuthService);
+  private auth = inject(Auth);
   
-  // Tiempo de inactividad en milisegundos (30 minutos por defecto)
-  private readonly INACTIVITY_TIMEOUT = 30 * 60 * 1000; 
+  // Tiempo de inactividad en milisegundos (9 horas)
+  private readonly INACTIVITY_TIMEOUT = 9 * 60 * 60 * 1000; 
+  
+  // Renovar token cada 8 horas de actividad (antes de que expire el de 9 horas)
+  private readonly TOKEN_REFRESH_INTERVAL = 8 * 60 * 60 * 1000;
   
   private inactivityTimer: any;
+  private tokenRefreshTimer: any;
+  private lastActivityTime: number = Date.now();
   private destroy$ = new Subject<void>();
 
   constructor() {}
@@ -34,7 +44,8 @@ export class SessionService {
   /**
    * Inicia el monitoreo de actividad del usuario.
    * Escucha eventos del DOM (mouse, teclado, táctiles) para detectar interacción.
-   * Cada evento detectado reinicia el temporizador de inactividad.
+   * Cada evento detectado reinicia el temporizador de inactividad y marca actividad
+   * para renovación de token.
    *
    * Los eventos se procesan con throttle de 1 segundo para optimizar rendimiento.
    */
@@ -43,6 +54,9 @@ export class SessionService {
     if (this.destroy$.closed) {
       this.destroy$ = new Subject<void>();
     }
+
+    // Registrar tiempo de inicio de sesión
+    this.lastActivityTime = Date.now();
 
     // Eventos que indican actividad del usuario
     const events$ = merge(
@@ -59,11 +73,15 @@ export class SessionService {
       throttleTime(1000),
       takeUntil(this.destroy$)
     ).subscribe(() => {
+      this.lastActivityTime = Date.now();
       this.resetInactivityTimer();
     });
 
-    // Iniciar el timer
+    // Iniciar el timer de inactividad
     this.resetInactivityTimer();
+    
+    // Iniciar renovación periódica de token
+    this.startTokenRefresh();
   }
 
   /**
@@ -74,6 +92,11 @@ export class SessionService {
     this.destroy$.next();
     if (this.inactivityTimer) {
       clearTimeout(this.inactivityTimer);
+      this.inactivityTimer = null;
+    }
+    if (this.tokenRefreshTimer) {
+      clearInterval(this.tokenRefreshTimer);
+      this.tokenRefreshTimer = null;
     }
   }
 
@@ -86,7 +109,11 @@ export class SessionService {
       clearTimeout(this.inactivityTimer);
     }
 
+    const remainingSeconds = Math.floor(this.INACTIVITY_TIMEOUT / 1000);
+    console.log(`🔄 Timer de inactividad reiniciado - Cierre en ${remainingSeconds}s si no hay actividad`);
+
     this.inactivityTimer = setTimeout(() => {
+      console.log('⏰ Timer expiró - Cerrando sesión por inactividad');
       this.handleInactivityLogout();
     }, this.INACTIVITY_TIMEOUT);
   }
@@ -107,6 +134,60 @@ export class SessionService {
     }).then(() => {
       this.authService.logout().subscribe();
     });
+  }
+
+  /**
+   * Inicia la renovación periódica del token JWT de Firebase.
+   * Renueva el token cada 25 minutos si hay actividad reciente del usuario.
+   * Esto mantiene la sesión activa mientras el usuario interactúa con la app.
+   */
+  private startTokenRefresh(): void {
+    // Limpiar timer existente si hay uno
+    if (this.tokenRefreshTimer) {
+      clearInterval(this.tokenRefreshTimer);
+    }
+
+    // Configurar renovación periódica
+    this.tokenRefreshTimer = setInterval(async () => {
+      const currentTime = Date.now();
+      const timeSinceLastActivity = currentTime - this.lastActivityTime;
+
+      // Solo renovar si ha habido actividad en los últimos 25 minutos
+      if (timeSinceLastActivity < this.TOKEN_REFRESH_INTERVAL) {
+        await this.refreshAuthToken();
+      }
+    }, this.TOKEN_REFRESH_INTERVAL);
+
+    // También hacer una renovación inicial (útil al restaurar sesión)
+    this.refreshAuthToken();
+  }
+
+  /**
+   * Renueva el token de autenticación de Firebase para extender la sesión.
+   * Se llama automáticamente cuando hay actividad del usuario.
+   */
+  private async refreshAuthToken(): Promise<void> {
+    try {
+      const user = this.auth.currentUser;
+      if (!user) {
+        console.warn('⚠️ No hay usuario autenticado para renovar token');
+        return;
+      }
+
+      // Forzar renovación del token (force refresh = true)
+      const token = await user.getIdToken(true);
+      
+      console.log('✅ Token JWT renovado exitosamente');
+      
+      // Opcional: mostrar en consola el tiempo de expiración del token
+      const tokenResult = await user.getIdTokenResult();
+      const expirationTime = new Date(tokenResult.expirationTime);
+      console.log(`📅 Token expira en: ${expirationTime.toLocaleString()}`);
+      
+    } catch (error) {
+      console.error('❌ Error al renovar token:', error);
+      // No hacer logout automáticamente, Firebase puede tener un token en caché válido
+    }
   }
 
   /**

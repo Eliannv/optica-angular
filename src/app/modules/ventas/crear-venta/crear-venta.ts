@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import Swal from 'sweetalert2';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subject, Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
 import { ClientesService } from '../../../core/services/clientes';
 import { ProductosService } from '../../../core/services/productos';
@@ -22,7 +23,7 @@ import { Factura } from '../../../core/models/factura.model';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './crear-venta.html',
-  styleUrls: ['./crear-venta.css'],
+  styleUrls: ['./crear-venta.css', './crear-venta-compacto.css'],
 })
 export class CrearVentaComponent implements OnInit, OnDestroy {
   // Listener para navegación con teclado global
@@ -40,6 +41,13 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   selectedIndex = -1; // Para navegación con flechas
   productoSeleccionado: any = null; // Producto actualmente seleccionado
   ordenamientoProductos: string = 'codigo'; // 'reciente' o 'codigo' - Por defecto ordenar por idInterno (código)
+  
+  // 🚀 OPTIMIZACIÓN: Lazy loading y búsqueda
+  private searchSubject$ = new Subject<string>();
+  private searchSubscription?: Subscription;
+  cargandoProductos = false;
+  limitProductos = 10; // Límite inicial de productos
+  hayMasProductos = true; // Indica si hay más productos por cargar
   
   // Filtros adicionales
   mostrarFiltros: boolean = false; // Panel de filtros colapsable
@@ -225,11 +233,11 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     const snap = await this.historialSrv.obtenerHistorial(this.clienteId);
     this.historial = snap.exists() ? snap.data() : null;
 
-    this.productosSrv.getProductos().subscribe((data: any[]) => {
-      this.productos = data || [];
-      this.extraerGruposYProveedores();
-      this.filtrarProductos();
-    });
+    // 🚀 OPTIMIZADO: Cargar solo productos limitados inicialmente
+    await this.cargarProductosIniciales();
+    
+    // 🚀 OPTIMIZADO: Configurar búsqueda con debounce
+    this.configurarBusquedaOptimizada();
 
     this.loading = false;
   }
@@ -250,54 +258,184 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     this.proveedoresDisponibles = Array.from(proveedores).sort();
   }
 
+  /**
+   * 🚀 OPTIMIZADO: Cargar productos iniciales limitados
+   */
+  async cargarProductosIniciales() {
+    try {
+      this.cargandoProductos = true;
+      
+      // Cargar TODOS los productos una vez para extraer grupos/proveedores
+      const todosProductos = await firstValueFrom(this.productosSrv.getProductos());
+      this.productos = todosProductos || [];
+      this.extraerGruposYProveedores();
+      
+      // Cargar solo productos limitados para mostrar
+      const productosLimitados = await firstValueFrom(
+        this.productosSrv.getProductosLimitados(this.limitProductos)
+      );
+      this.productosFiltrados = productosLimitados;
+      this.hayMasProductos = productosLimitados.length >= this.limitProductos;
+      
+    } catch (error) {
+      console.error('Error al cargar productos:', error);
+    } finally {
+      this.cargandoProductos = false;
+    }
+  }
+  
+  /**
+   * 🚀 OPTIMIZADO: Configurar búsqueda con debounce
+   */
+  configurarBusquedaOptimizada() {
+    this.searchSubscription = this.searchSubject$.pipe(
+      debounceTime(300), // Esperar 300ms después del último cambio
+      distinctUntilChanged(), // Solo emitir si el valor cambió
+      switchMap(searchTerm => {
+        this.cargandoProductos = true;
+        
+        // 🔧 FIX: Si la búsqueda está vacía Y no hay filtros Y no está en modo recientes, resetear límite y cargar iniciales
+        if (!searchTerm.trim() && !this.grupoSeleccionado && !this.proveedorSeleccionado && !this.tipoStockSeleccionado && !this.mostrarRecientes) {
+          this.limitProductos = 10; // Resetear límite a inicial
+          return this.productosSrv.getProductosLimitados(this.limitProductos, 'idInterno');
+        }
+        
+        // 🔧 FIX: Si está en modo Recientes, usar límite de 10
+        if (this.mostrarRecientes) {
+          return this.productosSrv.buscarProductosConFiltros({
+            searchTerm,
+            grupo: this.grupoSeleccionado,
+            proveedor: this.proveedorSeleccionado,
+            tipoStock: this.tipoStockSeleccionado,
+            limitCount: 10 // Solo 10 productos recientes
+          });
+        }
+        
+        // Si hay filtros activos (sin recientes), usar búsqueda con filtros
+        if (this.grupoSeleccionado || this.proveedorSeleccionado || this.tipoStockSeleccionado) {
+          return this.productosSrv.buscarProductosConFiltros({
+            searchTerm,
+            grupo: this.grupoSeleccionado,
+            proveedor: this.proveedorSeleccionado,
+            tipoStock: this.tipoStockSeleccionado,
+            limitCount: 20
+          });
+        }
+        
+        // Búsqueda simple limitada
+        return this.productosSrv.buscarProductosLimitado(searchTerm, 20);
+      })
+    ).subscribe({
+      next: (productos) => {
+        this.productosFiltrados = productos;
+        // 🔧 FIX: Actualizar hayMasProductos según el contexto
+        if (!this.filtro.trim() && !this.grupoSeleccionado && !this.proveedorSeleccionado && !this.tipoStockSeleccionado && !this.mostrarRecientes) {
+          this.hayMasProductos = productos.length >= this.limitProductos;
+        } else if (this.mostrarRecientes) {
+          this.hayMasProductos = false; // No hay más productos en modo recientes
+        } else {
+          this.hayMasProductos = productos.length >= 20;
+        }
+        this.aplicarOrdenamiento();
+        this.cargandoProductos = false;
+      },
+      error: (error) => {
+        console.error('Error en búsqueda:', error);
+        this.cargandoProductos = false;
+      }
+    });
+  }
+  
+  /**
+   * 🚀 OPTIMIZADO: Emitir búsqueda con debounce
+   */
   filtrarProductos() {
-    const t = (this.filtro || '').trim().toLowerCase();
-    let filtrados = [...this.productos];
+    this.searchSubject$.next(this.filtro);
+  }
+  
+  /**
+   * 🔧 FIX: Forzar recarga de productos (para cuando se limpian filtros)
+   */
+  async recargarProductos() {
+    try {
+      this.cargandoProductos = true;
+      
+      // Si no hay filtros ni búsqueda ni recientes, cargar productos iniciales
+      if (!this.filtro.trim() && !this.grupoSeleccionado && !this.proveedorSeleccionado && !this.tipoStockSeleccionado && !this.mostrarRecientes) {
+        this.limitProductos = 10;
+        const productos = await firstValueFrom(
+          this.productosSrv.getProductosLimitados(this.limitProductos, 'idInterno')
+        );
+        this.productosFiltrados = productos;
+        this.hayMasProductos = productos.length >= this.limitProductos;
+      }
+      // 🔧 FIX: Si está en modo Recientes, solo 10 productos ordenados por updatedAt
+      else if (this.mostrarRecientes) {
+        const productos = await firstValueFrom(
+          this.productosSrv.buscarProductosConFiltros({
+            searchTerm: this.filtro,
+            grupo: this.grupoSeleccionado,
+            proveedor: this.proveedorSeleccionado,
+            tipoStock: this.tipoStockSeleccionado,
+            limitCount: 10 // Solo 10 productos recientes
+          })
+        );
+        this.productosFiltrados = productos;
+        this.hayMasProductos = false; // No hay más para cargar en modo recientes
+      }
+      // Si hay filtros activos (sin recientes)
+      else if (this.grupoSeleccionado || this.proveedorSeleccionado || this.tipoStockSeleccionado) {
+        const productos = await firstValueFrom(
+          this.productosSrv.buscarProductosConFiltros({
+            searchTerm: this.filtro,
+            grupo: this.grupoSeleccionado,
+            proveedor: this.proveedorSeleccionado,
+            tipoStock: this.tipoStockSeleccionado,
+            limitCount: 20
+          })
+        );
+        this.productosFiltrados = productos;
+        this.hayMasProductos = productos.length >= 20;
+      }
+      // Si solo hay búsqueda de texto
+      else {
+        const productos = await firstValueFrom(
+          this.productosSrv.buscarProductosLimitado(this.filtro, 20)
+        );
+        this.productosFiltrados = productos;
+        this.hayMasProductos = productos.length >= 20;
+      }
+      
+      this.aplicarOrdenamiento();
+    } catch (error) {
+      console.error('Error al recargar productos:', error);
+    } finally {
+      this.cargandoProductos = false;
+    }
+  }
+  
+  /**
+   * 🚀 NUEVO: Cargar más productos (paginación)
+   */
+  async cargarMasProductos() {
+    if (this.cargandoProductos || !this.hayMasProductos) return;
     
-    // Filtro por grupo
-    if (this.grupoSeleccionado) {
-      filtrados = filtrados.filter(p => 
-        (p.grupo || '').toUpperCase() === this.grupoSeleccionado.toUpperCase()
+    try {
+      this.cargandoProductos = true;
+      this.limitProductos += 10;
+      
+      const productosAdicionales = await firstValueFrom(
+        this.productosSrv.buscarProductosLimitado(this.filtro, this.limitProductos)
       );
-    }
-    
-    // Filtro por proveedor
-    if (this.proveedorSeleccionado) {
-      filtrados = filtrados.filter(p => 
-        (p.proveedor || '').toUpperCase() === this.proveedorSeleccionado.toUpperCase()
-      );
-    }
-    
-    // Filtro por tipo de stock
-    if (this.tipoStockSeleccionado) {
-      filtrados = filtrados.filter(p => {
-        const tipoControl = (p as any).tipo_control_stock || 'NORMAL';
-        return tipoControl === this.tipoStockSeleccionado;
-      });
-    }
-    
-    // Filtro por término de búsqueda
-    if (t) {
-      filtrados = filtrados.filter(p => {
-        const n = (p.nombre || '').toLowerCase();
-        const tipo = (p.tipo || p.categoria || '').toLowerCase();
-        const modelo = (p.modelo || '').toLowerCase();
-        const color = (p.color || '').toLowerCase();
-        const codigo = (p.codigo || '').toLowerCase();
-        const idInterno = (p.idInterno || '').toString().toLowerCase();
-        return n.includes(t) || tipo.includes(t) || modelo.includes(t) || color.includes(t) || codigo.includes(t) || idInterno.includes(t);
-      });
-    }
-    
-    this.productosFiltrados = filtrados;
-    this.selectedIndex = -1;
-    
-    // Aplicar ordenamiento
-    this.aplicarOrdenamiento();
-    
-    // Si "Recientes" está activo, limitar a los primeros 20 después de ordenar
-    if (this.mostrarRecientes) {
-      this.productosFiltrados = this.productosFiltrados.slice(0, 20);
+      
+      this.productosFiltrados = productosAdicionales;
+      this.hayMasProductos = productosAdicionales.length >= this.limitProductos;
+      this.aplicarOrdenamiento();
+      
+    } catch (error) {
+      console.error('Error al cargar más productos:', error);
+    } finally {
+      this.cargandoProductos = false;
     }
   }
 
@@ -343,9 +481,11 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     } else {
       // Al desactivar, volver a ordenamiento por código
       this.ordenamientoProductos = 'codigo';
+      this.limitProductos = 10; // Resetear límite
     }
     
-    this.filtrarProductos();
+    // 🔧 FIX: Usar recargarProductos para forzar recarga inmediata
+    this.recargarProductos();
   }
 
   /**
@@ -353,7 +493,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
    */
   limpiarFiltroGrupo() {
     this.grupoSeleccionado = '';
-    this.filtrarProductos();
+    this.recargarProductos();
   }
 
   /**
@@ -361,7 +501,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
    */
   limpiarFiltroProveedor() {
     this.proveedorSeleccionado = '';
-    this.filtrarProductos();
+    this.recargarProductos();
   }
 
   /**
@@ -369,7 +509,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
    */
   limpiarFiltroStock() {
     this.tipoStockSeleccionado = '';
-    this.filtrarProductos();
+    this.recargarProductos();
   }
 
   /**
@@ -381,7 +521,9 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     this.tipoStockSeleccionado = '';
     this.filtro = '';
     this.mostrarRecientes = false;
-    this.filtrarProductos();
+    this.ordenamientoProductos = 'codigo'; // Resetear a ordenamiento por código
+    this.limitProductos = 10; // Resetear límite
+    this.recargarProductos();
   }
 
 
@@ -396,6 +538,8 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     this.agregarProducto(producto);
     // Limpiar el filtro de búsqueda
     this.filtro = '';
+    // 🔧 FIX: Usar recargarProductos para forzar recarga inmediata
+    this.recargarProductos();
     // NO resetear selectedIndex para permitir navegación con flechas desde este producto
   }
 
@@ -445,9 +589,17 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
    * Se activa con flechas arriba/abajo y Enter desde cualquier parte
    */
   onDocumentKeydown(event: KeyboardEvent) {
-    // Solo actuar si NO estamos en un input, textarea o select
+    // Solo actuar si NO estamos en un input, textarea, select o button
     const target = event.target as HTMLElement;
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+    const tagName = target.tagName.toUpperCase();
+    
+    // Ignorar si estamos en cualquier elemento de formulario o botón
+    if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT' || tagName === 'BUTTON') {
+      return;
+    }
+    
+    // Ignorar si el elemento tiene contenteditable
+    if (target.contentEditable === 'true') {
       return;
     }
 
@@ -506,37 +658,77 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
       } else {
         // Ir al descuento (último producto o único)
         setTimeout(() => {
-          const descuentoInput = document.querySelector('input[min="0"][max="100"][placeholder="0"]') as HTMLInputElement;
+          const descuentoInput = document.querySelector('.input-inline') as HTMLInputElement;
           if (descuentoInput) descuentoInput.focus();
         }, 0);
       }
     } else if (inputType === 'descuento') {
       // Del descuento al método de pago
       setTimeout(() => {
-        const metodoPagoSelect = document.querySelector('.select-pago') as HTMLSelectElement;
+        const metodoPagoSelect = document.querySelector('.select-compacto') as HTMLSelectElement;
         if (metodoPagoSelect) metodoPagoSelect.focus();
       }, 0);
     } else if (inputType === 'metodo') {
-      // Del método de pago: chequear qué opción está seleccionada
+      // Del método de pago: flujo según tipo de pago
+      setTimeout(() => {
+        if (this.metodoPago === 'Transferencia' || this.metodoPago === 'Tarjeta') {
+          if (this.esAdmin) {
+            // Si es admin: ir a fecha de pago
+            const fechaPagoInput = document.querySelectorAll('input[type="date"]')[0] as HTMLInputElement;
+            if (fechaPagoInput) {
+              fechaPagoInput.focus();
+              return;
+            }
+          }
+          // Si no es admin o no hay campo de fecha: ir a código transferencia/tarjeta
+          if (this.metodoPago === 'Transferencia') {
+            const transferInput = document.querySelector('input[placeholder*="TRF"]') as HTMLInputElement;
+            if (transferInput) {
+              transferInput.focus();
+              return;
+            }
+          } else if (this.metodoPago === 'Tarjeta') {
+            const tarjetaInput = document.querySelector('input[maxlength="4"]') as HTMLInputElement;
+            if (tarjetaInput) {
+              tarjetaInput.focus();
+              return;
+            }
+          }
+        }
+        // Si es Efectivo: ir directo a Abono
+        const abonoInput = document.querySelector('.input-abono') as HTMLInputElement;
+        if (abonoInput) abonoInput.focus();
+      }, 0);
+    } else if (inputType === 'fechaPago') {
+      // De fecha de pago a hora de pago
+      setTimeout(() => {
+        const horaPagoInput = document.querySelectorAll('input[type="time"]')[0] as HTMLInputElement;
+        if (horaPagoInput) horaPagoInput.focus();
+      }, 0);
+    } else if (inputType === 'horaPago') {
+      // De hora de pago a código transferencia/tarjeta (si aplica) o directo a abono
       setTimeout(() => {
         if (this.metodoPago === 'Transferencia') {
-          // Ir al input de transferencia
           const transferInput = document.querySelector('input[placeholder*="TRF"]') as HTMLInputElement;
-          if (transferInput) transferInput.focus();
+          if (transferInput) {
+            transferInput.focus();
+            return;
+          }
         } else if (this.metodoPago === 'Tarjeta') {
-          // Ir al input de tarjeta
           const tarjetaInput = document.querySelector('input[maxlength="4"]') as HTMLInputElement;
-          if (tarjetaInput) tarjetaInput.focus();
-        } else {
-          // Si es Efectivo, ir directo a Abono
-          const abonoInput = document.querySelector('input[type="number"][placeholder="0.00"]') as HTMLInputElement;
-          if (abonoInput) abonoInput.focus();
+          if (tarjetaInput) {
+            tarjetaInput.focus();
+            return;
+          }
         }
+        // Si no hay código de transferencia/tarjeta: ir a abono
+        const abonoInput = document.querySelector('.input-abono') as HTMLInputElement;
+        if (abonoInput) abonoInput.focus();
       }, 0);
     } else if (inputType === 'transferencia' || inputType === 'tarjeta') {
       // De transferencia o tarjeta → Abono
       setTimeout(() => {
-        const abonoInput = document.querySelector('input[type="number"][placeholder="0.00"]') as HTMLInputElement;
+        const abonoInput = document.querySelector('.input-abono') as HTMLInputElement;
         if (abonoInput) abonoInput.focus();
       }, 0);
     } else if (inputType === 'abono') {
@@ -1640,6 +1832,41 @@ private cleanUndefined(obj: any): any {
   }
 
   ngOnDestroy() {
-    // Limpieza si es necesaria (el @HostListener se limpia automáticamente)
+    // 🚀 OPTIMIZADO: Limpiar suscripción de búsqueda
+    if (this.searchSubscription) {
+      this.searchSubscription.unsubscribe();
+    }
+  }
+
+  /**
+   * Selecciona todo el texto del input cuando recibe focus
+   * Útil para reemplazar rápidamente valores numéricos
+   */
+  selectAll(event: FocusEvent): void {
+    const input = event.target as HTMLInputElement;
+    if (input) {
+      // Usar setTimeout para asegurar que la selección ocurra después del focus
+      setTimeout(() => {
+        input.select();
+      }, 0);
+    }
+  }
+
+  /**
+   * Valida que el descuento no quede vacío (mínimo 0)
+   */
+  validarDescuento(): void {
+    if (this.descuentoPorcentaje === null || this.descuentoPorcentaje === undefined || isNaN(this.descuentoPorcentaje)) {
+      this.descuentoPorcentaje = 0;
+    }
+  }
+
+  /**
+   * Valida que el abono no quede vacío (mínimo 0)
+   */
+  validarAbono(): void {
+    if (this.abono === null || this.abono === undefined || isNaN(this.abono)) {
+      this.abono = 0;
+    }
   }
 }

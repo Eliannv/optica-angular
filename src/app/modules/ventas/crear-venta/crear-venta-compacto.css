@@ -1,0 +1,378 @@
+/* ========================================
+   🎯 DISEÑO POS COMPACTO - PANEL DERECHO
+   ======================================== */
+
+/* 1️⃣ CÁLCULOS EN 2 COLUMNAS: SUBTOTALES + TOTAL DESTACADO */
+.calculos-container {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    align-items: stretch;
+}
+
+.subtotales-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+}
+
+.subtotales-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+
+.iva-item {
+    padding-top: 0.5rem;
+    border-top: 1px solid #e0e0e0;
+}
+
+.calculo-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.calculo-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--text-secondary);
+    opacity: 0.8;
+}
+
+.calculo-valor {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* Descuento compacto en una fila */
+.descuento-compacto {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.descuento-input-group {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.input-inline {
+    width: 100%;
+    padding: 0.6rem;
+    border-radius: 8px;
+    border: 1px solid var(--input-border);
+    background: var(--input-bg);
+    color: var(--input-text);
+    font-weight: 700;
+    font-size: 1rem;
+    text-align: center;
+}
+
+.input-inline:focus {
+    outline: none;
+    border-color: var(--input-focus-border);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+}
+
+.descuento-simbolo {
+    font-weight: 700;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.descuento-monto {
+    color: #e74c3c !important;
+}
+
+/* TOTAL A PAGAR (COLUMNA DERECHA DESTACADA) */
+.total-destacado {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1.5rem 1.25rem;
+    background: linear-gradient(135deg, var(--primary-color) 0%, #2980b9 100%);
+    border-radius: 12px;
+    box-shadow: 0 6px 16px rgba(52, 152, 219, 0.4);
+    height: 100%;
+}
+
+.total-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255, 255, 255, 0.95);
+}
+
+.total-valor {
+    font-size: 2.75rem;
+    font-weight: 800;
+    color: white;
+    text-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+    line-height: 1;
+}
+
+/* 3️⃣ MÉTODO DE PAGO Y HORA (FILA COMPACTA) */
+.pago-hora-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+/* Grid de 3 columnas para Transferencia/Tarjeta + Admin */
+.pago-tres-columnas {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+.pago-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.label-compacto {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--text-secondary);
+}
+
+.select-compacto,
+.input-compacto {
+    padding: 0.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--input-border);
+    background: var(--input-bg);
+    color: var(--input-text);
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.select-compacto:focus,
+.input-compacto:focus {
+    outline: none;
+    border-color: var(--input-focus-border);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+}
+
+/* Hint de periodo (debajo de la fila de pago) */
+.hint-periodo {
+    margin-top: -0.5rem;
+    margin-bottom: 0.75rem;
+    padding-left: 0.5rem;
+}
+
+.hint-text {
+    font-size: 0.7rem;
+    color: #1565c0;
+}
+
+.hint-text strong {
+    font-weight: 700;
+}
+
+/* 4️⃣ DATOS ADICIONALES DE PAGO */
+.datos-pago-adicionales {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-bottom: 0.75rem;
+}
+
+/* 6️⃣ CRÉDITO PERSONAL (CHECKBOX COMPACTO) */
+.credito-checkbox {
+    padding: 0.75rem;
+    background: #fff3e0;
+    border: 1px solid #ff9800;
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    margin: 0;
+}
+
+.checkbox-input {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.checkbox-text {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #ff9800;
+}
+
+/* 7️⃣ SECCIÓN DE CRÉDITO (SOLO SI ESTÁ ACTIVA) */
+.credito-seccion {
+    background: #e8f5e9;
+    border: 2px solid #4caf50;
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.credito-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.credito-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.input-abono {
+    padding: 0.6rem;
+    border-radius: 8px;
+    border: 2px solid #4caf50;
+    background: white;
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 1rem;
+    text-align: right;
+}
+
+.input-abono:focus {
+    outline: none;
+    border-color: #388e3c;
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.15);
+}
+
+.saldo-valor {
+    padding: 0.6rem;
+    background: white;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 1rem;
+    color: #e74c3c;
+    text-align: right;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+/* VUELTO (SOLO EFECTIVO) */
+.vuelto-alert {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: white;
+    border-radius: 8px;
+    border-left: 4px solid #ff9800;
+}
+
+.vuelto-label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #f57c00;
+}
+
+.vuelto-valor {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #4caf50;
+}
+
+.vuelto-negativo {
+    color: #f44336 !important;
+}
+
+/* ========================================
+   📱 RESPONSIVE (MOBILE FIRST)
+   ======================================== */
+
+@media (max-width: 768px) {
+    .calculos-container {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .subtotales-row {
+        grid-template-columns: 1fr;
+    }
+
+    .descuento-compacto {
+        grid-template-columns: auto auto 1fr;
+    }
+
+    .pago-hora-row,
+    .pago-tres-columnas {
+        grid-template-columns: 1fr;
+    }
+
+    .credito-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .total-destacado {
+        min-height: auto;
+        padding: 1rem;
+    }
+
+    .total-valor {
+        font-size: 1.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .subtotales-col {
+        padding: 0.5rem;
+        gap: 0.35rem;
+    }
+
+    .calculo-label {
+        font-size: 0.65rem;
+    }
+
+    .calculo-valor {
+        font-size: 0.85rem;
+    }
+
+    .total-destacado {
+        padding: 0.75rem;
+    }
+
+    .total-label {
+        font-size: 0.75rem;
+    }
+
+    .total-valor {
+        font-size: 1.35rem;
+    }
+
+    .input-inline {
+        width: 50px;
+        padding: 0.3rem 0.4rem;
+        font-size: 0.8rem;
+    }
+
+    .vuelto-valor {
+        font-size: 1.1rem;
+    }
+}

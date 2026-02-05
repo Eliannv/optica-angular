@@ -37,12 +37,17 @@ import { PaginationResult } from '../models/pagination.model';
 
 @Injectable({ providedIn: 'root' })
 export class FacturasService {
-  private fs = inject(Firestore);
-  private facturasRef = collection(this.fs, 'facturas');
+  private readonly fs: Firestore;
+  private readonly facturasRef;
 
   // 🎯 CACHÉ con shareReplay
   private facturasCache$ = new BehaviorSubject<Factura[]>([]);
   private cachedAllFacturas$: Observable<Factura[]> | null = null;
+
+  constructor() {
+    this.fs = inject(Firestore);
+    this.facturasRef = collection(this.fs, 'facturas');
+  }
 
   /**
    * Genera un ID secuencial de 10 dígitos (0000000001, 0000000002, etc.)
