@@ -20,7 +20,7 @@ import { FacturaDeuda } from '../../../core/models/factura-deuda.model';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './cobrar-deuda.html',
-  styleUrls: ['./cobrar-deuda.css'], // aquí copiamos el CSS de crear-venta
+  styleUrls: ['./cobrar-deuda.css', './cobrar-deuda-compacto.css'], // diseño compacto del panel derecho
 })
 export class CobrarDeudaComponent implements OnInit, OnDestroy {
   loading = true;

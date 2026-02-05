@@ -187,13 +187,12 @@ export class ProductosService {
 
     const term = searchTerm.toLowerCase().trim();
     
-    // Búsqueda por prefijo de nombre (más eficiente con índice)
+    // 🔍 Búsqueda mejorada sin límite inicial (para encontrar todos los productos)
     const q = query(
       this.productosRef,
       where('activo', '!=', false),
       orderBy('activo'),
-      orderBy('nombre'),
-      limit(100) // Traer 100 para luego filtrar localmente por otros campos
+      orderBy('nombre')
     );
 
     return collectionData(q, { idField: 'id' }).pipe(
@@ -237,13 +236,12 @@ export class ProductosService {
   }): Observable<Producto[]> {
     const { searchTerm = '', grupo = '', proveedor = '', tipoStock = '', limitCount = 20 } = options;
 
-    // Query base
+    // Query base - SIN LÍMITE para poder buscar en todos los productos
     let q = query(
       this.productosRef,
       where('activo', '!=', false),
       orderBy('activo'),
-      orderBy('nombre'),
-      limit(200) // Límite generoso para filtrado local
+      orderBy('nombre')
     );
 
     return collectionData(q, { idField: 'id' }).pipe(
