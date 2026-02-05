@@ -192,7 +192,7 @@ export class MaquinasAutorizadasService {
         observaciones: 'Sucursal Pasaje',
       },
       {
-        machineId: 'd87cced3d5d6611b',
+        machineId: 'd07cced3d5d66116',
         sucursal: 'MACHALA',
         nombreMaquina: 'PC Sede Principal Machala',
         activo: true,
