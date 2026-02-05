@@ -144,7 +144,10 @@
 
                     <!-- BOTONES DE ACCIÓN -->
                     <div class="form-actions">
-                        <button type="submit" class="btn-submit" [disabled]="cargando || form.invalid">
+                        <button type="button" class="btn-cancel" (click)="cancelar()" [disabled]="cargando">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary" [disabled]="cargando || form.invalid">
                             @if (!cargando) {
                                 
                                 <span>{{ editando ? 'Actualizar' : 'Crear' }}</span>
@@ -154,9 +157,6 @@
                                     Guardando...
                                 </span>
                             }
-                        </button>
-                        <button type="button" class="btn-cancel" (click)="cancelar()" [disabled]="cargando">
-                            Cancelar
                         </button>
                     </div>
                 </form>
