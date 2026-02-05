@@ -697,6 +697,15 @@ export class ListarFacturasComponent {
   cobrarDeuda(clienteId: string, ev?: Event) {
     ev?.stopPropagation();
     if (!clienteId) return;
+    if (!this.cajaChicaAbiertaId) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Caja chica cerrada',
+        text: 'Abre una caja chica antes de cobrar una deuda.',
+        confirmButtonText: 'Aceptar'
+      });
+      return;
+    }
     this.router.navigate(['/ventas/deuda'], {
       queryParams: { clienteId }
     });

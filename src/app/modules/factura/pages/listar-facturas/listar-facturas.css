@@ -314,13 +314,23 @@
 
 .btn-action-payment {
     color: #fff;
-    background: #10b981;
+    background: #f59e0b;
 }
 
 .btn-action-payment:hover {
-    background: #059669;
+    background: #d97706;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+}
+
+.btn-action-payment:disabled,
+.btn-action-payment[disabled] {
+    background: rgba(245, 158, 11, 0.35);
+    color: rgba(255, 255, 255, 0.75);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    opacity: 0.75;
 }
 
 .btn-ver {
@@ -453,8 +463,8 @@
     padding: 0.45rem 1rem;
     border-radius: 10px;
     border: none;
-    background: rgba(224, 129, 13, 0.15);
-    color: rgb(224, 129, 13);
+    background: rgba(245, 158, 11, 0.18);
+    color: #f59e0b;
     cursor: pointer;
     font-weight: 500;
     font-size: 0.85rem;
@@ -463,9 +473,19 @@
 }
 
 .btn-action-payment-mobile:hover {
-    background: rgba(224, 129, 13, 0.25);
+    background: rgba(245, 158, 11, 0.28);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(224, 129, 13, 0.3);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+}
+
+.btn-action-payment-mobile:disabled,
+.btn-action-payment-mobile[disabled] {
+    background: rgba(245, 158, 11, 0.1);
+    color: rgba(245, 158, 11, 0.6);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    opacity: 0.75;
 }
 
 .btn-action-payment-mobile svg {

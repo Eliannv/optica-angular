@@ -79,7 +79,7 @@ export const cajaChicaGuard: CanActivateFn = async (route, state) => {
     Swal.fire({
       icon: 'error',
       title: 'Caja Chica Requerida',
-      text: 'Debe tener al menos una caja chica ABIERTA para realizar ventas (puede ser de cualquier fecha)',
+      text: 'Debe tener una caja chica ABIERTA para realizar ventas',
       confirmButtonText: 'Ir a Caja Chica',
       allowOutsideClick: false,
       allowEscapeKey: false
