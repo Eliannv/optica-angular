@@ -4,10 +4,20 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import Swal from 'sweetalert2';
+import { 
+  Firestore, 
+  collection, 
+  query, 
+  where, 
+  getDocs,
+  Timestamp 
+} from '@angular/fire/firestore';
 
 import { ReportesService } from '../../../../core/services/reportes.service';
 import { Factura } from '../../../../core/models/factura.model';
 import { FacturaDeuda } from '../../../../core/models/factura-deuda.model';
+import { CajaChica } from '../../../../core/models/caja-chica.model';
+import { CajaBanco } from '../../../../core/models/caja-banco.model';
 
 /**
  * Componente de Reporte de Ventas Generales - OPTIMIZADO
@@ -81,12 +91,17 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   totalPagosDeuda = 0; // Total de pagos de deuda
   totalEgresos = 0; // Total de egresos
   totalesPorMetodo: { [key: string]: number } = {}; // Desglose por forma de pago
+  
+  // 🆕 Totales de cajas
+  totalCajaChica = 0; // Total de cajas chicas en el rango
+  totalCajaBanco = 0; // Total de cajas banco en el rango
 
   private subscriptions: Subscription[] = [];
 
   constructor(
     private reportesService: ReportesService, // ✅ Servicio optimizado
-    private router: Router
+    private router: Router,
+    private firestore: Firestore // 🆕 Inyectar Firestore para consultas de cajas
   ) {}
 
   ngOnInit(): void {
@@ -230,6 +245,10 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       }
     });
 
+    // 🆕 Cargar totales de cajas en paralelo
+    this.cargarTotalCajaChica(fechaDesde, fechaHasta);
+    this.cargarTotalCajaBanco(fechaDesde, fechaHasta);
+
     this.subscriptions.push(facturasSub, deudasSub, egresosSub);
   }
 
@@ -240,8 +259,8 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   private verificarCargaCompleta(): void {
     this.contadorCargas++;
     
-    // Esperar a que las 3 consultas terminen (facturas, deudas, egresos)
-    if (this.contadorCargas >= 3) {
+    // Esperar a que las 5 consultas terminen (facturas, deudas, egresos, caja chica, caja banco)
+    if (this.contadorCargas >= 5) {
       this.loading = false;
       this.contadorCargas = 0;
       this.datosYaCargados = true;
@@ -420,6 +439,68 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * 🆕 Carga el total de cajas chicas en el rango de fechas
+   */
+  private async cargarTotalCajaChica(fechaDesde: Date, fechaHasta: Date): Promise<void> {
+    try {
+      const cajasRef = collection(this.firestore, 'cajas_chicas');
+      const q = query(
+        cajasRef,
+        where('fecha', '>=', Timestamp.fromDate(fechaDesde)),
+        where('fecha', '<=', Timestamp.fromDate(fechaHasta)),
+        where('activo', '==', true)
+      );
+
+      const snapshot = await getDocs(q);
+      const cajas: CajaChica[] = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as CajaChica));
+
+      // Sumar monto_actual de todas las cajas
+      this.totalCajaChica = cajas.reduce((sum, caja) => sum + (caja.monto_actual || 0), 0);
+      
+      console.log(`✅ Total Caja Chica calculado: $${this.totalCajaChica.toFixed(2)} (${cajas.length} cajas)`);
+      this.verificarCargaCompleta();
+    } catch (error) {
+      console.error('❌ Error cargando total caja chica:', error);
+      this.totalCajaChica = 0;
+      this.verificarCargaCompleta();
+    }
+  }
+
+  /**
+   * 🆕 Carga el total de cajas banco en el rango de fechas
+   */
+  private async cargarTotalCajaBanco(fechaDesde: Date, fechaHasta: Date): Promise<void> {
+    try {
+      const cajasRef = collection(this.firestore, 'cajas_banco');
+      const q = query(
+        cajasRef,
+        where('fecha', '>=', Timestamp.fromDate(fechaDesde)),
+        where('fecha', '<=', Timestamp.fromDate(fechaHasta)),
+        where('activo', '==', true)
+      );
+
+      const snapshot = await getDocs(q);
+      const cajas: CajaBanco[] = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as CajaBanco));
+
+      // Sumar saldo_actual de todas las cajas
+      this.totalCajaBanco = cajas.reduce((sum, caja) => sum + (caja.saldo_actual || 0), 0);
+      
+      console.log(`✅ Total Caja Banco calculado: $${this.totalCajaBanco.toFixed(2)} (${cajas.length} cajas)`);
+      this.verificarCargaCompleta();
+    } catch (error) {
+      console.error('❌ Error cargando total caja banco:', error);
+      this.totalCajaBanco = 0;
+      this.verificarCargaCompleta();
+    }
+  }
+
+  /**
    * ✅ OPTIMIZADO: Limpia filtros y datos cargados
    */
   limpiarFiltros(): void {
@@ -442,6 +523,8 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     this.totalEgresos = 0;
     this.cantidadRegistros = 0;
     this.totalesPorMetodo = {};
+    this.totalCajaChica = 0; // 🆕
+    this.totalCajaBanco = 0; // 🆕
     
     // Reiniciar paginación
     this.lastVisibleFactura = null;
@@ -835,6 +918,16 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
             <span>Total Egresos:</span>
             <span>${this.formatoMoneda(this.totalEgresos)}</span>
           </div>` : ''}
+          
+          <h4 style="font-size: 10px; margin: 10px 0 4px 0; font-weight: bold; border-top: 1px solid #000; padding-top: 6px;">Totales por Tipo de Caja:</h4>
+          <div class="resumen-item">
+            <span>Total Caja Chica:</span>
+            <span class="total-value">${this.formatoMoneda(this.totalCajaChica)}</span>
+          </div>
+          <div class="resumen-item">
+            <span>Total Caja Banco:</span>
+            <span class="total-value">${this.formatoMoneda(this.totalCajaBanco)}</span>
+          </div>
         </div>
       </body>
       </html>
