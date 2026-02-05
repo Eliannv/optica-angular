@@ -10,27 +10,15 @@
         </button>
             </div>
 
-            <!-- ✅ NUEVO: Filtro por tipo -->
-            <div class="search-container" style="margin-bottom: 0.75rem;">
-                <label style="display:block; font-weight:600; font-size:0.85rem; margin-bottom:0.35rem; opacity:0.8;">
-          Mostrar
-        </label>
-                <select class="search-input" [(ngModel)]="filtroEstado" (ngModelChange)="filtrar()">
-          <option value="TODAS">📋 Todas</option>
-          <option value="PENDIENTES">⚠️ Con deuda</option>
-          <option value="PAGADAS">✅ Finales</option>
-        </select>
-            </div>
-
             <!-- ✅ NUEVO: Filtro por tipo de factura -->
             <div class="search-container" style="margin-bottom: 0.75rem;">
                 <label style="display:block; font-weight:600; font-size:0.85rem; margin-bottom:0.35rem; opacity:0.8;">
           Tipo
         </label>
                 <select class="search-input" [(ngModel)]="filtroTipoFactura" (ngModelChange)="filtrar()">
-          <option value="TODAS">📊 Todas</option>
-          <option value="NORMALES">🛍️ Facturas Normales</option>
-          <option value="COBROS_DEUDA">💳 Cobros de Deuda</option>
+          <option value="TODAS">Todas</option>
+          <option value="NORMALES">Facturas Normales</option>
+          <option value="COBROS_DEUDA">Cobros de Deuda</option>
         </select>
             </div>
 

@@ -13,12 +13,6 @@ import { combineLatest } from 'rxjs';
 import Swal from 'sweetalert2';
 
 /**
- * Tipo literal para estados de filtro de facturas.
- * @typedef {'TODAS' | 'PENDIENTES' | 'PAGADAS'} FiltroEstado
- */
-type FiltroEstado = 'TODAS' | 'PENDIENTES' | 'PAGADAS';
-
-/**
  * Tipo literal para filtro de tipo de factura.
  * @typedef {'TODAS' | 'NORMALES' | 'COBROS_DEUDA'} FiltroTipoFactura
  */
@@ -79,13 +73,7 @@ export class ListarFacturasComponent {
    */
   Number = Number;
 
-  /**
-   * Estado actual del filtro seleccionado en UI.
-   * Valores válidos: 'TODAS' (sin filtro), 'PENDIENTES' (saldoPendiente > 0), 'PAGADAS' (saldoPendiente <= 0)
-   * @type {FiltroEstado}
-   * @default 'TODAS'
-   */
-  filtroEstado: FiltroEstado = 'TODAS';
+
 
   /**
    * Tipo de factura actual del filtro seleccionado en UI.
@@ -425,14 +413,8 @@ export class ListarFacturasComponent {
   filtrar() {
     const t = (this.term || '').trim().toLowerCase();
 
-    // 1) filtro por estado
+    // 1) filtro por tipo de factura
     let base = [...this.facturas];
-
-    if (this.filtroEstado === 'PENDIENTES') {
-      base = base.filter(f => (Number(f.saldoPendiente) || 0) > 0);
-    } else if (this.filtroEstado === 'PAGADAS') {
-      base = base.filter(f => (Number(f.saldoPendiente) || 0) <= 0);
-    }
 
     // 1.5) ✅ filtro por tipo de factura
     if (this.filtroTipoFactura === 'NORMALES') {
