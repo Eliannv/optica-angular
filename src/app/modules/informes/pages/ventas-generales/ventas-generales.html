@@ -195,7 +195,7 @@
                     </td>
                     <td class="col-metodo">
                         <span class="badge-metodo" [class.bg-success]="factura.metodoPago === 'Efectivo'" [class.bg-primary]="factura.metodoPago === 'Tarjeta'" [class.bg-warning]="factura.metodoPago === 'Transferencia'">
-              {{ factura.metodoPago }}
+              {{ factura.metodoPago === 'Transferencia' ? 'Transferencia (Ventas)' : factura.metodoPago }}
             </span>
                     </td>
                     <td class="col-monto">
@@ -207,7 +207,7 @@
                 </tr>
 
                 <!-- 🆕 Facturas de Deuda -->
-                <tr *ngFor="let deuda of pagosDeuda" class="registro-row" style="background-color: #fff3e0;" [hidden]="tiposSeleccionados.length > 0 && !tiposSeleccionados.includes('FACTURAS_DEUDA')">
+                <tr *ngFor="let deuda of getPagosDeudaFiltrados()" class="registro-row" style="background-color: #fff3e0;">
                     <td class="col-fecha">
                         <span class="fecha-text">{{ formatoFecha(deuda.fechaPago) }}</span>
                     </td>
@@ -222,7 +222,7 @@
                     </td>
                     <td class="col-metodo">
                         <span class="badge-metodo" [class.bg-success]="deuda.metodoPago === 'Efectivo'" [class.bg-primary]="deuda.metodoPago === 'Tarjeta'" [class.bg-warning]="deuda.metodoPago === 'Transferencia'">
-              {{ deuda.metodoPago }}
+              {{ deuda.metodoPago === 'Transferencia' ? 'Transferencia (Cobro de Deudas)' : deuda.metodoPago }}
             </span>
                     </td>
                     <td class="col-monto">
@@ -230,6 +230,33 @@
                     </td>
                     <td class="col-saldo">
                         <span>{{ formatoMoneda(deuda.saldoRestante || 0) }}</span>
+                    </td>
+                </tr>
+
+                <!-- 🔥 NUEVO: Transferencias de Caja Banco (Pagos de Deuda) -->
+                <tr *ngFor="let transferencia of getTransferenciasCajaBancoDeuda()" class="registro-row" style="background-color: #e3f2fd;">
+                    <td class="col-fecha">
+                        <span class="fecha-text">{{ formatoFecha(transferencia.fecha) }}</span>
+                    </td>
+                    <td class="col-tipo">
+                        <span class="badge-tipo badge-info">🏦 Transferencia Banco</span>
+                    </td>
+                    <td class="col-factura">
+                        <strong>{{ transferencia.referencia || transferencia.venta_id || '-' }}</strong>
+                    </td>
+                    <td class="col-cliente">
+                        <span>{{ transferencia.descripcion || 'Pago de deuda' }}</span>
+                    </td>
+                    <td class="col-metodo">
+                        <span class="badge-metodo bg-warning">
+              Transferencia (Cobro de Deudas)
+            </span>
+                    </td>
+                    <td class="col-monto">
+                        <span class="monto">{{ formatoMoneda(transferencia.monto) }}</span>
+                    </td>
+                    <td class="col-saldo">
+                        <span>-</span>
                     </td>
                 </tr>
 
@@ -259,7 +286,7 @@
                 </tr>
 
                 <!-- Sin resultados -->
-                <tr *ngIf="facturasFiltradas.length === 0 && pagosDeuda.length === 0 && egresos.length === 0">
+                <tr *ngIf="facturasFiltradas.length === 0 && getPagosDeudaFiltrados().length === 0 && egresos.length === 0">
                     <td colspan="7" class="sin-datos">
                         <div class="mensaje-vacio">
                             <p>📭 No se encontraron registros con los filtros aplicados</p>

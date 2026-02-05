@@ -48,6 +48,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   egresos: any[] = []; // 🆕 Egresos de caja chica
   movimientosCajaChica: any[] = []; // Movimientos de caja chica (para desglose de pagos)
   movimientosCajaBanco: any[] = []; // Movimientos de caja banco (para desglose de pagos)
+  cajasBanco: any[] = []; // 🆕 Cajas banco en el rango de fechas (para saldo inicial)
   
   // Filtros
   fechaDesde = '';
@@ -58,9 +59,10 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   tiposDisponibles = [
     { valor: 'VENTAS', label: 'Ventas (Facturas)' },
     { valor: 'PAGOS_EFECTIVO', label: 'Pagos en Efectivo' },
-    { valor: 'PAGOS_TRANSFERENCIA', label: 'Pagos por Transferencia' },
     { valor: 'PAGOS_TARJETA', label: 'Pagos por Tarjeta' },
-    { valor: 'FACTURAS_DEUDA', label: '💳 Facturas de Deuda' },
+    { valor: 'TRANSFERENCIA_VENTAS', label: '🔄 Transferencia (Ventas)' },
+    { valor: 'TRANSFERENCIA_DEUDAS', label: '🏦 Transferencia (Cobro de Deudas)' },
+    { valor: 'FACTURAS_DEUDA', label: '💳 Pagos de Deuda (Todos)' },
     { valor: 'EGRESOS', label: '📤 Egresos' }
   ];
 
@@ -70,6 +72,8 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   totalPagosDeuda = 0; // 🆕 Total de pagos de deuda
   totalEgresos = 0; // 🆕 Total de egresos
   totalesPorMetodo: { [key: string]: number } = {}; // Desglose por forma de pago
+  totalCajaChica = 0; // 🆕 Total Caja Chica en rango de fechas
+  totalCajaBanco = 0; // 🆕 Total Caja Banco en rango de fechas
 
   private subscription?: Subscription;
 
@@ -156,21 +160,38 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
 
     // 🏦 Cargar movimientos de CAJA BANCO (para desglose de pagos)
     const movimientosBancoRef = collection(this.firestore, 'movimientos_cajas_banco');
-    getDocs(movimientosBancoRef).then(snapshotBanco => {
+    const cajasBancoRef = collection(this.firestore, 'cajas_banco');
+    
+    // Cargar cajas banco y movimientos en paralelo
+    Promise.all([
+      getDocs(movimientosBancoRef),
+      getDocs(cajasBancoRef)
+    ]).then(([snapshotBanco, snapshotCajasBanco]) => {
       const todosBanco = snapshotBanco.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
       
-      // Filtrar por fecha en memoria
+      // Filtrar movimientos por fecha en memoria
       this.movimientosCajaBanco = todosBanco.filter((m: any) => {
         const fecha = m.fecha instanceof Date ? m.fecha : 
                       (typeof m.fecha?.toDate === 'function' ? m.fecha.toDate() : new Date(m.fecha));
         return fecha >= fechaDesde && fecha <= fechaHasta;
       });
       
+      // Filtrar cajas banco por fecha de apertura en el rango
+      this.cajasBanco = snapshotCajasBanco.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })).filter((c: any) => {
+        const fecha = c.fecha instanceof Date ? c.fecha : 
+                      (typeof c.fecha?.toDate === 'function' ? c.fecha.toDate() : new Date(c.fecha));
+        return fecha >= fechaDesde && fecha <= fechaHasta;
+      });
+      
       console.log('🏦 Total movimientos banco en BD:', todosBanco.length);
       console.log('🏦 Movimientos banco en rango:', this.movimientosCajaBanco.length);
+      console.log('🏦 Cajas banco en rango:', this.cajasBanco.length);
       
       // Cargar movimientos de CAJA CHICA (para desglose de pagos)
       const movimientosChicaRef = collection(this.firestore, 'movimientos_cajas_chicas');
@@ -283,6 +304,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     console.log('📅 Fecha DESDE:', this.fechaDesde);
     console.log('📅 Fecha HASTA:', this.fechaHasta);
     console.log('📊 Total facturas disponibles:', this.facturas.length);
+    console.log('💳 Total pagos deuda disponibles:', this.pagosDeuda.length);
 
     // ========== FACTURAS (fuente principal de ventas) ==========
     let facturasFiltradas = [...this.facturas];
@@ -291,8 +313,8 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     if (this.tiposSeleccionados.length > 0) {
       const mostrarVentas = this.tiposSeleccionados.includes('VENTAS');
       const mostrarEfectivo = this.tiposSeleccionados.includes('PAGOS_EFECTIVO');
-      const mostrarTransferencia = this.tiposSeleccionados.includes('PAGOS_TRANSFERENCIA');
       const mostrarTarjeta = this.tiposSeleccionados.includes('PAGOS_TARJETA');
+      const mostrarTransferenciaVentas = this.tiposSeleccionados.includes('TRANSFERENCIA_VENTAS');
 
       // Si se seleccionó VENTAS, mostrar todas las facturas
       if (mostrarVentas) {
@@ -302,7 +324,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
         // Filtrar por método de pago
         facturasFiltradas = this.facturas.filter(f => {
           if (mostrarEfectivo && f.metodoPago === 'Efectivo') return true;
-          if (mostrarTransferencia && f.metodoPago === 'Transferencia') return true;
+          if (mostrarTransferenciaVentas && f.metodoPago === 'Transferencia') return true;
           if (mostrarTarjeta && f.metodoPago === 'Tarjeta') return true;
           return false;
         });
@@ -327,6 +349,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     
     console.log('💰 Total vendido:', this.totalVendido);
     console.log('📋 Facturas finales:', this.facturasFiltradas.length);
+    console.log('💳 Pagos deuda finales:', this.pagosDeuda.length);
   }
 
   /**
@@ -347,6 +370,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
    * El total vendido es la suma de todas las facturas.
    * Los totales por método de pago se calculan desde las facturas.
    * 🆕 Ahora también calcula totales de facturas de deuda y egresos.
+   * ✅ Desglose de transferencias: Transferencia (Ventas) vs Transferencia (Cobro de Deudas)
    */
   calcularTotales(): void {
     // Total vendido = suma de todas las facturas
@@ -355,8 +379,16 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     this.cantidadRegistros = this.facturasFiltradas.length;
 
     // 🆕 Calcular total de pagos de deuda si están en filtros
-    if (this.tiposSeleccionados.includes('FACTURAS_DEUDA') || this.tiposSeleccionados.length === 0) {
-      this.totalPagosDeuda = this.pagosDeuda.reduce((sum, p) => sum + p.montoPagado, 0);
+    const mostrarFacturasDeuda = this.tiposSeleccionados.includes('FACTURAS_DEUDA') || 
+                                  this.tiposSeleccionados.includes('TRANSFERENCIA_DEUDAS') || 
+                                  this.tiposSeleccionados.length === 0;
+    
+    if (mostrarFacturasDeuda) {
+      const pagosDeudaFiltrados = this.getPagosDeudaFiltrados();
+      this.totalPagosDeuda = pagosDeudaFiltrados.reduce((sum, p) => sum + p.montoPagado, 0);
+      
+      // ✅ SUMAR los pagos de deuda al total vendido
+      this.totalVendido += this.totalPagosDeuda;
     } else {
       this.totalPagosDeuda = 0;
     }
@@ -368,16 +400,121 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       this.totalEgresos = 0;
     }
 
-    // Agrupar por método de pago
+    // ✅ Agrupar por método de pago (con diferenciación de transferencias)
     this.totalesPorMetodo = {};
+    
+    // Procesar facturas normales
     this.facturasFiltradas.forEach(f => {
-      const metodo = f.metodoPago || 'Sin Método';
+      let metodo = f.metodoPago || 'Sin Método';
+      
+      // ✅ Si es transferencia, clasificar como "Transferencia (Ventas)"
+      if (metodo === 'Transferencia') {
+        metodo = 'Transferencia (Ventas)';
+      }
+      
       this.totalesPorMetodo[metodo] = (this.totalesPorMetodo[metodo] || 0) + f.total;
     });
+
+    // ✅ Procesar pagos de deuda (si están en filtros)
+    const soloTransferenciasDeuda = this.tiposSeleccionados.includes('TRANSFERENCIA_DEUDAS') && 
+                                     !this.tiposSeleccionados.includes('FACTURAS_DEUDA');
+    
+    if (mostrarFacturasDeuda) {
+      this.pagosDeuda.forEach(p => {
+        let metodo = p.metodoPago || 'Sin Método';
+        
+        // Si solo se pidieron transferencias de deuda, filtrar
+        if (soloTransferenciasDeuda && metodo !== 'Transferencia') {
+          return; // Saltar este pago
+        }
+        
+        // ✅ Si es transferencia, clasificar como "Transferencia (Cobro de Deudas)"
+        if (metodo === 'Transferencia') {
+          metodo = 'Transferencia (Cobro de Deudas)';
+        }
+        
+        this.totalesPorMetodo[metodo] = (this.totalesPorMetodo[metodo] || 0) + p.montoPagado;
+      });
+    }
+
+    // 🆕 Calcular totales de cajas en el rango de fechas
+    this.calcularTotalesCajas();
 
     console.log('📊 Totales por método de pago:', this.totalesPorMetodo);
     console.log('💳 Total pagos de deuda:', this.totalPagosDeuda);
     console.log('📤 Total egresos:', this.totalEgresos);
+    console.log('💰 Total Caja Chica:', this.totalCajaChica);
+    console.log('🏦 Total Caja Banco:', this.totalCajaBanco);
+  }
+
+  /**
+   * 🆕 Calcula los totales de Caja Chica y Caja Banco en el rango de fechas seleccionado
+   */
+  private calcularTotalesCajas(): void {
+    // Convertir fechas del input a Date
+    const [añoDesde, mesDesde, diaDesde] = this.fechaDesde.split('-').map(Number);
+    const [añoHasta, mesHasta, diaHasta] = this.fechaHasta.split('-').map(Number);
+    
+    const fechaDesde = new Date(añoDesde, mesDesde - 1, diaDesde, 0, 0, 0, 0);
+    const fechaHasta = new Date(añoHasta, mesHasta - 1, diaHasta, 23, 59, 59, 999);
+
+    // 💰 Calcular Total Caja Chica: suma de ingresos - egresos en el rango
+    const ingresosCajaChica = this.movimientosCajaChica
+      .filter((m: any) => m.tipo === 'INGRESO')
+      .reduce((sum, m) => sum + (m.monto || 0), 0);
+    
+    const egresosCajaChica = this.movimientosCajaChica
+      .filter((m: any) => m.tipo === 'EGRESO')
+      .reduce((sum, m) => sum + (m.monto || 0), 0);
+    
+    this.totalCajaChica = ingresosCajaChica - egresosCajaChica;
+
+    // 🏦 Calcular Total Caja Banco: Saldo Inicial + Caja Chica (depositada) + movimientos propios
+    
+    console.log('📊 DEBUG - Movimientos Caja Banco totales:', this.movimientosCajaBanco.length);
+    console.log('📊 DEBUG - Movimientos Caja Chica totales:', this.movimientosCajaChica.length);
+    console.log('📊 DEBUG - Cajas Banco en rango:', this.cajasBanco.length);
+    
+    // 1️⃣ Sumar saldo inicial de todas las cajas banco en el rango
+    const saldoInicialBanco = this.cajasBanco.reduce((sum, c: any) => sum + (c.saldo_inicial || 0), 0);
+    console.log('📊 DEBUG - Saldo Inicial Banco:', saldoInicialBanco);
+    
+    // 2️⃣ La Caja Chica se deposita directamente en Caja Banco
+    let totalCajaBanco = saldoInicialBanco + this.totalCajaChica;
+    
+    // 3️⃣ Sumar ingresos directos de Caja Banco (en el rango de fechas)
+    const movimientosIngresoBanco = this.movimientosCajaBanco.filter((m: any) => m.tipo === 'INGRESO');
+    const ingresosCajaBanco = movimientosIngresoBanco.reduce((sum, m) => sum + (m.monto || 0), 0);
+    
+    console.log('📊 DEBUG - Movimientos INGRESO Banco:', movimientosIngresoBanco.length);
+    console.log('📊 DEBUG - Desglose ingresos:', movimientosIngresoBanco.map((m: any) => ({
+      monto: m.monto,
+      fecha: m.fecha,
+      descripcion: m.descripcion,
+      categoria: m.categoria
+    })));
+    
+    // 4️⃣ Restar egresos directos de Caja Banco (en el rango de fechas)
+    const movimientosEgresoBanco = this.movimientosCajaBanco.filter((m: any) => m.tipo === 'EGRESO');
+    const egresosCajaBanco = movimientosEgresoBanco.reduce((sum, m) => sum + (m.monto || 0), 0);
+    
+    console.log('📊 DEBUG - Movimientos EGRESO Banco:', movimientosEgresoBanco.length);
+    console.log('📊 DEBUG - Desglose egresos:', movimientosEgresoBanco.map((m: any) => ({
+      monto: m.monto,
+      fecha: m.fecha,
+      descripcion: m.descripcion,
+      categoria: m.categoria
+    })));
+    
+    // Total = Saldo Inicial + Caja Chica depositada + Ingresos Banco - Egresos Banco
+    this.totalCajaBanco = totalCajaBanco + ingresosCajaBanco - egresosCajaBanco;
+    
+    console.log('🏦 Desglose Caja Banco:');
+    console.log('  - Saldo Inicial Banco:', saldoInicialBanco);
+    console.log('  - Total Caja Chica (depositada):', this.totalCajaChica);
+    console.log('  - Ingresos Caja Banco:', ingresosCajaBanco);
+    console.log('  - Egresos Caja Banco:', egresosCajaBanco);
+    console.log('  - TOTAL CAJA BANCO:', this.totalCajaBanco);
   }
 
   /**
@@ -425,6 +562,34 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
    */
   formatoMoneda(monto: number): string {
     return `$${monto.toFixed(2)}`;
+  }
+
+  /**
+   * 🔥 Método deshabilitado: Ya no se muestran transferencias de caja banco
+   * Solo se muestran las transferencias de facturas_deudas
+   */
+  getTransferenciasCajaBancoDeuda(): any[] {
+    return []; // Ya no se muestran transferencias de caja banco
+  }
+
+  /**
+   * 🔥 NUEVO: Obtiene los pagos de deuda filtrados según las selecciones del usuario
+   */
+  getPagosDeudaFiltrados(): FacturaDeuda[] {
+    const mostrarTodos = this.tiposSeleccionados.includes('FACTURAS_DEUDA') || this.tiposSeleccionados.length === 0;
+    const mostrarSoloTransferencias = this.tiposSeleccionados.includes('TRANSFERENCIA_DEUDAS');
+    
+    if (!mostrarTodos && !mostrarSoloTransferencias) {
+      return [];
+    }
+
+    if (mostrarSoloTransferencias && !mostrarTodos) {
+      // Solo mostrar transferencias
+      return this.pagosDeuda.filter(p => p.metodoPago === 'Transferencia');
+    }
+
+    // Mostrar todos
+    return this.pagosDeuda;
   }
 
   /**
@@ -505,13 +670,19 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
 
     // 🆕 Generar filas combinadas: facturas normales + facturas de deuda + egresos
     const filasVentas = this.facturasFiltradas.map(factura => {
+      // ✅ Clasificar método de pago de transferencias
+      let metodoPagoDisplay = factura.metodoPago;
+      if (metodoPagoDisplay === 'Transferencia') {
+        metodoPagoDisplay = 'Transferencia (Ventas)';
+      }
+      
       return `
         <tr>
           <td>${this.formatoFecha(factura.fecha)}</td>
           <td>Venta</td>
           <td>${factura.idPersonalizado || factura.id || '-'}</td>
           <td>${factura.clienteNombre || 'Sin nombre'}</td>
-          <td>${factura.metodoPago}</td>
+          <td>${metodoPagoDisplay}</td>
           <td class="text-right">${this.formatoMoneda(factura.total)}</td>
           <td class="text-right">${this.formatoMoneda(factura.saldoPendiente || 0)}</td>
         </tr>
@@ -519,15 +690,23 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     }).join('');
 
     // 🆕 Filas de facturas de deuda
-    const mostrarFacturasDeuda = this.tiposSeleccionados.includes('FACTURAS_DEUDA') || this.tiposSeleccionados.length === 0;
-    const filasDeuda = mostrarFacturasDeuda ? this.pagosDeuda.map(deuda => {
+    const mostrarFacturasDeuda = this.tiposSeleccionados.includes('FACTURAS_DEUDA') || 
+                                  this.tiposSeleccionados.includes('TRANSFERENCIA_DEUDAS') || 
+                                  this.tiposSeleccionados.length === 0;
+    const filasDeuda = mostrarFacturasDeuda ? this.getPagosDeudaFiltrados().map(deuda => {
+      // ✅ Clasificar método de pago de transferencias
+      let metodoPagoDisplay = deuda.metodoPago;
+      if (metodoPagoDisplay === 'Transferencia') {
+        metodoPagoDisplay = 'Transferencia (Cobro de Deudas)';
+      }
+      
       return `
         <tr style="background-color: #fff3e0;">
           <td>${this.formatoFecha(deuda.fechaPago)}</td>
           <td>💳 Pago Deuda</td>
           <td>${deuda.facturaIdPersonalizado || deuda.facturaId || '-'}</td>
           <td>${deuda.clienteNombre || 'Sin nombre'}</td>
-          <td>${deuda.metodoPago}</td>
+          <td>${metodoPagoDisplay}</td>
           <td class="text-right">${this.formatoMoneda(deuda.montoPagado)}</td>
           <td class="text-right">${this.formatoMoneda(deuda.saldoRestante || 0)}</td>
         </tr>
@@ -711,7 +890,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
           </div>
           ${mostrarFacturasDeuda ? `<div class="resumen-item">
             <span>Total Pagos de Deuda:</span>
-            <span>${this.pagosDeuda.length}</span>
+            <span>${this.getPagosDeudaFiltrados().length}</span>
           </div>` : ''}
           ${mostrarEgresos ? `<div class="resumen-item">
             <span>Total Egresos:</span>
@@ -731,6 +910,15 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
             <span>Total Egresos:</span>
             <span>${this.formatoMoneda(this.totalEgresos)}</span>
           </div>` : ''}
+          <h4 style="font-size: 10px; margin: 10px 0 4px 0; font-weight: bold; border-top: 2px solid #000; padding-top: 6px;">Totales por Caja:</h4>
+          <div class="total-item">
+            <span>💰 Total Caja Chica:</span>
+            <span class="total-value">${this.formatoMoneda(this.totalCajaChica)}</span>
+          </div>
+          <div class="total-item">
+            <span>🏦 Total Caja Banco:</span>
+            <span class="total-value">${this.formatoMoneda(this.totalCajaBanco)}</span>
+          </div>
         </div>
       </body>
       </html>
