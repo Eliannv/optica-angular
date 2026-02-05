@@ -229,28 +229,39 @@ export class ListarProductos implements OnInit {
     this.isLoading = true;
     
     try {
-      // Eliminar última página del historial
+      // Eliminar la página actual del historial
       this.paginasHistorial.pop();
+      this.paginaActual--;
       
-      // Obtener la página anterior del historial
+      // Obtener la página anterior (ahora la última en el historial)
       const paginaAnterior = this.paginasHistorial[this.paginasHistorial.length - 1];
       
-      if (paginaAnterior) {
-        const resultado = await this.productosService.getProductosPaginadosReal({
-          pageSize: this.productosPorPagina,
-          firstVisible: paginaAnterior.firstDoc,
-          direction: 'prev',
-          ordenamiento: this.ordenamiento as 'reciente' | 'codigo',
-          terminoBusqueda: this.terminoBusqueda,
-          grupoSeleccionado: this.grupoSeleccionado
-        });
-        
-        this.productosPaginados = resultado.productos;
-        this.lastVisible = resultado.lastDoc;
-        this.firstVisible = resultado.firstDoc;
-        this.hasMore = resultado.hasMore;
-        this.paginaActual--;
+      if (!paginaAnterior) {
+        // Si no hay historial, recargar primera página
+        await this.cargarPrimeraPage();
+        return;
       }
+      
+      // Si es la primera página, recargarla directamente
+      if (paginaAnterior.pageNumber === 1) {
+        await this.cargarPrimeraPage();
+        return;
+      }
+      
+      // Cargar desde el snapshot del historial usando el lastDoc de la página anterior
+      const resultado = await this.productosService.getProductosPaginadosReal({
+        pageSize: this.productosPorPagina,
+        lastVisible: this.paginasHistorial[this.paginasHistorial.length - 2]?.lastDoc || null,
+        direction: 'next',
+        ordenamiento: this.ordenamiento as 'reciente' | 'codigo',
+        terminoBusqueda: this.terminoBusqueda,
+        grupoSeleccionado: this.grupoSeleccionado
+      });
+      
+      this.productosPaginados = resultado.productos;
+      this.lastVisible = paginaAnterior.lastDoc;
+      this.firstVisible = paginaAnterior.firstDoc;
+      this.hasMore = true; // Sabemos que hay más porque veníamos de una página posterior
       
     } catch (error) {
       console.error('Error al cargar página anterior:', error);

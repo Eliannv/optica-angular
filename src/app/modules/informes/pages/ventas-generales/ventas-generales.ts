@@ -60,10 +60,10 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     { valor: 'VENTAS', label: 'Ventas (Facturas)' },
     { valor: 'PAGOS_EFECTIVO', label: 'Pagos en Efectivo' },
     { valor: 'PAGOS_TARJETA', label: 'Pagos por Tarjeta' },
-    { valor: 'TRANSFERENCIA_VENTAS', label: '🔄 Transferencia (Ventas)' },
-    { valor: 'TRANSFERENCIA_DEUDAS', label: '🏦 Transferencia (Cobro de Deudas)' },
-    { valor: 'FACTURAS_DEUDA', label: '💳 Pagos de Deuda (Todos)' },
-    { valor: 'EGRESOS', label: '📤 Egresos' }
+    { valor: 'TRANSFERENCIA_VENTAS', label: 'Transferencia (Ventas)' },
+    { valor: 'TRANSFERENCIA_DEUDAS', label: 'Transferencia (Cobro de Deudas)' },
+    { valor: 'FACTURAS_DEUDA', label: 'Pagos de Deuda (Todos)' },
+    { valor: 'EGRESOS', label: 'Egresos' }
   ];
 
   // Totales (basados en facturas)
