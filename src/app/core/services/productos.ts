@@ -35,7 +35,10 @@ import {
   limit,
   startAfter,
   QueryDocumentSnapshot,
-  orderBy
+  orderBy,
+  limitToLast,
+  endBefore,
+  DocumentSnapshot
 } from '@angular/fire/firestore';
 import { Observable, BehaviorSubject, shareReplay, forkJoin, map, tap } from 'rxjs';
 import { Producto } from '../models/producto.model';
@@ -145,6 +148,324 @@ export class ProductosService {
     this.cachedProductos$ = null;
     this.cachedProductosTodos$ = null;
     return this.getProductos();
+  }
+
+  /**
+   * 🚀 OPTIMIZADO: Cargar productos limitados para POS (crear venta)
+   * Carga inicial de máximo 10-20 productos para reducir memoria y lecturas
+   * 
+   * @param limitCount Número máximo de productos a cargar (default: 10)
+   * @param orderByField Campo por el que ordenar (default: 'idInterno')
+   * @returns Observable<Producto[]> Stream con productos limitados
+   */
+  getProductosLimitados(limitCount: number = 10, orderByField: string = 'idInterno'): Observable<Producto[]> {
+    const q = query(
+      this.productosRef,
+      where('activo', '!=', false),
+      orderBy('activo'),
+      orderBy(orderByField),
+      limit(limitCount)
+    );
+
+    return collectionData(q, { idField: 'id' }).pipe(
+      map((productos: any[]) => productos as Producto[])
+    );
+  }
+
+  /**
+   * 🚀 OPTIMIZADO: Búsqueda de productos con límite y prefijo
+   * Busca por nombre, código, modelo, etc. con límite de resultados
+   * 
+   * @param searchTerm Término de búsqueda
+   * @param limitCount Número máximo de resultados (default: 20)
+   * @returns Observable<Producto[]> Productos que coinciden con la búsqueda
+   */
+  buscarProductosLimitado(searchTerm: string, limitCount: number = 20): Observable<Producto[]> {
+    if (!searchTerm || searchTerm.trim() === '') {
+      return this.getProductosLimitados(limitCount);
+    }
+
+    const term = searchTerm.toLowerCase().trim();
+    
+    // Búsqueda por prefijo de nombre (más eficiente con índice)
+    const q = query(
+      this.productosRef,
+      where('activo', '!=', false),
+      orderBy('activo'),
+      orderBy('nombre'),
+      limit(100) // Traer 100 para luego filtrar localmente por otros campos
+    );
+
+    return collectionData(q, { idField: 'id' }).pipe(
+      map((productos: any[]) => {
+        // Filtrar en cliente por múltiples campos
+        const filtrados = productos.filter((p: any) => {
+          const nombre = (p.nombre || '').toLowerCase();
+          const tipo = (p.tipo || p.categoria || '').toLowerCase();
+          const modelo = (p.modelo || '').toLowerCase();
+          const color = (p.color || '').toLowerCase();
+          const codigo = (p.codigo || '').toLowerCase();
+          const idInterno = (p.idInterno || '').toString().toLowerCase();
+          
+          return nombre.includes(term) || 
+                 tipo.includes(term) || 
+                 modelo.includes(term) || 
+                 color.includes(term) || 
+                 codigo.includes(term) || 
+                 idInterno.includes(term);
+        });
+
+        // Limitar resultados finales
+        return filtrados.slice(0, limitCount) as Producto[];
+      })
+    );
+  }
+
+  /**
+   * 🚀 OPTIMIZADO: Búsqueda con filtros avanzados y límite
+   * Permite filtrar por grupo, proveedor y tipo de stock
+   * 
+   * @param options Opciones de búsqueda y filtrado
+   * @returns Observable<Producto[]> Productos filtrados
+   */
+  buscarProductosConFiltros(options: {
+    searchTerm?: string;
+    grupo?: string;
+    proveedor?: string;
+    tipoStock?: string;
+    limitCount?: number;
+  }): Observable<Producto[]> {
+    const { searchTerm = '', grupo = '', proveedor = '', tipoStock = '', limitCount = 20 } = options;
+
+    // Query base
+    let q = query(
+      this.productosRef,
+      where('activo', '!=', false),
+      orderBy('activo'),
+      orderBy('nombre'),
+      limit(200) // Límite generoso para filtrado local
+    );
+
+    return collectionData(q, { idField: 'id' }).pipe(
+      map((productos: any[]) => {
+        let filtrados = productos;
+
+        // Filtrar por grupo
+        if (grupo) {
+          filtrados = filtrados.filter(p => 
+            (p.grupo || '').toUpperCase() === grupo.toUpperCase()
+          );
+        }
+
+        // Filtrar por proveedor
+        if (proveedor) {
+          filtrados = filtrados.filter(p => 
+            (p.proveedor || '').toUpperCase() === proveedor.toUpperCase()
+          );
+        }
+
+        // Filtrar por tipo de stock
+        if (tipoStock) {
+          filtrados = filtrados.filter(p => {
+            const tipoControl = (p as any).tipo_control_stock || 'NORMAL';
+            return tipoControl === tipoStock;
+          });
+        }
+
+        // Filtrar por término de búsqueda
+        if (searchTerm.trim()) {
+          const term = searchTerm.toLowerCase().trim();
+          filtrados = filtrados.filter(p => {
+            const nombre = (p.nombre || '').toLowerCase();
+            const tipo = (p.tipo || p.categoria || '').toLowerCase();
+            const modelo = (p.modelo || '').toLowerCase();
+            const color = (p.color || '').toLowerCase();
+            const codigo = (p.codigo || '').toLowerCase();
+            const idInterno = (p.idInterno || '').toString().toLowerCase();
+            
+            return nombre.includes(term) || 
+                   tipo.includes(term) || 
+                   modelo.includes(term) || 
+                   color.includes(term) || 
+                   codigo.includes(term) || 
+                   idInterno.includes(term);
+          });
+        }
+
+        // Limitar resultados
+        return filtrados.slice(0, limitCount) as Producto[];
+      })
+    );
+  }
+
+  /**
+   * 🚀 PAGINACIÓN REAL DESDE FIRESTORE
+   * 
+   * Obtiene productos con paginación real usando cursores de Firestore.
+   * Solo carga 10 productos por consulta, reduciendo uso de memoria y lecturas.
+   * 
+   * @param options - Opciones de paginación
+   * @param options.pageSize - Cantidad de productos por página (default: 10)
+   * @param options.lastVisible - Snapshot del último documento visible (para "siguiente")
+   * @param options.firstVisible - Snapshot del primer documento visible (para "anterior")
+   * @param options.direction - Dirección de navegación: 'next' | 'prev' (default: 'next')
+   * @param options.ordenamiento - Campo para ordenar: 'reciente' | 'codigo' (default: 'codigo')
+   * @param options.terminoBusqueda - Término para buscar en múltiples campos
+   * @param options.grupoSeleccionado - Filtro por grupo/categoría
+   * 
+   * @returns Promise<{ productos: Producto[], lastDoc: DocumentSnapshot | null, firstDoc: DocumentSnapshot | null }>
+   * 
+   * @example
+   * // Primera carga
+   * const result = await getProductosPaginadosReal({ pageSize: 10 });
+   * 
+   * // Página siguiente
+   * const nextPage = await getProductosPaginadosReal({ 
+   *   pageSize: 10, 
+   *   lastVisible: result.lastDoc, 
+   *   direction: 'next' 
+   * });
+   * 
+   * // Página anterior
+   * const prevPage = await getProductosPaginadosReal({ 
+   *   pageSize: 10, 
+   *   firstVisible: result.firstDoc, 
+   *   direction: 'prev' 
+   * });
+   */
+  async getProductosPaginadosReal(options: {
+    pageSize?: number;
+    lastVisible?: DocumentSnapshot | null;
+    firstVisible?: DocumentSnapshot | null;
+    direction?: 'next' | 'prev';
+    ordenamiento?: 'reciente' | 'codigo';
+    terminoBusqueda?: string;
+    grupoSeleccionado?: string;
+  }): Promise<{
+    productos: Producto[];
+    lastDoc: DocumentSnapshot | null;
+    firstDoc: DocumentSnapshot | null;
+    hasMore: boolean;
+  }> {
+    const {
+      pageSize = 10,
+      lastVisible = null,
+      firstVisible = null,
+      direction = 'next',
+      ordenamiento = 'codigo',
+      terminoBusqueda = '',
+      grupoSeleccionado = ''
+    } = options;
+
+    // ✅ Construir query base con ordenamiento
+    let q;
+    
+    if (ordenamiento === 'reciente') {
+      // Ordenar por fecha de creación descendente
+      if (direction === 'prev' && firstVisible) {
+        q = query(
+          this.productosRef,
+          orderBy('createdAt', 'desc'),
+          orderBy('idInterno', 'desc'),
+          endBefore(firstVisible),
+          limitToLast(pageSize + 1) // +1 para detectar si hay más páginas
+        );
+      } else if (direction === 'next' && lastVisible) {
+        q = query(
+          this.productosRef,
+          orderBy('createdAt', 'desc'),
+          orderBy('idInterno', 'desc'),
+          startAfter(lastVisible),
+          limit(pageSize + 1)
+        );
+      } else {
+        // Primera carga
+        q = query(
+          this.productosRef,
+          orderBy('createdAt', 'desc'),
+          orderBy('idInterno', 'desc'),
+          limit(pageSize + 1)
+        );
+      }
+    } else {
+      // Ordenar por idInterno ascendente (default)
+      if (direction === 'prev' && firstVisible) {
+        q = query(
+          this.productosRef,
+          orderBy('idInterno', 'asc'),
+          endBefore(firstVisible),
+          limitToLast(pageSize + 1)
+        );
+      } else if (direction === 'next' && lastVisible) {
+        q = query(
+          this.productosRef,
+          orderBy('idInterno', 'asc'),
+          startAfter(lastVisible),
+          limit(pageSize + 1)
+        );
+      } else {
+        // Primera carga
+        q = query(
+          this.productosRef,
+          orderBy('idInterno', 'asc'),
+          limit(pageSize + 1)
+        );
+      }
+    }
+
+    // ✅ Ejecutar query
+    const snapshot = await getDocs(q);
+    let productos = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Producto[];
+
+    // ✅ Filtrar productos inactivos (soft delete)
+    productos = productos.filter(p => p.activo !== false);
+
+    // ✅ Aplicar filtro de grupo si existe
+    if (grupoSeleccionado) {
+      productos = productos.filter(p => 
+        p.grupo?.toUpperCase() === grupoSeleccionado.toUpperCase()
+      );
+    }
+
+    // ✅ Aplicar búsqueda en cliente (múltiples campos)
+    if (terminoBusqueda.trim()) {
+      const termino = terminoBusqueda.toLowerCase().trim();
+      productos = productos.filter(p => {
+        const nombre = p.nombre?.toLowerCase() || '';
+        const modelo = p.modelo?.toLowerCase() || '';
+        const color = p.color?.toLowerCase() || '';
+        const grupo = p.grupo?.toLowerCase() || '';
+        const proveedor = p.proveedor?.toLowerCase() || '';
+        const idInterno = p.idInterno?.toString() || '';
+
+        return nombre.includes(termino) ||
+               modelo.includes(termino) ||
+               color.includes(termino) ||
+               grupo.includes(termino) ||
+               proveedor.includes(termino) ||
+               idInterno.includes(termino);
+      });
+    }
+
+    // ✅ Detectar si hay más páginas
+    const hasMore = productos.length > pageSize;
+    
+    // ✅ Limitar a pageSize
+    const productosFinales = productos.slice(0, pageSize);
+
+    // ✅ Obtener referencias de documentos
+    const firstDoc = snapshot.docs[0] || null;
+    const lastDoc = snapshot.docs[Math.min(pageSize - 1, snapshot.docs.length - 1)] || null;
+
+    return {
+      productos: productosFinales,
+      lastDoc,
+      firstDoc,
+      hasMore
+    };
   }
 
   /**

@@ -64,7 +64,7 @@
                     <div class="filter-row">
                         <div class="filter-group">
                             <label class="filter-label">Grupo:</label>
-                            <select class="filter-select" [(ngModel)]="grupoSeleccionado" (change)="filtrarProductos()">
+                            <select class="filter-select" [(ngModel)]="grupoSeleccionado" (change)="recargarProductos()">
                                 <option value="">Todos</option>
                                 <option *ngFor="let grupo of gruposDisponibles" [value]="grupo">{{ grupo }}</option>
                             </select>
@@ -73,7 +73,7 @@
 
                         <div class="filter-group">
                             <label class="filter-label">Proveedor:</label>
-                            <select class="filter-select" [(ngModel)]="proveedorSeleccionado" (change)="filtrarProductos()">
+                            <select class="filter-select" [(ngModel)]="proveedorSeleccionado" (change)="recargarProductos()">
                                 <option value="">Todos</option>
                                 <option *ngFor="let proveedor of proveedoresDisponibles" [value]="proveedor">{{ proveedor }}</option>
                             </select>
@@ -82,7 +82,7 @@
 
                         <div class="filter-group">
                             <label class="filter-label">Stock:</label>
-                            <select class="filter-select" [(ngModel)]="tipoStockSeleccionado" (change)="filtrarProductos()">
+                            <select class="filter-select" [(ngModel)]="tipoStockSeleccionado" (change)="recargarProductos()">
                                 <option value="">Todos</option>
                                 <option value="NORMAL">Normal</option>
                                 <option value="ILIMITADO">Ilimitado</option>
@@ -99,6 +99,14 @@
 
                 <!-- Lista de productos -->
                 <div class="productos-list">
+                    <!-- 🚀 LOADING STATE -->
+                    <div *ngIf="cargandoProductos" class="loading-state" style="text-align: center; padding: 20px; color: #6c757d;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;">
+                            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                        </svg>
+                        <p style="margin: 10px 0 0 0;">Cargando productos...</p>
+                    </div>
+
                     <button class="producto-item" type="button" *ngFor="let p of productosFiltrados; let i = index" [class.producto-selected]="i === selectedIndex" (click)="onProductoClick(p, i)">
             <div class="producto-info">
               <div class="producto-nombre">{{ p.nombre }}</div>
@@ -119,8 +127,22 @@
             </div>
           </button>
 
-                    <div class="empty-state" *ngIf="!productosFiltrados.length">
+                    <div class="empty-state" *ngIf="!cargandoProductos && !productosFiltrados.length">
                         <span>🔍 No se encontraron productos</span>
+                    </div>
+
+                    <!-- 🚀 BOTÓN CARGAR MÁS -->
+                    <div *ngIf="!cargandoProductos && productosFiltrados.length > 0 && hayMasProductos" style="padding: 10px; text-align: center;">
+                        <button type="button" class="btn-action" (click)="cargarMasProductos()" style="width: 100%; padding: 10px; background-color: #e9ecef; border: 1px solid #dee2e6; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px;">
+                                <path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>
+                            </svg>
+                            Cargar más productos
+                        </button>
+                    </div>
+
+                    <div *ngIf="!hayMasProductos && productosFiltrados.length > 0" style="padding: 10px; text-align: center; color: #6c757d; font-size: 12px;">
+                        ✓ Todos los resultados cargados
                     </div>
                 </div>
             </div>
@@ -195,119 +217,123 @@
                         </div>
                     </div>
 
+                    <!-- 🎯 PANEL COMPACTO - DISEÑO POS PROFESIONAL -->
                     <div class="carrito-totales">
-                        <div class="total-row">
-                            <span>Subtotal (bruto)</span>
-                            <strong>${{ (subtotal + descuentoMonto).toFixed(2) }}</strong>
-                        </div>
-
-                        <!-- DESCUENTO -->
-                        <div class="metodo-pago">
-                            <label>Descuento (%)</label>
-                            <div style="display: flex; gap: 0.5rem;">
-                                <input #descuentoInput type="number" min="0" max="100" class="search-input" [(ngModel)]="descuentoPorcentaje" (ngModelChange)="cambiarDescuento()" (keydown.enter)="onInputEnter($event, 'descuento')" placeholder="0" style="flex: 1;" />
-                                <span class="descuento-display"><strong>${{ descuentoMonto.toFixed(2) }}</strong></span>
-                            </div>
-                            <small class="muted">Descuento a aplicar sobre el subtotal</small>
-                        </div>
-
-                        <div class="total-row">
-                            <span>Subtotal (neto)</span>
-                            <strong>${{ subtotal.toFixed(2) }}</strong>
-                        </div>
-                        <div class="total-row" *ngIf="iva > 0">
-                            <span>IVA (incluido en precios)</span>
-                            <strong>${{ iva.toFixed(2) }}</strong>
-                        </div>
-                        <div class="total-row total-final">
-                            <span>Total a Pagar</span>
-                            <strong>${{ total.toFixed(2) }}</strong>
-                        </div>
-
-                        <div class="metodo-pago">
-                            <label>Método de Pago</label>
-                            <select #metodoPagoSelect class="select-pago" [(ngModel)]="metodoPago" (keydown.enter)="onInputEnter($event, 'metodo')">
-                <option value="Efectivo">💵 Efectivo</option>
-                <option value="Transferencia">🏦 Transferencia</option>
-                <option value="Tarjeta">💳 Tarjeta</option>
-              </select>
-                        </div>
-
-                        <!-- 🕐 FECHA Y HORA DE PAGO (SOLO PARA ADMINISTRADORES) -->
-                        <!-- Para transferencia/tarjeta: mostrar fecha editable -->
-                        <div class="metodo-pago" *ngIf="esAdmin && (metodoPago === 'Transferencia' || metodoPago === 'Tarjeta')" style="background-color: #e3f2fd; border: 2px solid #2196f3; padding: 12px; border-radius: 6px;">
-                            <label style="font-weight: 600; color: #1976d2;">📅 Fecha del Pago</label>
-                            <input type="date" class="search-input" [(ngModel)]="fechaPago" [min]="fechaMinima" [max]="fechaMaxima" style="font-size: 1rem; border: 2px solid #2196f3;" />
-                            <small class="muted" style="color: #1565c0;">
-                                <span *ngIf="periodoNombre">Periodo de caja banco: <strong>{{ periodoNombre }}</strong></span>
-                                <span *ngIf="!periodoNombre">Fecha en que se realizó el pago</span>
-                            </small>
-                        </div>
-
-                        <!-- Para todos los métodos: mostrar hora editable (solo admin) -->
-                        <div class="metodo-pago" *ngIf="esAdmin" style="background-color: #fff3e0; border: 2px solid #ff9800; padding: 12px; border-radius: 6px;">
-                            <label style="font-weight: 600; color: #f57c00;">🕐 Hora del Pago</label>
-                            <input type="time" step="1" class="search-input" [(ngModel)]="horaPago" style="font-size: 1rem; border: 2px solid #ff9800;" />
-                            <small class="muted" style="color: #ef6c00;" *ngIf="metodoPago === 'Efectivo'">
-                                Hora de la venta (fecha tomada de la caja chica abierta)
-                            </small>
-                            <small class="muted" style="color: #ef6c00;" *ngIf="metodoPago !== 'Efectivo'">
-                                Hora en que se realizó el pago
-                            </small>
-                        </div>
-
-                        <!-- ✅ CÓDIGO DE TRANSFERENCIA (solo si es transferencia) -->
-                        <div class="metodo-pago" *ngIf="metodoPago === 'Transferencia'">
-                            <label>Código de Transferencia</label>
-                            <input #transferenciInput type="text" class="search-input" [(ngModel)]="codigoTransferencia" (keydown.enter)="onInputEnter($event, 'transferencia')" placeholder="Ej: TRF-20260112-001" />
-                            <small class="muted">Número o referencia de la transferencia bancaria</small>
-                        </div>
-
-                        <!-- ✅ ÚLTIMOS 4 DÍGITOS DE TARJETA (solo si es tarjeta) -->
-                        <div class="metodo-pago" *ngIf="metodoPago === 'Tarjeta'">
-                            <label>Últimos 4 Dígitos de la Tarjeta</label>
-                            <input #tarjetaInput type="text" class="search-input" [(ngModel)]="ultimosCuatroTarjeta" (keydown.enter)="onInputEnter($event, 'tarjeta')" placeholder="Ej: 1234" maxlength="4" />
-                            <small class="muted">Últimos 4 dígitos de la tarjeta de crédito/débito</small>
-                        </div>
-
-                        <!-- ✅ CRÉDITO PERSONAL -->
-                        <div class="metodo-pago" style="border: 2px solid #ff9800; padding: 12px; border-radius: 6px; background-color: #fff3e0;">
-                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0;">
-                                <input type="checkbox" [(ngModel)]="esCredito" style="width: 18px; height: 18px; cursor: pointer;" />
-                                <span style="font-weight: 600; color: #ff9800;">Venta a Crédito Personal</span>
-                            </label>
-                            <small class="muted" *ngIf="esCredito" style="display: block; margin-top: 8px; color: #f57c00;">
-                                El cliente se llevará el lente con deuda pendiente. Podrá abonar después.
-                            </small>
-                        </div>
-
-                        <!-- ✅ ABONO (mostrar diferente si es crédito) -->
-                        <div class="metodo-pago" style="background-color: #e8f5e9; border: 2px solid #4caf50; padding: 12px; border-radius: 6px;">
-                            <label style="font-weight: 600; color: #2e7d32;">
-                                {{ esCredito ? '💰 Abono inicial (opcional)' : '💵 Abono (paga hoy)' }}
-                            </label>
-                            <input #abonoInput type="number" min="0" class="search-input" [(ngModel)]="abono" (ngModelChange)="recalcularAbono()" (keydown.enter)="onInputEnter($event, 'abono')" placeholder="0.00" style="font-size: 1.1rem; font-weight: 600; border: 2px solid #4caf50;"
-                            />
-                            <small class="muted" *ngIf="!esCredito" style="color: #388e3c;">Si es menor al total, quedará saldo pendiente.</small>
-                            <small class="muted" *ngIf="esCredito" style="color: #ff9800;">Si no ingresa abono, el total quedará como deuda pendiente.</small>
-
-                            <!-- VUELTO CALCULADO (solo si metodoPago es Efectivo y hay abono) -->
-                            <div *ngIf="metodoPago === 'Efectivo' && abono > 0" style="margin-top: 12px; padding: 10px; background-color: #fff; border-radius: 4px; border-left: 4px solid #ff9800;">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span style="font-weight: 600; color: #f57c00;">🔄 VUELTO A ENTREGAR:</span>
-                                    <span style="font-size: 1.3rem; font-weight: 700;" [style.color]="vuelto >= 0 ? '#4caf50' : '#f44336'">
-                                        ${{ vuelto | number:'1.2-2' }}
-                                    </span>
+                        
+                        <!-- 1️⃣ CÁLCULOS EN 2 COLUMNAS: SUBTOTALES + TOTAL DESTACADO -->
+                        <div class="calculos-container">
+                            <!-- Columna Izquierda: Subtotales en fila horizontal -->
+                            <div class="subtotales-col">
+                                <div class="subtotales-row">
+                                    <div class="calculo-item">
+                                        <span class="calculo-label">Subtotal bruto</span>
+                                        <span class="calculo-valor">${{ (subtotal + descuentoMonto).toFixed(2) }}</span>
+                                    </div>
+                                    <div class="calculo-item descuento-compacto">
+                                        <span class="calculo-label">Descuento</span>
+                                        <div class="descuento-input-group">
+                                            <input #descuentoInput type="number" min="0" max="100" class="input-inline" [(ngModel)]="descuentoPorcentaje" (ngModelChange)="cambiarDescuento()" (blur)="validarDescuento()" (focus)="selectAll($event)" (keydown.enter)="onInputEnter($event, 'descuento')" placeholder="0" />
+                                            <span class="descuento-simbolo">%</span>
+                                        </div>
+                                        <span class="calculo-valor descuento-monto">-${{ descuentoMonto.toFixed(2) }}</span>
+                                    </div>
+                                    <div class="calculo-item">
+                                        <span class="calculo-label">Subtotal neto</span>
+                                        <span class="calculo-valor">${{ subtotal.toFixed(2) }}</span>
+                                    </div>
                                 </div>
-                                <small *ngIf="vuelto < 0" style="color: #f44336; display: block; margin-top: 4px;">
-                                    ⚠️ El monto recibido es menor al total a pagar
-                                </small>
+                                <div class="calculo-item iva-item" *ngIf="iva > 0">
+                                    <span class="calculo-label">IVA incluido</span>
+                                    <span class="calculo-valor">${{ iva.toFixed(2) }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Columna Derecha: Total Destacado -->
+                            <div class="total-destacado">
+                                <span class="total-label">TOTAL A PAGAR</span>
+                                <span class="total-valor">${{ total.toFixed(2) }}</span>
                             </div>
                         </div>
 
-                        <div class="total-row">
-                            <span>Saldo pendiente</span>
-                            <strong>${{ saldoPendiente.toFixed(2) }}</strong>
+                        <!-- 3️⃣ MÉTODO DE PAGO, FECHA Y HORA (FILA COMPACTA DINÁMICA) -->
+                        <!-- Si es Transferencia/Tarjeta + Admin: 3 columnas (método + fecha + hora) -->
+                        <div class="pago-hora-row" *ngIf="esAdmin && (metodoPago === 'Transferencia' || metodoPago === 'Tarjeta')" [class.pago-tres-columnas]="true">
+                            <div class="pago-col">
+                                <label class="label-compacto">Método de Pago</label>
+                                <select #metodoPagoSelect class="select-compacto" [(ngModel)]="metodoPago" (keydown.enter)="onInputEnter($event, 'metodo')">
+                                    <option value="Efectivo">Efectivo</option>
+                                    <option value="Transferencia">Transferencia</option>
+                                    <option value="Tarjeta">Tarjeta</option>
+                                </select>
+                            </div>
+                            <div class="pago-col">
+                                <label class="label-compacto">Fecha Pago</label>
+                                <input type="date" class="input-compacto" [(ngModel)]="fechaPago" [min]="fechaMinima" [max]="fechaMaxima" (keydown.enter)="onInputEnter($event, 'fechaPago')" />
+                            </div>
+                            <div class="pago-col">
+                                <label class="label-compacto">Hora Pago</label>
+                                <input type="time" step="1" class="input-compacto" [(ngModel)]="horaPago" (keydown.enter)="onInputEnter($event, 'horaPago')" />
+                            </div>
+                        </div>
+                        
+                        <!-- Si es Efectivo o no es admin: 2 columnas (método + hora si es admin) -->
+                        <div class="pago-hora-row" *ngIf="!esAdmin || metodoPago === 'Efectivo'">
+                            <div class="pago-col">
+                                <label class="label-compacto">Método de Pago</label>
+                                <select #metodoPagoSelect class="select-compacto" [(ngModel)]="metodoPago" (keydown.enter)="onInputEnter($event, 'metodo')">
+                                    <option value="Efectivo">Efectivo</option>
+                                    <option value="Transferencia">Transferencia</option>
+                                    <option value="Tarjeta">Tarjeta</option>
+                                </select>
+                            </div>
+                            <div class="pago-col" *ngIf="esAdmin">
+                                <label class="label-compacto">🕐 Hora Pago</label>
+                                <input type="time" step="1" class="input-compacto" [(ngModel)]="horaPago" (keydown.enter)="onInputEnter($event, 'horaPago')" />
+                            </div>
+                        </div>
+
+                        <!-- Hint de periodo (solo si es Transferencia/Tarjeta y hay periodo) -->
+                        <div class="hint-periodo" *ngIf="(metodoPago === 'Transferencia' || metodoPago === 'Tarjeta') && periodoNombre">
+                            <small class="hint-text">Periodo: <strong>{{ periodoNombre }}</strong></small>
+                        </div>
+
+                        <!-- 5️⃣ DATOS ADICIONALES DE PAGO (SOLO SI APLICA) -->
+                        <div class="datos-pago-adicionales" *ngIf="metodoPago === 'Transferencia'">
+                            <label class="label-compacto">Código Transferencia</label>
+                            <input #transferenciInput type="text" class="input-compacto" [(ngModel)]="codigoTransferencia" (keydown.enter)="onInputEnter($event, 'transferencia')" placeholder="Ej: TRF-20260112-001" />
+                        </div>
+
+                        <div class="datos-pago-adicionales" *ngIf="metodoPago === 'Tarjeta'">
+                            <label class="label-compacto">Últimos 4 Dígitos</label>
+                            <input #tarjetaInput type="text" class="input-compacto" [(ngModel)]="ultimosCuatroTarjeta" (keydown.enter)="onInputEnter($event, 'tarjeta')" placeholder="1234" maxlength="4" />
+                        </div>
+
+                        <!-- 6️⃣ CRÉDITO PERSONAL (CHECKBOX COMPACTO) -->
+                        <div class="credito-checkbox">
+                            <label class="checkbox-label">
+                                <input type="checkbox" [(ngModel)]="esCredito" class="checkbox-input" />
+                                <span class="checkbox-text">Venta a Crédito Personal</span>
+                            </label>
+                        </div>
+
+                        <!-- 7️⃣ SECCIÓN DE CRÉDITO (SOLO SI ESTÁ ACTIVA) -->
+                        <div class="credito-seccion" *ngIf="esCredito || abono > 0 || saldoPendiente > 0">
+                            <div class="credito-grid">
+                                <div class="credito-item">
+                                    <label class="label-compacto">{{ esCredito ? 'Abono inicial' : 'Abono hoy' }}</label>
+                                    <input #abonoInput type="number" min="0" class="input-abono" [(ngModel)]="abono" (ngModelChange)="recalcularAbono()" (blur)="validarAbono()" (focus)="selectAll($event)" (keydown.enter)="onInputEnter($event, 'abono')" placeholder="0.00" />
+                                </div>
+                                <div class="credito-item">
+                                    <span class="label-compacto">Saldo pendiente</span>
+                                    <span class="saldo-valor">${{ saldoPendiente.toFixed(2) }}</span>
+                                </div>
+                            </div>
+
+                            <!-- VUELTO (SOLO EFECTIVO) -->
+                            <div class="vuelto-alert" *ngIf="metodoPago === 'Efectivo' && abono > 0">
+                                <span class="vuelto-label">🔄 Vuelto a entregar:</span>
+                                <span class="vuelto-valor" [class.vuelto-negativo]="vuelto < 0">${{ vuelto | number:'1.2-2' }}</span>
+                            </div>
                         </div>
 
                         <!-- BOTONES DE ACCIÓN -->

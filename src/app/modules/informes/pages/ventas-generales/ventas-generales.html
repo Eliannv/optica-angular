@@ -4,7 +4,7 @@
         <div class="header-content">
             <h2 class="titulo">Reporte de Ventas Generales</h2>
             <div class="header-actions">
-                <button class="btn-reimprimir" type="button" (click)="imprimirReporte()" [disabled]="facturasFiltradas.length === 0">
+                <button class="btn-reimprimir" type="button" (click)="imprimirReporte()" [disabled]="!datosReporte">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
             <path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/>
@@ -32,19 +32,24 @@
                 <input type="date" [(ngModel)]="fechaHasta" class="input-filtro">
             </div>
 
-            <!-- Tipo de Movimiento (Checkboxes) -->
-            <div class="filtro-grupo filtro-wide">
-                <label>Tipo de Movimiento</label>
-                <div class="checkboxes-group">
-                    <label class="checkbox-item" *ngFor="let tipo of tiposDisponibles">
-            <input 
-              type="checkbox" 
-              [checked]="isTipoSeleccionado(tipo.valor)" 
-              (change)="toggleTipo(tipo.valor)">
-            <span>{{ tipo.label }}</span>
-          </label>
-                </div>
-                <small class="help-text">Selecciona uno o varios tipos (si no seleccionas ninguno, se mostrarán todos)</small>
+            <!-- Tipo de Reporte -->
+            <div class="filtro-grupo">
+                <label>Tipo de Reporte</label>
+                <select [(ngModel)]="tipoReporte" class="input-filtro">
+                    <option *ngFor="let tipo of tiposDisponibles" [value]="tipo.valor">
+                        {{ tipo.label }}
+                    </option>
+                </select>
+            </div>
+
+            <!-- Método de Pago -->
+            <div class="filtro-grupo">
+                <label>Método de Pago</label>
+                <select [(ngModel)]="metodoPagoFiltro" class="input-filtro">
+                    <option *ngFor="let metodo of metodosPago" [value]="metodo">
+                        {{ metodo }}
+                    </option>
+                </select>
             </div>
         </div>
 
@@ -58,7 +63,7 @@
         </button>
             </div>
             <span class="filtros-resultado">
-        {{ facturasFiltradas.length }} factura(s) encontrada(s)
+        {{ facturas.length + pagosDeuda.length + egresos.length }} registro(s) encontrado(s)
       </span>
         </div>
     </div>
@@ -67,10 +72,7 @@
     <div class="resumen-stats" *ngIf="!loading">
         <div class="stat-card stat-card-primary">
             <div class="stat-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" x2="12" y1="2" y2="22"/>
-          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-        </svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sigma-icon lucide-sigma"><path d="M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2"/></svg>
             </div>
             <div class="stat-content">
                 <span class="stat-label">Total Vendido</span>
@@ -79,38 +81,32 @@
         </div>
 
         <!-- 🆕 Total Pagos de Deuda -->
-        <div class="stat-card stat-card-warning" *ngIf="totalPagosDeuda > 0 || tiposSeleccionados.includes('FACTURAS_DEUDA')">
+        <div class="stat-card stat-card-primary" *ngIf="totalPagosDeuda > 0">
             <div class="stat-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-          <path d="M16 11h-4"></path>
-        </svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-dollar-sign-icon lucide-circle-dollar-sign"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
             </div>
             <div class="stat-content">
-                <span class="stat-label">💳 Pagos Deuda</span>
+                <span class="stat-label">Pago Deuda</span>
                 <span class="stat-value">{{ formatoMoneda(totalPagosDeuda) }}</span>
             </div>
         </div>
 
         <!-- 🆕 Total Egresos -->
-        <div class="stat-card stat-card-danger" *ngIf="totalEgresos > 0 || tiposSeleccionados.includes('EGRESOS')">
+        <div class="stat-card stat-card-primary" *ngIf="totalEgresos > 0">
             <div class="stat-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 5v14m7-7H5"></path>
         </svg>
             </div>
             <div class="stat-content">
-                <span class="stat-label">📤 Egresos</span>
+                <span class="stat-label">Egresos</span>
                 <span class="stat-value">{{ formatoMoneda(totalEgresos) }}</span>
             </div>
         </div>
 
         <div class="stat-card stat-card-primary">
             <div class="stat-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect width="20" height="14" x="2" y="5" rx="2"/>
-          <path d="M2 10h20"/>
-        </svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-hand-coins-icon lucide-hand-coins"><path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17"/><path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"/><path d="m2 16 6 6"/><circle cx="16" cy="9" r="2.9"/><circle cx="6" cy="5" r="3"/></svg>
             </div>
             <div class="stat-content">
                 <span class="stat-label">Efectivo</span>
@@ -120,10 +116,7 @@
 
         <div class="stat-card stat-card-primary">
             <div class="stat-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
-          <line x1="1" y1="10" x2="23" y2="10"/>
-        </svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-landmark-icon lucide-landmark"><path d="M10 18v-7"/><path d="M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/></svg>
             </div>
             <div class="stat-content">
                 <span class="stat-label">Transferencia</span>
@@ -179,114 +172,92 @@
                 </tr>
             </thead>
             <tbody>
-                <!-- Ventas Normales -->
-                <tr *ngFor="let factura of facturasFiltradas" class="registro-row">
-                    <td class="col-fecha">
-                        <span class="fecha-text">{{ formatoFecha(factura.fecha) }}</span>
-                    </td>
-                    <td class="col-tipo">
-                        <span class="badge-tipo badge-info">Venta</span>
-                    </td>
-                    <td class="col-factura">
-                        <strong>{{ factura.idPersonalizado || factura.id || '-' }}</strong>
-                    </td>
-                    <td class="col-cliente">
-                        <span>{{ factura.clienteNombre || 'Sin nombre' }}</span>
-                    </td>
-                    <td class="col-metodo">
-                        <span class="badge-metodo" [class.bg-success]="factura.metodoPago === 'Efectivo'" [class.bg-primary]="factura.metodoPago === 'Tarjeta'" [class.bg-warning]="factura.metodoPago === 'Transferencia'">
-              {{ factura.metodoPago === 'Transferencia' ? 'Transferencia (Ventas)' : factura.metodoPago }}
-            </span>
-                    </td>
-                    <td class="col-monto">
-                        <span class="monto">{{ formatoMoneda(factura.total) }}</span>
-                    </td>
-                    <td class="col-saldo">
-                        <span>{{ formatoMoneda(factura.saldoPendiente || 0) }}</span>
-                    </td>
-                </tr>
+                <!-- 🆕 REGISTROS COMBINADOS Y ORDENADOS POR FECHA DESCENDENTE -->
+                <ng-container *ngFor="let registro of registrosCombinados">
 
-                <!-- 🆕 Facturas de Deuda -->
-                <tr *ngFor="let deuda of getPagosDeudaFiltrados()" class="registro-row" style="background-color: #fff3e0;">
-                    <td class="col-fecha">
-                        <span class="fecha-text">{{ formatoFecha(deuda.fechaPago) }}</span>
-                    </td>
-                    <td class="col-tipo">
-                        <span class="badge-tipo badge-warning">💳 Pago Deuda</span>
-                    </td>
-                    <td class="col-factura">
-                        <strong>{{ deuda.facturaIdPersonalizado || deuda.facturaId || '-' }}</strong>
-                    </td>
-                    <td class="col-cliente">
-                        <span>{{ deuda.clienteNombre || 'Sin nombre' }}</span>
-                    </td>
-                    <td class="col-metodo">
-                        <span class="badge-metodo" [class.bg-success]="deuda.metodoPago === 'Efectivo'" [class.bg-primary]="deuda.metodoPago === 'Tarjeta'" [class.bg-warning]="deuda.metodoPago === 'Transferencia'">
-              {{ deuda.metodoPago === 'Transferencia' ? 'Transferencia (Cobro de Deudas)' : deuda.metodoPago }}
+                    <!-- Venta -->
+                    <tr *ngIf="registro._tipo === 'VENTA'" class="registro-row">
+                        <td class="col-fecha">
+                            <span class="fecha-text">{{ formatoFecha(registro.fecha) }}</span>
+                        </td>
+                        <td class="col-tipo">
+                            <span class="badge-tipo badge-info">Venta</span>
+                        </td>
+                        <td class="col-factura">
+                            <strong>{{ registro.idPersonalizado || registro.id || '-' }}</strong>
+                        </td>
+                        <td class="col-cliente">
+                            <span>{{ registro.clienteNombre || 'Sin nombre' }}</span>
+                        </td>
+                        <td class="col-metodo">
+                            <span class="badge-metodo" [class.bg-success]="factura.metodoPago === 'Efectivo'" [class.bg-primary]="factura.metodoPago === 'Tarjeta'" [class.bg-warning]="factura.metodoPago === 'Transferencia'">
+              {{ factura.metodoPago }}
             </span>
-                    </td>
-                    <td class="col-monto">
-                        <span class="monto">{{ formatoMoneda(deuda.montoPagado) }}</span>
-                    </td>
-                    <td class="col-saldo">
-                        <span>{{ formatoMoneda(deuda.saldoRestante || 0) }}</span>
-                    </td>
-                </tr>
+                        </td>
+                        <td class="col-monto">
+                            <span class="monto">{{ formatoMoneda(registro.total) }}</span>
+                        </td>
+                        <td class="col-saldo">
+                            <span>{{ formatoMoneda(registro.saldoPendiente || 0) }}</span>
+                        </td>
+                    </tr>
 
-                <!-- 🔥 NUEVO: Transferencias de Caja Banco (Pagos de Deuda) -->
-                <tr *ngFor="let transferencia of getTransferenciasCajaBancoDeuda()" class="registro-row" style="background-color: #e3f2fd;">
-                    <td class="col-fecha">
-                        <span class="fecha-text">{{ formatoFecha(transferencia.fecha) }}</span>
-                    </td>
-                    <td class="col-tipo">
-                        <span class="badge-tipo badge-info">🏦 Transferencia Banco</span>
-                    </td>
-                    <td class="col-factura">
-                        <strong>{{ transferencia.referencia || transferencia.venta_id || '-' }}</strong>
-                    </td>
-                    <td class="col-cliente">
-                        <span>{{ transferencia.descripcion || 'Pago de deuda' }}</span>
-                    </td>
-                    <td class="col-metodo">
-                        <span class="badge-metodo bg-warning">
-              Transferencia (Cobro de Deudas)
+                    <!-- 🆕 Facturas de Deuda -->
+                    <tr *ngFor="let deuda of pagosDeuda" class="registro-row" style="background-color: #fff3e0;" [hidden]="tiposSeleccionados.length > 0 && !tiposSeleccionados.includes('FACTURAS_DEUDA')">
+                        <td class="col-fecha">
+                            <span class="fecha-text">{{ formatoFecha(registro.fechaPago) }}</span>
+                        </td>
+                        <td class="col-tipo">
+                            <span class="badge-tipo badge-warning">Pago Deuda</span>
+                        </td>
+                        <td class="col-factura">
+                            <strong>{{ registro.facturaIdPersonalizado || registro.facturaId || '-' }}</strong>
+                        </td>
+                        <td class="col-cliente">
+                            <span>{{ registro.clienteNombre || 'Sin nombre' }}</span>
+                        </td>
+                        <td class="col-metodo">
+                            <span class="badge-metodo" [class.bg-success]="deuda.metodoPago === 'Efectivo'" [class.bg-primary]="deuda.metodoPago === 'Tarjeta'" [class.bg-warning]="deuda.metodoPago === 'Transferencia'">
+              {{ deuda.metodoPago }}
             </span>
-                    </td>
-                    <td class="col-monto">
-                        <span class="monto">{{ formatoMoneda(transferencia.monto) }}</span>
-                    </td>
-                    <td class="col-saldo">
-                        <span>-</span>
-                    </td>
-                </tr>
+                        </td>
+                        <td class="col-monto">
+                            <span class="monto">{{ formatoMoneda(registro.montoPagado) }}</span>
+                        </td>
+                        <td class="col-saldo">
+                            <span>{{ formatoMoneda(registro.saldoRestante || 0) }}</span>
+                        </td>
+                    </tr>
 
-                <!-- 🆕 Egresos -->
-                <tr *ngFor="let egreso of egresos" class="registro-row" style="background-color: #ffebee;" [hidden]="tiposSeleccionados.length > 0 && !tiposSeleccionados.includes('EGRESOS')">
-                    <td class="col-fecha">
-                        <span class="fecha-text">{{ formatoFecha(egreso.fecha) }}</span>
-                    </td>
-                    <td class="col-tipo">
-                        <span class="badge-tipo badge-danger">📤 Egreso</span>
-                    </td>
-                    <td class="col-factura">
-                        <strong>{{ egreso.comprobante || '-' }}</strong>
-                    </td>
-                    <td class="col-cliente">
-                        <span>{{ egreso.descripcion || 'Sin descripción' }}</span>
-                    </td>
-                    <td class="col-metodo">
-                        <span class="badge-metodo bg-success">Efectivo</span>
-                    </td>
-                    <td class="col-monto">
-                        <span class="monto">{{ formatoMoneda(egreso.monto) }}</span>
-                    </td>
-                    <td class="col-saldo">
-                        <span>-</span>
-                    </td>
-                </tr>
+                    <!-- Egreso -->
+                    <tr *ngIf="registro._tipo === 'EGRESO'" class="registro-row" style="background-color: #ffebee;">
+                        <td class="col-fecha">
+                            <span class="fecha-text">{{ formatoFecha(registro.fecha) }}</span>
+                        </td>
+                        <td class="col-tipo">
+                            <span class="badge-tipo badge-danger">📤 Egreso</span>
+                        </td>
+                        <td class="col-factura">
+                            <strong>{{ registro.comprobante || '-' }}</strong>
+                        </td>
+                        <td class="col-cliente">
+                            <span>{{ registro.descripcion || 'Sin descripción' }}</span>
+                        </td>
+                        <td class="col-metodo">
+                            <span class="badge-metodo bg-success">Efectivo</span>
+                        </td>
+                        <td class="col-monto">
+                            <span class="monto">{{ formatoMoneda(registro.monto) }}</span>
+                        </td>
+                        <td class="col-saldo">
+                            <span>-</span>
+                        </td>
+                    </tr>
+
+                </ng-container>
 
                 <!-- Sin resultados -->
-                <tr *ngIf="facturasFiltradas.length === 0 && getPagosDeudaFiltrados().length === 0 && egresos.length === 0">
+                <tr *ngIf="facturasFiltradas.length === 0 && pagosDeuda.length === 0 && egresos.length === 0">
                     <td colspan="7" class="sin-datos">
                         <div class="mensaje-vacio">
                             <p>📭 No se encontraron registros con los filtros aplicados</p>
