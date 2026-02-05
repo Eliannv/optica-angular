@@ -199,9 +199,19 @@
                             <label>Método de Pago</label>
                             <select class="select-pago" [(ngModel)]="metodoPago" (ngModelChange)="onMetodoPagoChange()">
                 <option value="Efectivo" *ngIf="hayCajaAbierta">💵 Efectivo</option>
-                <option value="Transferencia">🏦 Transferencia</option>
-                <option value="Tarjeta">💳 Tarjeta</option>
+                <option value="Transferencia" *ngIf="hayCajaBancoAbierta">🏦 Transferencia</option>
+                <option value="Tarjeta" *ngIf="hayCajaBancoAbierta">💳 Tarjeta</option>
               </select>
+                            <!-- ⚠️ Mensaje si no hay métodos de pago disponibles -->
+                            <small class="muted" *ngIf="!hayCajaAbierta && !hayCajaBancoAbierta" style="color: #f44336; font-weight: 600; display: block; margin-top: 6px;">
+                                ⚠️ No hay cajas abiertas. Abre una caja chica o caja banco para registrar pagos.
+                            </small>
+                            <small class="muted" *ngIf="hayCajaAbierta && !hayCajaBancoAbierta" style="color: #ff9800; display: block; margin-top: 6px;">
+                                ℹ️ Solo efectivo disponible. Abre una caja banco para habilitar transferencia/tarjeta.
+                            </small>
+                            <small class="muted" *ngIf="!hayCajaAbierta && hayCajaBancoAbierta" style="color: #ff9800; display: block; margin-top: 6px;">
+                                ℹ️ Solo transferencia/tarjeta disponible. Abre una caja chica para habilitar efectivo.
+                            </small>
                         </div>
 
                         <!-- 🕐 FECHA Y HORA DE PAGO (SOLO PARA ADMINISTRADORES) -->

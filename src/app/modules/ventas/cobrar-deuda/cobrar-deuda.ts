@@ -50,6 +50,7 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
 
   // 🔒 CONTROL DE CAJA ABIERTA
   hayCajaAbierta = false; // Indica si existe una caja chica abierta (para habilitar/deshabilitar efectivo)
+  hayCajaBancoAbierta = false; // Indica si existe una caja banco abierta (para habilitar/deshabilitar transferencia/tarjeta)
 
   // ✅ CONTROL DE CRÉDITO PERSONAL
   esCreditoPersonal = false; // Checkbox para marcar si es crédito personal
@@ -138,8 +139,9 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     this.inicializarFechaHora();
 
     // 🔒 Verificar si hay caja abierta (para controlar método de pago)
-    await this.verificarCajaAbierta();
-
+    await this.verificarCajaAbierta();    
+    // 🏦 Verificar si hay caja banco abierta (para transferencia/tarjeta)
+    await this.verificarCajaBancoAbierta();
     this.clienteId = this.route.snapshot.queryParamMap.get('clienteId') || '';
     if (!this.clienteId) {
       this.router.navigate(['/clientes/historial-clinico']);
@@ -299,6 +301,17 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
 
   async registrarAbono() {
     if (!this.facturaSeleccionada || this.abono <= 0 || this.pagando) return;
+
+    // ✅ Validar que haya caja banco abierta para transferencias/tarjetas
+    if ((this.metodoPago === 'Transferencia' || this.metodoPago === 'Tarjeta') && !this.hayCajaBancoAbierta) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Caja Banco Cerrada',
+        html: 'No hay ninguna caja banco abierta.<br><br>Para registrar pagos con <b>Transferencia</b> o <b>Tarjeta</b>, primero debes abrir una caja banco desde el módulo de <b>Caja Banco</b>.',
+        confirmButtonText: 'Entendido'
+      });
+      return;
+    }
 
     this.pagando = true;
 
@@ -683,6 +696,32 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Verifica si hay una caja banco abierta para transferencias/tarjetas
+   */
+  async verificarCajaBancoAbierta(): Promise<void> {
+    try {
+      const caja = await this.cajaBancoService.getCajaBancoAbierta();
+      this.hayCajaBancoAbierta = !!caja;
+      
+      if (!this.hayCajaBancoAbierta) {
+        console.log('⚠️ No hay caja banco abierta. Transferencia/Tarjeta no disponibles');
+        
+        // Si el método de pago actual es Transferencia o Tarjeta y no hay caja banco, cambiar a Efectivo
+        if ((this.metodoPago === 'Transferencia' || this.metodoPago === 'Tarjeta') && this.hayCajaAbierta) {
+          this.metodoPago = 'Efectivo';
+          console.log('⚠️ Método de pago cambiado a Efectivo');
+        }
+      } else {
+        // Si hay caja banco abierta, cargar restricciones de fecha
+        await this.cargarRestriccionesFechaCajaBanco();
+      }
+    } catch (error) {
+      console.error('Error al verificar caja banco abierta:', error);
+      this.hayCajaBancoAbierta = false;
+    }
+  }
+
+  /**
    * Actualiza fecha y hora con valores actuales
    */
   private actualizarFechaHoraActual(): void {
@@ -763,8 +802,12 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
       
       if (!caja?.fecha) {
         console.warn('⚠️ No hay caja banco abierta');
+        this.hayCajaBancoAbierta = false;
         return;
       }
+
+      // ✅ Hay caja banco abierta
+      this.hayCajaBancoAbierta = true;
 
       // Convertir fecha de Firestore a Date
       let fechaCaja: Date;
@@ -800,6 +843,7 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
       console.log(`📅 Restricciones de fecha establecidas: ${this.fechaMinima} a ${this.fechaMaxima} (${this.periodoNombre})`);
     } catch (error) {
       console.error('❌ Error cargando restricciones de fecha:', error);
+      this.hayCajaBancoAbierta = false;
     }
   }
 
