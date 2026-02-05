@@ -152,7 +152,7 @@
     <!-- LOADING -->
     <div *ngIf="loading" class="loading-container">
         <div class="spinner"></div>
-        <p>Cargando datos...</p>
+        <p>Cargando datos optimizados (solo rango de fechas seleccionado)...</p>
     </div>
 
     <!-- TABLA DE REGISTROS -->
@@ -280,7 +280,7 @@
                 <tr *ngIf="facturasFiltradas.length === 0 && getPagosDeudaFiltrados().length === 0 && egresos.length === 0">
                     <td colspan="7" class="sin-datos">
                         <div class="mensaje-vacio">
-                            <p>📭 No se encontraron registros con los filtros aplicados</p>
+                            <p>No se encontraron registros con los filtros aplicados</p>
                             <button class="btn-limpiar" (click)="limpiarFiltros()" type="button">
                 Limpiar Filtros
               </button>

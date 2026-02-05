@@ -45,6 +45,7 @@
     letter-spacing: 0.3px;
     color: var(--text-secondary);
     opacity: 0.8;
+    white-space: nowrap; /* ✅ Evita que el texto se divida en dos líneas */
 }
 
 .calculo-valor {

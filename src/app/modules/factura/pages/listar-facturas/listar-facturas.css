@@ -291,6 +291,28 @@
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
 }
 
+.btn-action-edit {
+    color: #f59e0b;
+    background: #fef3c7;
+}
+
+.btn-action-edit:hover {
+    background: #fde68a;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+}
+
+.btn-action-delete {
+    color: #ef4444;
+    background: #fee2e2;
+}
+
+.btn-action-delete:hover {
+    background: #fecaca;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+}
+
 .btn-action-payment {
     color: #dc2626;
     background: #fee2e2;

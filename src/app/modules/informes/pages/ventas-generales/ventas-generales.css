@@ -345,6 +345,33 @@
     }
 }
 
+/* ✅ EMPTY STATE (estado inicial antes de cargar) */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: white;
+    border-radius: var(--border-radius, 8px);
+    box-shadow: var(--sombra-card, 0 2px 8px rgba(0, 0, 0, 0.1));
+}
+
+.empty-state svg {
+    margin: 0 auto 1.5rem;
+    color: var(--text-secondary, #6c757d);
+    opacity: 0.5;
+}
+
+.empty-state p {
+    font-size: 1.1rem;
+    color: var(--text-primary, #212529);
+    margin-bottom: 0.5rem;
+}
+
+.empty-state small {
+    font-size: 0.9rem;
+    color: var(--text-secondary, #6c757d);
+    display: block;
+}
+
 
 /* =====================================================
    TABLA DE REGISTROS

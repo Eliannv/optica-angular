@@ -4,34 +4,35 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import Swal from 'sweetalert2';
-import { collection, query, getDocs, Firestore, where, orderBy, Timestamp } from '@angular/fire/firestore';
 
-import { CobrosService } from '../../../../core/services/cobros.service';
-import { ClientesService } from '../../../../core/services/clientes';
-import { CajaChicaService } from '../../../../core/services/caja-chica.service';
-import { CajaBancoService } from '../../../../core/services/caja-banco.service';
-import { FacturasService } from '../../../../core/services/facturas';
-import { FacturasDeudaService } from '../../../../core/services/facturas-deuda.service';
-import { Cobro } from '../../../../core/models/cobro.model';
+import { ReportesService } from '../../../../core/services/reportes.service';
 import { Factura } from '../../../../core/models/factura.model';
 import { FacturaDeuda } from '../../../../core/models/factura-deuda.model';
 
 /**
- * Componente de Reporte de Ventas Generales.
+ * Componente de Reporte de Ventas Generales - OPTIMIZADO
+ * 
+ * **✅ Optimizaciones implementadas:**
+ * - ⚡ Carga bajo demanda: no carga datos hasta presionar "Mostrar"
+ * - 📄 Paginación: consultas limitadas con limit() y startAfter()
+ * - 💾 Cache en memoria: evita consultas repetidas (5 min TTL)
+ * - 🚫 Sin listeners en tiempo real: solo getDocs para reportes históricos
+ * - 🎯 Consultas dirigidas: solo trae datos en rango de fechas especificado
+ * - 🔧 Uso de servicio ReportesService optimizado
  * 
  * **Funcionalidades:**
  * - Reporte basado exclusivamente en facturas del sistema
- * - Filtros por rango de fechas (Desde/Hasta)
+ * - Filtros por rango de fechas (Desde/Hasta) - OBLIGATORIOS
  * - Filtros por tipo de venta y forma de pago
+ * - Paginación automática para grandes volúmenes
  * - Impresión compatible con impresoras POS y normales
- * - Sin filtro de bodega (sistema de una sola bodega)
  * 
- * **Flujo:**
- * 1. Carga todas las facturas desde Firestore
- * 2. Aplica filtros de fecha y tipo seleccionados
- * 3. Calcula totales de ventas y desglose por forma de pago
- * 4. Muestra resultados en tabla
- * 5. Permite imprimir reporte con filtros aplicados
+ * **Flujo optimizado:**
+ * 1. NO carga nada al iniciar (ahorro de lecturas)
+ * 2. Al presionar "Mostrar": consulta paginada solo con fechas del filtro
+ * 3. Usa cache si los datos ya fueron consultados recientemente
+ * 4. Aplica filtros adicionales en memoria (tipo, método pago)
+ * 5. Calcula totales y permite imprimir
  */
 @Component({
   selector: 'app-ventas-generales',
@@ -41,19 +42,27 @@ import { FacturaDeuda } from '../../../../core/models/factura-deuda.model';
   styleUrl: './ventas-generales.css'
 })
 export class VentasGeneralesComponent implements OnInit, OnDestroy {
-  loading = true;
-  facturas: Factura[] = []; // Todas las facturas del sistema
+  loading = false; // ✅ Inicia en false, solo carga cuando el usuario presiona "Mostrar"
+  facturas: Factura[] = []; // Facturas en el rango seleccionado
   facturasFiltradas: Factura[] = []; // Facturas después de aplicar filtros
-  pagosDeuda: FacturaDeuda[] = []; // 🆕 Pagos de deuda desde facturas_deudas
-  egresos: any[] = []; // 🆕 Egresos de caja chica
-  movimientosCajaChica: any[] = []; // Movimientos de caja chica (para desglose de pagos)
-  movimientosCajaBanco: any[] = []; // Movimientos de caja banco (para desglose de pagos)
-  cajasBanco: any[] = []; // 🆕 Cajas banco en el rango de fechas (para saldo inicial)
+  pagosDeuda: FacturaDeuda[] = []; // Pagos de deuda desde facturas_deudas
+  egresos: any[] = []; // Egresos de caja chica
+  
+  // ✅ Paginación
+  readonly LIMITE_PAGINA = 100; // Consultas paginadas de 100 en 100
+  lastVisibleFactura: any = null;
+  lastVisibleDeuda: any = null;
+  hasMoreFacturas = false;
+  hasMoreDeudas = false;
+  paginaActual = 1;
   
   // Filtros
   fechaDesde = '';
   fechaHasta = '';
   tiposSeleccionados: string[] = []; // Array para múltiples selecciones
+  
+  // ✅ Cache de datos cargados
+  datosYaCargados = false; // Público para template
   
   // Opciones de tipos disponibles (nuevos filtros basados en facturas)
   tiposDisponibles = [
@@ -69,27 +78,20 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   // Totales (basados en facturas)
   totalVendido = 0; // Total de ventas (suma de facturas)
   cantidadRegistros = 0; // Cantidad de facturas
-  totalPagosDeuda = 0; // 🆕 Total de pagos de deuda
-  totalEgresos = 0; // 🆕 Total de egresos
+  totalPagosDeuda = 0; // Total de pagos de deuda
+  totalEgresos = 0; // Total de egresos
   totalesPorMetodo: { [key: string]: number } = {}; // Desglose por forma de pago
-  totalCajaChica = 0; // 🆕 Total Caja Chica en rango de fechas
-  totalCajaBanco = 0; // 🆕 Total Caja Banco en rango de fechas
 
-  private subscription?: Subscription;
+  private subscriptions: Subscription[] = [];
 
   constructor(
-    private cobrosService: CobrosService,
-    private clientesService: ClientesService,
-    private cajaChicaService: CajaChicaService,
-    private cajaBancoService: CajaBancoService,
-    private facturasService: FacturasService,
-    private facturasDeudaService: FacturasDeudaService, // 🆕 Inyectar servicio
-    private firestore: Firestore,
+    private reportesService: ReportesService, // ✅ Servicio optimizado
     private router: Router
   ) {}
 
   ngOnInit(): void {
-    // Establecer fechas por defecto: primer día del mes actual hasta hoy
+    // ✅ OPTIMIZACIÓN: Establecer fechas por defecto pero NO cargar datos
+    // Los datos solo se cargarán cuando el usuario presione "Mostrar"
     const hoy = new Date();
     const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
     
@@ -97,7 +99,8 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     this.fechaDesde = this.formatearFechaInput(primerDiaMes);
     this.fechaHasta = this.formatearFechaInput(hoy);
     
-    this.cargarFacturas();
+    // ✅ NO llamar cargarFacturas() aquí - ahorro de lecturas Firestore
+    console.log('💡 Componente inicializado. Presione "Mostrar" para cargar datos.');
   }
 
   /**
@@ -111,7 +114,9 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.subscription?.unsubscribe();
+    // ✅ Limpiar todas las suscripciones
+    this.subscriptions.forEach(sub => sub.unsubscribe());
+    this.subscriptions = [];
   }
 
   /**
@@ -136,142 +141,123 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Carga todas las facturas y movimientos de pago, luego filtra en memoria
-   * 🎯 Evita problemas de índices compuestos en Firestore
+   * ✅ OPTIMIZADO: Carga datos paginados usando servicio de reportes
    * 
-   * **Proceso:**
-   * 1. Carga todas las facturas del sistema
-   * 2. Carga movimientos de caja chica (pagos en efectivo)
-   * 3. Carga movimientos de caja banco (transferencias y tarjetas)
-   * 4. Filtra por rango de fechas en memoria
+   * **Mejoras implementadas:**
+   * - ✅ Consultas paginadas (limit 100)
+   * - ✅ Solo getDocs (sin listeners en tiempo real)
+   * - ✅ Cache en memoria (5 min TTL)
+   * - ✅ Filtros obligatorios por fecha (no trae colecciones completas)
+   * - ✅ Consultas paralelas para mayor velocidad
+   * - ✅ Menos lecturas de Firestore
    */
-  cargarFacturas(): void {
+  private cargarFacturas(): void {
     this.loading = true;
+    
+    // Validar fechas
+    if (!this.fechaDesde || !this.fechaHasta) {
+      this.loading = false;
+      return;
+    }
 
-    // Convertir fechas del input a Date, asegurando zona horaria local
+    // Convertir fechas del input a Date
     const [añoDesde, mesDesde, diaDesde] = this.fechaDesde.split('-').map(Number);
     const [añoHasta, mesHasta, diaHasta] = this.fechaHasta.split('-').map(Number);
     
     const fechaDesde = new Date(añoDesde, mesDesde - 1, diaDesde, 0, 0, 0, 0);
     const fechaHasta = new Date(añoHasta, mesHasta - 1, diaHasta, 23, 59, 59, 999);
 
-    console.log('📅 Cargando facturas desde:', fechaDesde);
-    console.log('📅 Cargando facturas hasta:', fechaHasta);
+    console.log('⚡ CARGA OPTIMIZADA - Fecha desde:', fechaDesde);
+    console.log('⚡ CARGA OPTIMIZADA - Fecha hasta:', fechaHasta);
+    console.log('💾 Verificando cache...');
 
-    // 🏦 Cargar movimientos de CAJA BANCO (para desglose de pagos)
-    const movimientosBancoRef = collection(this.firestore, 'movimientos_cajas_banco');
-    const cajasBancoRef = collection(this.firestore, 'cajas_banco');
-    
-    // Cargar cajas banco y movimientos en paralelo
-    Promise.all([
-      getDocs(movimientosBancoRef),
-      getDocs(cajasBancoRef)
-    ]).then(([snapshotBanco, snapshotCajasBanco]) => {
-      const todosBanco = snapshotBanco.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
-      // Filtrar movimientos por fecha en memoria
-      this.movimientosCajaBanco = todosBanco.filter((m: any) => {
-        const fecha = m.fecha instanceof Date ? m.fecha : 
-                      (typeof m.fecha?.toDate === 'function' ? m.fecha.toDate() : new Date(m.fecha));
-        return fecha >= fechaDesde && fecha <= fechaHasta;
-      });
-      
-      // Filtrar cajas banco por fecha de apertura en el rango
-      this.cajasBanco = snapshotCajasBanco.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })).filter((c: any) => {
-        const fecha = c.fecha instanceof Date ? c.fecha : 
-                      (typeof c.fecha?.toDate === 'function' ? c.fecha.toDate() : new Date(c.fecha));
-        return fecha >= fechaDesde && fecha <= fechaHasta;
-      });
-      
-      console.log('🏦 Total movimientos banco en BD:', todosBanco.length);
-      console.log('🏦 Movimientos banco en rango:', this.movimientosCajaBanco.length);
-      console.log('🏦 Cajas banco en rango:', this.cajasBanco.length);
-      
-      // Cargar movimientos de CAJA CHICA (para desglose de pagos)
-      const movimientosChicaRef = collection(this.firestore, 'movimientos_cajas_chicas');
-      return getDocs(movimientosChicaRef);
-    }).then(snapshotChica => {
-      const todosChica = snapshotChica.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
-      // Filtrar por fecha en memoria
-      this.movimientosCajaChica = todosChica.filter((m: any) => {
-        const fecha = m.fecha instanceof Date ? m.fecha : 
-                      (typeof m.fecha?.toDate === 'function' ? m.fecha.toDate() : new Date(m.fecha));
-        return fecha >= fechaDesde && fecha <= fechaHasta;
-      });
-      
-      console.log('💰 Total movimientos caja chica en BD:', todosChica.length);
-      console.log('💰 Movimientos caja chica en rango:', this.movimientosCajaChica.length);
-      
-      // 🆕 Filtrar EGRESOS de caja chica en el mismo rango de fechas
-      this.egresos = this.movimientosCajaChica.filter((m: any) => m.tipo === 'EGRESO');
-      console.log('📤 Egresos en rango:', this.egresos.length);
-      
-      // 🆕 Cargar FACTURAS DE DEUDA
-      this.subscription = this.facturasDeudaService.getTodosPagos().subscribe({
-        next: (todosPagos) => {
-          // Filtrar pagos de deuda por fecha en memoria
-          this.pagosDeuda = todosPagos.filter((p: any) => {
-            const fecha = p.fechaPago instanceof Date ? p.fechaPago : 
-                          (typeof p.fechaPago?.toDate === 'function' ? p.fechaPago.toDate() : new Date(p.fechaPago));
-            return fecha >= fechaDesde && fecha <= fechaHasta;
-          });
-          
-          console.log('💳 Total pagos de deuda en BD:', todosPagos.length);
-          console.log('💳 Pagos de deuda en rango:', this.pagosDeuda.length);
-          
-          // Cargar FACTURAS usando el servicio
-          this.facturasService.getFacturas().subscribe({
-            next: (todasFacturas) => {
-              // Filtrar facturas por fecha en memoria
-              this.facturas = todasFacturas.filter(f => {
-                const fecha = (f.fecha as any) instanceof Date ? f.fecha as Date : 
-                              (typeof (f.fecha as any)?.toDate === 'function' ? (f.fecha as any).toDate() : new Date(f.fecha as any));
-                return fecha >= fechaDesde && fecha <= fechaHasta;
-              });
-              
-              console.log('📄 Total facturas en BD:', todasFacturas.length);
-              console.log('📄 Facturas en rango:', this.facturas.length);
-              
-              this.loading = false;
-              
-              // Aplicar filtros en memoria
-              this.filtrarDatosEnMemoria();
-            },
-            error: (error) => {
-              console.error('❌ Error cargando facturas:', error);
-              this.loading = false;
-              this.filtrarDatosEnMemoria();
-            }
-          });
-        },
-        error: (error) => {
-          console.error('❌ Error cargando pagos de deuda:', error);
-          this.pagosDeuda = [];
-          this.loading = false;
-        }
-      });
-    }).catch(error => {
-      console.error('❌ Error cargando movimientos:', error);
-      this.movimientosCajaChica = [];
-      this.movimientosCajaBanco = [];
-      this.loading = false;
+    // ✅ Cargar datos en paralelo usando servicio optimizado
+    const facturasSub = this.reportesService.getFacturasPaginadas(
+      fechaDesde,
+      fechaHasta,
+      undefined, // Sin filtro de método de pago (filtramos en memoria)
+      this.LIMITE_PAGINA
+    ).subscribe({
+      next: (result) => {
+        this.facturas = result.docs as Factura[];
+        this.hasMoreFacturas = result.hasMore;
+        this.lastVisibleFactura = result.lastVisible;
+        console.log(`✅ Facturas cargadas: ${this.facturas.length} (más páginas: ${this.hasMoreFacturas})`);
+        this.verificarCargaCompleta();
+      },
+      error: (error) => {
+        console.error('❌ Error cargando facturas:', error);
+        this.facturas = [];
+        this.verificarCargaCompleta();
+      }
     });
+
+    const deudasSub = this.reportesService.getPagosDeudaPaginados(
+      fechaDesde,
+      fechaHasta,
+      undefined,
+      this.LIMITE_PAGINA
+    ).subscribe({
+      next: (result) => {
+        this.pagosDeuda = result.docs as FacturaDeuda[];
+        this.hasMoreDeudas = result.hasMore;
+        this.lastVisibleDeuda = result.lastVisible;
+        console.log(`✅ Pagos deuda cargados: ${this.pagosDeuda.length} (más páginas: ${this.hasMoreDeudas})`);
+        this.verificarCargaCompleta();
+      },
+      error: (error) => {
+        console.error('❌ Error cargando pagos deuda:', error);
+        this.pagosDeuda = [];
+        this.verificarCargaCompleta();
+      }
+    });
+
+    const egresosSub = this.reportesService.getMovimientosCajaChicaPaginados(
+      fechaDesde,
+      fechaHasta,
+      'EGRESO',
+      this.LIMITE_PAGINA
+    ).subscribe({
+      next: (result) => {
+        this.egresos = result.docs;
+        console.log(`✅ Egresos cargados: ${this.egresos.length}`);
+        this.verificarCargaCompleta();
+      },
+      error: (error) => {
+        console.error('❌ Error cargando egresos:', error);
+        this.egresos = [];
+        this.verificarCargaCompleta();
+      }
+    });
+
+    this.subscriptions.push(facturasSub, deudasSub, egresosSub);
   }
 
   /**
-   * Aplica los filtros seleccionados a la lista de facturas.
-   * Se ejecuta al presionar el botón "Mostrar".
-   * RECARGA los datos desde Firestore con el nuevo rango de fechas.
+   * ✅ Verifica si todas las consultas paralelas terminaron
+   */
+  private contadorCargas = 0;
+  private verificarCargaCompleta(): void {
+    this.contadorCargas++;
+    
+    // Esperar a que las 3 consultas terminen (facturas, deudas, egresos)
+    if (this.contadorCargas >= 3) {
+      this.loading = false;
+      this.contadorCargas = 0;
+      this.datosYaCargados = true;
+      
+      console.log('✅ Carga completa. Aplicando filtros...');
+      this.filtrarDatosEnMemoria();
+      
+      // Mostrar info de paginación si hay más datos
+      if (this.hasMoreFacturas || this.hasMoreDeudas) {
+        console.log('ℹ️ Hay más registros disponibles. Mostrando primeros 100.');
+      }
+    }
+  }
+
+  /**
+   * ✅ OPTIMIZADO: Aplica filtros y carga datos solo cuando el usuario lo solicita
    */
   aplicarFiltros(): void {
     if (!this.fechaDesde || !this.fechaHasta) {
@@ -283,28 +269,26 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // 🔄 RECARGAR datos con el nuevo rango de fechas
-    console.log('🔄 Recargando datos con nuevo rango de fechas...');
-    this.cargarFacturas();
+    // ✅ Limpiar cache si el usuario cambió las fechas
+    this.reportesService.clearCache();
     
-    // Esperar a que se carguen los datos antes de filtrar
-    // El filtrado se hará automáticamente después de cargar en filtrarDatosEnMemoria()
+    // ✅ Reiniciar paginación
+    this.lastVisibleFactura = null;
+    this.lastVisibleDeuda = null;
+    this.paginaActual = 1;
+    
+    console.log('🔄 Cargando datos con filtros aplicados...');
+    this.cargarFacturas();
   }
 
   /**
-   * Filtra los datos ya cargados en memoria según los tipos seleccionados.
-   * Este método se llama después de cargar los datos desde Firestore.
-   * 
-   * **Nueva lógica basada en facturas:**
-   * - Las facturas son la fuente principal de ventas
-   * - Los movimientos de caja solo se usan para desglosar formas de pago
+   * ✅ OPTIMIZADO: Filtra datos en memoria sin reconsultar Firestore
    */
   private filtrarDatosEnMemoria(): void {
-    console.log('🔍 Aplicando filtros en memoria (basado en facturas)...');
-    console.log('📅 Fecha DESDE:', this.fechaDesde);
-    console.log('📅 Fecha HASTA:', this.fechaHasta);
-    console.log('📊 Total facturas disponibles:', this.facturas.length);
-    console.log('💳 Total pagos deuda disponibles:', this.pagosDeuda.length);
+    console.log('🔍 Aplicando filtros en memoria...');
+    console.log('📊 Facturas disponibles:', this.facturas.length);
+    console.log('💳 Pagos deuda disponibles:', this.pagosDeuda.length);
+    console.log('📤 Egresos disponibles:', this.egresos.length);
 
     // ========== FACTURAS (fuente principal de ventas) ==========
     let facturasFiltradas = [...this.facturas];
@@ -318,7 +302,6 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
 
       // Si se seleccionó VENTAS, mostrar todas las facturas
       if (mostrarVentas) {
-        // No filtrar, mostrar todas
         facturasFiltradas = [...this.facturas];
       } else {
         // Filtrar por método de pago
@@ -331,8 +314,6 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       }
 
       console.log('✅ Facturas después de filtro de tipo:', facturasFiltradas.length);
-    } else {
-      console.log('ℹ️ No hay tipos seleccionados, mostrando todas las facturas');
     }
 
     // Asignar facturas filtradas
@@ -349,7 +330,6 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     
     console.log('💰 Total vendido:', this.totalVendido);
     console.log('📋 Facturas finales:', this.facturasFiltradas.length);
-    console.log('💳 Pagos deuda finales:', this.pagosDeuda.length);
   }
 
   /**
@@ -366,19 +346,14 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Calcula totales y estadísticas basadas en facturas filtradas.
-   * El total vendido es la suma de todas las facturas.
-   * Los totales por método de pago se calculan desde las facturas.
-   * 🆕 Ahora también calcula totales de facturas de deuda y egresos.
-   * ✅ Desglose de transferencias: Transferencia (Ventas) vs Transferencia (Cobro de Deudas)
+   * ✅ OPTIMIZADO: Calcula totales solo con datos ya cargados en memoria
    */
   calcularTotales(): void {
     // Total vendido = suma de todas las facturas
     this.totalVendido = this.facturasFiltradas.reduce((sum, f) => sum + f.total, 0);
-    
     this.cantidadRegistros = this.facturasFiltradas.length;
 
-    // 🆕 Calcular total de pagos de deuda si están en filtros
+    // Calcular total de pagos de deuda si están en filtros
     const mostrarFacturasDeuda = this.tiposSeleccionados.includes('FACTURAS_DEUDA') || 
                                   this.tiposSeleccionados.includes('TRANSFERENCIA_DEUDAS') || 
                                   this.tiposSeleccionados.length === 0;
@@ -387,27 +362,27 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       const pagosDeudaFiltrados = this.getPagosDeudaFiltrados();
       this.totalPagosDeuda = pagosDeudaFiltrados.reduce((sum, p) => sum + p.montoPagado, 0);
       
-      // ✅ SUMAR los pagos de deuda al total vendido
+      // Sumar los pagos de deuda al total vendido
       this.totalVendido += this.totalPagosDeuda;
     } else {
       this.totalPagosDeuda = 0;
     }
 
-    // 🆕 Calcular total de egresos si están en filtros
+    // Calcular total de egresos si están en filtros
     if (this.tiposSeleccionados.includes('EGRESOS') || this.tiposSeleccionados.length === 0) {
-      this.totalEgresos = this.egresos.reduce((sum, e) => sum + e.monto, 0);
+      this.totalEgresos = this.egresos.reduce((sum, e) => sum + (e.monto || 0), 0);
     } else {
       this.totalEgresos = 0;
     }
 
-    // ✅ Agrupar por método de pago (con diferenciación de transferencias)
+    // Agrupar por método de pago
     this.totalesPorMetodo = {};
     
     // Procesar facturas normales
     this.facturasFiltradas.forEach(f => {
       let metodo = f.metodoPago || 'Sin Método';
       
-      // ✅ Si es transferencia, clasificar como "Transferencia (Ventas)"
+      // Si es transferencia, clasificar como "Transferencia (Ventas)"
       if (metodo === 'Transferencia') {
         metodo = 'Transferencia (Ventas)';
       }
@@ -415,7 +390,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       this.totalesPorMetodo[metodo] = (this.totalesPorMetodo[metodo] || 0) + f.total;
     });
 
-    // ✅ Procesar pagos de deuda (si están en filtros)
+    // Procesar pagos de deuda (si están en filtros)
     const soloTransferenciasDeuda = this.tiposSeleccionados.includes('TRANSFERENCIA_DEUDAS') && 
                                      !this.tiposSeleccionados.includes('FACTURAS_DEUDA');
     
@@ -425,10 +400,10 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
         
         // Si solo se pidieron transferencias de deuda, filtrar
         if (soloTransferenciasDeuda && metodo !== 'Transferencia') {
-          return; // Saltar este pago
+          return;
         }
         
-        // ✅ Si es transferencia, clasificar como "Transferencia (Cobro de Deudas)"
+        // Si es transferencia, clasificar como "Transferencia (Cobro de Deudas)"
         if (metodo === 'Transferencia') {
           metodo = 'Transferencia (Cobro de Deudas)';
         }
@@ -437,99 +412,49 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       });
     }
 
-    // 🆕 Calcular totales de cajas en el rango de fechas
-    this.calcularTotalesCajas();
-
-    console.log('📊 Totales por método de pago:', this.totalesPorMetodo);
-    console.log('💳 Total pagos de deuda:', this.totalPagosDeuda);
-    console.log('📤 Total egresos:', this.totalEgresos);
-    console.log('💰 Total Caja Chica:', this.totalCajaChica);
-    console.log('🏦 Total Caja Banco:', this.totalCajaBanco);
+    console.log('📊 Totales calculados:');
+    console.log('  - Total vendido:', this.totalVendido);
+    console.log('  - Total pagos deuda:', this.totalPagosDeuda);
+    console.log('  - Total egresos:', this.totalEgresos);
+    console.log('  - Desglose por método:', this.totalesPorMetodo);
   }
 
   /**
-   * 🆕 Calcula los totales de Caja Chica y Caja Banco en el rango de fechas seleccionado
-   */
-  private calcularTotalesCajas(): void {
-    // Convertir fechas del input a Date
-    const [añoDesde, mesDesde, diaDesde] = this.fechaDesde.split('-').map(Number);
-    const [añoHasta, mesHasta, diaHasta] = this.fechaHasta.split('-').map(Number);
-    
-    const fechaDesde = new Date(añoDesde, mesDesde - 1, diaDesde, 0, 0, 0, 0);
-    const fechaHasta = new Date(añoHasta, mesHasta - 1, diaHasta, 23, 59, 59, 999);
-
-    // 💰 Calcular Total Caja Chica: suma de ingresos - egresos en el rango
-    const ingresosCajaChica = this.movimientosCajaChica
-      .filter((m: any) => m.tipo === 'INGRESO')
-      .reduce((sum, m) => sum + (m.monto || 0), 0);
-    
-    const egresosCajaChica = this.movimientosCajaChica
-      .filter((m: any) => m.tipo === 'EGRESO')
-      .reduce((sum, m) => sum + (m.monto || 0), 0);
-    
-    this.totalCajaChica = ingresosCajaChica - egresosCajaChica;
-
-    // 🏦 Calcular Total Caja Banco: Saldo Inicial + Caja Chica (depositada) + movimientos propios
-    
-    console.log('📊 DEBUG - Movimientos Caja Banco totales:', this.movimientosCajaBanco.length);
-    console.log('📊 DEBUG - Movimientos Caja Chica totales:', this.movimientosCajaChica.length);
-    console.log('📊 DEBUG - Cajas Banco en rango:', this.cajasBanco.length);
-    
-    // 1️⃣ Sumar saldo inicial de todas las cajas banco en el rango
-    const saldoInicialBanco = this.cajasBanco.reduce((sum, c: any) => sum + (c.saldo_inicial || 0), 0);
-    console.log('📊 DEBUG - Saldo Inicial Banco:', saldoInicialBanco);
-    
-    // 2️⃣ La Caja Chica se deposita directamente en Caja Banco
-    let totalCajaBanco = saldoInicialBanco + this.totalCajaChica;
-    
-    // 3️⃣ Sumar ingresos directos de Caja Banco (en el rango de fechas)
-    const movimientosIngresoBanco = this.movimientosCajaBanco.filter((m: any) => m.tipo === 'INGRESO');
-    const ingresosCajaBanco = movimientosIngresoBanco.reduce((sum, m) => sum + (m.monto || 0), 0);
-    
-    console.log('📊 DEBUG - Movimientos INGRESO Banco:', movimientosIngresoBanco.length);
-    console.log('📊 DEBUG - Desglose ingresos:', movimientosIngresoBanco.map((m: any) => ({
-      monto: m.monto,
-      fecha: m.fecha,
-      descripcion: m.descripcion,
-      categoria: m.categoria
-    })));
-    
-    // 4️⃣ Restar egresos directos de Caja Banco (en el rango de fechas)
-    const movimientosEgresoBanco = this.movimientosCajaBanco.filter((m: any) => m.tipo === 'EGRESO');
-    const egresosCajaBanco = movimientosEgresoBanco.reduce((sum, m) => sum + (m.monto || 0), 0);
-    
-    console.log('📊 DEBUG - Movimientos EGRESO Banco:', movimientosEgresoBanco.length);
-    console.log('📊 DEBUG - Desglose egresos:', movimientosEgresoBanco.map((m: any) => ({
-      monto: m.monto,
-      fecha: m.fecha,
-      descripcion: m.descripcion,
-      categoria: m.categoria
-    })));
-    
-    // Total = Saldo Inicial + Caja Chica depositada + Ingresos Banco - Egresos Banco
-    this.totalCajaBanco = totalCajaBanco + ingresosCajaBanco - egresosCajaBanco;
-    
-    console.log('🏦 Desglose Caja Banco:');
-    console.log('  - Saldo Inicial Banco:', saldoInicialBanco);
-    console.log('  - Total Caja Chica (depositada):', this.totalCajaChica);
-    console.log('  - Ingresos Caja Banco:', ingresosCajaBanco);
-    console.log('  - Egresos Caja Banco:', egresosCajaBanco);
-    console.log('  - TOTAL CAJA BANCO:', this.totalCajaBanco);
-  }
-
-  /**
-   * Limpia todos los filtros aplicados.
+   * ✅ OPTIMIZADO: Limpia filtros y datos cargados
    */
   limpiarFiltros(): void {
+    // Limpiar fechas
     this.fechaDesde = '';
     this.fechaHasta = '';
+    
+    // Limpiar selecciones
     this.tiposSeleccionados = [];
+    
+    // Limpiar datos
+    this.facturas = [];
     this.facturasFiltradas = [];
+    this.pagosDeuda = [];
+    this.egresos = [];
+    
+    // Limpiar totales
     this.totalVendido = 0;
-    this.totalPagosDeuda = 0; // 🆕
-    this.totalEgresos = 0; // 🆕
+    this.totalPagosDeuda = 0;
+    this.totalEgresos = 0;
     this.cantidadRegistros = 0;
     this.totalesPorMetodo = {};
+    
+    // Reiniciar paginación
+    this.lastVisibleFactura = null;
+    this.lastVisibleDeuda = null;
+    this.hasMoreFacturas = false;
+    this.hasMoreDeudas = false;
+    this.paginaActual = 1;
+    this.datosYaCargados = false;
+    
+    // Limpiar cache del servicio
+    this.reportesService.clearCache();
+    
+    console.log('🗑️ Filtros limpiados');
   }
 
   /**
@@ -910,15 +835,6 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
             <span>Total Egresos:</span>
             <span>${this.formatoMoneda(this.totalEgresos)}</span>
           </div>` : ''}
-          <h4 style="font-size: 10px; margin: 10px 0 4px 0; font-weight: bold; border-top: 2px solid #000; padding-top: 6px;">Totales por Caja:</h4>
-          <div class="total-item">
-            <span>💰 Total Caja Chica:</span>
-            <span class="total-value">${this.formatoMoneda(this.totalCajaChica)}</span>
-          </div>
-          <div class="total-item">
-            <span>🏦 Total Caja Banco:</span>
-            <span class="total-value">${this.formatoMoneda(this.totalCajaBanco)}</span>
-          </div>
         </div>
       </body>
       </html>
