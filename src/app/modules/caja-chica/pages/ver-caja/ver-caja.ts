@@ -1,48 +1,43 @@
 /**
- * Componente para visualizar y gestionar los detalles de una caja chica específica.
+ * 🚀 OPTIMIZADO: Componente para ver detalles de caja chica con lazy loading.
  *
  * Propósito:
- * Este componente es responsable de presentar la información completa de una caja chica,
- * incluyendo datos generales, movimientos registrados y resumen financiero. Permite
- * al operador de caja realizar acciones críticas como registrar nuevos movimientos,
- * cerrar la caja (transfiriendo el saldo a caja banco) y eliminar movimientos errados.
+ * Visualizar y gestionar detalles de una caja chica específica con carga eficiente
+ * de movimientos bajo demanda.
  *
- * Funcionalidades principales:
- * - Cargar y mostrar información general de la caja (fecha, usuario, estado, montos)
- * - Listar todos los movimientos (ingresos y egresos) con detalles de fecha, monto y saldo
- * - Mostrar resumen financiero consolidado (totales de ingresos, egresos, saldo final)
- * - Registrar nuevos movimientos en la caja abierta
- * - Cerrar la caja chica e integrar el saldo con caja banco
- * - Eliminar movimientos registrados (con confirmación del usuario)
- * - Generar e imprimir reportes de cierre detallados con información para auditoría
+ * ✅ OPTIMIZACIONES APLICADAS:
+ * - ✔ NO precarga movimientos automáticamente
+ * - ✔ Carga movimientos SOLO al expandir sección
+ * - ✔ Paginación real para movimientos
+ * - ✔ Botón "Cargar más" para movimientos
+ * - ✔ Gestión de memoria eficiente
+ * - ✔ Reduce lecturas Firestore masivas
  *
- * Flujo de cierre:
- * 1. Usuario confirma cierre de caja
- * 2. Sistema valida que la caja esté abierta
- * 3. Se transfiere el saldo actual a caja banco (via cajaChicaService)
- * 4. Se marca la caja como CERRADA en Firestore
- * 5. Se limpia referencia en localStorage
- * 6. Se ofrece opción de imprimir reporte de cierre
- *
- * Conversión de Timestamps:
- * El método privado en imprimirReporteCierre() convierte Timestamps de Firestore a Date
- * para evitar errores NG02100 de Angular al renderizar en templates.
+ * Funcionalidades:
+ * - Mostrar información general de la caja
+ * - Cargar movimientos bajo demanda (lazy loading)
+ * - Paginación de movimientos (20 por página)
+ * - Registrar nuevos movimientos
+ * - Cerrar caja e integrar con caja banco
+ * - Eliminar movimientos (solo si caja abierta)
+ * - Generar reportes de cierre
  *
  * @component VerCajaComponent
  * @standalone false
  * @module CajaChicaModule
  */
 
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { Subscription, firstValueFrom } from 'rxjs';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { FacturasService } from '../../../../core/services/facturas';
 import { ProductosService } from '../../../../core/services/productos';
 import { CajaChica, MovimientoCajaChica, ResumenCajaChica } from '../../../../core/models/caja-chica.model';
+import { QueryDocumentSnapshot, DocumentData } from '@angular/fire/firestore';
 import Swal from 'sweetalert2';
 
 @Component({
@@ -51,7 +46,7 @@ import Swal from 'sweetalert2';
   templateUrl: './ver-caja.html',
   styleUrls: ['./ver-caja.css']
 })
-export class VerCajaComponent implements OnInit {
+export class VerCajaComponent implements OnInit, OnDestroy {
   private cajaChicaService = inject(CajaChicaService);
   private cajaBancoService = inject(CajaBancoService);
   private authService = inject(AuthService);
@@ -59,10 +54,31 @@ export class VerCajaComponent implements OnInit {
   private productosSrv = inject(ProductosService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private subscriptions = new Subscription();
 
   cajaId: string = '';
   caja: CajaChica | null = null;
+  
+  // 📄 Movimientos con paginación (navegación anterior/siguiente)
   movimientos: MovimientoCajaChica[] = [];
+  movimientosCargados = false; // Flag para lazy loading
+  mostrarMovimientos = false; // Flag para expandir/contraer sección
+  
+  // Control de paginación
+  paginaActualMovimientos = 1;
+  pageSize = 20;
+  lastVisibleMovimiento: QueryDocumentSnapshot<DocumentData> | null = null;
+  firstVisibleMovimiento: QueryDocumentSnapshot<DocumentData> | null = null;
+  hasMoreMovimientos = false;
+  cargandoMovimientos = false;
+
+  // Historial de páginas
+  paginasHistorialMovimientos: Array<{
+    firstDoc: QueryDocumentSnapshot<DocumentData> | null;
+    lastDoc: QueryDocumentSnapshot<DocumentData> | null;
+    pageNumber: number;
+  }> = [];
+  
   resumen: ResumenCajaChica | null = null;
   cargando = false;
   error = '';
@@ -71,100 +87,232 @@ export class VerCajaComponent implements OnInit {
   ngOnInit(): void {
     this.cajaId = this.route.snapshot.paramMap.get('id') || '';
     this.esAdmin = this.authService.isAdmin();
-    this.cargarDetalles();
+    this.cargarDetallesCaja();
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+    // Liberar memoria
+    this.movimientos = [];
+    this.paginasHistorialMovimientos = [];
+    this.caja = null;
+    this.resumen = null;
+    this.lastVisibleMovimiento = null;
+    this.firstVisibleMovimiento = null;
   }
 
   /**
-   * Carga todos los detalles asociados a la caja chica actual.
-   *
-   * Realiza tres cargas paralelas:
-   * 1. Información general de la caja (getCajaChicaById)
-   * 2. Lista de todos los movimientos registrados (getMovimientosCajaChica)
-   * 3. Resumen financiero calculado (getResumenCajaChica)
-   *
-   * Las cargas son independientes, mejorando el rendimiento. El flag `cargando`
-   * se mantiene en true hasta que todas se resuelvan. Si cajaId no está disponible,
-   * el método retorna sin ejecutar las cargas.
-   *
-   * @returns void
+   * 🚀 OPTIMIZADO: Carga SOLO la información básica de la caja.
+   * NO carga movimientos automáticamente.
    */
-  cargarDetalles(): void {
+  cargarDetallesCaja(): void {
     if (!this.cajaId) return;
 
     this.cargando = true;
     this.error = '';
 
-    this.cajaChicaService.getCajaChicaById(this.cajaId).subscribe({
-      next: (caja) => this.caja = caja,
-      error: (error) => this.manejarErrorCarga('caja', error)
-    });
-
-    this.cajaChicaService.getMovimientosCajaChica(this.cajaId).subscribe({
-      next: (movimientos) => this.movimientos = movimientos,
-      error: (error) => this.manejarErrorCarga('movimientos', error)
-    });
-
-    this.cajaChicaService.getResumenCajaChica(this.cajaId).then(
-      (resumen) => {
-        this.resumen = resumen;
+    // Solo cargar información de la caja
+    const sub = this.cajaChicaService.getCajaChicaById(this.cajaId).subscribe({
+      next: (caja) => {
+        this.caja = caja;
         this.cargando = false;
       },
-      (error) => this.manejarErrorCarga('resumen', error)
-    );
+      error: (error) => {
+        console.error('Error al cargar caja:', error);
+        this.error = 'Error al cargar la caja chica';
+        this.cargando = false;
+      }
+    });
+
+    this.subscriptions.add(sub);
+
+    // Cargar resumen (es ligero, solo totales)
+    this.cargarResumen();
   }
 
   /**
-   * Maneja errores ocurridos durante la carga de datos del servicio.
-   *
-   * Registra el error en consola con contexto del tipo que falló.
-   * Para el tipo 'caja', asigna un mensaje de error a la propiedad del componente
-   * para mostrar al usuario en la UI.
-   *
-   * Nota: El flag `cargando` NO se resetea aquí, solo en el path exitoso de cargarDetalles().
-   * Esto puede dejar la UI "congelada" si ocurren errores. Considerar resetear cargando en futuro.
-   *
-   * @param tipo Categoría del dato que falló ('caja', 'movimientos', 'resumen')
-   * @param error Objeto de error retornado por RxJS o Promise
-   * @returns void
+   * Carga el resumen financiero (totales).
    */
-  private manejarErrorCarga(tipo: string, error: any): void {
-    console.error(`Error al cargar ${tipo}:`, error);
-    if (tipo === 'caja') {
-      this.error = 'Error al cargar la caja chica';
+  async cargarResumen(): Promise<void> {
+    try {
+      this.resumen = await this.cajaChicaService.getResumenCajaChica(this.cajaId);
+    } catch (error) {
+      console.error('Error al cargar resumen:', error);
     }
   }
 
   /**
-   * Navega hacia el formulario de registro de movimiento para la caja actual.
-   *
-   * Redirige al usuario a '/caja-chica/registrar/:id' donde puede ingresar
-   * datos del nuevo movimiento (tipo, descripción, monto, etc).
-   *
-   * @returns void
+   * 📄 LAZY LOADING: Carga movimientos SOLO cuando el usuario expande la sección.
+   * Primera vez que se hace click.
+   */
+  async toggleMovimientos(): Promise<void> {
+    this.mostrarMovimientos = !this.mostrarMovimientos;
+
+    // Si se está expandiendo Y no se han cargado movimientos aún
+    if (this.mostrarMovimientos && !this.movimientosCargados) {
+      await this.cargarMovimientosPaginados();
+      this.movimientosCargados = true;
+    }
+  }
+
+  /**
+   * 🚀 Carga inicial de movimientos con paginación.
+   */
+  async cargarMovimientosPaginados(): Promise<void> {
+    // Resetear estado
+    this.movimientos = [];
+    this.paginaActualMovimientos = 1;
+    this.paginasHistorialMovimientos = [];
+    this.lastVisibleMovimiento = null;
+    this.firstVisibleMovimiento = null;
+    this.hasMoreMovimientos = false;
+
+    this.cargandoMovimientos = true;
+
+    try {
+      const resultado = await this.cajaChicaService.getMovimientosPaginados(
+        this.cajaId,
+        { pageSize: this.pageSize }
+      );
+
+      this.movimientos = resultado.movimientos;
+      this.lastVisibleMovimiento = resultado.lastVisible;
+      this.firstVisibleMovimiento = resultado.movimientos.length > 0 ? resultado.lastVisible : null;
+      this.hasMoreMovimientos = resultado.hasMore;
+
+      // Guardar primera página en historial
+      if (this.movimientos.length > 0) {
+        this.paginasHistorialMovimientos.push({
+          firstDoc: null,
+          lastDoc: this.lastVisibleMovimiento,
+          pageNumber: 1
+        });
+      }
+
+    } catch (error) {
+      console.error('❌ Error al cargar movimientos:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudieron cargar los movimientos',
+        timer: 3000
+      });
+    } finally {
+      this.cargandoMovimientos = false;
+    }
+  }
+
+  /**
+   * 📄 Navega a la página siguiente de movimientos.
+   */
+  async paginaSiguienteMovimientos(): Promise<void> {
+    if (!this.hasMoreMovimientos || this.cargandoMovimientos) return;
+
+    this.cargandoMovimientos = true;
+
+    try {
+      const resultado = await this.cajaChicaService.getMovimientosPaginados(
+        this.cajaId,
+        {
+          pageSize: this.pageSize,
+          lastVisible: this.lastVisibleMovimiento || undefined
+        }
+      );
+
+      this.movimientos = resultado.movimientos;
+      this.lastVisibleMovimiento = resultado.lastVisible;
+      this.firstVisibleMovimiento = resultado.movimientos.length > 0 ? resultado.lastVisible : null;
+      this.hasMoreMovimientos = resultado.hasMore;
+      this.paginaActualMovimientos++;
+
+      // Guardar en historial
+      if (this.movimientos.length > 0) {
+        this.paginasHistorialMovimientos.push({
+          firstDoc: this.firstVisibleMovimiento,
+          lastDoc: this.lastVisibleMovimiento,
+          pageNumber: this.paginaActualMovimientos
+        });
+      }
+
+    } catch (error) {
+      console.error('❌ Error al cargar siguiente página:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo cargar la página siguiente',
+        timer: 3000
+      });
+    } finally {
+      this.cargandoMovimientos = false;
+    }
+  }
+
+  /**
+   * 📄 Navega a la página anterior de movimientos.
+   */
+  async paginaAnteriorMovimientos(): Promise<void> {
+    if (this.paginaActualMovimientos <= 1 || this.cargandoMovimientos) return;
+
+    this.cargandoMovimientos = true;
+
+    try {
+      // Eliminar la página actual del historial
+      this.paginasHistorialMovimientos.pop();
+      this.paginaActualMovimientos--;
+
+      // Obtener la página anterior
+      const paginaAnterior = this.paginasHistorialMovimientos[this.paginasHistorialMovimientos.length - 1];
+
+      if (!paginaAnterior || paginaAnterior.pageNumber === 1) {
+        // Si es la primera página, recargarla
+        await this.cargarMovimientosPaginados();
+        return;
+      }
+
+      // Cargar desde el snapshot del historial
+      const resultado = await this.cajaChicaService.getMovimientosPaginados(
+        this.cajaId,
+        {
+          pageSize: this.pageSize,
+          lastVisible: this.paginasHistorialMovimientos[this.paginasHistorialMovimientos.length - 2]?.lastDoc || undefined
+        }
+      );
+
+      this.movimientos = resultado.movimientos;
+      this.lastVisibleMovimiento = paginaAnterior.lastDoc;
+      this.firstVisibleMovimiento = paginaAnterior.firstDoc;
+      this.hasMoreMovimientos = true;
+
+    } catch (error) {
+      console.error('❌ Error al cargar página anterior:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo cargar la página anterior',
+        timer: 3000
+      });
+    } finally {
+      this.cargandoMovimientos = false;
+    }
+  }
+
+  /**
+   * 📄 Navega a la primera página de movimientos.
+   */
+  async irPrimeraPaginaMovimientos(): Promise<void> {
+    if (this.paginaActualMovimientos === 1 || this.cargandoMovimientos) return;
+    await this.cargarMovimientosPaginados();
+  }
+
+  /**
+   * Navega al formulario de registro de movimiento.
    */
   registrarMovimiento(): void {
     this.router.navigate(['/caja-chica/registrar', this.cajaId]);
   }
 
   /**
-   * Inicia el flujo de cierre de caja chica.
-   *
-   * Proceso:
-   * 1. Solicita confirmación al usuario via SweetAlert2
-   * 2. Si no confirma, retorna sin hacer cambios
-   * 3. Si confirma, obtiene el monto actual de la caja
-   * 4. Llama a cajaChicaService.cerrarCajaChica() que:
-   *    - Actualiza estado de caja a CERRADA
-   *    - Transfiere saldo a caja banco vía registrarMovimiento automático
-   * 5. Limpia localStorage (bandera cajaChicaAbierta)
-   * 6. Pregunta si desea imprimir reporte (opcional)
-   * 7. Redirige a lista de cajas
-   *
-   * Errores:
-   * - Si el servicio falla, muestra alerta con mensaje de error
-   * - Los errores se registran en consola para debugging
-   *
-   * @returns Promise<void>
+   * Cierra la caja chica e integra el saldo con caja banco.
    */
   async cerrarCaja(): Promise<void> {
     const confirmar = await Swal.fire({
@@ -180,12 +328,9 @@ export class VerCajaComponent implements OnInit {
     try {
       const montoActual = this.caja?.monto_actual || 0;
 
-      // Cerrar la Caja Chica
-      // Esto automáticamente dispara el registro del movimiento en caja_banco
       await this.cajaChicaService.cerrarCajaChica(this.cajaId, montoActual);
       localStorage.removeItem('cajaChicaAbierta');
 
-      // Preguntar si desea imprimir el reporte
       const imprimirResult = await Swal.fire({
         icon: 'success',
         title: 'Caja cerrada correctamente',
@@ -211,20 +356,7 @@ export class VerCajaComponent implements OnInit {
   }
 
   /**
-   * Elimina un movimiento específico de la caja chica actual.
-   * También elimina la factura asociada y revierte el stock de productos.
-   *
-   * Proceso:
-   * 1. Busca el movimiento por ID para obtener el comprobante (facturaId)
-   * 2. Si tiene factura asociada:
-   *    - Busca la factura en Firestore
-   *    - Revierte el stock de los productos (incrementa cantidades)
-   *    - Elimina la factura
-   * 3. Elimina el movimiento de caja chica
-   * 4. Recalcula el resumen financiero
-   *
-   * @param movimientoId ID único del movimiento en Firestore
-   * @returns Promise<void>
+   * Elimina un movimiento de la caja chica.
    */
   async eliminarMovimiento(movimientoId: string): Promise<void> {
     // ✅ Validar que la caja esté abierta
@@ -369,7 +501,13 @@ export class VerCajaComponent implements OnInit {
         showConfirmButton: false
       });
       
-      this.cargarDetalles();
+      // Recargar datos después de eliminar
+      await this.cargarResumen();
+      
+      // Si los movimientos están expandidos, recargarlos
+      if (this.mostrarMovimientos) {
+        await this.cargarMovimientosPaginados();
+      }
     } catch (error) {
       console.error('Error al eliminar movimiento:', error);
       Swal.fire({

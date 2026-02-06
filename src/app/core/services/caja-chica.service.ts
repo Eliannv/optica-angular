@@ -34,6 +34,10 @@ import {
   getDocs,
   orderBy,
   Timestamp,
+  limit,
+  startAfter,
+  QueryDocumentSnapshot,
+  DocumentData,
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -46,6 +50,56 @@ import {
   obtenerPeriodo, 
   rangoPeriodo 
 } from '../utils/fecha-helpers';
+
+/**
+ * Opciones para consultas paginadas de cajas chicas
+ */
+export interface OpcionesPaginacionCajas {
+  /** Número de registros por página (default: 10) */
+  pageSize?: number;
+  /** Último snapshot visible de la página anterior (para continuar paginación) */
+  lastVisible?: QueryDocumentSnapshot<DocumentData>;
+  /** Filtro por ID de caja banco (para filtrar por periodo) */
+  cajaBancoId?: string;
+  /** Filtro por estado (ABIERTA o CERRADA) */
+  estado?: 'ABIERTA' | 'CERRADA';
+  /** Filtro por fecha específica (formato YYYY-MM-DD) */
+  fecha?: string;
+}
+
+/**
+ * Resultado de consulta paginada de cajas chicas
+ */
+export interface ResultadoPaginadoCajas {
+  /** Array de cajas chicas de la página actual */
+  cajas: CajaChica[];
+  /** Snapshot del último documento visible (para próxima página) */
+  lastVisible: QueryDocumentSnapshot<DocumentData> | null;
+  /** Indica si hay más páginas disponibles */
+  hasMore: boolean;
+}
+
+/**
+ * Opciones para consultas paginadas de movimientos
+ */
+export interface OpcionesPaginacionMovimientos {
+  /** Número de registros por página (default: 20) */
+  pageSize?: number;
+  /** Último snapshot visible de la página anterior */
+  lastVisible?: QueryDocumentSnapshot<DocumentData>;
+}
+
+/**
+ * Resultado de consulta paginada de movimientos
+ */
+export interface ResultadoPaginadoMovimientos {
+  /** Array de movimientos de la página actual */
+  movimientos: MovimientoCajaChica[];
+  /** Snapshot del último documento visible */
+  lastVisible: QueryDocumentSnapshot<DocumentData> | null;
+  /** Indica si hay más páginas disponibles */
+  hasMore: boolean;
+}
 
 @Injectable({
   providedIn: 'root',
@@ -83,6 +137,195 @@ export class CajaChicaService {
       orderBy('createdAt', 'desc')
     );
     return collectionData(q, { idField: 'id' }) as Observable<CajaChica[]>;
+  }
+
+  /**
+   * 🚀 OPTIMIZACIÓN: Recupera cajas chicas con paginación REAL desde Firestore.
+   * Solo trae los documentos necesarios, reduciendo lecturas y uso de memoria.
+   *
+   * Características:
+   * - Paginación backend con limit() y startAfter()
+   * - Filtro opcional por cajaBancoId (para filtrar por periodo)
+   * - Filtro opcional por estado (ABIERTA/CERRADA)
+   * - Filtra soft-deleted en cliente (evita índice compuesto)
+   * - Ordena por createdAt descendente
+   *
+   * @param opciones Configuración de paginación y filtros
+   * @returns Promise con cajas, lastVisible y hasMore
+   *
+   * @example
+   * // Primera página
+   * const resultado = await getCajasChicasPaginadas({ pageSize: 10 });
+   *
+   * // Segunda página
+   * const resultado2 = await getCajasChicasPaginadas({
+   *   pageSize: 10,
+   *   lastVisible: resultado.lastVisible
+   * });
+   *
+   * // Filtrar por periodo (cajaBancoId)
+   * const resultado3 = await getCajasChicasPaginadas({
+   *   pageSize: 10,
+   *   cajaBancoId: 'abc123'
+   * });
+   */
+  async getCajasChicasPaginadas(
+    opciones: OpcionesPaginacionCajas = {}
+  ): Promise<ResultadoPaginadoCajas> {
+    try {
+      const pageSize = opciones.pageSize || 10;
+      const cajasRef = collection(this.firestore, 'cajas_chicas');
+
+      // Construir query base
+      const constraints: any[] = [];
+
+      // Filtro por cajaBancoId (para filtrar por periodo)
+      if (opciones.cajaBancoId) {
+        constraints.push(where('caja_banco_id', '==', opciones.cajaBancoId));
+      }
+
+      // Filtro por estado
+      if (opciones.estado) {
+        constraints.push(where('estado', '==', opciones.estado));
+      }
+
+      // Filtro por fecha específica
+      if (opciones.fecha) {
+        // Convertir fecha string (YYYY-MM-DD) a rango de timestamps
+        const [año, mes, dia] = opciones.fecha.split('-').map(Number);
+        const inicioDelDia = Timestamp.fromDate(new Date(año, mes - 1, dia, 0, 0, 0));
+        const finDelDia = Timestamp.fromDate(new Date(año, mes - 1, dia, 23, 59, 59));
+        
+        constraints.push(where('fecha', '>=', inicioDelDia));
+        constraints.push(where('fecha', '<=', finDelDia));
+      }
+
+      // Ordenamiento
+      constraints.push(orderBy('createdAt', 'desc'));
+
+      // Paginación: continuar desde el último visible
+      if (opciones.lastVisible) {
+        constraints.push(startAfter(opciones.lastVisible));
+      }
+
+      // Límite de resultados (pedimos 1 extra para saber si hay más)
+      constraints.push(limit(pageSize + 1));
+
+      // Ejecutar query
+      const q = query(cajasRef, ...constraints);
+      const snapshot = await getDocs(q);
+
+      // Procesar resultados
+      const cajas: CajaChica[] = [];
+      const docs = snapshot.docs;
+
+      // Filtrar soft-deleted y construir array
+      for (let i = 0; i < docs.length && cajas.length < pageSize; i++) {
+        const data = docs[i].data() as CajaChica;
+        
+        // Saltar soft-deleted
+        if (data.activo === false) {
+          continue;
+        }
+
+        data.id = docs[i].id;
+        cajas.push(data);
+      }
+
+      // Determinar si hay más páginas
+      const hasMore = snapshot.docs.length > pageSize;
+
+      // Obtener último visible (para siguiente página)
+      const lastVisible = cajas.length > 0 
+        ? snapshot.docs[cajas.length - 1] 
+        : null;
+
+      return {
+        cajas,
+        lastVisible,
+        hasMore
+      };
+    } catch (error) {
+      console.error('❌ Error en getCajasChicasPaginadas:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🚀 OPTIMIZACIÓN: Recupera movimientos de una caja chica con paginación.
+   * Solo trae los documentos necesarios, ideal para cajas con muchos movimientos.
+   *
+   * Características:
+   * - Paginación backend real
+   * - Ordena por createdAt descendente (más recientes primero)
+   * - Filtra por cajaChicaId específica
+   *
+   * @param cajaChicaId ID de la caja chica
+   * @param opciones Configuración de paginación
+   * @returns Promise con movimientos, lastVisible y hasMore
+   *
+   * @example
+   * // Primera página de movimientos
+   * const resultado = await getMovimientosPaginados('cajaId123', { pageSize: 20 });
+   *
+   * // Siguiente página
+   * const resultado2 = await getMovimientosPaginados('cajaId123', {
+   *   pageSize: 20,
+   *   lastVisible: resultado.lastVisible
+   * });
+   */
+  async getMovimientosPaginados(
+    cajaChicaId: string,
+    opciones: OpcionesPaginacionMovimientos = {}
+  ): Promise<ResultadoPaginadoMovimientos> {
+    try {
+      const pageSize = opciones.pageSize || 20;
+      const movimientosRef = collection(this.firestore, 'movimientos_cajas_chicas');
+
+      // Construir query
+      const constraints: any[] = [
+        where('caja_chica_id', '==', cajaChicaId),
+        orderBy('createdAt', 'desc')
+      ];
+
+      // Paginación: continuar desde el último visible
+      if (opciones.lastVisible) {
+        constraints.push(startAfter(opciones.lastVisible));
+      }
+
+      // Límite (pedimos 1 extra para saber si hay más)
+      constraints.push(limit(pageSize + 1));
+
+      // Ejecutar query
+      const q = query(movimientosRef, ...constraints);
+      const snapshot = await getDocs(q);
+
+      // Procesar resultados
+      const movimientos: MovimientoCajaChica[] = [];
+      
+      for (let i = 0; i < snapshot.docs.length && i < pageSize; i++) {
+        const data = snapshot.docs[i].data() as MovimientoCajaChica;
+        data.id = snapshot.docs[i].id;
+        movimientos.push(data);
+      }
+
+      // Determinar si hay más páginas
+      const hasMore = snapshot.docs.length > pageSize;
+
+      // Obtener último visible
+      const lastVisible = movimientos.length > 0 
+        ? snapshot.docs[movimientos.length - 1] 
+        : null;
+
+      return {
+        movimientos,
+        lastVisible,
+        hasMore
+      };
+    } catch (error) {
+      console.error('❌ Error en getMovimientosPaginados:', error);
+      throw error;
+    }
   }
 
   /**

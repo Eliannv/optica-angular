@@ -114,7 +114,6 @@
     display: inline-flex;
     align-items: center;
     padding: 0.4rem 0.75rem;
-    background-color: #3b82f6;
     color: white;
     border-radius: 6px;
     font-size: 0.85rem;
@@ -580,7 +579,6 @@
 }
 
 .badge.bg-info {
-    background-color: #0dcaf0 !important;
     color: #000;
 }
 

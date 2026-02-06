@@ -331,6 +331,83 @@ export class ProductosService {
    *   direction: 'prev' 
    * });
    */
+
+  /**
+   * 🔍 Buscar productos SIN paginación (trae todos y filtra en cliente)
+   * Se usa cuando hay un término de búsqueda activo
+   */
+  private async buscarProductosSinPaginacion(
+    terminoBusqueda: string,
+    grupoSeleccionado: string,
+    ordenamiento: 'reciente' | 'codigo',
+    pageSize: number
+  ): Promise<{
+    productos: Producto[];
+    lastDoc: DocumentSnapshot | null;
+    firstDoc: DocumentSnapshot | null;
+    hasMore: boolean;
+  }> {
+    // Traer TODOS los productos activos
+    let q;
+    if (ordenamiento === 'reciente') {
+      q = query(
+        this.productosRef,
+        orderBy('createdAt', 'desc'),
+        orderBy('idInterno', 'desc')
+      );
+    } else {
+      q = query(
+        this.productosRef,
+        orderBy('idInterno', 'asc')
+      );
+    }
+
+    const snapshot = await getDocs(q);
+    let productos = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Producto[];
+
+    // Filtrar productos inactivos
+    productos = productos.filter(p => p.activo !== false);
+
+    // Aplicar filtro de grupo si existe
+    if (grupoSeleccionado) {
+      productos = productos.filter(p => 
+        p.grupo?.toUpperCase() === grupoSeleccionado.toUpperCase()
+      );
+    }
+
+    // Aplicar búsqueda en múltiples campos
+    const termino = terminoBusqueda.toLowerCase().trim();
+    productos = productos.filter(p => {
+      const nombre = p.nombre?.toLowerCase() || '';
+      const modelo = p.modelo?.toLowerCase() || '';
+      const color = p.color?.toLowerCase() || '';
+      const grupo = p.grupo?.toLowerCase() || '';
+      const proveedor = p.proveedor?.toLowerCase() || '';
+      const idInterno = p.idInterno?.toString() || '';
+
+      return nombre.includes(termino) ||
+             modelo.includes(termino) ||
+             color.includes(termino) ||
+             grupo.includes(termino) ||
+             proveedor.includes(termino) ||
+             idInterno.includes(termino);
+    });
+
+    // Aplicar paginación manual (en memoria)
+    const hasMore = productos.length > pageSize;
+    const productosFinales = productos.slice(0, pageSize);
+
+    return {
+      productos: productosFinales,
+      lastDoc: null,
+      firstDoc: null,
+      hasMore
+    };
+  }
+
   async getProductosPaginadosReal(options: {
     pageSize?: number;
     lastVisible?: DocumentSnapshot | null;
@@ -354,6 +431,11 @@ export class ProductosService {
       terminoBusqueda = '',
       grupoSeleccionado = ''
     } = options;
+
+    // 🔍 SI HAY BÚSQUEDA ACTIVA, traer TODOS los productos y filtrar
+    if (terminoBusqueda.trim()) {
+      return this.buscarProductosSinPaginacion(terminoBusqueda, grupoSeleccionado, ordenamiento, pageSize);
+    }
 
     // ✅ Construir query base con ordenamiento
     let q;
@@ -426,26 +508,6 @@ export class ProductosService {
       productos = productos.filter(p => 
         p.grupo?.toUpperCase() === grupoSeleccionado.toUpperCase()
       );
-    }
-
-    // ✅ Aplicar búsqueda en cliente (múltiples campos)
-    if (terminoBusqueda.trim()) {
-      const termino = terminoBusqueda.toLowerCase().trim();
-      productos = productos.filter(p => {
-        const nombre = p.nombre?.toLowerCase() || '';
-        const modelo = p.modelo?.toLowerCase() || '';
-        const color = p.color?.toLowerCase() || '';
-        const grupo = p.grupo?.toLowerCase() || '';
-        const proveedor = p.proveedor?.toLowerCase() || '';
-        const idInterno = p.idInterno?.toString() || '';
-
-        return nombre.includes(termino) ||
-               modelo.includes(termino) ||
-               color.includes(termino) ||
-               grupo.includes(termino) ||
-               proveedor.includes(termino) ||
-               idInterno.includes(termino);
-      });
     }
 
     // ✅ Detectar si hay más páginas

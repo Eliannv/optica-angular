@@ -100,36 +100,101 @@
    FILTROS
 ============================================ */
 
-.filtros {
-    display: flex;
-    gap: 0.5rem;
+.filtros-container {
     padding: 1rem 1.5rem;
-    border-bottom: 1px solid var(--border-color);
     background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
     flex-wrap: wrap;
 }
 
-.btn-filtro {
-    padding: 0.5rem 1rem;
-    border: 1px solid var(--border-color);
-    background: var(--bg-card);
-    color: var(--text-secondary);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    font-weight: 500;
+.filtro-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.filtro-item label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-size: 0.9rem;
-    transition: all var(--transition-fast);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    white-space: nowrap;
 }
 
-.btn-filtro:hover {
-    border-color: var(--primary-color);
+.filtro-item label svg {
     color: var(--primary-color);
+    flex-shrink: 0;
 }
 
-.btn-filtro.active {
-    background: var(--primary-color);
+.filtro-item select,
+.filtro-item input[type="date"] {
+    min-width: 180px;
+    height: 36px;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.filtro-item select:disabled,
+.filtro-item input[type="date"]:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: var(--bg-tertiary);
+}
+
+.fecha-input-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.fecha-input-group input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+}
+
+/* Ocultar el ícono del calendario cuando hay fecha seleccionada (cuando aparece la X) */
+.fecha-input-group input[type="date"].has-value::-webkit-calendar-picker-indicator {
+    display: none;
+}
+
+.btn-clear-fecha {
+    position: absolute;
+    right: 8px;
+    background: var(--bg-tertiary);
+    border: none;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: all 0.2s;
+    padding: 0;
+    overflow: hidden;
+    line-height: 1;
+}
+
+.btn-clear-fecha:hover {
+    opacity: 1;
+    background: var(--danger-color);
     color: white;
-    border-color: var(--primary-color);
+}
+
+.btn-clear-fecha svg {
+    stroke: currentColor;
+    display: block;
+    flex-shrink: 0;
 }
 
 
@@ -338,8 +403,22 @@
         width: 100%;
     }
     
-    .filtros {
-        justify-content: center;
+    .filtros-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .filtro-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+    
+    .filtro-item select,
+    .filtro-item input[type="date"] {
+        width: 100%;
+        min-width: unset;
     }
     
     .tabla {
@@ -386,5 +465,58 @@
     
     .empty-icon {
         font-size: 3rem;
+    }
+}
+
+/* ============================================
+   PAGINACIÓN
+============================================ */
+
+.pagination-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 0;
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.pagination-info {
+    text-align: center;
+    width: 100%;
+}
+
+.pagination-buttons {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.pagination-buttons .btn {
+    min-width: 90px;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+}
+
+@media (max-width: 640px) {
+    .pagination-controls {
+        padding: 0.75rem 0;
+    }
+    
+    .pagination-info {
+        margin-bottom: 0.25rem;
+    }
+    
+    .pagination-buttons {
+        flex-direction: column;
+        width: 100%;
+        gap: 0.5rem;
+    }
+    
+    .pagination-buttons .btn {
+        width: 100%;
+        min-width: unset;
     }
 }
