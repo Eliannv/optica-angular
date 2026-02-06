@@ -5,6 +5,29 @@
             <button class="btn-secondary" (click)="volver()">← Volver</button>
         </div>
 
+        <!-- 🔐 ESTADO DE CAJA BANCO -->
+        <div class="alert-container" style="margin-bottom: 20px;">
+            <!-- Loading -->
+            <div *ngIf="cargandoCaja" class="alert alert-info">
+                <strong>⏳ Verificando caja banco...</strong>
+                <p style="margin: 5px 0 0 0;">Por favor espera un momento.</p>
+            </div>
+
+            <!-- Error: No hay caja abierta -->
+            <div *ngIf="!cargandoCaja && errorCaja" class="alert alert-danger">
+                <strong>⚠️ No se puede registrar movimientos</strong>
+                <p style="margin: 5px 0 0 0;">{{ errorCaja }}</p>
+            </div>
+
+            <!-- Success: Caja disponible -->
+            <div *ngIf="!cargandoCaja && !errorCaja && cajaBancoAbierta" class="alert alert-success">
+                <strong>✅ Caja Banco Disponible</strong>
+                <p style="margin: 5px 0 0 0;">
+                    Registrando en: <strong>{{ nombreCaja || 'Caja Actual' }}</strong>
+                </p>
+            </div>
+        </div>
+
         <div class="form-body">
             <form [formGroup]="formulario" (ngSubmit)="guardarMovimiento()">
                 <div class="form-group">
@@ -31,16 +54,7 @@
                         <span *ngIf="formulario.get('tipo')?.value === 'EGRESO' && formulario.get('categoria')?.value === 'PAGO_TRABAJADOR'">Trabajador (Pago)</span>
                         <span *ngIf="formulario.get('tipo')?.value === 'EGRESO' && formulario.get('categoria')?.value === 'PAGO_PROVEEDORES'">Proveedor (Pago)</span>
                     </label>
-                    <input
-                        type="text"
-                        [(ngModel)]="busquedaCliente"
-                        (ngModelChange)="buscarCliente()"
-                        (blur)="onBlurSeleccionPersona()"
-                        [ngModelOptions]="{standalone: true}"
-                        placeholder="Escribe cédula, nombre, RUC o código..."
-                        class="form-control"
-                        list="personasList"
-                    />
+                    <input type="text" [(ngModel)]="busquedaCliente" (ngModelChange)="buscarCliente()" (blur)="onBlurSeleccionPersona()" [ngModelOptions]="{standalone: true}" placeholder="Escribe cédula, nombre, RUC o código..." class="form-control" list="personasList" />
                     <datalist id="personasList">
                         <option
                             *ngFor="let p of personasBusqueda"
@@ -93,14 +107,7 @@
 
                 <div class="form-group">
                     <label for="fechaMovimiento">📅 Fecha del Movimiento</label>
-                    <input 
-                        id="fechaMovimiento" 
-                        type="date" 
-                        formControlName="fechaMovimiento" 
-                        class="form-control"
-                        [min]="fechaMinima"
-                        [max]="fechaMaxima" 
-                    />
+                    <input id="fechaMovimiento" type="date" formControlName="fechaMovimiento" class="form-control" [min]="fechaMinima" [max]="fechaMaxima" />
                     <small style="color: #666; display: block; margin-top: 4px;">
                         <span *ngIf="periodoNombre">Debe estar dentro del periodo: <strong>{{ periodoNombre }}</strong></span>
                         <span *ngIf="!periodoNombre">Fecha en que ocurrió el movimiento</span>

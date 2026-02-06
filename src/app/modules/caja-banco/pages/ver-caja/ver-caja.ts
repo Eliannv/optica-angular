@@ -17,6 +17,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { CajaBancoConfigService } from '../../../../core/services/caja-banco-config.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { CajaBanco, MovimientoCajaBanco } from '../../../../core/models/caja-banco.model';
 import { CajaChica } from '../../../../core/models/caja-chica.model';
 import Swal from 'sweetalert2';
@@ -42,6 +43,9 @@ export class VerCajaComponent implements OnInit {
 
   /** Servicio de configuración de cajas banco */
   protected cajaBancoConfigService = inject(CajaBancoConfigService);
+
+  /** Servicio de autenticación */
+  private authService = inject(AuthService);
 
   /** Caja banco actual siendo visualizada */
   caja: CajaBanco | null = null;
@@ -76,6 +80,14 @@ export class VerCajaComponent implements OnInit {
   get saldoActualCalculado(): number {
     if (!this.caja) return 0;
     return (this.caja.saldo_inicial || 0) + this.resumen.total_ingresos - this.resumen.total_egresos;
+  }
+
+  /**
+   * Verifica si el usuario actual es administrador.
+   * Los operadores no tienen permisos para cerrar cajas.
+   */
+  get esAdministrador(): boolean {
+    return this.authService.isAdmin();
   }
 
   /**
