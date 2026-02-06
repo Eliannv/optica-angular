@@ -78,6 +78,14 @@ export class ListarCajasComponent implements OnInit {
   }
 
   /**
+   * Verifica si el usuario actual es administrador.
+   * Los operadores no tienen permisos para crear, abrir o cerrar cajas.
+   */
+  get esAdministrador(): boolean {
+    return this.authService.isAdmin();
+  }
+
+  /**
    * Objeto con totales calculados del sistema.
    * Incluye: cantidad de cajas, dinero ganado, transferencias, ingresos y egresos.
    */

@@ -103,8 +103,11 @@ export class RegistrarMovimientoComponent implements OnInit {
   // 🔒 Restricción de fecha según el periodo de la caja banco
   fechaMinima = ''; // Fecha mínima permitida (inicio del mes de la caja)
   fechaMaxima = ''; // Fecha máxima permitida (fin del mes de la caja)
-  periodoNombre = ''; // Nombre del periodo para mostrar (ej: "Enero 2026")
-
+  periodoNombre = ''; // Nombre del periodo para mostrar (ej: "Enero 2026")  
+  // 🔐 Control de caja banco abierta para trabajadores
+  cargandoCaja = true; // Estado de carga de caja banco
+  cajaBancoAbierta: any = null; // Caja banco abierta disponible
+  errorCaja = ''; // Mensaje de error si no hay caja abierta
   /** Categorías disponibles para ingresos */
   categorias_ingresos = ['CIERRE_CAJA_CHICA', 'TRANSFERENCIA_CLIENTE', 'OTRO_INGRESO'];
 
@@ -120,10 +123,12 @@ export class RegistrarMovimientoComponent implements OnInit {
    * Realiza:
    * 1. Intenta obtener cajaId del estado del router
    * 2. Si no lo obtiene, busca en sessionStorage
-   * 3. Inicializa formulario reactivo
-   * 4. Carga listas de clientes, empleados y proveedores
+   * 3. Si tampoco existe, obtiene automáticamente la última caja abierta
+   * 4. Valida que exista una caja abierta antes de permitir operaciones
+   * 5. Inicializa formulario reactivo
+   * 6. Carga listas de clientes, empleados y proveedores
    */
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
     // 🕐 Inicializar fecha y hora por defecto
     this.inicializarFechaHora();
     
@@ -141,7 +146,15 @@ export class RegistrarMovimientoComponent implements OnInit {
       }
     }
 
-    console.log('🔍 CajaId capturado en registrar-movimiento:', this.cajaId);
+    // 🔐 Si no hay cajaId, obtener automáticamente la última caja abierta
+    if (!this.cajaId) {
+      await this.obtenerCajaAbiertalAutomaticamente();
+    } else {
+      // Si ya tiene cajaId, validar que esté abierta
+      await this.validarCajaAbierta();
+    }
+
+    console.log('🔍 CajaId final en registrar-movimiento:', this.cajaId);
 
     this.inicializarFormulario();
     this.cargarClientes();
@@ -150,6 +163,11 @@ export class RegistrarMovimientoComponent implements OnInit {
     
     // 🔒 Cargar restricciones de fecha según el periodo de la caja
     this.cargarRestriccionesFecha();
+    
+    // Si no hay caja abierta, deshabilitar el formulario
+    if (!this.cajaId || this.errorCaja) {
+      this.formulario.disable();
+    }
   }
 
   /**
@@ -719,6 +737,88 @@ export class RegistrarMovimientoComponent implements OnInit {
     const mes = (ahora.getMonth() + 1).toString().padStart(2, '0');
     const dia = ahora.getDate().toString().padStart(2, '0');
     this.fechaMovimiento = `${año}-${mes}-${dia}`;
+  }
+
+  /**
+   * Obtiene automáticamente la última caja banco ABIERTA del sistema.
+   * Este método se ejecuta cuando no se proporciona un cajaId específico.
+   * Ideal para trabajadores que solo necesitan registrar movimientos.
+   */
+  async obtenerCajaAbiertalAutomaticamente(): Promise<void> {
+    try {
+      this.cargandoCaja = true;
+      this.errorCaja = '';
+      
+      const caja = await this.cajaBancoService.getCajaBancoAbierta();
+      
+      if (caja && caja.id) {
+        this.cajaBancoAbierta = caja;
+        this.cajaId = caja.id;
+        sessionStorage.setItem('cajaBancoIdActual', this.cajaId);
+        console.log('✅ Caja banco abierta obtenida automáticamente:', caja);
+      } else {
+        this.errorCaja = 'No hay ninguna caja banco abierta. Por favor, contacta al administrador para que abra una caja banco.';
+        console.warn('⚠️ No se encontró ninguna caja banco abierta');
+      }
+    } catch (error) {
+      this.errorCaja = 'Error al verificar cajas banco. Por favor, recarga la página.';
+      console.error('❌ Error obteniendo caja banco abierta:', error);
+    } finally {
+      this.cargandoCaja = false;
+    }
+  }
+
+  /**
+   * Valida que la caja banco especificada esté en estado ABIERTA.
+   * Previene registro de movimientos en cajas cerradas.
+   */
+  async validarCajaAbierta(): Promise<void> {
+    try {
+      this.cargandoCaja = true;
+      this.errorCaja = '';
+      
+      const caja = await firstValueFrom(this.cajaBancoService.getCajaBancoById(this.cajaId));
+      
+      if (!caja) {
+        this.errorCaja = 'La caja banco especificada no existe.';
+        this.cajaId = '';
+      } else if (caja.estado !== 'ABIERTA') {
+        this.errorCaja = 'La caja banco está cerrada. No se pueden registrar movimientos en cajas cerradas.';
+        this.cajaId = '';
+      } else {
+        this.cajaBancoAbierta = caja;
+        console.log('✅ Caja banco validada como abierta:', caja);
+      }
+    } catch (error) {
+      this.errorCaja = 'Error al validar la caja banco. Por favor, verifica que exista y esté abierta.';
+      console.error('❌ Error validando caja banco:', error);
+      this.cajaId = '';
+    } finally {
+      this.cargandoCaja = false;
+    }
+  }
+
+  /**
+   * Determina si el formulario debe estar bloqueado.
+   * El formulario se bloquea si:
+   * - Está cargando la caja
+   * - No hay caja disponible
+   * - Hay error de caja
+   */
+  get formularioBloqueado(): boolean {
+    return this.cargandoCaja || !this.cajaId || !!this.errorCaja;
+  }
+
+  /**
+   * Obtener nombre de la caja para mostrar en la UI
+   */
+  get nombreCaja(): string {
+    if (!this.cajaBancoAbierta) return '';
+    const fecha = this.cajaBancoAbierta.fecha;
+    if (fecha?.toDate) {
+      return fecha.toDate().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+    }
+    return '';
   }
 
   /**

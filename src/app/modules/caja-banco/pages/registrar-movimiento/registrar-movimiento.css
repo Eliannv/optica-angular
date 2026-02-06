@@ -131,6 +131,23 @@ form {
     margin-top: 1rem;
 }
 
+.alert strong {
+    display: block;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.alert p {
+    margin: 0.5rem 0 0 0;
+    font-size: 0.9rem;
+}
+
+.alert-info {
+    background: rgba(33, 150, 243, 0.15);
+    color: #1976d2;
+    border: 1px solid rgba(33, 150, 243, 0.25);
+}
+
 .alert-success {
     background: rgba(46, 204, 113, 0.15);
     color: #2ecc71;
@@ -143,7 +160,9 @@ form {
     border: 1px solid rgba(231, 76, 60, 0.25);
 }
 
+
 /* BÚSQUEDA DE CLIENTE */
+
 .search-container {
     position: relative;
 }
@@ -199,6 +218,7 @@ form {
     color: #2ecc71;
     font-size: 0.9rem;
 }
+
 
 /* ============================================
    TOTALES (Estilo estándar de la aplicación)
