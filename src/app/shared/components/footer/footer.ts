@@ -36,7 +36,7 @@ export class FooterComponent {
    * Versión actual de la aplicación mostrada en el footer.
    * @type {string}
    */
-  readonly appVersion: string = '1.0.0';
+  readonly appVersion: string = '6.2.4';
 
   /**
    * Servicio de temas para detectar el modo oscuro/claro.
