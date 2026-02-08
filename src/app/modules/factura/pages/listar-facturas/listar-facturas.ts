@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -8,8 +8,9 @@ import { ProductosService } from '../../../../core/services/productos';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { Subscription } from 'rxjs';
 import { RolUsuario } from '../../../../core/models/usuario.model';
-import { combineLatest } from 'rxjs';
+import { DocumentSnapshot } from '@angular/fire/firestore';
 import Swal from 'sweetalert2';
 
 /**
@@ -18,47 +19,6 @@ import Swal from 'sweetalert2';
  */
 type FiltroTipoFactura = 'TODAS' | 'NORMALES' | 'COBROS_DEUDA';
 
-/**
- * Componente ListarFacturasComponent - Listado paginado y filtrable de facturas.
- *
- * **Responsabilidades:**
- * - Cargar todas las facturas desde Firestore
- * - Aplicar filtros por estado (TODAS, PENDIENTES, PAGADAS) y búsqueda por texto
- * - Paginar resultados (10 facturas por página)
- * - Proporcionar acciones: Ver detalles, Cobrar deuda, Nueva venta
- *
- * **Características técnicas:**
- * - Componente standalone moderno
- * - Ordenamiento persistente por fecha descendente (más recientes primero)
- * - Filtrado multi-criterio: cliente, método pago, ID personalizado, ID Firestore
- * - Conversión segura de Timestamps Firestore, Date Objects y strings a milisegundos
- * - Búsqueda en tiempo real (trimmed y case-insensitive)
- *
- * **Flujo de datos:**
- * 1. Constructor → Carga facturas de FacturasService → Subscribe mantiene sincronización
- * 2. Cada carga → Ordena por fecha DESC → Aplica filtros → Actualiza paginación
- * 3. Usuario interactúa → Cambia filtro/búsqueda → Re-ejecuta filtrar() → Reinicia página 1
- * 4. Usuario navega páginas → Actualiza inicio/fin para slice de array paginado
- * 5. Usuario hace acción → Navega a componentes relacionados (detalles, deuda, venta)
- *
- * **Integración:**
- * - Usa FacturasService para CRUD de facturas (getFacturas retorna Observable)
- * - Usa Router para navegación SPA a detalles (/facturas/:id), deuda (queryParam), venta
- * - Template: listar-facturas.html (ngIf con paginasPaginadas, ngFor, ngClick handlers)
- *
- * @component
- * @selector app-listar-facturas
- * @standalone true
- * @imports [CommonModule, FormsModule]
- *
- * @example
- * // En routing module:
- * {
- *   path: 'facturas',
- *   loadChildren: () => import('./modules/factura/factura.module')
- *     .then(m => m.FacturaModule)
- * }
- */
 @Component({
   selector: 'app-listar-facturas',
   standalone: true,
@@ -66,7 +26,7 @@ type FiltroTipoFactura = 'TODAS' | 'NORMALES' | 'COBROS_DEUDA';
   templateUrl: './listar-facturas.html',
   styleUrl: './listar-facturas.css'
 })
-export class ListarFacturasComponent {
+export class ListarFacturasComponent implements OnInit, OnDestroy {
   /**
    * Referencia global a Number (para uso en template con ngFor).
    * @type {typeof Number}
@@ -91,29 +51,32 @@ export class ListarFacturasComponent {
    */
   term: string = '';
 
-  /**
-   * Colección completa de facturas cargadas desde Firestore (sin filtros aplicados).
-   * Se mantiene ordenada por fecha descendente.
-   * @type {any[]}
-   * @private Usar filtradas[] para datos filtrados
-   */
-  facturas: any[] = [];
+  // � FILTROS DE PERIODO Y FECHA
+  periodoSeleccionado: string | null = null; // Mes/Año en formato 'MM/YYYY' (ej: '01/2026')
+  fechaSeleccionada: string = ''; // Fecha específica en formato 'YYYY-MM-DD'
+  minFechaPeriodo: string = ''; // Fecha mínima del periodo seleccionado
+  maxFechaPeriodo: string = ''; // Fecha máxima del periodo seleccionado
+  periodosDisponibles: Array<{mes: number, anio: number, label: string}> = [];
+  cargandoPeriodos = false;
+  private subscriptions = new Subscription();
 
-  /**
-   * Resultado del filtrado actual (aplicados estado y búsqueda de texto).
-   * Se usa como fuente para paginación.
-   * @type {any[]}
-   * @private Usar facturasPaginadas[] para datos mostrados en UI
-   */
-  filtradas: any[] = [];
-
-  /**
-   * Facturas de la página actual después de aplicar paginación.
-   * Array de length <= facturasPorPagina, vinculado al template para renderizado.
-   * @type {any[]}
-   * @private Vinculado al template con *ngFor="let factura of facturasPaginadas"
-   */
+  // �🚀 PAGINACIÓN REAL DESDE FIRESTORE
   facturasPaginadas: any[] = [];
+  lastVisible: DocumentSnapshot | null = null;
+  firstVisible: DocumentSnapshot | null = null;
+  lastVisibleDeuda: DocumentSnapshot | null = null;
+  firstVisibleDeuda: DocumentSnapshot | null = null;
+  hasMore: boolean = false;
+  isLoading: boolean = false;
+  
+  // 🔍 Historial de páginas para navegación hacia atrás
+  paginasHistorial: Array<{
+    firstDoc: DocumentSnapshot | null;
+    lastDoc: DocumentSnapshot | null;
+    firstDocDeuda: DocumentSnapshot | null;
+    lastDocDeuda: DocumentSnapshot | null;
+    pageNumber: number;
+  }> = [];
 
   /**
    * Número de página actual (1-indexed para UI, convertida a offset en code).
@@ -160,98 +123,175 @@ export class ListarFacturasComponent {
    */
   facturasEnCajaAbierta: Set<string> = new Set();
 
-  /**
-   * Inicializa el componente y configura la suscripción a datos de facturas.
-   *
-   * **Flujo de inicialización:**
-   * 1. Suscribe a FacturasService.getFacturas() (Observable continuo)
-   * 2. Normaliza valores numéricos (total, saldoPendiente) para evitar NaN en template
-   * 3. Ordena por fecha descendente (más recientes al inicio)
-   * 4. Aplica filtros iniciales y actualiza paginación
-   *
-   * **Transformación de datos:**
-   * - Convierte total y saldoPendiente a Number (si son string/undefined)
-   * - Mantiene resto de campos sin cambios (spread operator)
-   *
-   * **Notas técnicas:**
-   * - La suscripción persiste durante toda la vida del componente (no es un pipe)
-   * - Datos se cargan asincronamente (setTimeout podría afectar observables)
-   * - Cada cambio en Firestore triggeriza actualización automática
-   *
-   * @param {FacturasService} facturasSrv - Servicio inyectado para operaciones CRUD de facturas
-   * @param {Router} router - Servicio inyectado para navegación SPA
-   *
-   * @returns {void}
-   *
-   * @remarks
-   * - Usa inyección de dependencias estándar de Angular (parámetros del constructor)
-   * - La suscripción se mantiene abierta (sin unsubscribe) - considerar agregar OnDestroy en futuras mejoras
-   * - El ordenamiento inicial se preserva a través de filtros (ver filtrar método)
-   */
   constructor(
     private facturasSrv: FacturasService,
     private facturasDeudaSrv: FacturasDeudaService,
+    private cajaBancoSrv: CajaBancoService,
     private router: Router,
     private productosSrv: ProductosService,
     private cajaChicaSrv: CajaChicaService,
-    private cajaBancoSrv: CajaBancoService,
     private authService: AuthService
-  ) {
-    // Verificar si hay caja chica abierta
+  ) {}
+
+  ngOnInit(): void {
+    this.cargarPeriodosDisponibles();
     this.verificarCajaAbierta();
+  }
 
-    // Combinar facturas normales y facturas de deuda
-    combineLatest([
-      this.facturasSrv.getFacturas(),
-      this.facturasDeudaSrv.getTodosPagos()
-    ]).subscribe(([facturasNormales, facturasDeuda]) => {
-      // Procesar facturas normales
-      const facturas = (facturasNormales || []).map(f => ({
-        ...f,
-        total: Number(f?.total || 0),
-        saldoPendiente: Number(f?.saldoPendiente || 0),
-        tipoFactura: f.tipoFactura || 'NORMAL' // Asegurar que tenga tipo
-      }));
-
-      // Procesar facturas de deuda y convertirlas al formato de factura
-      const facturasDeudaConvertidas = (facturasDeuda || []).map((deuda: any) => ({
-        id: deuda.facturaIdPersonalizado || deuda.id,
-        idPersonalizado: deuda.facturaIdPersonalizado || deuda.id,
-        clienteNombre: deuda.clienteNombre || '',
-        clienteTelefono: deuda.clienteTelefono || '',
-        clienteId: deuda.clienteId || '',
-        fecha: deuda.fechaPago || new Date(),
-        total: Number(deuda.totalFactura || 0),
-        abonado: Number(deuda.abonadoNuevo || 0),
-        saldoPendiente: Number(deuda.saldoNuevo || 0),
-        metodoPago: deuda.metodoPago || '',
-        items: deuda.items || [],
-        esCredito: deuda.esCreditoPersonal || false,
-        estadoPago: (Number(deuda.saldoNuevo || 0) <= 0) ? 'PAGADA' : 'PENDIENTE',
-        tipoFactura: 'COBRO_DEUDA', // Marcar como cobro de deuda
-        // Campos adicionales
-        usuarioId: deuda.usuarioId || '',
-        usuarioNombre: deuda.usuarioNombre || '',
-        createdAt: deuda.createdAt || new Date(),
-        updatedAt: deuda.updatedAt || new Date(),
-        origenCaja: deuda.origenCaja || '',
-        cajaChicaId: deuda.cajaChicaId || ''
-      }));
-
-      // Combinar ambos arrays
-      this.facturas = [...facturas, ...facturasDeudaConvertidas];
-
-      // Ordenar por más recientes al inicio
-      this.facturas.sort((a, b) => this.getFechaMs(b) - this.getFechaMs(a));
-
-      this.filtrar();
-    });
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+    this.facturasPaginadas = [];
+    this.paginasHistorial = [];
   }
 
   /**
-   * Verifica si existe una caja chica abierta y carga sus movimientos.
-   * Actualiza cajaChicaAbiertaId y facturasEnCajaAbierta.
+   * 📆 Carga los periodos disponibles basados en cajas banco.
+   * Selecciona automáticamente el periodo más reciente.
    */
+  cargarPeriodosDisponibles(): void {
+    this.cargandoPeriodos = true;
+    const sub = this.cajaBancoSrv.getCajasBanco().subscribe({
+      next: (cajasBanco) => {
+        // Obtener periodos únicos ordenados por fecha descendente
+        const periodosMap = new Map<string, {mes: number, anio: number, label: string}>();
+        
+        cajasBanco.forEach(caja => {
+          let fecha: Date;
+          if (caja.fecha instanceof Date) {
+            fecha = caja.fecha;
+          } else if (caja.fecha && typeof caja.fecha === 'object' && 'toDate' in caja.fecha) {
+            fecha = (caja.fecha as any).toDate();
+          } else {
+            fecha = new Date(caja.fecha);
+          }
+          
+          const mes = fecha.getMonth() + 1; // 1-12
+          const anio = fecha.getFullYear();
+          const key = `${mes.toString().padStart(2, '0')}/${anio}`;
+          
+          if (!periodosMap.has(key)) {
+            const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                           'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            periodosMap.set(key, {
+              mes,
+              anio,
+              label: `${meses[mes - 1]} ${anio}`
+            });
+          }
+        });
+
+        // Convertir a array y ordenar por fecha descendente
+        this.periodosDisponibles = Array.from(periodosMap.values())
+          .sort((a, b) => {
+            if (a.anio !== b.anio) return b.anio - a.anio;
+            return b.mes - a.mes;
+          });
+
+        // Seleccionar automáticamente el periodo más reciente
+        if (this.periodosDisponibles.length > 0) {
+          const periodo = this.periodosDisponibles[0];
+          this.periodoSeleccionado = `${periodo.mes.toString().padStart(2, '0')}/${periodo.anio}`;
+          this.calcularRangoFechasPeriodo();
+          this.cargarPrimeraPage();
+        }
+
+        this.cargandoPeriodos = false;
+      },
+      error: (error) => {
+        console.error('Error al cargar periodos:', error);
+        this.cargandoPeriodos = false;
+        // Si falla, cargar sin filtro de periodo
+        this.cargarPrimeraPage();
+      }
+    });
+    this.subscriptions.add(sub);
+  }
+
+  /**
+   * 🗓️ Calcula el rango de fechas permitidas según el periodo seleccionado.
+   */
+  calcularRangoFechasPeriodo(): void {
+    if (!this.periodoSeleccionado) {
+      this.minFechaPeriodo = '';
+      this.maxFechaPeriodo = '';
+      return;
+    }
+
+    const [mes, anio] = this.periodoSeleccionado.split('/').map(Number);
+    
+    // Primer día del mes
+    const primerDia = new Date(anio, mes - 1, 1);
+    // Último día del mes
+    const ultimoDia = new Date(anio, mes, 0);
+
+    // Formato YYYY-MM-DD para input type="date"
+    this.minFechaPeriodo = primerDia.toISOString().split('T')[0];
+    this.maxFechaPeriodo = ultimoDia.toISOString().split('T')[0];
+  }
+
+  /**
+   * 📆 Cambia el filtro de periodo y recarga desde el inicio.
+   */
+  cambiarFiltroPeriodo(periodo: string | null): void {
+    this.periodoSeleccionado = periodo;
+    this.fechaSeleccionada = '';
+    this.calcularRangoFechasPeriodo();
+    this.filtrar();
+  }
+
+  /**
+   * 📅 Cambia el filtro de fecha específica y recarga.
+   */
+  cambiarFiltroFecha(fecha: string): void {
+    this.fechaSeleccionada = fecha;
+    this.filtrar();
+  }
+
+  /**
+   * 🧹 Limpia el filtro de fecha específica.
+   */
+  limpiarFiltroFecha(): void {
+    this.fechaSeleccionada = '';
+    this.filtrar();
+  }
+
+  /**
+   * 📋 Obtiene el label del periodo para mostrar en UI.
+   */
+  getPeriodoDisplay(periodo: {mes: number, anio: number, label: string}): string {
+    return periodo.label;
+  }
+
+  /**
+   * 🗓️ Obtiene las fechas de inicio y fin según los filtros activos.
+   * @returns Objeto con startDate, endDate y fechaExacta
+   */
+  private obtenerFiltrosFecha(): {
+    startDate: Date | null;
+    endDate: Date | null;
+    fechaExacta: Date | null;
+  } {
+    // Fecha exacta tiene prioridad
+    if (this.fechaSeleccionada) {
+      return {
+        startDate: null,
+        endDate: null,
+        fechaExacta: new Date(this.fechaSeleccionada)
+      };
+    }
+
+    // Si hay periodo seleccionado, calcular rango
+    if (this.periodoSeleccionado) {
+      const [mes, anio] = this.periodoSeleccionado.split('/').map(Number);
+      const startDate = new Date(anio, mes - 1, 1); // Primer día del mes
+      const endDate = new Date(anio, mes, 0); // Último día del mes
+      return { startDate, endDate, fechaExacta: null };
+    }
+
+    // Sin filtros de fecha
+    return { startDate: null, endDate: null, fechaExacta: null };
+  }
+
   async verificarCajaAbierta(): Promise<void> {
     try {
       const caja = await this.cajaChicaSrv.getCajaAbierta();
@@ -284,11 +324,7 @@ export class ListarFacturasComponent {
     }
   }
 
-  /**
-   * Verifica si una factura puede ser editada o eliminada.
-   * Retorna true si la factura es en efectivo, tiene movimiento en la caja abierta,
-   * y el usuario NO es operador (rol 2).
-   */
+
   puedeEditarEliminar(factura: any): boolean {
     // ❌ RESTRICCIÓN: Operadores (Rol 2) no pueden editar ni eliminar facturas
     const usuario = this.authService.getCurrentUser();
@@ -302,43 +338,6 @@ export class ListarFacturasComponent {
            && this.facturasEnCajaAbierta.has(factura.id);
   }
 
-  /**
-   * Convierte fecha en cualquier formato a milisegundos desde epoch (1970-01-01).
-   *
-   * **Soporta múltiples formatos:**
-   * - Timestamp Firestore (objeto con método toDate())
-   * - Date object nativo de JavaScript
-   * - String ISO 8601 (Date constructor lo parsea)
-   * - Number (milisegundos o segundos, se asume milisegundos)
-   *
-   * **Algoritmo:**
-   * 1. Si v es undefined/null → retorna 0 (valores indefinidos al final)
-   * 2. Si tiene método toDate (Firestore) → llama y obtiene milisegundos
-   * 3. Si es instanceof Date → obtiene milisegundos directamente
-   * 4. Si es string/number → crea Date e intenta parsear
-   * 5. Si parse falla (isNaN) → retorna 0 (fallback seguro)
-   *
-   * **Casos de uso:**
-   * - Comparar fechas para ordenamiento (sort callback)
-   * - Validar que fecha es válida (retorna 0 si no lo es)
-   * - Normalizar diferentes tipos de entrada de timestamp
-   *
-   * **Nota técnica:**
-   * Este método es privado porque es interno de lógica de ordenamiento.
-   * El frontend no debería depender de él directamente (implementación detail).
-   *
-   * @param {any} f - Factura objeto que contiene campo "fecha" a convertir
-   * @returns {number} Milisegundos desde epoch (1970-01-01T00:00:00Z)
-   *          Retorna 0 si la fecha es inválida o undefined
-   *
-   * @example
-   * this.getFechaMs({fecha: new Date()}) // → 1705305600000
-   * this.getFechaMs({fecha: firestore.Timestamp.now()}) // → 1705305600000
-   * this.getFechaMs({fecha: '2024-01-15'}) // → 1705276800000
-   * this.getFechaMs({}) // → 0 (sin fecha)
-   *
-   * @private
-   */
   private getFechaMs(f: any): number {
     const v = f?.fecha;
     if (!v) return 0;
@@ -355,345 +354,681 @@ export class ListarFacturasComponent {
   }
 
   /**
-   * Aplica filtros de estado y búsqueda de texto a la colección de facturas.
-   *
-   * **Algoritmo de filtrado (secuencial):**
-   *
-   * **Paso 1: Filtro por estado**
-   * - TODAS: Sin restricción (usa array completo)
-   * - PENDIENTES: Solo donde saldoPendiente > 0
-   * - PAGADAS: Solo donde saldoPendiente <= 0
-   *
-   * **Paso 2: Filtro por texto (búsqueda)**
-   * - Si term está vacío: Usa resultado del paso 1 sin filtro adicional
-   * - Si term tiene contenido: Busca case-insensitive en 4 campos:
-   *   • clienteNombre (nombre del cliente que factura)
-   *   • metodoPago (forma de pago: efectivo, tarjeta, etc)
-   *   • idPersonalizado (ID custom de factura)
-   *   • id (ID Firestore del documento)
-   * - El operador OR dice: Si coincide CUALQUIERA de estos campos, incluir factura
-   *
-   * **Paso 3: Mantener ordenamiento**
-   * - Reordena resultado filtrado por fecha descendente (más recientes primero)
-   * - Asegura consistencia visual aunque cambien filtros
-   *
-   * **Paso 4: Actualizar paginación**
-   * - Reestablece página actual a 1 (reinicia desde inicio)
-   * - Recalcula totalFacturas con largo de resultados filtrados
-   * - Llama actualizarPaginacion() para slice de página 1
-   *
-   * **Flujo de ejecución:**
-   * filtrar() → (1) filtro estado → (2) filtro texto → (3) re-sort → (4) reset paginación
-   *
-   * **Casos especiales:**
-   * - Búsqueda vacía: Ignora paso 2, muestra todos del estado seleccionado
-   * - Búsqueda sin resultados: totalFacturas = 0, facturasPaginadas vacío
-   * - Cambio de filtro: Reseta a página 1 automáticamente
-   * - Ordenamiento: Se aplica DESPUÉS del filtrado (no afecta búsqueda)
-   *
-   * **Performance:**
-   * - O(n) para cada paso de filtro
-   * - Búsqueda es case-insensitive y trimmed (sin espacios extras)
-   * - Array spread ([...]) genera copia para no mutar this.facturas
-   *
-   * @returns {void}
-   *
-   * @remarks
-   * - Se ejecuta en constructor inicial y cada vez que usuario cambia filtro/búsqueda
-   * - Modificables: this.filtroEstado (dropdown) y this.term (input text)
-   * - Afecta: this.filtradas (resultado post-filtrado) y this.facturasPaginadas (UI)
-   *
-   * @example
-   * // Usuario selecciona PENDIENTES y busca "García":
-   * this.filtroEstado = 'PENDIENTES';
-   * this.term = 'García';
-   * this.filtrar();
-   * // Resultado: Solo facturas sin pagar donde cliente/pago/id contiene "garcía"
+   * 🔧 Convierte cualquier formato de fecha a Date válido
    */
-  filtrar() {
-    const t = (this.term || '').trim().toLowerCase();
+  private convertirFecha(fecha: any): Date {
+    if (!fecha) return new Date();
+    
+    // Firestore Timestamp
+    if (typeof fecha?.toDate === 'function') return fecha.toDate();
+    
+    // Ya es Date
+    if (fecha instanceof Date) return fecha;
+    
+    // String o número - intentar convertir
+    const d = new Date(fecha);
+    return isNaN(d.getTime()) ? new Date() : d;
+  }
 
-    // 1) filtro por tipo de factura
-    let base = [...this.facturas];
-
-    // 1.5) ✅ filtro por tipo de factura
-    if (this.filtroTipoFactura === 'NORMALES') {
-      // Solo facturas normales (sin marca o tipoFactura === 'NORMAL')
-      base = base.filter(f => f.tipoFactura === 'NORMAL' || !f.tipoFactura);
-    } else if (this.filtroTipoFactura === 'COBROS_DEUDA') {
-      // Solo facturas que son cobros de deuda
-      base = base.filter(f => f.tipoFactura === 'COBRO_DEUDA');
-    }
-    // Si filtroTipoFactura === 'TODAS': no aplicar filtro
-
-    // 2) filtro texto
-    if (!t) {
-      this.filtradas = base;
-    } else {
-      this.filtradas = base.filter(f =>
-        (f.clienteNombre || '').toLowerCase().includes(t) ||
-        (f.metodoPago || '').toLowerCase().includes(t) ||
-        (f.idPersonalizado || '').toLowerCase().includes(t) ||
-        (f.id || '').toLowerCase().includes(t)
-      );
-    }
-
-    // 3) mantener orden "últimas primero" siempre
-    this.filtradas.sort((a, b) => this.getFechaMs(b) - this.getFechaMs(a));
-
-    this.totalFacturas = this.filtradas.length;
+  private async cargarPrimeraPage(): Promise<void> {
+    this.isLoading = true;
     this.paginaActual = 1;
-    this.actualizarPaginacion();
-  }
+    this.paginasHistorial = [];
+    
+    try {
+      const { startDate, endDate, fechaExacta } = this.obtenerFiltrosFecha();
 
-  /**
-   * Actualiza el slice de facturas mostradas en la página actual.
-   *
-   * **Algoritmo:**
-   * 1. Calcula índice inicial: (paginaActual - 1) * facturasPorPagina
-   *    Ejemplo: página 2 → (2-1)*10 = 10 (comienza en índice 10)
-   * 2. Calcula índice final: inicio + facturasPorPagina
-   *    Ejemplo: página 2 → 10+10 = 20 (termina antes de índice 20)
-   * 3. Usa slice() para extraer subarray [inicio, fin)
-   * 4. Envuelve en [...] para crear nueva referencia (Angular change detection)
-   *
-   * **Casos especiales:**
-   * - Última página incompleta: slice retorna lo que queda (< facturasPorPagina items)
-   * - Página vacía: Retorna array vacío (resultado de filtrado sin coincidencias)
-   * - Primera página: inicio = 0, fin = facturasPorPagina (10 items típicamente)
-   *
-   * **Performance:**
-   * - O(k) donde k = facturasPorPagina (copia solo items de página actual)
-   * - No modifica this.filtradas (lee-only)
-   * - Operación muy rápida incluso con miles de facturas en filtradas[]
-   *
-   * @returns {void}
-   *
-   * @remarks
-   * - Se ejecuta automáticamente en filtrar() y en paginaSiguiente/Anterior()
-   * - Modifica: this.facturasPaginadas (vinculado al template)
-   * - Lee: this.paginaActual, this.filtradas (input)
-   * - Resultado: Array de length [0, facturasPorPagina] máximo
-   *
-   * @example
-   * // Página 1: índices 0-9
-   * this.paginaActual = 1;
-   * this.actualizarPaginacion();
-   * // facturasPaginadas = filtradas.slice(0, 10)
-   *
-   * // Página 3: índices 20-29
-   * this.paginaActual = 3;
-   * this.actualizarPaginacion();
-   * // facturasPaginadas = filtradas.slice(20, 30)
-   */
-  actualizarPaginacion(): void {
-    const inicio = (this.paginaActual - 1) * this.facturasPorPagina;
-    const fin = inicio + this.facturasPorPagina;
-    this.facturasPaginadas = [...this.filtradas.slice(inicio, fin)];
-  }
+      // 🔍 Según filtro activo, cargamos solo la fuente necesaria
+      if (this.filtroTipoFactura === 'NORMALES') {
+        // Solo facturas normales
+        const resultado = await this.facturasSrv.getFacturasPaginadasReal({
+          pageSize: this.facturasPorPagina,
+          lastVisible: null,
+          direction: 'next',
+          terminoBusqueda: this.term,
+          filtroTipoFactura: 'NORMALES',
+          currentPage: this.paginaActual,
+          startDate,
+          endDate,
+          fechaExacta
+        });
 
-  /**
-   * Navega a la siguiente página de resultados (si existe).
-   *
-   * **Validación:**
-   * - Verifica que paginaActual * facturasPorPagina < totalFacturas
-   * - Ejemplo: página 2 (índice 20) < total 100 → Existe página 3
-   * - Si condición es falsa → No hace nada (ya está en última página)
-   *
-   * **Flujo:**
-   * 1. Valida que hay más datos
-   * 2. Incrementa paginaActual en 1
-   * 3. Llama actualizarPaginacion() para re-slice
-   * 4. Template re-renderiza con nuevos items
-   *
-   * **Casos especiales:**
-   * - Última página completa: Botón "Siguiente" deshabilitado (template debe usar ngIf)
-   * - Última página incompleta: Botón deshabilitado pero cálculo es correcto
-   * - Búsqueda sin resultados: Botón deshabilitado (totalFacturas = 0)
-   *
-   * **Performance:**
-   * - O(k) donde k = facturasPorPagina (copia solo items nuevos)
-   * - Llamada rápida, no implica nuevo filtrado
-   *
-   * @returns {void}
-   *
-   * @remarks
-   * - Se ejecuta cuando usuario hace clic en botón "Siguiente" (ngClick handler)
-   * - Modifica: this.paginaActual, this.facturasPaginadas
-   * - Valida: totalFacturas vs índice actual
-   * - Responsabilidad del template: Deshabilitar botón cuando !puedeIrAlaSiguiente()
-   *
-   * @example
-   * // Usuario en página 1 de 5:
-   * this.paginaActual = 1;
-   * this.totalFacturas = 45;
-   * this.paginaSiguiente();
-   * // Resultado: paginaActual = 2, facturasPaginadas = slice [10,20]
-   *
-   * // Usuario en página 5 de 5:
-   * this.paginaActual = 5;
-   * this.totalFacturas = 45;
-   * this.paginaSiguiente();
-   * // No hace nada (5*10=50 no < 45)
-   */
-  paginaSiguiente(): void {
-    if (this.paginaActual * this.facturasPorPagina < this.totalFacturas) {
-      this.paginaActual++;
-      this.actualizarPaginacion();
+        this.facturasPaginadas = resultado.facturas.map(f => ({
+          ...f,
+          total: Number(f?.total || 0),
+          saldoPendiente: Number(f?.saldoPendiente || 0),
+          tipoFactura: f.tipoFactura || 'NORMAL'
+        }));
+
+        this.lastVisible = resultado.lastDoc;
+        this.firstVisible = resultado.firstDoc;
+        this.hasMore = resultado.hasMore;
+        this.lastVisibleDeuda = null;
+        this.firstVisibleDeuda = null;
+
+        if (resultado.firstDoc) {
+          this.paginasHistorial.push({
+            firstDoc: resultado.firstDoc,
+            lastDoc: resultado.lastDoc,
+            firstDocDeuda: null,
+            lastDocDeuda: null,
+            pageNumber: 1
+          });
+        }
+
+      } else if (this.filtroTipoFactura === 'COBROS_DEUDA') {
+        // Solo cobros de deuda
+        const resultado = await this.facturasDeudaSrv.getPagosDeudaPaginadosReal({
+          pageSize: this.facturasPorPagina,
+          lastVisible: null,
+          direction: 'next',
+          terminoBusqueda: this.term,
+          currentPage: this.paginaActual,
+          startDate,
+          endDate,
+          fechaExacta
+        });
+
+        this.facturasPaginadas = resultado.pagos.map((deuda: any) => ({
+          id: deuda.facturaIdPersonalizado || deuda.id,
+          idPersonalizado: deuda.facturaIdPersonalizado || deuda.id,
+          clienteNombre: deuda.clienteNombre || '',
+          clienteTelefono: deuda.clienteTelefono || '',
+          clienteId: deuda.clienteId || '',
+          fecha: deuda.fechaPago || new Date(),
+          total: Number(deuda.totalFactura || 0),
+          abonado: Number(deuda.abonadoNuevo || 0),
+          saldoPendiente: Number(deuda.saldoNuevo || 0),
+          metodoPago: deuda.metodoPago || '',
+          items: deuda.items || [],
+          esCredito: deuda.esCreditoPersonal || false,
+          estadoPago: (Number(deuda.saldoNuevo || 0) <= 0) ? 'PAGADA' : 'PENDIENTE',
+          tipoFactura: 'COBRO_DEUDA',
+          usuarioId: deuda.usuarioId || '',
+          usuarioNombre: deuda.usuarioNombre || '',
+          createdAt: deuda.createdAt || new Date(),
+          updatedAt: deuda.updatedAt || new Date(),
+          origenCaja: deuda.origenCaja || '',
+          cajaChicaId: deuda.cajaChicaId || ''
+        }));
+
+        this.lastVisibleDeuda = resultado.lastDoc;
+        this.firstVisibleDeuda = resultado.firstDoc;
+        this.hasMore = resultado.hasMore;
+        this.lastVisible = null;
+        this.firstVisible = null;
+
+        if (resultado.firstDoc) {
+          this.paginasHistorial.push({
+            firstDoc: null,
+            lastDoc: null,
+            firstDocDeuda: resultado.firstDoc,
+            lastDocDeuda: resultado.lastDoc,
+            pageNumber: 1
+          });
+        }
+
+      } else {
+        // TODAS: cargamos ambas fuentes
+        const resultadoFacturas = await this.facturasSrv.getFacturasPaginadasReal({
+          pageSize: this.facturasPorPagina,
+          lastVisible: null,
+          direction: 'next',
+          terminoBusqueda: this.term,
+          filtroTipoFactura: 'TODAS',
+          currentPage: this.paginaActual,
+          startDate,
+          endDate,
+          fechaExacta
+        });
+
+        const resultadoPagos = await this.facturasDeudaSrv.getPagosDeudaPaginadosReal({
+          pageSize: this.facturasPorPagina,
+          lastVisible: null,
+          direction: 'next',
+          terminoBusqueda: this.term,
+          currentPage: this.paginaActual,
+          startDate,
+          endDate,
+          fechaExacta
+        });
+
+        const facturasNormales = resultadoFacturas.facturas.map(f => ({
+          ...f,
+          total: Number(f?.total || 0),
+          saldoPendiente: Number(f?.saldoPendiente || 0),
+          tipoFactura: f.tipoFactura || 'NORMAL'
+        }));
+
+        const facturasDeudaConvertidas = resultadoPagos.pagos.map((deuda: any) => ({
+          id: deuda.facturaIdPersonalizado || deuda.id,
+          idPersonalizado: deuda.facturaIdPersonalizado || deuda.id,
+          clienteNombre: deuda.clienteNombre || '',
+          clienteTelefono: deuda.clienteTelefono || '',
+          clienteId: deuda.clienteId || '',
+          fecha: deuda.fechaPago || new Date(),
+          total: Number(deuda.totalFactura || 0),
+          abonado: Number(deuda.abonadoNuevo || 0),
+          saldoPendiente: Number(deuda.saldoNuevo || 0),
+          metodoPago: deuda.metodoPago || '',
+          items: deuda.items || [],
+          esCredito: deuda.esCreditoPersonal || false,
+          estadoPago: (Number(deuda.saldoNuevo || 0) <= 0) ? 'PAGADA' : 'PENDIENTE',
+          tipoFactura: 'COBRO_DEUDA',
+          usuarioId: deuda.usuarioId || '',
+          usuarioNombre: deuda.usuarioNombre || '',
+          createdAt: deuda.createdAt || new Date(),
+          updatedAt: deuda.updatedAt || new Date(),
+          origenCaja: deuda.origenCaja || '',
+          cajaChicaId: deuda.cajaChicaId || ''
+        }));
+
+        const todasFacturas = [...facturasNormales, ...facturasDeudaConvertidas];
+        todasFacturas.sort((a, b) => this.getFechaMs(b) - this.getFechaMs(a));
+
+        this.facturasPaginadas = todasFacturas.slice(0, this.facturasPorPagina);
+        this.hasMore = resultadoFacturas.hasMore || resultadoPagos.hasMore;
+        this.lastVisible = resultadoFacturas.lastDoc;
+        this.firstVisible = resultadoFacturas.firstDoc;
+        this.lastVisibleDeuda = resultadoPagos.lastDoc;
+        this.firstVisibleDeuda = resultadoPagos.firstDoc;
+        
+        if (resultadoFacturas.firstDoc || resultadoPagos.firstDoc) {
+          this.paginasHistorial.push({
+            firstDoc: resultadoFacturas.firstDoc,
+            lastDoc: resultadoFacturas.lastDoc,
+            firstDocDeuda: resultadoPagos.firstDoc,
+            lastDocDeuda: resultadoPagos.lastDoc,
+            pageNumber: 1
+          });
+        }
+      }
+      
+      this.totalFacturas = this.facturasPaginadas.length;
+      
+    } catch (error) {
+      console.error('Error al cargar facturas:', error);
+      Swal.fire('Error', 'No se pudieron cargar las facturas', 'error');
+    } finally {
+      this.isLoading = false;
     }
   }
 
   /**
-   * Navega a la página anterior de resultados (si no es la primera).
-   *
-   * **Validación:**
-   * - Verifica que paginaActual > 1
-   * - Si es falsa (estamos en página 1) → No hace nada
-   *
-   * **Flujo:**
-   * 1. Valida que no estemos en primera página
-   * 2. Decrementa paginaActual en 1
-   * 3. Llama actualizarPaginacion() para re-slice
-   * 4. Template re-renderiza con items de página anterior
-   *
-   * **Casos especiales:**
-   * - Primera página: Botón "Anterior" deshabilitado (template debe usar ngIf)
-   * - Una sola página: Botón "Anterior" siempre deshabilitado
-   *
-   * **Performance:**
-   * - O(k) donde k = facturasPorPagina (copia items nuevos)
-   * - Operación instantánea
-   *
-   * @returns {void}
-   *
-   * @remarks
-   * - Se ejecuta cuando usuario hace clic en botón "Anterior" (ngClick handler)
-   * - Modifica: this.paginaActual, this.facturasPaginadas
-   * - Valida: paginaActual > 1
-   * - Responsabilidad del template: Deshabilitar botón cuando !puedeIrAlAnterior()
-   *
-   * @example
-   * // Usuario en página 3 de 5:
-   * this.paginaActual = 3;
-   * this.paginaAnterior();
-   * // Resultado: paginaActual = 2, facturasPaginadas = slice [10,20]
-   *
-   * // Usuario en página 1 de 5:
-   * this.paginaActual = 1;
-   * this.paginaAnterior();
-   * // No hace nada (1 no > 1)
+   * 🔄 Cargar página actual con filtros (para navegación anterior/siguiente con filtros activos)
+   * NO modifica paginaActual, solo carga los datos correspondientes a la página actual
    */
-  paginaAnterior(): void {
-    if (this.paginaActual > 1) {
+  private async cargarPaginaConFiltros(): Promise<void> {
+    try {
+      const { startDate, endDate, fechaExacta } = this.obtenerFiltrosFecha();
+
+      if (this.filtroTipoFactura === 'NORMALES') {
+        const resultado = await this.facturasSrv.getFacturasPaginadasReal({
+          pageSize: this.facturasPorPagina,
+          lastVisible: null,
+          direction: 'next',
+          terminoBusqueda: this.term,
+          filtroTipoFactura: 'NORMALES',
+          currentPage: this.paginaActual,
+          startDate,
+          endDate,
+          fechaExacta
+        });
+
+        this.facturasPaginadas = resultado.facturas.map(f => ({
+          ...f,
+          total: Number(f?.total || 0),
+          saldoPendiente: Number(f?.saldoPendiente || 0),
+          tipoFactura: f.tipoFactura || 'NORMAL'
+        }));
+
+        this.hasMore = resultado.hasMore;
+
+      } else if (this.filtroTipoFactura === 'COBROS_DEUDA') {
+        const resultado = await this.facturasDeudaSrv.getPagosDeudaPaginadosReal({
+          pageSize: this.facturasPorPagina,
+          lastVisible: null,
+          direction: 'next',
+          terminoBusqueda: this.term,
+          currentPage: this.paginaActual,
+          startDate,
+          endDate,
+          fechaExacta
+        });
+
+        this.facturasPaginadas = resultado.pagos.map((deuda: any) => ({
+          id: deuda.facturaIdPersonalizado || deuda.id,
+          idPersonalizado: deuda.facturaIdPersonalizado || deuda.id,
+          clienteNombre: deuda.clienteNombre || '',
+          clienteTelefono: deuda.clienteTelefono || '',
+          clienteId: deuda.clienteId || '',
+          fecha: deuda.fechaPago || new Date(),
+          total: Number(deuda.totalFactura || 0),
+          abonado: Number(deuda.abonadoNuevo || 0),
+          saldoPendiente: Number(deuda.saldoNuevo || 0),
+          metodoPago: deuda.metodoPago || '',
+          items: deuda.items || [],
+          esCredito: deuda.esCreditoPersonal || false,
+          estadoPago: (Number(deuda.saldoNuevo || 0) <= 0) ? 'PAGADA' : 'PENDIENTE',
+          tipoFactura: 'COBRO_DEUDA',
+          usuarioId: deuda.usuarioId || '',
+          usuarioNombre: deuda.usuarioNombre || '',
+          createdAt: deuda.createdAt || new Date(),
+          updatedAt: deuda.updatedAt || new Date(),
+          origenCaja: deuda.origenCaja || '',
+          cajaChicaId: deuda.cajaChicaId || ''
+        }));
+
+        this.hasMore = resultado.hasMore;
+
+      } else {
+        // TODAS: cargar ambas fuentes
+        const resultadoFacturas = await this.facturasSrv.getFacturasPaginadasReal({
+          pageSize: this.facturasPorPagina,
+          lastVisible: null,
+          direction: 'next',
+          terminoBusqueda: this.term,
+          filtroTipoFactura: 'TODAS',
+          currentPage: this.paginaActual,
+          startDate,
+          endDate,
+          fechaExacta
+        });
+
+        const resultadoPagos = await this.facturasDeudaSrv.getPagosDeudaPaginadosReal({
+          pageSize: this.facturasPorPagina,
+          lastVisible: null,
+          direction: 'next',
+          terminoBusqueda: this.term,
+          currentPage: this.paginaActual,
+          startDate,
+          endDate,
+          fechaExacta
+        });
+
+        const facturasNormales = resultadoFacturas.facturas.map(f => ({
+          ...f,
+          total: Number(f?.total || 0),
+          saldoPendiente: Number(f?.saldoPendiente || 0),
+          tipoFactura: f.tipoFactura || 'NORMAL'
+        }));
+
+        const facturasDeudaConvertidas = resultadoPagos.pagos.map((deuda: any) => ({
+          id: deuda.facturaIdPersonalizado || deuda.id,
+          idPersonalizado: deuda.facturaIdPersonalizado || deuda.id,
+          clienteNombre: deuda.clienteNombre || '',
+          clienteTelefono: deuda.clienteTelefono || '',
+          clienteId: deuda.clienteId || '',
+          fecha: deuda.fechaPago || new Date(),
+          total: Number(deuda.totalFactura || 0),
+          abonado: Number(deuda.abonadoNuevo || 0),
+          saldoPendiente: Number(deuda.saldoNuevo || 0),
+          metodoPago: deuda.metodoPago || '',
+          items: deuda.items || [],
+          esCredito: deuda.esCreditoPersonal || false,
+          estadoPago: (Number(deuda.saldoNuevo || 0) <= 0) ? 'PAGADA' : 'PENDIENTE',
+          tipoFactura: 'COBRO_DEUDA',
+          usuarioId: deuda.usuarioId || '',
+          usuarioNombre: deuda.usuarioNombre || '',
+          createdAt: deuda.createdAt || new Date(),
+          updatedAt: deuda.updatedAt || new Date(),
+          origenCaja: deuda.origenCaja || '',
+          cajaChicaId: deuda.cajaChicaId || ''
+        }));
+
+        const todasFacturas = [...facturasNormales, ...facturasDeudaConvertidas];
+        todasFacturas.sort((a, b) => this.getFechaMs(b) - this.getFechaMs(a));
+
+        this.facturasPaginadas = todasFacturas.slice(0, this.facturasPorPagina);
+        this.hasMore = resultadoFacturas.hasMore || resultadoPagos.hasMore;
+      }
+
+    } catch (error) {
+      console.error('Error al cargar página con filtros:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error al cargar facturas',
+        text: 'No se pudieron cargar las facturas. Por favor, intente nuevamente.'
+      });
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async filtrar(): Promise<void> {
+    this.paginaActual = 1;
+    this.paginasHistorial = [];
+    this.lastVisible = null;
+    this.firstVisible = null;
+    this.lastVisibleDeuda = null;
+    this.firstVisibleDeuda = null;
+    await this.cargarPrimeraPage();
+  }
+
+  async paginaSiguiente(): Promise<void> {
+    if (!this.hasMore || this.isLoading) return;
+    
+    this.isLoading = true;
+    
+    try {
+ this.paginaActual++;
+
+      const { startDate, endDate, fechaExacta } = this.obtenerFiltrosFecha();
+
+      // 🔍 Según filtro activo, paginamos solo la fuente necesaria
+      if (this.filtroTipoFactura === 'NORMALES') {
+        const resultado = await this.facturasSrv.getFacturasPaginadasReal({
+          pageSize: this.facturasPorPagina,
+          lastVisible: this.lastVisible,
+          direction: 'next',
+          terminoBusqueda: this.term,
+          filtroTipoFactura: 'NORMALES',
+          currentPage: this.paginaActual,
+          startDate,
+          endDate,
+          fechaExacta
+        });
+
+        this.facturasPaginadas = resultado.facturas.map(f => ({
+          ...f,
+          total: Number(f?.total || 0),
+          saldoPendiente: Number(f?.saldoPendiente || 0),
+          tipoFactura: f.tipoFactura || 'NORMAL'
+        }));
+
+        this.lastVisible = resultado.lastDoc;
+        this.firstVisible = resultado.firstDoc;
+        this.hasMore = resultado.hasMore;
+
+        this.paginasHistorial.push({
+          firstDoc: resultado.firstDoc,
+          lastDoc: resultado.lastDoc,
+          firstDocDeuda: null,
+          lastDocDeuda: null,
+          pageNumber: this.paginaActual
+        });
+
+      } else if (this.filtroTipoFactura === 'COBROS_DEUDA') {
+        const resultado = await this.facturasDeudaSrv.getPagosDeudaPaginadosReal({
+          pageSize: this.facturasPorPagina,
+          lastVisible: this.lastVisibleDeuda,
+          direction: 'next',
+          terminoBusqueda: this.term,
+          currentPage: this.paginaActual,
+          startDate,
+          endDate,
+          fechaExacta
+        });
+
+        this.facturasPaginadas = resultado.pagos.map((deuda: any) => ({
+          id: deuda.facturaIdPersonalizado || deuda.id,
+          idPersonalizado: deuda.facturaIdPersonalizado || deuda.id,
+          clienteNombre: deuda.clienteNombre || '',
+          clienteTelefono: deuda.clienteTelefono || '',
+          clienteId: deuda.clienteId || '',
+          fecha: deuda.fechaPago || new Date(),
+          total: Number(deuda.totalFactura || 0),
+          abonado: Number(deuda.abonadoNuevo || 0),
+          saldoPendiente: Number(deuda.saldoNuevo || 0),
+          metodoPago: deuda.metodoPago || '',
+          items: deuda.items || [],
+          esCredito: deuda.esCreditoPersonal || false,
+          estadoPago: (Number(deuda.saldoNuevo || 0) <= 0) ? 'PAGADA' : 'PENDIENTE',
+          tipoFactura: 'COBRO_DEUDA',
+          usuarioId: deuda.usuarioId || '',
+          usuarioNombre: deuda.usuarioNombre || '',
+          createdAt: deuda.createdAt || new Date(),
+          updatedAt: deuda.updatedAt || new Date(),
+          origenCaja: deuda.origenCaja || '',
+          cajaChicaId: deuda.cajaChicaId || ''
+        }));
+
+        this.lastVisibleDeuda = resultado.lastDoc;
+        this.firstVisibleDeuda = resultado.firstDoc;
+        this.hasMore = resultado.hasMore;
+
+        this.paginasHistorial.push({
+          firstDoc: null,
+          lastDoc: null,
+          firstDocDeuda: resultado.firstDoc,
+          lastDocDeuda: resultado.lastDoc,
+          pageNumber: this.paginaActual
+        });
+
+      } else {
+        // TODAS: cargamos ambas fuentes con sus respectivos cursores
+        const resultadoFacturas = await this.facturasSrv.getFacturasPaginadasReal({
+          pageSize: this.facturasPorPagina,
+          lastVisible: this.lastVisible,
+          direction: 'next',
+          terminoBusqueda: this.term,
+          filtroTipoFactura: 'TODAS',
+          currentPage: this.paginaActual,
+          startDate,
+          endDate,
+          fechaExacta
+        });
+
+        const resultadoPagos = await this.facturasDeudaSrv.getPagosDeudaPaginadosReal({
+          pageSize: this.facturasPorPagina,
+          lastVisible: this.lastVisibleDeuda,
+          direction: 'next',
+          terminoBusqueda: this.term,
+          currentPage: this.paginaActual,
+          startDate,
+          endDate,
+          fechaExacta
+        });
+
+        const facturasNormales = resultadoFacturas.facturas.map(f => ({
+          ...f,
+          total: Number(f?.total || 0),
+          saldoPendiente: Number(f?.saldoPendiente || 0),
+          tipoFactura: f.tipoFactura || 'NORMAL'
+        }));
+
+        const facturasDeudaConvertidas = resultadoPagos.pagos.map((deuda: any) => ({
+          id: deuda.facturaIdPersonalizado || deuda.id,
+          idPersonalizado: deuda.facturaIdPersonalizado || deuda.id,
+          clienteNombre: deuda.clienteNombre || '',
+          clienteTelefono: deuda.clienteTelefono || '',
+          clienteId: deuda.clienteId || '',
+          fecha: deuda.fechaPago || new Date(),
+          total: Number(deuda.totalFactura || 0),
+          abonado: Number(deuda.abonadoNuevo || 0),
+          saldoPendiente: Number(deuda.saldoNuevo || 0),
+          metodoPago: deuda.metodoPago || '',
+          items: deuda.items || [],
+          esCredito: deuda.esCreditoPersonal || false,
+          estadoPago: (Number(deuda.saldoNuevo || 0) <= 0) ? 'PAGADA' : 'PENDIENTE',
+          tipoFactura: 'COBRO_DEUDA',
+          usuarioId: deuda.usuarioId || '',
+          usuarioNombre: deuda.usuarioNombre || '',
+          createdAt: deuda.createdAt || new Date(),
+          updatedAt: deuda.updatedAt || new Date(),
+          origenCaja: deuda.origenCaja || '',
+          cajaChicaId: deuda.cajaChicaId || ''
+        }));
+
+        const todasFacturas = [...facturasNormales, ...facturasDeudaConvertidas];
+        todasFacturas.sort((a, b) => this.getFechaMs(b) - this.getFechaMs(a));
+
+        this.facturasPaginadas = todasFacturas.slice(0, this.facturasPorPagina);
+        this.lastVisible = resultadoFacturas.lastDoc;
+        this.firstVisible = resultadoFacturas.firstDoc;
+        this.lastVisibleDeuda = resultadoPagos.lastDoc;
+        this.firstVisibleDeuda = resultadoPagos.firstDoc;
+        this.hasMore = resultadoFacturas.hasMore || resultadoPagos.hasMore;
+        
+        this.paginasHistorial.push({
+          firstDoc: resultadoFacturas.firstDoc,
+          lastDoc: resultadoFacturas.lastDoc,
+          firstDocDeuda: resultadoPagos.firstDoc,
+          lastDocDeuda: resultadoPagos.lastDoc,
+          pageNumber: this.paginaActual
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error al cargar página siguiente:', error);
+      Swal.fire('Error', 'No se pudo cargar la siguiente página', 'error');
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async paginaAnterior(): Promise<void> {
+    if (this.paginaActual <= 1 || this.isLoading) return;
+    
+    this.isLoading = true;
+    
+    try {
+      this.paginasHistorial.pop();
       this.paginaActual--;
-      this.actualizarPaginacion();
+      
+      const { startDate, endDate, fechaExacta } = this.obtenerFiltrosFecha();
+      
+      // 🔍 Si hay filtros activos (búsqueda o fechas), usar paginación en memoria
+      const hayFiltrosActivos = this.term.trim() || startDate || endDate || fechaExacta;
+      
+      if (hayFiltrosActivos) {
+        // Con filtros: simplemente recargar con el nuevo currentPage
+        await this.cargarPaginaConFiltros();
+        return;
+      }
+      
+      // Sin filtros: usar cursores del historial
+      const paginaAnterior = this.paginasHistorial[this.paginasHistorial.length - 1];
+      
+      if (!paginaAnterior || paginaAnterior.pageNumber === 1) {
+        await this.cargarPrimeraPage();
+        return;
+      }
+      
+      // Restaurar cursores de la página anterior
+      this.lastVisible = paginaAnterior.lastDoc;
+      this.firstVisible = paginaAnterior.firstDoc;
+      this.lastVisibleDeuda = paginaAnterior.lastDocDeuda;
+      this.firstVisibleDeuda = paginaAnterior.firstDocDeuda;
+
+      // 🔍 Según filtro activo, cargar la fuente correspondiente
+      if (this.filtroTipoFactura === 'NORMALES') {
+        const resultado = await this.facturasSrv.getFacturasPaginadasReal({
+          pageSize: this.facturasPorPagina,
+          lastVisible: this.paginasHistorial[this.paginasHistorial.length - 2]?.lastDoc || null,
+          direction: 'next',
+          terminoBusqueda: '',
+          filtroTipoFactura: 'NORMALES'
+        });
+
+        this.facturasPaginadas = resultado.facturas.map(f => ({
+          ...f,
+          total: Number(f?.total || 0),
+          saldoPendiente: Number(f?.saldoPendiente || 0),
+          tipoFactura: f.tipoFactura || 'NORMAL'
+        }));
+
+        this.hasMore = true;
+
+      } else if (this.filtroTipoFactura === 'COBROS_DEUDA') {
+        const resultado = await this.facturasDeudaSrv.getPagosDeudaPaginadosReal({
+          pageSize: this.facturasPorPagina,
+          lastVisible: this.paginasHistorial[this.paginasHistorial.length - 2]?.lastDocDeuda || null,
+          direction: 'next',
+          terminoBusqueda: ''
+        });
+
+        this.facturasPaginadas = resultado.pagos.map((deuda: any) => ({
+          id: deuda.facturaIdPersonalizado || deuda.id,
+          idPersonalizado: deuda.facturaIdPersonalizado || deuda.id,
+          clienteNombre: deuda.clienteNombre || '',
+          clienteTelefono: deuda.clienteTelefono || '',
+          clienteId: deuda.clienteId || '',
+          fecha: deuda.fechaPago || new Date(),
+          total: Number(deuda.totalFactura || 0),
+          abonado: Number(deuda.abonadoNuevo || 0),
+          saldoPendiente: Number(deuda.saldoNuevo || 0),
+          metodoPago: deuda.metodoPago || '',
+          items: deuda.items || [],
+          esCredito: deuda.esCreditoPersonal || false,
+          estadoPago: (Number(deuda.saldoNuevo || 0) <= 0) ? 'PAGADA' : 'PENDIENTE',
+          tipoFactura: 'COBRO_DEUDA',
+          usuarioId: deuda.usuarioId || '',
+          usuarioNombre: deuda.usuarioNombre || '',
+          createdAt: deuda.createdAt || new Date(),
+          updatedAt: deuda.updatedAt || new Date(),
+          origenCaja: deuda.origenCaja || '',
+          cajaChicaId: deuda.cajaChicaId || ''
+        }));
+
+        this.hasMore = true;
+
+      } else {
+        // TODAS: cargar ambas fuentes
+        const resultadoFacturas = await this.facturasSrv.getFacturasPaginadasReal({
+          pageSize: this.facturasPorPagina,
+          lastVisible: this.paginasHistorial[this.paginasHistorial.length - 2]?.lastDoc || null,
+          direction: 'next',
+          terminoBusqueda: '',
+          filtroTipoFactura: 'TODAS'
+        });
+
+        const resultadoPagos = await this.facturasDeudaSrv.getPagosDeudaPaginadosReal({
+          pageSize: this.facturasPorPagina,
+          lastVisible: this.paginasHistorial[this.paginasHistorial.length - 2]?.lastDocDeuda || null,
+          direction: 'next',
+          terminoBusqueda: ''
+        });
+
+        const facturasNormales = resultadoFacturas.facturas.map(f => ({
+          ...f,
+          total: Number(f?.total || 0),
+          saldoPendiente: Number(f?.saldoPendiente || 0),
+          tipoFactura: f.tipoFactura || 'NORMAL'
+        }));
+
+        const facturasDeudaConvertidas = resultadoPagos.pagos.map((deuda: any) => ({
+          id: deuda.facturaIdPersonalizado || deuda.id,
+          idPersonalizado: deuda.facturaIdPersonalizado || deuda.id,
+          clienteNombre: deuda.clienteNombre || '',
+          clienteTelefono: deuda.clienteTelefono || '',
+          clienteId: deuda.clienteId || '',
+          fecha: deuda.fechaPago || new Date(),
+          total: Number(deuda.totalFactura || 0),
+          abonado: Number(deuda.abonadoNuevo || 0),
+          saldoPendiente: Number(deuda.saldoNuevo || 0),
+          metodoPago: deuda.metodoPago || '',
+          items: deuda.items || [],
+          esCredito: deuda.esCreditoPersonal || false,
+          estadoPago: (Number(deuda.saldoNuevo || 0) <= 0) ? 'PAGADA' : 'PENDIENTE',
+          tipoFactura: 'COBRO_DEUDA',
+          usuarioId: deuda.usuarioId || '',
+          usuarioNombre: deuda.usuarioNombre || '',
+          createdAt: deuda.createdAt || new Date(),
+          updatedAt: deuda.updatedAt || new Date(),
+          origenCaja: deuda.origenCaja || '',
+          cajaChicaId: deuda.cajaChicaId || ''
+        }));
+
+        const todasFacturas = [...facturasNormales, ...facturasDeudaConvertidas];
+        todasFacturas.sort((a, b) => this.getFechaMs(b) - this.getFechaMs(a));
+
+        this.facturasPaginadas = todasFacturas.slice(0, this.facturasPorPagina);
+        this.hasMore = true;
+      }
+      
+    } catch (error) {
+      console.error('Error al cargar página anterior:', error);
+      Swal.fire('Error', 'No se pudo cargar la página anterior', 'error');
+    } finally {
+      this.isLoading = false;
     }
   }
 
-  /**
-   * Navega a la vista de detalles de una factura específica.
-   *
-   * **Ruta destino:** /facturas/:id
-   *
-   * **Parámetro:**
-   * - id (string): ID Firestore del documento de factura a visualizar
-   *
-   * **Flujo:**
-   * 1. Obtiene el ID de factura desde parámetro de método
-   * 2. Llama router.navigate() con ruta parametrizada
-   * 3. Componente VerFacturaComponent se carga y obtiene ID de route.params
-   * 4. VerFacturaComponent carga detalles desde Firestore
-   *
-   * **Integración con template:**
-   * - Se llama con (ngClick)="ver(factura.id)" en tabla de facturas
-   * - Cada fila es clickeable y navega a detalles de esa factura
-   *
-   * **Notas técnicas:**
-   * - router.navigate() es navegación SPA (no recarga página)
-   * - Mantiene estado de app pero limpia componente anterior
-   * - Historia de navegación se agrega al browser stack (back button funciona)
-   *
-   * @param {string} id - ID Firestore de la factura a visualizar
-   * @returns {void} (Promesa resuelta pero no awaiteada)
-   *
-   * @remarks
-   * - Se ejecuta cuando usuario hace clic en factura de tabla
-   * - Usa inyección de Router en constructor
-   * - Responsabilidad del template: Proporcionar ID correcto en ngClick
-   *
-   * @example
-   * // Template:
-   * // <tr (ngClick)="ver(factura.id)">
-   * //   <td>{{ factura.clienteNombre }}</td>
-   * // </tr>
-   *
-   * // Cuando usuario hace clic:
-   * this.ver('abc123xyz');
-   * // Navega a /facturas/abc123xyz
-   * // VerFacturaComponent se carga con route.params.id = 'abc123xyz'
-   */
   ver(id: string) {
     this.router.navigate(['/facturas', id]);
   }
 
-  /**
-   * Navega a módulo de cobro de deuda de cliente específico.
-   *
-   * **Ruta destino:** /ventas/deuda (con queryParam clienteId)
-   *
-   * **Parámetros:**
-   * - clienteId (string): ID del cliente para filtrar deudas pendientes
-   * - ev (Event, optional): Evento de click que se stopPropagation() para evitar navegación padre
-   *
-   * **Validaciones:**
-   * 1. Verifica que ev sea proporcional para stopPropagation()
-   * 2. Verifica que clienteId no esté vacío (retorna sin hacer nada si lo es)
-   *
-   * **Flujo:**
-   * 1. Detiene propagación de evento (no triggeriza handlers padres)
-   * 2. Valida que clienteId existe (no undefined/empty)
-   * 3. Navega a /ventas/deuda con clienteId como query parameter
-   * 4. Componente de deuda carga y filtra por clienteId
-   *
-   * **Integración con template:**
-   * - Se llama con (ngClick)="cobrarDeuda(factura.clienteId, $event)"
-   * - Típicamente en botón dentro de fila de tabla
-   * - $event es necesario para event.stopPropagation()
-   *
-   * **Query Parameters:**
-   * - clienteId: Usado por componente de deuda para inicializar filtros
-   * - Valor: ID Firestore del cliente
-   *
-   * **Notas técnicas:**
-   * - ev?.stopPropagation() previene que click bubble up (si hay click en fila)
-   * - router.navigate() con queryParams agrega ?clienteId=xxx a URL
-   * - queryParams se obtienen en destino con route.snapshot.queryParams
-   *
-   * @param {string} clienteId - ID Firestore del cliente para cobro de deuda
-   * @param {Event} [ev] - Evento de DOM (opcional, para stopPropagation)
-   * @returns {void}
-   *
-   * @remarks
-   * - Se ejecuta cuando usuario hace clic en botón "Cobrar deuda" de factura
-   * - Valida clienteId antes de navegar (evita rutas inválidas)
-   * - stopPropagation() es necesario si botón está dentro de fila clickeable
-   *
-   * @example
-   * // Template:
-   * // <tr (ngClick)="ver(factura.id)">
-   * //   <td>{{ factura.clienteNombre }}</td>
-   * //   <td>
-   * //     <button (ngClick)="cobrarDeuda(factura.clienteId, $event)">
-   * //       Cobrar Deuda
-   * //     </button>
-   * //   </td>
-   * // </tr>
-   *
-   * // Cuando usuario hace clic en botón:
-   * this.cobrarDeuda('cliente123', mockClickEvent);
-   * // stopPropagation evita que se ejecute ver(factura.id)
-   * // Navega a /ventas/deuda?clienteId=cliente123
-   */
   cobrarDeuda(clienteId: string, ev?: Event) {
     ev?.stopPropagation();
     if (!clienteId) return;
@@ -711,58 +1046,10 @@ export class ListarFacturasComponent {
     });
   }
 
-  /**
-   * Navega a la página de creación de nueva venta/historial clínico.
-   *
-   * **Ruta destino:** /clientes/historial-clinico
-   *
-   * **Flujo:**
-   * 1. Usuario hace clic en botón "Nueva Venta"
-   * 2. Navega a módulo de clientes, página de historial clínico
-   * 3. Usuario puede crear nueva venta para cliente existente
-   *
-   * **Integración con template:**
-   * - Típicamente en botón de acción: (ngClick)="nuevaVenta()"
-   * - No requiere parámetros (usuario selecciona cliente en destino)
-   *
-   * **Flujo de usuario:**
-   * ListarFacturasComponent → Nueva Venta → HistorialClinicoComponent
-   *
-   * **Notas técnicas:**
-   * - Router.navigate() es navegación SPA
-   * - Destino es módulo de clientes (lazy-loaded)
-   * - Historia de navegación permite volver atrás con browser back button
-   *
-   * @returns {void} (Promesa resuelta pero no awaiteada)
-   *
-   * @remarks
-   * - Se ejecuta cuando usuario hace clic en botón "Nueva Venta"
-   * - No requiere parámetros (usuario selecciona destino en siguiente componente)
-   * - Navega a componente de historial clínico donde inicia nueva venta
-   *
-   * @example
-   * // Template:
-   * // <button (ngClick)="nuevaVenta()" class="btn btn-primary">
-   * //   Nueva Venta
-   * // </button>
-   *
-   * // Cuando usuario hace clic:
-   * this.nuevaVenta();
-   * // Navega a /clientes/historial-clinico
-   * // Usuario ve formulario para crear nueva venta
-   */
   nuevaVenta() {
     this.router.navigate(['/clientes/historial-clinico']);
   }
 
-  /**
-   * Elimina permanentemente una factura de tipo EFECTIVO.
-   * Solo permite eliminar facturas pagadas en efectivo.
-   * Revierte automáticamente el stock y elimina el movimiento de caja chica.
-   * 
-   * @param factura - Factura a eliminar
-   * @param ev - Evento para prevenir propagación
-   */
   async eliminarFactura(factura: any, ev?: Event): Promise<void> {
     ev?.stopPropagation();
     
@@ -902,14 +1189,6 @@ export class ListarFacturasComponent {
       }
     }
   }
-
-  /**
-   * Navega a la pantalla de edición de factura.
-   * TODO: Implementar componente editar-factura.
-   * 
-   * @param factura - Factura a editar
-   * @param ev - Evento para prevenir propagación
-   */
   editarFactura(factura: any, ev?: Event): void {
     ev?.stopPropagation();
     

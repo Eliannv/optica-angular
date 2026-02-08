@@ -64,61 +64,158 @@
 
 
 /* ============================================
-   BUSCADOR
+   FILTROS
 ============================================ */
 
-.search-container {
-    position: relative;
+.filtros-container {
+    padding: 1rem 1.5rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
 }
 
-.search-icon {
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    opacity: 0.6;
-    pointer-events: none;
-    color: var(--text-secondary);
+.filtro-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
 }
 
-.search-input {
-    width: 100%;
-    padding: 0.85rem 3rem 0.85rem 3rem;
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--input-border);
-    background: var(--input-bg);
-    color: var(--input-text);
+.filtro-item label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-size: 0.9rem;
-    outline: none;
-    transition: all var(--transition-fast);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    white-space: nowrap;
 }
 
-.search-input::placeholder {
+.filtro-item label svg {
+    color: var(--primary-color);
+    flex-shrink: 0;
+}
+
+.filtro-item select,
+.filtro-item input[type="date"] {
+    min-width: 180px;
+    height: 36px;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.filtro-item select:disabled,
+.filtro-item input[type="date"]:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: var(--bg-tertiary);
+}
+
+/* Fecha input group */
+.fecha-input-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.fecha-input-group input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+}
+
+/* Ocultar el ícono del calendario cuando hay fecha seleccionada (cuando aparece la X) */
+.fecha-input-group input[type="date"].has-value::-webkit-calendar-picker-indicator {
+    display: none;
+}
+
+.btn-clear-fecha {
+    position: absolute;
+    right: 8px;
+    background: var(--bg-tertiary);
+    border: none;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: all 0.2s;
+    padding: 0;
+    overflow: hidden;
+    line-height: 1;
+}
+
+.btn-clear-fecha:hover {
+    opacity: 1;
+    background: var(--danger-color);
+    color: white;
+}
+
+.btn-clear-fecha svg {
+    stroke: currentColor;
+    display: block;
+    flex-shrink: 0;
+}
+
+/* Search input group */
+.search-input-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-input-group input.form-control {
+    min-width: 280px;
+    height: 36px;
+    padding: 0.4rem 2rem 0.4rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.search-input-group input.form-control::placeholder {
     color: var(--input-placeholder);
 }
 
-.search-input:focus {
-    border-color: var(--input-focus-border);
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-}
-
-.clear-btn {
+.btn-clear-busqueda {
     position: absolute;
-    right: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    background: var(--bg-hover);
+    right: 8px;
+    background: var(--bg-tertiary);
     border: none;
-    border-radius: var(--radius-sm);
-    padding: 0.35rem 0.5rem;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    transition: all var(--transition-fast);
+    opacity: 0.7;
+    transition: all 0.2s;
+    padding: 0;
+    overflow: hidden;
+    line-height: 1;
 }
 
-.clear-btn:hover {
-    background: var(--bg-active);
+.btn-clear-busqueda:hover {
+    opacity: 1;
+    background: var(--danger-color);
+    color: white;
+}
+
+.btn-clear-busqueda svg {
+    stroke: currentColor;
+    display: block;
+    flex-shrink: 0;
 }
 
 

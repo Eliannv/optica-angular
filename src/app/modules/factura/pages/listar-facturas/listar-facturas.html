@@ -9,27 +9,106 @@
           <span>+ Nuevo</span>
         </button>
             </div>
+        </div>
 
-            <!-- ✅ NUEVO: Filtro por tipo de factura -->
-            <div class="search-container" style="margin-bottom: 0.75rem;">
-                <label style="display:block; font-weight:600; font-size:0.85rem; margin-bottom:0.35rem; opacity:0.8;">
-          Tipo
-        </label>
-                <select class="search-input" [(ngModel)]="filtroTipoFactura" (ngModelChange)="filtrar()">
-          <option value="TODAS">Todas</option>
-          <option value="NORMALES">Facturas Normales</option>
-          <option value="COBROS_DEUDA">Cobros de Deuda</option>
-        </select>
+        <!-- 📆 FILTROS -->
+        <div class="filtros-container">
+            <!-- Búsqueda -->
+            <div class="filtro-item filtro-busqueda">
+                <label for="buscar-input">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                    Buscar:
+                </label>
+                <div class="search-input-group">
+                    <input 
+                        id="buscar-input"
+                        class="form-control" 
+                        placeholder="Cliente, ID de la factura..." 
+                        [(ngModel)]="term" 
+                        (input)="filtrar()"
+                    />
+                    <button class="btn-clear-busqueda" *ngIf="term" (click)="term = ''; filtrar()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
-            <div class="search-container">
-                <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"></circle>
-          <path d="m21 21-4.35-4.35"></path>
-        </svg>
-                <input class="search-input" placeholder="Buscar por cliente, ID, método de pago..." [(ngModel)]="term" (input)="filtrar()">
-                <button class="clear-btn" *ngIf="term" (click)="term = ''; filtrar()">✕</button>
+            <!-- Periodo -->
+            <div class="filtro-item">
+                <label for="periodo-select">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+                        <line x1="16" x2="16" y1="2" y2="6"/>
+                        <line x1="8" x2="8" y1="2" y2="6"/>
+                        <line x1="3" x2="21" y1="10" y2="10"/>
+                    </svg>
+                    Periodo:
+                </label>
+                <select id="periodo-select" class="form-control" [(ngModel)]="periodoSeleccionado" (change)="cambiarFiltroPeriodo(periodoSeleccionado)" [disabled]="cargandoPeriodos">
+                    <option *ngFor="let periodo of periodosDisponibles" [value]="periodo.mes.toString().padStart(2, '0') + '/' + periodo.anio">
+                        {{ getPeriodoDisplay(periodo) }}
+                    </option>
+                </select>
             </div>
+
+            <!-- Fecha específica -->
+            <div class="filtro-item">
+                <label for="fecha-select">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 10"/>
+                    </svg>
+                    Fecha:
+                </label>
+                <div class="fecha-input-group">
+                    <input 
+                        type="date" 
+                        id="fecha-select" 
+                        class="form-control" 
+                        [class.has-value]="fechaSeleccionada"
+                        [(ngModel)]="fechaSeleccionada" 
+                        (change)="cambiarFiltroFecha(fechaSeleccionada)"
+                        [min]="minFechaPeriodo"
+                        [max]="maxFechaPeriodo"
+                        [disabled]="!periodoSeleccionado"
+                    />
+                    <button 
+                        *ngIf="fechaSeleccionada" 
+                        class="btn-clear-fecha" 
+                        (click)="limpiarFiltroFecha()" 
+                        title="Limpiar filtro de fecha">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tipo -->
+            <div class="filtro-item">
+                <label for="tipo-select">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="7" height="7" x="3" y="3" rx="1"/>
+                            <rect width="7" height="7" x="14" y="3" rx="1"/>
+                            <rect width="7" height="7" x="14" y="14" rx="1"/>
+                            <rect width="7" height="7" x="3" y="14" rx="1"/>
+                        </svg>
+                    Tipo:
+                </label>
+                <select id="tipo-select" class="form-control" [(ngModel)]="filtroTipoFactura" (ngModelChange)="filtrar()">
+                    <option value="TODAS">Todas</option>
+                    <option value="NORMALES">Facturas Normales</option>
+                    <option value="COBROS_DEUDA">Cobros de Deuda</option>
+                </select>
+            </div>
+
         </div>
 
         <!-- BODY -->
@@ -41,6 +120,7 @@
                     <thead>
                         <tr>
                             <th class="col-id">ID</th>
+                            <th class="col-cliente">Cliente</th>
                             <th class="col-cliente">Cliente</th>
                             <th class="col-pago">Método Pago</th>
 
@@ -194,20 +274,18 @@
             </div>
 
             <!-- Controles de paginación -->
-            <div class="pagination-controls" *ngIf="totalFacturas > 0">
+            <div class="pagination-controls" *ngIf="facturasPaginadas.length > 0">
                 <div class="pagination-info">
                     <span class="text-muted">
-            Mostrando {{ (paginaActual - 1) * facturasPorPagina + 1 }} -
-            {{ Math.min(paginaActual * facturasPorPagina, totalFacturas) }} de
-            {{ totalFacturas }} facturas
+            Mostrando {{ facturasPaginadas.length }} facturas (página {{ paginaActual }})
           </span>
                 </div>
 
                 <div class="pagination-buttons">
-                    <button class="btn-pagination" [disabled]="paginaActual === 1" (click)="paginaAnterior()">
+                    <button class="btn-pagination" [disabled]="paginaActual === 1 || isLoading" (click)="paginaAnterior()">
             ← Anterior
           </button>
-                    <button class="btn-pagination" [disabled]="paginaActual * facturasPorPagina >= totalFacturas" (click)="paginaSiguiente()">
+                    <button class="btn-pagination" [disabled]="!hasMore || isLoading" (click)="paginaSiguiente()">
             Siguiente →
           </button>
                 </div>

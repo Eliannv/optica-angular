@@ -21,7 +21,12 @@ import {
   getDocs,
   serverTimestamp,
   Timestamp,
-  orderBy
+  orderBy,
+  limit,
+  startAfter,
+  DocumentSnapshot,
+  endBefore,
+  limitToLast
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -180,5 +185,196 @@ export class FacturasDeudaService {
       id: doc.id,
       fechaPago: data.fechaPago?.toDate ? data.fechaPago.toDate() : new Date(data.fechaPago)
     } as FacturaDeuda;
+  }
+
+  /**
+   * 🚀 PAGINACIÓN REAL DESDE FIRESTORE
+   * 
+   * Obtiene pagos de deuda con paginación real usando cursores de Firestore.
+   * Solo carga 10 pagos por consulta, reduciendo uso de memoria y lecturas.
+   * 
+   * @param options - Opciones de paginación
+   * @param options.pageSize - Cantidad de pagos por página (default: 10)
+   * @param options.lastVisible - Snapshot del último documento visible (para "siguiente")
+   * @param options.firstVisible - Snapshot del primer documento visible (para "anterior")
+   * @param options.direction - Dirección de navegación: 'next' | 'prev' (default: 'next')
+   * @param options.terminoBusqueda - Término para buscar en múltiples campos
+   * 
+   * @returns Promise con pagos, documentos snapshot y flag hasMore
+   */
+  async getPagosDeudaPaginadosReal(options: {
+    pageSize?: number;
+    lastVisible?: DocumentSnapshot | null;
+    firstVisible?: DocumentSnapshot | null;
+    direction?: 'next' | 'prev';
+    terminoBusqueda?: string;
+    currentPage?: number;
+    startDate?: Date | null;
+    endDate?: Date | null;
+    fechaExacta?: Date | null;
+  }): Promise<{
+    pagos: any[];
+    lastDoc: DocumentSnapshot | null;
+    firstDoc: DocumentSnapshot | null;
+    hasMore: boolean;
+  }> {
+    const {
+      pageSize = 10,
+      lastVisible = null,
+      firstVisible = null,
+      direction = 'next',
+      terminoBusqueda = '',
+      currentPage = 1,
+      startDate = null,
+      endDate = null,
+      fechaExacta = null
+    } = options;
+
+    // 🔍 SI HAY BÚSQUEDA ACTIVA O FILTROS DE FECHA, traer TODOS y filtrar en cliente
+    if (terminoBusqueda.trim() || startDate || endDate || fechaExacta) {
+      return this.buscarPagosSinPaginacion(terminoBusqueda, pageSize, currentPage, startDate, endDate, fechaExacta);
+    }
+
+    // ✅ Construir query base ordenado por fecha descendente
+    let q;
+    
+    if (direction === 'prev' && firstVisible) {
+      q = query(
+        this.facturasDeudaRef,
+        orderBy('fechaPago', 'desc'),
+        endBefore(firstVisible),
+        limitToLast(pageSize + 1)
+      );
+    } else if (direction === 'next' && lastVisible) {
+      q = query(
+        this.facturasDeudaRef,
+        orderBy('fechaPago', 'desc'),
+        startAfter(lastVisible),
+        limit(pageSize + 1)
+      );
+    } else {
+      // Primera carga
+      q = query(
+        this.facturasDeudaRef,
+        orderBy('fechaPago', 'desc'),
+        limit(pageSize + 1)
+      );
+    }
+
+    // ✅ Ejecutar query
+    const snapshot = await getDocs(q);
+    let pagos = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      fechaPago: doc.data()['fechaPago']?.toDate ? doc.data()['fechaPago'].toDate() : new Date(doc.data()['fechaPago'])
+    }));
+
+    // ✅ Detectar si hay más páginas
+    const hasMore = pagos.length > pageSize;
+    const pagosFinales = pagos.slice(0, pageSize);
+
+    // ✅ Obtener snapshots de navegación
+    const lastDoc = snapshot.docs[Math.min(pageSize - 1, snapshot.docs.length - 1)] || null;
+    const firstDoc = snapshot.docs[0] || null;
+
+    return {
+      pagos: pagosFinales,
+      lastDoc,
+      firstDoc,
+      hasMore
+    };
+  }
+
+  /**
+   * 🔍 Buscar pagos SIN paginación (trae todos y filtra en cliente)
+   * Se usa cuando hay un término de búsqueda activo o filtros de fecha
+   */
+  private async buscarPagosSinPaginacion(
+    terminoBusqueda: string,
+    pageSize: number,
+    currentPage: number = 1,
+    startDate: Date | null = null,
+    endDate: Date | null = null,
+    fechaExacta: Date | null = null
+  ): Promise<{
+    pagos: any[];
+    lastDoc: DocumentSnapshot | null;
+    firstDoc: DocumentSnapshot | null;
+    hasMore: boolean;
+  }> {
+    // Traer TODOS los pagos ordenados por fecha
+    const q = query(
+      this.facturasDeudaRef,
+      orderBy('fechaPago', 'desc')
+    );
+
+    const snapshot = await getDocs(q);
+    let pagos = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      fechaPago: doc.data()['fechaPago']?.toDate ? doc.data()['fechaPago'].toDate() : new Date(doc.data()['fechaPago'])
+    }));
+
+    // 📅 Aplicar filtro de fecha exacta
+    if (fechaExacta) {
+      const fechaInicio = new Date(fechaExacta);
+      fechaInicio.setHours(0, 0, 0, 0);
+      const fechaFin = new Date(fechaExacta);
+      fechaFin.setHours(23, 59, 59, 999);
+
+      pagos = pagos.filter((p: any) => {
+        const fechaPago = p.fechaPago instanceof Date ? p.fechaPago : new Date(p.fechaPago);
+        return fechaPago >= fechaInicio && fechaPago <= fechaFin;
+      });
+    }
+    // 📅 Aplicar filtro de rango de fechas (periodo)
+    else if (startDate || endDate) {
+      pagos = pagos.filter((p: any) => {
+        const fechaPago = p.fechaPago instanceof Date ? p.fechaPago : new Date(p.fechaPago);
+        
+        if (startDate && endDate) {
+          const inicio = new Date(startDate);
+          inicio.setHours(0, 0, 0, 0);
+          const fin = new Date(endDate);
+          fin.setHours(23, 59, 59, 999);
+          return fechaPago >= inicio && fechaPago <= fin;
+        } else if (startDate) {
+          const inicio = new Date(startDate);
+          inicio.setHours(0, 0, 0, 0);
+          return fechaPago >= inicio;
+        } else if (endDate) {
+          const fin = new Date(endDate);
+          fin.setHours(23, 59, 59, 999);
+          return fechaPago <= fin;
+        }
+        return true;
+      });
+    }
+
+    // Aplicar búsqueda en múltiples campos
+    if (terminoBusqueda.trim()) {
+      const termino = terminoBusqueda.toLowerCase().trim();
+      pagos = pagos.filter((p: any) => {
+        const clienteNombre = (p.clienteNombre || '').toLowerCase();
+        const facturaIdPersonalizado = (p.facturaIdPersonalizado || '').toLowerCase();
+        const id = (p.id || '').toLowerCase();
+
+        return clienteNombre.includes(termino) ||
+               facturaIdPersonalizado.includes(termino) ||
+               id.includes(termino);
+      });
+    }
+
+    // Aplicar paginación manual (en memoria)
+    const offset = (currentPage - 1) * pageSize;
+    const hasMore = pagos.length > offset + pageSize;
+    const pagosFinales = pagos.slice(offset, offset + pageSize);
+
+    return {
+      pagos: pagosFinales,
+      lastDoc: null,
+      firstDoc: null,
+      hasMore
+    };
   }
 }

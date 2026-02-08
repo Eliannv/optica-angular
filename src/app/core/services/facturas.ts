@@ -29,7 +29,10 @@ import {
   deleteDoc,
   limit,
   startAfter,
-  QueryDocumentSnapshot
+  QueryDocumentSnapshot,
+  DocumentSnapshot,
+  endBefore,
+  limitToLast
 } from '@angular/fire/firestore';
 import { Observable, BehaviorSubject, shareReplay, map, tap } from 'rxjs';
 import { Factura } from '../models/factura.model';
@@ -310,5 +313,229 @@ export class FacturasService {
     const ref = doc(this.fs, `facturas/${facturaId}`);
     await deleteDoc(ref);
     console.log('✅ Factura eliminada permanentemente:', facturaId);
+  }
+
+  /**
+   * 🚀 PAGINACIÓN REAL DESDE FIRESTORE
+   * 
+   * Obtiene facturas con paginación real usando cursores de Firestore.
+   * Solo carga 10 facturas por consulta, reduciendo uso de memoria y lecturas.
+   * 
+   * @param options - Opciones de paginación
+   * @param options.pageSize - Cantidad de facturas por página (default: 10)
+   * @param options.lastVisible - Snapshot del último documento visible (para "siguiente")
+   * @param options.firstVisible - Snapshot del primer documento visible (para "anterior")
+   * @param options.direction - Dirección de navegación: 'next' | 'prev' (default: 'next')
+   * @param options.terminoBusqueda - Término para buscar en múltiples campos
+   * @param options.filtroTipoFactura - Filtro por tipo: 'TODAS' | 'NORMALES' | 'COBROS_DEUDA'
+   * 
+   * @returns Promise con productos, documentos snapshot y flag hasMore
+   */
+  async getFacturasPaginadasReal(options: {
+    pageSize?: number;
+    lastVisible?: DocumentSnapshot | null;
+    firstVisible?: DocumentSnapshot | null;
+    direction?: 'next' | 'prev';
+    terminoBusqueda?: string;
+    filtroTipoFactura?: 'TODAS' | 'NORMALES' | 'COBROS_DEUDA';
+    currentPage?: number;
+    startDate?: Date | null;
+    endDate?: Date | null;
+    fechaExacta?: Date | null;
+  }): Promise<{
+    facturas: Factura[];
+    lastDoc: DocumentSnapshot | null;
+    firstDoc: DocumentSnapshot | null;
+    hasMore: boolean;
+  }> {
+    const {
+      pageSize = 10,
+      lastVisible = null,
+      firstVisible = null,
+      direction = 'next',
+      terminoBusqueda = '',
+      filtroTipoFactura = 'TODAS',
+      currentPage = 1,
+      startDate = null,
+      endDate = null,
+      fechaExacta = null
+    } = options;
+
+    // 🔍 SI HAY BÚSQUEDA ACTIVA O FILTROS DE FECHA, traer TODOS y filtrar en cliente
+    if (terminoBusqueda.trim() || startDate || endDate || fechaExacta) {
+      return this.buscarFacturasSinPaginacion(
+        terminoBusqueda, 
+        filtroTipoFactura, 
+        pageSize,
+        currentPage,
+        startDate, 
+        endDate, 
+        fechaExacta
+      );
+    }
+
+    // ✅ Construir query base ordenado por fecha descendente
+    let q;
+    
+    if (direction === 'prev' && firstVisible) {
+      q = query(
+        this.facturasRef,
+        orderBy('fecha', 'desc'),
+        endBefore(firstVisible),
+        limitToLast(pageSize + 1)
+      );
+    } else if (direction === 'next' && lastVisible) {
+      q = query(
+        this.facturasRef,
+        orderBy('fecha', 'desc'),
+        startAfter(lastVisible),
+        limit(pageSize + 1)
+      );
+    } else {
+      // Primera carga
+      q = query(
+        this.facturasRef,
+        orderBy('fecha', 'desc'),
+        limit(pageSize + 1)
+      );
+    }
+
+    // ✅ Ejecutar query
+    const snapshot = await getDocs(q);
+    let facturas = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Factura[];
+
+    // ✅ Aplicar filtro por tipo de factura
+    if (filtroTipoFactura === 'NORMALES') {
+      facturas = facturas.filter(f => f.tipoFactura === 'NORMAL' || !f.tipoFactura);
+    } else if (filtroTipoFactura === 'COBROS_DEUDA') {
+      facturas = facturas.filter(f => f.tipoFactura === 'COBRO_DEUDA');
+    }
+
+    // ✅ Detectar si hay más páginas
+    const hasMore = facturas.length > pageSize;
+    const facturasFinales = facturas.slice(0, pageSize);
+
+    // ✅ Obtener snapshots de navegación
+    const lastDoc = snapshot.docs[Math.min(pageSize - 1, snapshot.docs.length - 1)] || null;
+    const firstDoc = snapshot.docs[0] || null;
+
+    return {
+      facturas: facturasFinales,
+      lastDoc,
+      firstDoc,
+      hasMore
+    };
+  }
+
+  /**
+   * 🔍 Buscar facturas SIN paginación (trae todos y filtra en cliente)
+   * Se usa cuando hay un término de búsqueda activo o filtros de fecha
+   */
+  private async buscarFacturasSinPaginacion(
+    terminoBusqueda: string,
+    filtroTipoFactura: 'TODAS' | 'NORMALES' | 'COBROS_DEUDA',
+    pageSize: number,
+    currentPage: number = 1,
+    startDate: Date | null = null,
+    endDate: Date | null = null,
+    fechaExacta: Date | null = null
+  ): Promise<{
+    facturas: Factura[];
+    lastDoc: DocumentSnapshot | null;
+    firstDoc: DocumentSnapshot | null;
+    hasMore: boolean;
+  }> {
+    // Traer TODAS las facturas ordenadas por fecha
+    const q = query(
+      this.facturasRef,
+      orderBy('fecha', 'desc')
+    );
+
+    const snapshot = await getDocs(q);
+    let facturas = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Factura[];
+
+    // Aplicar filtro de tipo
+    if (filtroTipoFactura === 'NORMALES') {
+      facturas = facturas.filter(f => f.tipoFactura === 'NORMAL' || !f.tipoFactura);
+    } else if (filtroTipoFactura === 'COBROS_DEUDA') {
+      facturas = facturas.filter(f => f.tipoFactura === 'COBRO_DEUDA');
+    }
+
+    // 📅 Aplicar filtro de fecha exacta
+    if (fechaExacta) {
+      const fechaInicio = new Date(fechaExacta);
+      fechaInicio.setHours(0, 0, 0, 0);
+      const fechaFin = new Date(fechaExacta);
+      fechaFin.setHours(23, 59, 59, 999);
+
+      facturas = facturas.filter(f => {
+        const fechaFactura = this.convertirADate(f.fecha);
+        return fechaFactura >= fechaInicio && fechaFactura <= fechaFin;
+      });
+    }
+    // 📅 Aplicar filtro de rango de fechas (periodo)
+    else if (startDate || endDate) {
+      facturas = facturas.filter(f => {
+        const fechaFactura = this.convertirADate(f.fecha);
+        
+        if (startDate && endDate) {
+          const inicio = new Date(startDate);
+          inicio.setHours(0, 0, 0, 0);
+          const fin = new Date(endDate);
+          fin.setHours(23, 59, 59, 999);
+          return fechaFactura >= inicio && fechaFactura <= fin;
+        } else if (startDate) {
+          const inicio = new Date(startDate);
+          inicio.setHours(0, 0, 0, 0);
+          return fechaFactura >= inicio;
+        } else if (endDate) {
+          const fin = new Date(endDate);
+          fin.setHours(23, 59, 59, 999);
+          return fechaFactura <= fin;
+        }
+        return true;
+      });
+    }
+
+    // Aplicar búsqueda en múltiples campos
+    const termino = terminoBusqueda.toLowerCase().trim();
+    facturas = facturas.filter(f => {
+      const clienteNombre = (f.clienteNombre || '').toLowerCase();
+      const idPersonalizado = (f.idPersonalizado || '').toLowerCase();
+      const id = (f.id || '').toLowerCase();
+
+      return clienteNombre.includes(termino) ||
+             idPersonalizado.includes(termino) ||
+             id.includes(termino);
+    });
+
+    // Aplicar paginación manual (en memoria)
+    const offset = (currentPage - 1) * pageSize;
+    const hasMore = facturas.length > offset + pageSize;
+    const facturasFinales = facturas.slice(offset, offset + pageSize);
+
+    return {
+      facturas: facturasFinales,
+      lastDoc: null,
+      firstDoc: null,
+      hasMore
+    };
+  }
+
+  /**
+   * 🔧 Convierte un Timestamp de Firestore o cualquier fecha a Date
+   */
+  private convertirADate(fecha: any): Date {
+    if (!fecha) return new Date();
+    if (fecha instanceof Date) return fecha;
+    if (fecha?.toDate) return fecha.toDate();
+    if (fecha?.seconds) return new Date(fecha.seconds * 1000);
+    return new Date(fecha);
   }
 }
