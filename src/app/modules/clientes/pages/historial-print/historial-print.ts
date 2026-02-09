@@ -54,14 +54,20 @@ export class HistorialPrintComponent implements OnInit {
   async ngOnInit() {
     try {
       this.clienteId = this.route.snapshot.paramMap.get('id')!;
+      const historialId = this.route.snapshot.queryParamMap.get('historialId');
 
       // Cliente
       this.cliente = await firstValueFrom(
         this.clientesSrv.getClienteById(this.clienteId)
       );
 
-      // Historial
-      const snap = await this.historialSrv.obtenerHistorial(this.clienteId);
+      // Historial - si viene historialId, usar ese; si no, obtener el historial único anterior
+      let snap;
+      if (historialId) {
+        snap = await this.historialSrv.obtenerHistorialPorId(this.clienteId, historialId);
+      } else {
+        snap = await this.historialSrv.obtenerHistorial(this.clienteId);
+      }
 
       if (!snap.exists()) {
         throw new Error('No existe historial clínico');

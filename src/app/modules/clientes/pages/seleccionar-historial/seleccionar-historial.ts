@@ -299,6 +299,27 @@ export class SeleccionarHistorialComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Imprime el historial clínico específico con la última factura del cliente.
+   *
+   * @param historial Historial clínico a imprimir.
+   */
+  imprimirHistorial(historial: HistoriaClinica): void {
+    if (!historial.id) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'El historial no tiene un ID válido',
+        confirmButtonText: 'Entendido'
+      });
+      return;
+    }
+
+    this.router.navigate(['/historial-print', this.clienteId], {
+      queryParams: { historialId: historial.id }
+    });
+  }
+
+  /**
    * Cierra el modal de detalles.
    */
   cerrarModal(): void {
