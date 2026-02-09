@@ -1,0 +1,170 @@
+/* ════════════════════════════════════════════════════════════ */
+/* Dashboard Clínico - Estilos basados en cuentas-por-pagar */
+/* ════════════════════════════════════════════════════════════ */
+
+.dashboard-clinico {
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: var(--text-primary);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* ──────────────────────────────────────────────────────────── */
+/* 🔹 TARJETAS KPI (Mismo estilo que cuentas-por-pagar) */
+/* ──────────────────────────────────────────────────────────── */
+
+.tarjetas-section {
+  margin-bottom: 2rem;
+}
+
+.resumen-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg, 8px);
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  min-height: 100px;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card-primary {
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.08) 0%, rgba(52, 152, 219, 0.04) 100%);
+  border-color: rgba(52, 152, 219, 0.2);
+}
+
+.stat-card-success {
+  background: linear-gradient(135deg, rgba(39, 174, 96, 0.08) 0%, rgba(39, 174, 96, 0.04) 100%);
+  border-color: rgba(39, 174, 96, 0.2);
+}
+
+.stat-card-warning {
+  background: linear-gradient(135deg, rgba(241, 196, 15, 0.08) 0%, rgba(241, 196, 15, 0.04) 100%);
+  border-color: rgba(241, 196, 15, 0.2);
+}
+
+.stat-card-secondary {
+  background: linear-gradient(135deg, rgba(149, 165, 166, 0.08) 0%, rgba(149, 165, 166, 0.04) 100%);
+  border-color: rgba(149, 165, 166, 0.2);
+}
+
+.stat-icon {
+  font-size: 2rem;
+  min-width: 50px;
+  text-align: center;
+  color: var(--primary-color);
+}
+
+.stat-card-primary .stat-icon {
+  color: rgba(52, 152, 219, 1);
+}
+
+.stat-card-success .stat-icon {
+  color: rgba(39, 174, 96, 1);
+}
+
+.stat-card-warning .stat-icon {
+  color: rgba(241, 196, 15, 1);
+}
+
+.stat-card-secondary .stat-icon {
+  color: rgba(149, 165, 166, 1);
+}
+
+.stat-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.stat-sublabel {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
+/* ──────────────────────────────────────────────────────────── */
+/* 🔹 ESTADO VACÍO */
+/* ──────────────────────────────────────────────────────────── */
+
+.empty-dashboard {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  background: var(--secondary-bg);
+  border-radius: 8px;
+}
+
+/* ──────────────────────────────────────────────────────────── */
+/* 🔹 RESPONSIVE */
+/* ──────────────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .resumen-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .resumen-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-card {
+    padding: 1rem;
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+  }
+
+  .stat-icon {
+    min-width: 40px;
+  }
+
+  .stat-icon svg {
+    width: 36px;
+    height: 36px;
+  }
+
+  .dashboard-clinico {
+    padding: 0;
+  }
+}
+

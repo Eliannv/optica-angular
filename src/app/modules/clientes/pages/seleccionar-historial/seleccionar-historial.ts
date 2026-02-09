@@ -23,13 +23,15 @@ import Swal from 'sweetalert2';
 
 import { ClientesService } from '../../../../core/services/clientes';
 import { HistorialClinicoService } from '../../../../core/services/historial-clinico.service';
+import { AnalisisClinicoService, DashboardClinico } from '../../../../core/services/analisis-clinico.service';
 import { HistoriaClinica } from '../../../../core/models/historia-clinica.model';
 import { Cliente } from '../../../../core/models/cliente.model';
+import { DashboardClinicoComponent } from '../../components/dashboard-clinico/dashboard-clinico.component';
 
 @Component({
   selector: 'app-seleccionar-historial',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, DashboardClinicoComponent],
   templateUrl: './seleccionar-historial.html',
   styleUrl: './seleccionar-historial.css'
 })
@@ -52,13 +54,21 @@ export class SeleccionarHistorialComponent implements OnInit, OnDestroy {
   mostrarModal = false;
   historialSeleccionado: HistoriaClinica | null = null;
   
+  // Dashboard clínico
+  dashboard: DashboardClinico | null = null;
+  mostrarDashboard = false;
+  
+  // Vista de historiales
+  vistaActual: 'tarjetas' | 'tabla' = 'tarjetas';
+  
   private subscription: Subscription | null = null;
 
   constructor(
     private readonly router: Router,
     private readonly route: ActivatedRoute,
     private readonly clientesSrv: ClientesService,
-    private readonly historialSrv: HistorialClinicoService
+    private readonly historialSrv: HistorialClinicoService,
+    private readonly analisisSrv: AnalisisClinicoService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -128,6 +138,9 @@ export class SeleccionarHistorialComponent implements OnInit, OnDestroy {
             if (historiales.length > 0) {
               this.ultimoDocumento = historiales[historiales.length - 1];
             }
+            
+            // Generar dashboard clínico
+            this.generarDashboard();
           },
           error: (error) => {
             console.error('Error cargando historiales:', error);
@@ -269,6 +282,40 @@ export class SeleccionarHistorialComponent implements OnInit, OnDestroy {
       console.error('Error formateando fecha:', error);
       return 'Error en fecha';
     }
+  }
+
+  /**
+   * Genera el dashboard clínico a partir de los historiales cargados.
+   */
+  generarDashboard(): void {
+    if (this.historiales.length === 0) {
+      this.dashboard = null;
+      return;
+    }
+
+    // Los historiales vienen ordenados DESC (más recientes primero)
+    // El servicio espera ASC, así que invertimos el array
+    const historialesAsc = [...this.historiales].reverse();
+    
+    this.dashboard = this.analisisSrv.generarDashboard(historialesAsc);
+  }
+
+  /**
+   * Alterna la visualización del dashboard clínico.
+   */
+  toggleDashboard(): void {
+    this.mostrarDashboard = !this.mostrarDashboard;
+    
+    if (this.mostrarDashboard && !this.dashboard) {
+      this.generarDashboard();
+    }
+  }
+
+  /**
+   * Cambia entre vista de tarjetas y tabla.
+   */
+  cambiarVista(vista: 'tarjetas' | 'tabla'): void {
+    this.vistaActual = vista;
   }
 
   /**

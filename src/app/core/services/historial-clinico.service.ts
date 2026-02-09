@@ -18,7 +18,7 @@
  * persistente de información médica oftalmológica.
  */
 
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import {
   Firestore,
   doc,
@@ -46,6 +46,19 @@ export class HistorialClinicoService {
 
   constructor(private readonly fs: Firestore) {}
 
+  /**
+   * Actualiza el campo tieneHistorialClinico en el documento del cliente.
+   * @param clienteId ID del cliente
+   * @param tieneHistorial true si tiene historiales, false si no
+   */
+  private async actualizarFlagHistorialEnCliente(clienteId: string, tieneHistorial: boolean): Promise<void> {
+    const clienteRef = doc(this.fs, `clientes/${clienteId}`);
+    await updateDoc(clienteRef, {
+      tieneHistorialClinico: tieneHistorial,
+      updatedAt: serverTimestamp()
+    });
+  }
+
   // ========================================
   // ✅ NUEVOS MÉTODOS (sistema de múltiples historiales)
   // ========================================
@@ -66,12 +79,21 @@ export class HistorialClinicoService {
   ): Promise<string> {
     const colRef = collection(this.fs, `clientes/${clienteId}/historialClinico`);
     
+    // Verificar si es el primer historial
+    const totalHistoriales = await this.contarHistoriales(clienteId);
+    const esPrimerHistorial = totalHistoriales === 0;
+
     const docRef = await addDoc(colRef, {
       ...data,
       clienteId,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
+
+    // Si es el primer historial, actualizar el flag en el cliente
+    if (esPrimerHistorial) {
+      await this.actualizarFlagHistorialEnCliente(clienteId, true);
+    }
 
     return docRef.id;
   }
@@ -171,7 +193,15 @@ export class HistorialClinicoService {
    */
   async eliminarHistorial(clienteId: string, historialId: string): Promise<void> {
     const ref = doc(this.fs, `clientes/${clienteId}/historialClinico/${historialId}`);
-    return deleteDoc(ref);
+    await deleteDoc(ref);
+
+    // Verificar si quedan historiales después de eliminar
+    const totalHistoriales = await this.contarHistoriales(clienteId);
+    
+    // Si no quedan historiales, actualizar el flag en el cliente a false
+    if (totalHistoriales === 0) {
+      await this.actualizarFlagHistorialEnCliente(clienteId, false);
+    }
   }
 
   // ========================================

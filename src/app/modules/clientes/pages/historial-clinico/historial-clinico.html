@@ -80,14 +80,6 @@
                     </div>
                 </div>
 
-                <!-- Ordenar -->
-                <div class="sort-wrapper">
-                    <select class="search-input search-input--sort" [(ngModel)]="ordenarPor" (ngModelChange)="aplicarFiltro()" title="Ordenar resultados">
-                        <option value="fecha">Orden: Más recientes</option>
-                        <option value="credito">Orden: Crédito personal (Sí primero)</option>
-                    </select>
-                </div>
-
                 <!-- Botón Nuevo -->
                 <button class="btn btn-primary" (click)="crearCliente()">
           + Nuevo
@@ -129,16 +121,16 @@
                             <td>{{ c.telefono || '-' }}</td>
 
                             <td>
-                                <span class="badge" [class.badge-success]="c.tieneHistorial" [class.badge-danger]="!c.tieneHistorial">
-                  {{ c.tieneHistorial ? 'Con historial' : 'Sin historial' }}
+                                <span class="badge" [class.badge-success]="c.tieneHistorialClinico" [class.badge-danger]="!c.tieneHistorialClinico">
+                  {{ c.tieneHistorialClinico ? 'Con historial' : 'Sin historial' }}
                 </span>
                             </td>
 
-                            <td>{{ tieneCreditoPersonal(c.id) ? 'Sí' : 'No' }}</td>
+                            <td>{{ c.id ? (tieneCreditoPersonal(c.id) ? 'Sí' : 'No') : '-' }}</td>
 
                             <!-- ✅ NUEVO: Deuda -->
                             <td>
-                                <ng-container *ngIf="deudas[c.id] as d; else deudaCargando">
+                                <ng-container *ngIf="c.id && deudas[c.id] as d; else deudaCargando">
                                     <span class="badge" [class.badge-danger]="d.deudaTotal > 0" [class.badge-success]="d.deudaTotal === 0">
                     {{ d.deudaTotal > 0 ? ('Debe $' + (d.deudaTotal | number:'1.2-2')) : 'Al día' }}
                   </span>
@@ -156,12 +148,12 @@
                             <td>
                                 <div class="d-flex gap-2">
                                     <!-- ✅ Ver historiales clínicos del cliente -->
-                                    <button class="btn btn-sm btn-primary" (click)="verHistoriales(c.id); $event.stopPropagation()" title="Ver historiales clínicos">
+                                    <button class="btn btn-sm btn-primary" *ngIf="c.id" (click)="verHistoriales(c.id); $event.stopPropagation()" title="Ver historiales clínicos">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-pen-line-icon lucide-file-pen-line"><path d="m18.226 5.226-2.52-2.52A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-.351"/><path d="M21.378 12.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/><path d="M8 18h1"/></svg>
                   </button>
 
                                     <!-- ✅ Cobrar deuda -->
-                                    <button class="btn btn-sm btn-warning" [disabled]="!((deudas[c.id]?.deudaTotal ?? 0) > 0) || !cajaChicaAbierta" (click)="cobrarDeuda(c.id); $event.stopPropagation()" [title]="!cajaChicaAbierta ? 'Abre una caja chica primero' : 'Cobrar deuda'">
+                                    <button class="btn btn-sm btn-warning" *ngIf="c.id" [disabled]="!((deudas[c.id]?.deudaTotal ?? 0) > 0) || !cajaChicaAbierta" (click)="cobrarDeuda(c.id); $event.stopPropagation()" [title]="!cajaChicaAbierta ? 'Abre una caja chica primero' : 'Cobrar deuda'">
                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/>
@@ -171,7 +163,7 @@
                   </button>
 
                                     <!-- ✅ Eliminar Cliente (Solo Administrador) -->
-                                    <button class="btn btn-sm btn-danger" *ngIf="esAdmin" (click)="eliminarCliente(c.id); $event.stopPropagation()">
+                                    <button class="btn btn-sm btn-danger" *ngIf="esAdmin && c.id" (click)="eliminarCliente(c.id); $event.stopPropagation()">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                   </button>
                                 </div>
@@ -290,7 +282,7 @@
 
                     <div *ngIf="!cargandoHistorial && !historialClinico" class="no-historial">
                         <p class="text-muted">Este cliente no tiene historial clínico registrado.</p>
-                        <button class="btn btn-primary btn-sm mt-2" (click)="verHistoriales(clienteSeleccionado.id); cerrarModal()">
+                        <button class="btn btn-primary btn-sm mt-2" *ngIf="clienteSeleccionado && clienteSeleccionado.id" (click)="verHistoriales(clienteSeleccionado!.id!); cerrarModal()">
               Ir a Historiales
             </button>
                     </div>
@@ -392,11 +384,11 @@
 
         <div class="modal-footer">
             <button class="btn-volver" (click)="cerrarModal()">← Volver</button>
-            <button class="btn btn-info" *ngIf="clienteSeleccionado" (click)="verHistoriales(clienteSeleccionado.id); cerrarModal()">
+            <button class="btn btn-info" *ngIf="clienteSeleccionado?.id" (click)="verHistoriales(clienteSeleccionado!.id!); cerrarModal()">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil-icon lucide-pencil"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
         Ver Historiales
       </button>
-            <button class="btn btn-success" *ngIf="clienteSeleccionado" [disabled]="!cajaChicaAbierta" (click)="verHistoriales(clienteSeleccionado.id); cerrarModal()" [title]="cajaChicaAbierta ? 'Ir a historiales para crear venta' : 'Abre una caja chica primero'">
+            <button class="btn btn-success" *ngIf="clienteSeleccionado?.id" [disabled]="!cajaChicaAbierta" (click)="verHistoriales(clienteSeleccionado!.id!); cerrarModal()" [title]="cajaChicaAbierta ? 'Ir a historiales para crear venta' : 'Abre una caja chica primero'">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
       fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="10"/>
@@ -405,7 +397,7 @@
     </svg>
         Crear Venta
       </button>
-            <button class="btn btn-outline-success" *ngIf="historialClinico && clienteSeleccionado" (click)="exportarExcel(clienteSeleccionado.id)" title="Exportar historial a Excel">
+            <button class="btn btn-outline-success" *ngIf="historialClinico && clienteSeleccionado?.id" (click)="exportarExcel(clienteSeleccionado!.id!)" title="Exportar historial a Excel">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-to-line-icon lucide-arrow-up-to-line">
                     <path d="M5 3h14"/><path d="m18 13-6-6-6 6"/><path d="M12 7v14"/>
                 </svg> Exportar
@@ -418,7 +410,7 @@
                     <path d="m9 15 3 3 3-3"/>
                 </svg> Descargar Plantilla
             </button>
-            <button class="btn btn-primary" *ngIf="historialClinico && clienteSeleccionado" (click)="imprimirHistorial(clienteSeleccionado.id)">
+            <button class="btn btn-primary" *ngIf="historialClinico && clienteSeleccionado?.id" (click)="imprimirHistorial(clienteSeleccionado!.id!)">
   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-printer-icon lucide-printer"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg> Reemprimir
 </button>
 

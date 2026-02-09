@@ -1,0 +1,73 @@
+<div class="dashboard-clinico" *ngIf="dashboard">
+  <div class="tarjetas-section">
+    <div class="resumen-stats">
+      <!-- 1️⃣ Evolución de Graduación -->
+      <div class="stat-card" [ngClass]="'stat-card-' + getEstadoColor(dashboard.tarjetas.evolucionGraduacion.estado)">
+        <div class="stat-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 16v-4"/>
+            <path d="M12 8h.01"/>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <span class="stat-label">Evolución de Graduación</span>
+          <span class="stat-value">{{ dashboard.tarjetas.evolucionGraduacion.valorPromedio | number:'1.2-2' }}</span>
+          <span class="stat-sublabel">
+            {{ getEstadoIcon(dashboard.tarjetas.evolucionGraduacion.estado) }} {{ dashboard.tarjetas.evolucionGraduacion.estado }}
+          </span>
+        </div>
+      </div>
+
+      <!-- 2️⃣ Tiempo entre Visitas -->
+      <div class="stat-card stat-card-primary">
+        <div class="stat-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <span class="stat-label">Tiempo entre Visitas</span>
+          <span class="stat-value">{{ dashboard.tarjetas.tiempoPromedioEntreVisitasMeses | number:'1.1-1' }}</span>
+          <span class="stat-sublabel">meses</span>
+        </div>
+      </div>
+
+      <!-- 3️⃣ Tipos de Lente -->
+      <div class="stat-card stat-card-primary">
+        <div class="stat-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="14.31" y1="8" x2="20.05" y2="17.94"/>
+            <line x1="9.69" y1="8" x2="21.17" y2="8"/>
+            <line x1="7.38" y1="12" x2="13.12" y2="2.06"/>
+            <line x1="9.69" y1="16" x2="3.95" y2="6.06"/>
+            <line x1="14.31" y1="16" x2="2.83" y2="16"/>
+            <line x1="16.62" y1="12" x2="10.88" y2="21.94"/>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <span class="stat-label">Distribución de Lentes</span>
+          <span class="stat-value" *ngIf="tiposLenteKeys.length > 0">
+            <span *ngFor="let tipo of tiposLenteKeys; let i = index">
+              <span *ngIf="i === 0">{{ tipo }}: {{ getTipoLenteValue(tipo) | number:'1.0-0' }}%</span>
+            </span>
+          </span>
+          <span class="stat-value" *ngIf="tiposLenteKeys.length === 0">0</span>
+          <span class="stat-sublabel" *ngIf="tiposLenteKeys.length > 1">
+            <span *ngFor="let tipo of tiposLenteKeys; let i = index">
+              <span *ngIf="i > 0">{{ tipo }}: {{ getTipoLenteValue(tipo) | number:'1.0-0' }}% </span>
+            </span>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="empty-dashboard" *ngIf="!dashboard">
+  <p>No hay datos suficientes para generar el dashboard.</p>
+</div>

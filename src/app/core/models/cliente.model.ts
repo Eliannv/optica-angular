@@ -44,6 +44,9 @@ export interface Cliente {
   /** Indicador de soft delete (true = activo, false = desactivado) */
   activo?: boolean;
 
+  /** Indica si el cliente tiene al menos un historial clínico registrado */
+  tieneHistorialClinico?: boolean;
+
   /** Fecha de creación del registro en Firestore */
   createdAt?: any;
 

@@ -18,17 +18,74 @@
           </p>
         </div>
 
-        <button class="btn btn-primary" (click)="nuevoHistorial()">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 5v14M5 12h14"/>
-          </svg>
-          Nuevo Historial
-        </button>
+        <div class="header-actions">
+          <button 
+            class="btn btn-info" 
+            (click)="toggleDashboard()"
+            *ngIf="historiales.length > 0"
+            [disabled]="cargando">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7"/>
+              <rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="12" width="7" height="7"/>
+              <rect x="3" y="12" width="7" height="7"/>
+            </svg>
+            {{ mostrarDashboard ? 'Ocultar' : 'Ver' }} Dashboard
+          </button>
+
+          <button class="btn btn-primary" (click)="nuevoHistorial()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+            Nuevo Historial
+          </button>
+        </div>
       </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- Dashboard Clínico -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <div class="card-body dashboard-wrapper" *ngIf="mostrarDashboard && dashboard">
+      <app-dashboard-clinico [dashboard]="dashboard"></app-dashboard-clinico>
     </div>
 
     <!-- Body -->
     <div class="card-body">
+      <!-- Toggle de Vista -->
+      <div class="filtro-vista" *ngIf="!cargando && historiales.length > 0">
+        <label>
+          
+          Modo:
+        </label>
+        <div class="vista-toggle">
+          <button 
+            class="btn-toggle" 
+            [class.active]="vistaActual === 'tarjetas'"
+            (click)="cambiarVista('tarjetas')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7"/>
+              <rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="12" width="7" height="7"/>
+              <rect x="3" y="12" width="7" height="7"/>
+            </svg>
+            Tarjetas
+          </button>
+          <button 
+            class="btn-toggle" 
+            [class.active]="vistaActual === 'tabla'"
+            (click)="cambiarVista('tabla')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="16" rx="2"/>
+              <path d="M3 10h18"/>
+              <path d="M3 14h18"/>
+              <path d="M8 4v16"/>
+            </svg>
+            Tabla
+          </button>
+        </div>
+      </div>
+
       <!-- Estado de carga -->
       <div *ngIf="cargando" class="loading-state">
         <div class="spinner"></div>
@@ -50,24 +107,16 @@
         </button>
       </div>
 
-      <!-- Lista de historiales -->
-      <div *ngIf="!cargando && historiales.length > 0" class="historiales-list">
+      <!-- Lista de historiales (VISTA TARJETAS) -->
+      <div *ngIf="!cargando && historiales.length > 0 && vistaActual === 'tarjetas'" class="historiales-list">
         <div *ngFor="let historial of historiales; trackBy: trackByHistorialId" class="historial-card">
           <div class="historial-header">
             <div class="historial-fecha">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/>
-                <line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
+              Fecha: 
               {{ formatearFecha(historial.createdAt) }}
             </div>
 
             <div class="historial-badges">
-              <span class="badge badge-secondary" *ngIf="historial.migratedFrom">
-                Migrado desde {{ historial.migratedFrom }}
-              </span>
               <span class="badge badge-info" *ngIf="historial.doctor">
                 Dr. {{ historial.doctor }}
               </span>
@@ -101,6 +150,7 @@
             <div class="info-adicional">
               <span><strong>DP:</strong> {{ historial.dp || '-' }} mm</span>
               <span *ngIf="historial.add"><strong>ADD:</strong> {{ historial.add }}</span>
+              <span *ngIf="historial.altura"><strong>Altura:</strong> {{ historial.altura }} mm</span>
               <span *ngIf="historial.color"><strong>Color:</strong> {{ historial.color }}</span>
             </div>
 
@@ -144,6 +194,98 @@
         </div>
 
         <!-- Botón Cargar Más -->
+        <div class="load-more-section" *ngIf="hayMasHistoriales">
+          <button class="btn btn-outline-primary" (click)="cargarMasHistoriales()" [disabled]="cargandoMas">
+            <span *ngIf="!cargandoMas">Cargar más historiales</span>
+            <span *ngIf="cargandoMas">Cargando...</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Vista de Tabla -->
+      <div *ngIf="!cargando && historiales.length > 0 && vistaActual === 'tabla'" class="historiales-tabla-container">
+        <div class="table-responsive">
+          <table class="tabla-historiales">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Esfera OD</th>
+                <th>Cilindro OD</th>
+                <th>Eje OD</th>
+                <th>Esfera OI</th>
+                <th>Cilindro OI</th>
+                <th>Eje OI</th>
+                <th>DP</th>
+                <th>ADD</th>
+                <th>Altura</th>
+                <th>Color</th>
+                <th>Tipo</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let historial of historiales; trackBy: trackByHistorialId">
+                <td class="fecha-col">
+                  <div class="fecha-wrapper">
+                    {{ formatearFecha(historial.createdAt) }}
+                    
+                  </div>
+                </td>
+                <td class="numero-col">{{ historial.odEsfera ?? '-' }}</td>
+                <td class="numero-col">{{ historial.odCilindro ?? '-' }}</td>
+                <td class="numero-col">{{ historial.odEje ?? '-' }}°</td>
+                <td class="numero-col">{{ historial.oiEsfera ?? '-' }}</td>
+                <td class="numero-col">{{ historial.oiCilindro ?? '-' }}</td>
+                <td class="numero-col">{{ historial.oiEje ?? '-' }}°</td>
+                <td class="numero-col">{{ historial.dp || '-' }}</td>
+                <td class="numero-col">{{ historial.add || '-' }}</td>
+                <td class="numero-col">{{ historial.altura ?? '-' }}</td>
+                <td class="color-col">{{ historial.color || '-' }}</td>
+                <td class="tipo-col">
+                  <span class="badge badge-info">{{ historial.de || '-' }}</span>
+                </td>
+                <td class="acciones-col">
+                  <div class="acciones-group">
+                    <button 
+                      class="btn-icon btn-icon-primary" 
+                      (click)="verDetalles(historial)"
+                      title="Ver Detalles">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                    </button>
+                    <button 
+                      class="btn-icon btn-icon-secondary" 
+                      (click)="editarHistorial(historial)"
+                      title="Editar">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/>
+                        <path d="m15 5 4 4"/>
+                      </svg>
+                    </button>
+                    <button 
+                      class="btn-icon btn-icon-success" 
+                      (click)="usarParaVenta(historial)"
+                      title="Usar para Venta">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m15 11-1 9"/>
+                        <path d="m19 11-4-7"/>
+                        <path d="M2 11h20"/>
+                        <path d="m3.5 11 1.6 7.4a2 2 0 0 0 2 1.6h9.8a2 2 0 0 0 2-1.6l1.7-7.4"/>
+                        <path d="M4.5 15.5h15"/>
+                        <path d="m5 11 4-7"/>
+                        <path d="m9 11 1 9"/>
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Botón Cargar Más (Tabla) -->
         <div class="load-more-section" *ngIf="hayMasHistoriales">
           <button class="btn btn-outline-primary" (click)="cargarMasHistoriales()" [disabled]="cargandoMas">
             <span *ngIf="!cargandoMas">Cargar más historiales</span>

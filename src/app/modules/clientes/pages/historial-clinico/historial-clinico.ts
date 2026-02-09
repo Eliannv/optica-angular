@@ -30,8 +30,6 @@ import { ExcelService } from '../../../../core/services/excel.service';
 import { Cliente } from '../../../../core/models/cliente.model';
 import { HistoriaClinica } from '../../../../core/models/historia-clinica.model';
 
-type ClienteUI = Cliente & { id: string; tieneHistorial: boolean };
-
 @Component({
   imports: [CommonModule, FormsModule],
   standalone: true,
@@ -44,9 +42,9 @@ export class HistorialClinicoComponent implements OnInit {
   terminoBusqueda = '';
   totalClientes = 0;
 
-  clientes: ClienteUI[] = [];
-  clientesFiltrados: ClienteUI[] = [];
-  clientesPaginados: ClienteUI[] = [];
+  clientes: Cliente[] = [];
+  clientesFiltrados: Cliente[] = [];
+  clientesPaginados: Cliente[] = [];
   paginaActual = 1;
   clientesPorPagina = 10;
   Math = Math;
@@ -61,7 +59,7 @@ export class HistorialClinicoComponent implements OnInit {
   // Panel de filtros
   mostrarPanelFiltros = false;
 
-  clienteSeleccionado: ClienteUI | null = null;
+  clienteSeleccionado: Cliente | null = null;
   historialClinico: HistoriaClinica | null = null;
   mostrarModal = false;
   cargandoHistorial = false;
@@ -116,20 +114,7 @@ export class HistorialClinicoComponent implements OnInit {
   private async cargarClientes(): Promise<void> {
     const data = await firstValueFrom(this.clientesSrv.getClientes());
 
-    const clientesBase: ClienteUI[] = (data as any[]).map(c => ({
-      ...(c as Cliente),
-      id: (c as any).id,
-      tieneHistorial: false
-    }));
-
-    const withHistorial = await Promise.all(
-      clientesBase.map(async (c) => {
-        const snap = await this.historialSrv.obtenerHistorial(c.id);
-        return { ...c, tieneHistorial: snap.exists() };
-      })
-    );
-
-    this.clientes = withHistorial.sort((a, b) => this.getCreatedMs(b) - this.getCreatedMs(a));
+    this.clientes = (data as Cliente[]).sort((a, b) => this.getCreatedMs(b) - this.getCreatedMs(a));
     this.aplicarFiltro();
     await this.cargarDeudasClientes(this.clientes);
   }
@@ -253,7 +238,7 @@ export class HistorialClinicoComponent implements OnInit {
    *
    * @param lista Arreglo de clientes para los cuales cargar deudas.
    */
-  private async cargarDeudasClientes(lista: ClienteUI[]): Promise<void> {
+  private async cargarDeudasClientes(lista: Cliente[]): Promise<void> {
     // carga en paralelo
     const tasks = lista.map(async c => {
       if (!c?.id) return;
@@ -340,33 +325,23 @@ export class HistorialClinicoComponent implements OnInit {
 
     // 2) Filtro estado
     if (this.filtroEstado === 'conHistorial') {
-      base = base.filter(c => !!c.tieneHistorial);
+      base = base.filter(c => !!c.tieneHistorialClinico);
     } else if (this.filtroEstado === 'sinHistorial') {
-      base = base.filter(c => !c.tieneHistorial);
+      base = base.filter(c => !c.tieneHistorialClinico);
     }
 
     // 3) Filtro crédito personal
     if (this.filtroCredito === 'conCredito') {
-      base = base.filter(c => !!this.deudas[c.id]?.creditoPersonalActivo);
+      base = base.filter(c => c.id && !!this.deudas[c.id]?.creditoPersonalActivo);
     } else if (this.filtroCredito === 'sinCredito') {
-      base = base.filter(c => !this.deudas[c.id]?.creditoPersonalActivo);
+      base = base.filter(c => c.id && !this.deudas[c.id]?.creditoPersonalActivo);
     }
 
     // 4) Ordenar (por defecto más reciente; opcional: crédito personal primero)
-    const getCreatedMs = (c: any): number => {
-      const v = c?.createdAt;
-      if (!v) return 0;
-      try {
-        if (typeof v?.toDate === 'function') return v.toDate().getTime();
-        if (v instanceof Date) return v.getTime();
-        if (typeof v === 'number') return v;
-      } catch {}
-      return 0;
-    };
-    const sortByFecha = (a: ClienteUI, b: ClienteUI) => getCreatedMs(b) - getCreatedMs(a);
-    const sortByCredito = (a: ClienteUI, b: ClienteUI) => {
-      const aCredito = this.deudas[a.id]?.creditoPersonalActivo ? 1 : 0;
-      const bCredito = this.deudas[b.id]?.creditoPersonalActivo ? 1 : 0;
+    const sortByFecha = (a: Cliente, b: Cliente) => this.getCreatedMs(b) - this.getCreatedMs(a);
+    const sortByCredito = (a: Cliente, b: Cliente) => {
+      const aCredito = (a.id && this.deudas[a.id]?.creditoPersonalActivo) ? 1 : 0;
+      const bCredito = (b.id && this.deudas[b.id]?.creditoPersonalActivo) ? 1 : 0;
       if (aCredito !== bCredito) return bCredito - aCredito; // Sí primero
       return sortByFecha(a, b);
     };
@@ -441,7 +416,7 @@ export class HistorialClinicoComponent implements OnInit {
    *
    * @param cliente Cliente cuyos detalles se mostrarán.
    */
-  async verDetalle(cliente: ClienteUI): Promise<void> {
+  async verDetalle(cliente: Cliente): Promise<void> {
     this.clienteSeleccionado = cliente;
     this.mostrarModal = true;
     this.cargandoHistorial = true;
@@ -599,7 +574,7 @@ export class HistorialClinicoComponent implements OnInit {
    * @param item Cliente a trackear.
    * @returns Identificador único del cliente.
    */
-  trackByClienteId(index: number, item: ClienteUI): string {
-    return item.id;
+  trackByClienteId(index: number, item: Cliente): string {
+    return item.id || `index-${index}`;
   }
 }

@@ -1,7 +1,7 @@
 /* Contenedor principal */
 .seleccionar-historial-wrapper {
   padding: 1.5rem;
-  max-width: 1400px;
+  max-width: 100%;
   margin: 0 auto;
 }
 
@@ -44,6 +44,88 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.header-actions .btn {
+  white-space: nowrap;
+}
+
+/* Dashboard wrapper */
+.dashboard-wrapper {
+  background: var(--secondary-bg, #f8f9fa);
+  border-top: 1px solid var(--border-color, #e0e0e0);
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  padding: 1.5rem;
+}
+
+/* Filtro de Vista */
+.filtro-vista {
+  padding: 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+}
+
+.filtro-vista label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.filtro-vista label svg {
+  color: var(--primary-color);
+}
+
+.vista-toggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.btn-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  background: var(--bg-color);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.btn-toggle:hover {
+  background: var(--hover-bg);
+}
+
+.btn-toggle.active {
+  background: var(--primary-color);
+  color: white;
+}
+
+.btn-toggle:not(:last-child) {
+  border-right: 1px solid var(--border-color);
 }
 
 /* Estados */
@@ -311,6 +393,158 @@
   gap: 0.75rem;
   padding: 1.5rem;
   border-top: 1px solid var(--border-color, #e0e0e0);
+}
+
+/* ══════════════════════════════════════════════════════════ */
+/* Vista de Tabla */
+/* ══════════════════════════════════════════════════════════ */
+
+.historiales-tabla-container {
+  margin-top: 1rem;
+}
+
+.table-responsive {
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.tabla-historiales {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.tabla-historiales thead {
+  background: var(--secondary-bg);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.tabla-historiales th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.tabla-historiales td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.tabla-historiales tbody tr {
+  transition: background-color 0.2s;
+}
+
+.tabla-historiales tbody tr:hover {
+  background: rgba(0, 123, 255, 0.05);
+}
+
+.tabla-historiales tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Columnas específicas */
+.fecha-col {
+  min-width: 140px;
+}
+
+.fecha-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.fecha-wrapper svg {
+  color: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.numero-col {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.color-col {
+  text-align: center;
+  font-weight: 500;
+  min-width: 100px;
+}
+
+.tipo-col {
+  min-width: 120px;
+}
+
+.acciones-col {
+  min-width: 140px;
+  text-align: center;
+}
+
+.acciones-group {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Botones de icono */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-icon:hover {
+  transform: translateY(-2px);
+}
+
+.btn-icon-primary {
+  color: var(--primary-color);
+}
+
+.btn-icon-primary:hover {
+  background: rgba(0, 123, 255, 0.1);
+  border-color: var(--primary-color);
+}
+
+.btn-icon-secondary {
+  color: var(--text-secondary);
+}
+
+.btn-icon-secondary:hover {
+  background: var(--secondary-bg);
+  border-color: var(--border-color);
+}
+
+.btn-icon-success {
+  color: #28a745;
+}
+
+.btn-icon-success:hover {
+  background: rgba(40, 167, 69, 0.1);
+  border-color: #28a745;
+}
+
+.badge-xs {
+  padding: 2px 6px;
+  font-size: 0.7rem;
+  margin-left: 4px;
 }
 
 /* Badges */
