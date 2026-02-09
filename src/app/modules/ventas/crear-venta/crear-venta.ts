@@ -13,6 +13,7 @@ import { FacturasService } from '../../../core/services/facturas';
 import { CajaBancoService } from '../../../core/services/caja-banco.service';
 import { CajaChicaService } from '../../../core/services/caja-chica.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { VentasTarjetaService } from '../../../core/services/ventas-tarjeta.service';
 import { obtenerPeriodo } from '../../../core/utils/fecha-helpers';
 
 import { ItemVenta } from '../../../core/models/item-venta.model';
@@ -181,7 +182,8 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     private facturasSrv: FacturasService,
     private cajaBancoService: CajaBancoService,
     private cajaChicaService: CajaChicaService,
-    private authService: AuthService
+    private authService: AuthService,
+    private ventasTarjetaService: VentasTarjetaService
   ) {}
 
   async ngOnInit() {
@@ -1256,9 +1258,9 @@ async guardarEImprimir() {
         console.error('❌ Error obteniendo fecha de caja chica:', err);
         fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
       }
-    } else {
-      // Para transferencia/tarjeta: validar fecha seleccionada pero usar fecha contable de caja chica
-      console.log('💳 Usando fecha contable de caja chica para caja banco');
+    } else if (this.metodoPago === 'Transferencia') {
+      // Para transferencia: validar fecha seleccionada y caja banco abierta
+      console.log('🏦 Usando fecha contable de caja chica para transferencia');
       
       // ✅ VALIDAR QUE LA FECHA ESTÉ DENTRO DEL PERIODO DE LA CAJA BANCO
       if (this.fechaMinima && this.fechaMaxima) {
@@ -1292,7 +1294,7 @@ async guardarEImprimir() {
       // ✅ Usar FECHA DE CAJA CHICA como fecha contable oficial
       try {
         const cajaAbierta = await this.cajaChicaService.getCajaAbierta();
-        console.log('📅 Caja chica abierta obtenida (no efectivo):', cajaAbierta);
+        console.log('📅 Caja chica abierta obtenida (transferencia):', cajaAbierta);
 
         if (cajaAbierta?.fecha) {
           let fechaCaja: Date;
@@ -1304,15 +1306,44 @@ async guardarEImprimir() {
             fechaCaja = new Date(cajaAbierta.fecha);
           }
 
-          console.log('📅 Fecha de caja chica convertida (no efectivo):', fechaCaja);
+          console.log('📅 Fecha de caja chica convertida (transferencia):', fechaCaja);
           fechaFinal = this.combinarFechaHora(fechaCaja, this.horaPago);
-          console.log('✅ Fecha final TRANSFERENCIA/TARJETA (caja chica):', fechaFinal);
+          console.log('✅ Fecha final TRANSFERENCIA (caja chica):', fechaFinal);
         } else {
           console.warn('⚠️ No hay fecha en caja chica, usando fecha actual');
           fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
         }
       } catch (err) {
-        console.error('❌ Error obteniendo fecha de caja chica (no efectivo):', err);
+        console.error('❌ Error obteniendo fecha de caja chica (transferencia):', err);
+        fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
+      }
+    } else {
+      // Para tarjeta: NO validar caja banco (ingreso diferido)
+      console.log('💳 Venta con tarjeta (sin ingreso inmediato a caja banco)');
+
+      try {
+        const cajaAbierta = await this.cajaChicaService.getCajaAbierta();
+        console.log('📅 Caja chica abierta obtenida (tarjeta):', cajaAbierta);
+
+        if (cajaAbierta?.fecha) {
+          let fechaCaja: Date;
+          if ((cajaAbierta.fecha as any).toDate) {
+            fechaCaja = (cajaAbierta.fecha as any).toDate();
+          } else if (cajaAbierta.fecha instanceof Date) {
+            fechaCaja = cajaAbierta.fecha;
+          } else {
+            fechaCaja = new Date(cajaAbierta.fecha);
+          }
+
+          console.log('📅 Fecha de caja chica convertida (tarjeta):', fechaCaja);
+          fechaFinal = this.combinarFechaHora(fechaCaja, this.horaPago);
+          console.log('✅ Fecha final TARJETA (caja chica):', fechaFinal);
+        } else {
+          console.warn('⚠️ No hay fecha en caja chica, usando fecha actual');
+          fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
+        }
+      } catch (err) {
+        console.error('❌ Error obteniendo fecha de caja chica (tarjeta):', err);
         fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
       }
     }
@@ -1397,6 +1428,23 @@ async guardarEImprimir() {
       const ref = await this.facturasSrv.crearFactura(facturaLimpia);
       facturaId = ref.id;
       console.log('✅ Factura creada:', facturaId);
+    }
+
+    // ✅ Registrar venta con tarjeta como cuenta por cobrar al banco
+    if (this.metodoPago === 'Tarjeta' && !this.esCredito) {
+      try {
+        await this.ventasTarjetaService.crearVentaTarjeta({
+          facturaId,
+          facturaIdPersonalizado: facturaId,
+          clienteId: this.clienteId,
+          clienteNombre: `${this.cliente?.nombres || ''} ${this.cliente?.apellidos || ''}`.trim(),
+          fechaVenta: fechaFinal,
+          montoTotal: +this.total.toFixed(2),
+          ultimosCuatroTarjeta: this.ultimosCuatroTarjeta || undefined
+        });
+      } catch (err) {
+        console.warn('No se pudo registrar venta con tarjeta como cuenta por cobrar:', err);
+      }
     }
 
     // ✅ REGISTRAR AUTOMÁTICAMENTE EN CAJA CHICA O CAJA BANCO
@@ -1526,29 +1574,6 @@ async guardarEImprimir() {
           icon: 'warning',
           title: 'Advertencia',
           text: `La venta se registró pero hubo un error al registrar la transferencia en caja banco: ${err instanceof Error ? err.message : 'Error desconocido'}`,
-          confirmButtonText: 'Aceptar'
-        });
-      }
-    } else if (this.metodoPago === 'Tarjeta' && this.ultimosCuatroTarjeta.trim()) {
-      // 💳 Venta por TARJETA → Registrar en Caja Banco
-      try {
-        // Registrar el monto realmente pagado (abono), no el total de la venta
-        const montoPagado = this._abono > 0 ? this._abono : this.total;
-        await this.cajaBancoService.registrarPagoTarjeta(
-          montoPagado,
-          this.ultimosCuatroTarjeta,
-          facturaId,
-          usuario?.id || '',
-          usuario?.nombre || 'Usuario',
-          fechaFinal  // Pasar la fecha seleccionada por el usuario
-        );
-        console.log(`✅ Pago por tarjeta registrado en Caja Banco: ${montoPagado} USD con fecha`, fechaFinal);
-      } catch (err) {
-        console.error('❌ Error registrando pago por tarjeta en Caja Banco:', err);
-        Swal.fire({
-          icon: 'warning',
-          title: 'Advertencia',
-          text: `La venta se registró pero hubo un error al registrar el pago por tarjeta en caja banco: ${err instanceof Error ? err.message : 'Error desconocido'}`,
           confirmButtonText: 'Aceptar'
         });
       }
