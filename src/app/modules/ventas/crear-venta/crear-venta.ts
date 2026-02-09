@@ -32,6 +32,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     this.onDocumentKeydown(event);
   }
   clienteId = '';
+  historialId = ''; // ✅ NUEVO: ID del historial clínico seleccionado
   cliente: any = null;
   historial: any = null;
 
@@ -235,8 +236,9 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     if (this.modoEdicion) {
       await this.cargarFacturaParaEditar();
     } else {
-      // MODO CREACIÓN: puedes entrar con /ventas/crear?clienteId=xxx
+      // MODO CREACIÓN: puedes entrar con /ventas/crear?clienteId=xxx&historialId=yyy
       this.clienteId = this.route.snapshot.queryParamMap.get('clienteId') || '';
+      this.historialId = this.route.snapshot.queryParamMap.get('historialId') || ''; // ✅ NUEVO
     }
 
     if (!this.clienteId) {
@@ -249,7 +251,13 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
       this.cliente = await firstValueFrom(this.clientesSrv.getClienteById(this.clienteId));
     }
     
-    if (!this.historial) {
+    // ✅ NUEVO: Si hay historialId, cargar ese historial específico
+    if (this.historialId && !this.historial) {
+      const snap = await this.historialSrv.obtenerHistorialPorId(this.clienteId, this.historialId);
+      this.historial = snap.exists() ? { id: snap.id, ...snap.data() } : null;
+    } 
+    // ⚠️ FALLBACK (compatibilidad): Si NO hay historialId, intentar cargar documento 'main' (legacy)
+    else if (!this.historialId && !this.historial) {
       const snap = await this.historialSrv.obtenerHistorial(this.clienteId);
       this.historial = snap.exists() ? snap.data() : null;
     }
@@ -1328,6 +1336,7 @@ async guardarEImprimir() {
     // ✅ CREAR FACTURA CON DATOS DE CRÉDITO
     const factura: any = {
       clienteId: this.clienteId,
+      historialClinicoId: this.historialId || undefined, // ✅ NUEVO: ID del historial usado
       clienteNombre: `${this.cliente?.nombres || ''} ${this.cliente?.apellidos || ''}`.trim(),
       clienteTelefono: this.cliente?.telefono || '',
       historialSnapshot: this.historial || null,

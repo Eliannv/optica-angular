@@ -59,6 +59,9 @@ export interface Factura {
   /** Identificador del cliente que realiza la compra */
   clienteId: string;
 
+  /** ✅ NUEVO: ID del historial clínico usado para esta venta (opcional, puede no tener historial) */
+  historialClinicoId?: string;
+
   /** Nombre completo del cliente (para impresión y consultas rápidas) */
   clienteNombre?: string;
 

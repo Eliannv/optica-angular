@@ -7,8 +7,9 @@
  * para fabricar y ajustar lentes correctivos. Se utiliza en el módulo de
  * atención médica y ventas.
  *
- * Los datos se persisten en la colección 'clientes/{id}/historialClinico/main' de Firestore.
- * Nota: Se almacena como un único documento 'main' por cliente.
+ * Los datos se persisten en la colección 'clientes/{clienteId}/historialClinico/{historialId}' de Firestore.
+ * ✅ NUEVO: Cada cliente puede tener MÚLTIPLES historiales clínicos (uno por fecha).
+ * ✅ El ID del documento es auto-generado por Firestore (no más documento fijo 'main').
  */
 export interface HistoriaClinica {
   /** Identificador único de Firestore (auto-generado) */
@@ -96,4 +97,12 @@ export interface HistoriaClinica {
 
   /** Nombre del médico u optometrista que realizó la prescripción */
   doctor?: string;
+
+  // ✅ NUEVO: Metadatos de migración (solo para historiales migrados desde "main")
+  
+  /** Indica de dónde se migró este historial (valor: "main") */
+  migratedFrom?: string;
+  
+  /** Fecha en que se realizó la migración automática */
+  migratedAt?: any;
 }

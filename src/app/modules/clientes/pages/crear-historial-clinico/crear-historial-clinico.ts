@@ -1,6 +1,9 @@
 /**
  * Componente para la creación y edición de historiales clínicos.
  *
+ * ✅ ACTUALIZADO: Ahora soporta múltiples historiales clínicos por cliente.
+ * Cada historial es un documento independiente con ID auto-generado.
+ *
  * Este componente proporciona un formulario reactivo completo para gestionar el historial
  * clínico oftalmológico de los clientes, incluyendo:
  * - Datos de refracción ocular (esfera, cilindro, eje) para ambos ojos
@@ -9,9 +12,11 @@
  * - Información del cliente
  * - Observaciones y datos del doctor
  *
- * Soporta tres modos de operación: create (crear), edit (editar) y view (solo lectura).
- * Los datos se almacenan en un único documento 'main' dentro de la subcolección
- * 'historialClinico' de cada cliente.
+ * Soporta dos modos de operación: crear (nuevo historial) y editar (historial existente).
+ * 
+ * Query params esperados:
+ * - clienteId: ID del cliente (required)
+ * - historialId: ID del historial a editar (optional, solo para modo edit)
  */
 
 import { Component, OnInit } from '@angular/core';
@@ -37,7 +42,8 @@ type Mode = 'create' | 'edit' | 'view';
 })
 export class CrearHistorialClinicoComponent implements OnInit {
 
-  clienteId!: string;
+  clienteId = '';
+  historialId = ''; // ✅ NUEVO: ID del historial a editar (solo en modo edit)
   cliente: Cliente | null = null;
 
   loading = true;
@@ -45,7 +51,7 @@ export class CrearHistorialClinicoComponent implements OnInit {
   clienteForm!: FormGroup;
 
   mode: Mode = 'create';
-  existeHistorial = false;
+  existeHistorial = false; // ✅ DEPRECADO: Ya no se usa (mantener por compatibilidad)
 
   // Mensajes de advertencia para validación reactiva
   cedulaDuplicadaMsg = '';
@@ -129,7 +135,26 @@ export class CrearHistorialClinicoComponent implements OnInit {
     /* =========================
        CARGA DE DATOS
        ========================= */
-    this.clienteId = this.route.snapshot.paramMap.get('id')!;
+    // ✅ NUEVO: Obtener clienteId de query params o route params (compatibilidad)
+    this.clienteId = this.route.snapshot.queryParamMap.get('clienteId') || 
+                      this.route.snapshot.paramMap.get('id') || '';
+    
+    if (!this.clienteId) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se especificó un cliente',
+        confirmButtonText: 'Volver'
+      });
+      this.router.navigate(['/clientes/historial-clinico']);
+      return;
+    }
+
+    // ✅ NUEVO: Obtener historialId de query params (opcional, solo para edición)
+    this.historialId = this.route.snapshot.queryParamMap.get('historialId') || '';
+    
+    // Determinar modo: si hay historialId, es edición; si no, es creación
+    this.mode = this.historialId ? 'edit' : 'create';
 
     this.cliente = await firstValueFrom(
       this.clientesSrv.getClienteById(this.clienteId)
@@ -142,31 +167,25 @@ export class CrearHistorialClinicoComponent implements OnInit {
       this.emailOriginal = this.cliente.email || '';
     }
 
-    const qpMode = (this.route.snapshot.queryParamMap.get('mode') || '').toLowerCase();
-    if (qpMode === 'create' || qpMode === 'edit' || qpMode === 'view') {
-      this.mode = qpMode;
-    }
-
-    const snap = await this.historialSrv.obtenerHistorial(this.clienteId);
-    this.existeHistorial = snap.exists();
-
-    if (this.existeHistorial) {
-      const data = snap.data() as any;
-
-      // 🔧 FIX CLAVE: forzar doctor
-      this.form.patchValue({
-        ...data,
-        doctor: data?.doctor ?? ''
-      });
-
-      if (!qpMode) this.mode = 'edit';
-    } else {
-      if (!qpMode) this.mode = 'create';
-    }
-
-    if (this.mode === 'view') {
-      this.form.disable({ emitEvent: false });
-      this.clienteForm.disable({ emitEvent: false });
+    // ✅ ACTUALIZADO: Si estamos en modo edición, cargar el historial específico
+    if (this.mode === 'edit' && this.historialId) {
+      const snap = await this.historialSrv.obtenerHistorialPorId(this.clienteId, this.historialId);
+      if (snap.exists()) {
+        this.existeHistorial = true;
+        const historialData = snap.data();
+        this.form.patchValue(historialData);
+      } else {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'No se encontró el historial solicitado',
+          confirmButtonText: 'Volver'
+        });
+        this.router.navigate(['/clientes/historiales'], {
+          queryParams: { clienteId: this.clienteId }
+        });
+        return;
+      }
     }
 
     // Configurar validaciones reactivas para cédula y email
@@ -287,7 +306,6 @@ export class CrearHistorialClinicoComponent implements OnInit {
     if (this.mode === 'view') return;
 
     const cedula = this.clienteForm.get('cedula')?.value || '';
-    const email = this.clienteForm.get('email')?.value || '';
 
     // Validar cédula (siempre obligatoria)
     if (!cedula || cedula.trim() === '') {
@@ -299,40 +317,31 @@ export class CrearHistorialClinicoComponent implements OnInit {
       return;
     }
 
-    // Validar cédula si cambió
-    if (cedula.trim() !== this.cedulaOriginal.trim()) {
-      const cedulaExiste = await this.clientesSrv.existeCedula(cedula, this.clienteId);
-      if (cedulaExiste) {
-        await Swal.fire({
-          icon: 'error',
-          title: 'Cédula duplicada',
-          text: 'Esta cédula ya existe en el sistema'
-        });
-        return;
-      }
-    }
-
-    // Validar email si cambió y no es "N/A"
-    if (email && email.trim() !== '' && email.trim().toUpperCase() !== 'N/A') {
-      if (email.trim().toLowerCase() !== this.emailOriginal.trim().toLowerCase()) {
-        const emailExiste = await this.clientesSrv.existeEmail(email, this.clienteId);
-        if (emailExiste) {
-          await Swal.fire({
-            icon: 'error',
-            title: 'Email duplicado',
-            text: 'Este email ya existe en el sistema'
-          });
-          return;
-        }
-      }
+    // Validar duplicados
+    if (this.cedulaDuplicadaMsg || this.emailDuplicadoMsg) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Datos duplicados',
+        text: 'Existen datos duplicados. Por favor revisa cédula y email.'
+      });
+      return;
     }
 
     try {
-      // 🔧 Obtener valores del formulario sin restricciones ni normalizaciones
       const data = this.form.getRawValue();
 
-      await this.historialSrv.guardarHistorial(this.clienteId, data);
+      // ✅ ACTUALIZADO: Usar crearHistorial() o actualizarHistorial() según el modo
+      if (this.mode === 'create') {
+        // Crear nuevo historial con ID auto-generado
+        const nuevoHistorialId = await this.historialSrv.crearHistorial(this.clienteId, data);
+        console.log('✅ Historial creado con ID:', nuevoHistorialId);
+      } else if (this.mode === 'edit' && this.historialId) {
+        // Actualizar historial existente
+        await this.historialSrv.actualizarHistorial(this.clienteId, this.historialId, data);
+        console.log('✅ Historial actualizado:', this.historialId);
+      }
 
+      // Actualizar datos del cliente
       await this.clientesSrv.updateCliente(
         this.clienteId,
         this.clienteForm.getRawValue() as Partial<Cliente>
@@ -341,12 +350,15 @@ export class CrearHistorialClinicoComponent implements OnInit {
       await Swal.fire({
         icon: 'success',
         title: 'Guardado exitoso',
-        text: 'El historial clínico fue guardado correctamente.',
+        text: `El historial clínico fue ${this.mode === 'create' ? 'creado' : 'actualizado'} correctamente.`,
         timer: 2000,
         showConfirmButton: false
       });
 
-      this.router.navigate(['/clientes/historial-clinico']);
+      // Navegar a la lista de historiales del cliente
+      this.router.navigate(['/clientes/historiales'], {
+        queryParams: { clienteId: this.clienteId }
+      });
 
     } catch (error: any) {
       Swal.fire({
@@ -359,20 +371,18 @@ export class CrearHistorialClinicoComponent implements OnInit {
   }
 
   /**
-   * Cancela la operación y retorna a la lista de historiales clínicos.
+   * Cancela la operación y retorna a la lista de historiales del cliente.
    */
   cancelar() {
-    this.router.navigate(['/clientes/historial-clinico']);
+    this.router.navigate(['/clientes/historiales'], {
+      queryParams: { clienteId: this.clienteId }
+    });
   }
 
   /**
-   * Verifica si el formulario puede ser guardado.
-   * Se bloquea si hay duplicados de cédula/email o se está validando.
+   * Verifica si el botón de guardar debe estar habilitado.
    */
   get puedeGuardar(): boolean {
-    // No bloquear en modo view
-    if (this.mode === 'view') return false;
-    
     // Bloquear si cédula está vacía
     const cedula = this.clienteForm.get('cedula')?.value;
     if (!cedula || cedula.trim() === '') return false;

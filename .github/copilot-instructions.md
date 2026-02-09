@@ -15,12 +15,14 @@ Quick reference for AI coding agents working on this repository.
 - `src/app/core/services/*` — Firestore-backed services (pattern for CRUD operations).
 - `GUIA-TEMAS.md` — canonical UI variables, colors and spacing conventions.
 - `package.json` & `angular.json` — scripts and build/test configuration.
+- `GUIAS/MIGRACION-MULTIPLES-HISTORIALES.md` — ✅ NEW: technical guide for multiple clinical histories migration.
 
 ## Project-specific conventions & patterns
 - Use standalone components where existing pages do (look for `standalone: true`). Standalone components declare `imports: [...]` (e.g., `CommonModule`, `ReactiveFormsModule`).
 - Firestore usage:
   - Collections: `collection(this.firestore, 'clientes')` and `collectionData(..., { idField: 'id' })` to include the Firestore doc id.
-  - Documents: `doc(this.fs, 'clientes/${id}/historialClinico/main')` — note a single `main` document per client used for clinical history.
+  - ✅ **Clinical History (UPDATED):** Clients can have MULTIPLE clinical histories stored at `clientes/{clienteId}/historialClinico/{auto-generated-id}`. Each history document has its own ID.
+  - Documents: Use `doc(this.fs, 'clientes/${id}/historialClinico/${historialId}')` for specific clinical history.
   - Timestamps: `createdAt: new Date()` (client) or `serverTimestamp()` (server-side consistent timestamps).
 - Services return Observables for reads (`collectionData`, `docData`) and Promises for writes (`addDoc`, `updateDoc`, `setDoc`/`getDoc`).
 - Reactive forms are used (FormBuilder/ReactiveFormsModule) in pages like `crear-historial-clinico`.
@@ -42,9 +44,26 @@ Quick reference for AI coding agents working on this repository.
 this.clientesSrv.getClientes().subscribe(list => ...);
 ```
 
-- Save clinical history (service + single doc per client):
+- ✅ **NEW: Create clinical history (service + auto-generated ID):**
 ```ts
-await historialSrv.guardarHistorial(clienteId, form.value);
+const historialId = await historialSrv.crearHistorial(clienteId, formData);
+```
+
+- ✅ **NEW: Update specific clinical history:**
+```ts
+await historialSrv.actualizarHistorial(clienteId, historialId, updatedData);
+```
+
+- ✅ **UPDATED: Clinical history** is stored as MULTIPLE documents at `clientes/{clienteId}/historialClinico/{auto-generated-id}`. Each client can have multiple clinical histories (one per date/visit).
+- **Sales/Invoices (facturas)** now include `historialClinicoId?: string` field to reference the specific clinical history used. Old invoices without this field still work via `historialSnapshot`
+```ts
+const snap = await historialSrv.obtenerHistorialPorId(clienteId, historialId);
+const historial = snap.exists() ? { id: snap.id, ...snap.data() } : null;
+```
+
+- ✅ **NEW: List clinical histories with pagination:**
+```ts
+historialSrv.getHistorialesPaginados(clienteId, 10).subscribe(historiales => ...);
 ```
 
 - Add a new standalone page with a reactive form:

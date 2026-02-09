@@ -471,76 +471,26 @@ export class HistorialClinicoComponent implements OnInit {
   }
 
   /**
-   * Navega al formulario de creación de historial clínico.
+   * Navega a la vista de historiales clínicos del cliente.
+   * 
+   * ✅ NUEVO FLUJO: Primero se va a la vista de seleccionar/crear historiales,
+   * y desde ahí el usuario puede:
+   * - Crear nuevo historial clínico
+   * - Seleccionar historial existente para crear venta
+   * - Editar historial existente
    *
-   * @param clienteId Identificador del cliente para el cual crear el historial.
+   * @param clienteId Identificador del cliente cuyo historial se verá.
    */
-  crearHistorial(clienteId: string): void {
-    this.router.navigate([`/clientes/${clienteId}/crear-historial-clinico`], {
-      queryParams: { mode: 'create' }
+  verHistoriales(clienteId: string): void {
+    this.router.navigate(['/clientes/historiales'], {
+      queryParams: { clienteId }
     });
-  }
-
-  /**
-   * Navega al formulario de edición de historial clínico.
-   *
-   * @param clienteId Identificador del cliente cuyo historial se editará.
-   */
-  editarHistorial(clienteId: string): void {
-    this.router.navigate([`/clientes/${clienteId}/crear-historial-clinico`], {
-      queryParams: { mode: 'edit' }
-    });
-  }
-
-  /**
-   * Inicia el proceso de creación de recibo (venta) para un cliente.
-   *
-   * Antes de navegar al módulo de ventas, valida que exista una caja chica
-   * abierta. Si la caja está cerrada o no existe, muestra mensajes de error
-   * apropiados y redirige a la gestión de caja chica.
-   *
-   * @param clienteId Identificador del cliente para el cual crear la venta.
-   */
-  async crearRecibo(clienteId: string): Promise<void> {
-    // 🔒 VALIDACIÓN: Verificar que exista alguna caja chica ABIERTA
-    try {
-      const validacion = await this.cajasChicaService.validarCajaAbierta();
-      
-      // ✅ Caja ABIERTA - Permitir entrada
-      if (validacion.valida) {
-        this.router.navigate(['/ventas/crear'], {
-          queryParams: { clienteId }
-        });
-        return;
-      }
-      
-      // ❌ NO existe caja ABIERTA
-      await Swal.fire({
-        icon: 'error',
-        title: 'Caja Chica Requerida',
-        text: 'Debe tener al menos una caja chica ABIERTA para crear ventas (puede ser de cualquier fecha).',
-        confirmButtonText: 'Ir a Caja Chica',
-        allowOutsideClick: false,
-        allowEscapeKey: false
-      }).then(() => {
-        this.router.navigate(['/caja-chica']);
-      });
-      
-    } catch (error) {
-      console.error('Error verificando caja chica:', error);
-      await Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Error al verificar la caja chica. Intente nuevamente.',
-        confirmButtonText: 'Volver'
-      });
-    }
   }
 
   /**
    * Inicia el proceso de cobro de deuda para un cliente.
    *
-   * Similar a crearRecibo, valida que exista una caja chica abierta antes
+   * Valida que exista una caja chica abierta antes
    * de permitir registrar abonos. Redirige al módulo de deudas con el cliente
    * preseleccionado.
    *
