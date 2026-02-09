@@ -210,7 +210,7 @@
                 <th>ADD</th>
                 <th>Altura</th>
                 <th>Color</th>
-                <th>Tipo</th>
+                <th>De</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -286,82 +286,4 @@
     </div>
   </div>
 
-  <!-- Modal de Detalles -->
-  <div class="modal-overlay" *ngIf="mostrarModal" (click)="cerrarModal()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h4>Detalles del Historial Clínico</h4>
-        <button class="btn-close" (click)="cerrarModal()">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-      </div>
-
-      <div class="modal-body" *ngIf="historialSeleccionado">
-        <div class="detalle-fecha">
-          <strong>Fecha de creación:</strong> {{ formatearFecha(historialSeleccionado.createdAt) }}
-        </div>
-
-        <div class="detalle-grid">
-          <div class="detalle-section">
-            <h5>Ojo Derecho (OD)</h5>
-            <p><strong>Esfera:</strong> {{ historialSeleccionado.odEsfera ?? '-' }}</p>
-            <p><strong>Cilindro:</strong> {{ historialSeleccionado.odCilindro ?? '-' }}</p>
-            <p><strong>Eje:</strong> {{ historialSeleccionado.odEje ?? '-' }}°</p>
-            <p><strong>AVSC:</strong> {{ historialSeleccionado.odAVSC ?? '-' }}</p>
-            <p><strong>AVCC:</strong> {{ historialSeleccionado.odAVCC ?? '-' }}</p>
-          </div>
-
-          <div class="detalle-section">
-            <h5>Ojo Izquierdo (OI)</h5>
-            <p><strong>Esfera:</strong> {{ historialSeleccionado.oiEsfera ?? '-' }}</p>
-            <p><strong>Cilindro:</strong> {{ historialSeleccionado.oiCilindro ?? '-' }}</p>
-            <p><strong>Eje:</strong> {{ historialSeleccionado.oiEje ?? '-' }}°</p>
-            <p><strong>AVSC:</strong> {{ historialSeleccionado.oiAVSC ?? '-' }}</p>
-            <p><strong>AVCC:</strong> {{ historialSeleccionado.oiAVCC ?? '-' }}</p>
-          </div>
-        </div>
-
-        <div class="detalle-section">
-          <h5>Medidas Adicionales</h5>
-          <p><strong>Distancia Pupilar (DP):</strong> {{ historialSeleccionado.dp || '-' }} mm</p>
-          <p><strong>Adición (ADD):</strong> {{ historialSeleccionado.add ?? '-' }}</p>
-          <p><strong>Material (DE):</strong> {{ historialSeleccionado.de || '-' }}</p>
-          <p><strong>Altura:</strong> {{ historialSeleccionado.altura ?? '-' }} mm</p>
-          <p><strong>Color:</strong> {{ historialSeleccionado.color || '-' }}</p>
-        </div>
-
-        <div class="detalle-section" *ngIf="historialSeleccionado.armazonH || historialSeleccionado.armazonV">
-          <h5>Medidas del Armazón</h5>
-          <p><strong>Horizontal (H):</strong> {{ historialSeleccionado.armazonH ?? '-' }} mm</p>
-          <p><strong>Vertical (V):</strong> {{ historialSeleccionado.armazonV ?? '-' }} mm</p>
-          <p><strong>Diagonal Mayor (DM):</strong> {{ historialSeleccionado.armazonDM ?? '-' }} mm</p>
-          <p><strong>Puente (P):</strong> {{ historialSeleccionado.armazonP ?? '-' }} mm</p>
-          <p><strong>Tipo:</strong> {{ historialSeleccionado.armazonTipo || '-' }}</p>
-        </div>
-
-        <div class="detalle-section" *ngIf="historialSeleccionado.doctor">
-          <h5>Profesional</h5>
-          <p><strong>Doctor(a):</strong> {{ historialSeleccionado.doctor }}</p>
-        </div>
-
-        <div class="detalle-section" *ngIf="historialSeleccionado.observacion">
-          <h5>Observaciones</h5>
-          <p>{{ historialSeleccionado.observacion }}</p>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn btn-secondary" (click)="cerrarModal()">Cerrar</button>
-        <button class="btn btn-primary" *ngIf="historialSeleccionado" (click)="editarHistorial(historialSeleccionado); cerrarModal()">
-          Editar Historial
-        </button>
-        <button class="btn btn-success" *ngIf="historialSeleccionado" (click)="usarParaVenta(historialSeleccionado); cerrarModal()">
-          Usar para Venta
-        </button>
-      </div>
-    </div>
-  </div>
 </div>
