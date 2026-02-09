@@ -20,6 +20,7 @@ import { DashboardClinico } from '../../../../core/services/analisis-clinico.ser
 })
 export class DashboardClinicoComponent {
   @Input() dashboard: DashboardClinico | null = null;
+  @Input() totalHistoriales: number = 0;
 
   /**
    * Obtiene las claves de tipos de lente para iterar en el template.

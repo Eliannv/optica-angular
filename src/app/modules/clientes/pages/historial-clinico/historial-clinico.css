@@ -178,7 +178,7 @@
 .filter-panel {
   position: absolute;
   top: 100%;
-  left: 0;
+  right: 0;
   margin-top: 0.5rem;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -186,6 +186,7 @@
   box-shadow: var(--shadow-lg);
   z-index: 100;
   min-width: 280px;
+  max-width: 320px;
   animation: slideDown 0.2s ease-out;
 }
 
@@ -237,6 +238,8 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  max-height: calc(100vh - 250px);
+  overflow-y: auto;
 }
 
 .filter-group {
@@ -564,6 +567,162 @@
 }
 
 /* ============================================================================
+   MODAL HISTORIALES
+   ============================================================================ */
+
+.modal-content--historiales {
+  max-width: 1000px;
+}
+
+.modal-subtitle {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.historiales-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.historial-card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  overflow: hidden;
+  transition: all var(--transition-fast);
+}
+
+.historial-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.historial-card__header {
+  padding: 1rem 1.25rem;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.historial-card__title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.historial-card__title h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.historial-card__fecha {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.historial-card__body {
+  padding: 1.25rem;
+}
+
+.historial-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.25rem;
+}
+
+.historial-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.historial-section h5 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid var(--primary-color);
+  padding-bottom: 0.25rem;
+}
+
+.historial-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.375rem 0;
+  gap: 0.5rem;
+}
+
+.historial-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.historial-value {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  font-weight: 600;
+  text-align: right;
+}
+
+.historial-observacion {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.historial-observacion h5 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.historial-observacion p {
+  margin: 0;
+  padding: 0.75rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.loading-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-secondary);
+}
+
+.loading-state p {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.no-historial {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.no-historial p {
+  font-size: 1.05rem;
+  margin: 0 0 1rem 0;
+}
+
+/* ============================================================================
    DETALLE GRID
    ============================================================================ */
 
@@ -731,7 +890,12 @@
 }
 
 .p-4 {
-  padding: 1rem;
+  padding: 3rem 1rem;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .acciones-grupo {
@@ -777,8 +941,9 @@
     right: 0;
     bottom: 0;
     margin: 0;
-    border-radius: 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     min-width: unset;
+    max-width: none;
     max-height: 70vh;
     overflow-y: auto;
   }
@@ -810,6 +975,34 @@
   .modal-content {
     max-width: 95%;
     max-height: 85vh;
+  }
+
+  .modal-content--historiales {
+    max-width: 95%;
+  }
+
+  .historial-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .historial-card__header .btn {
+    width: 100%;
+  }
+
+  .historial-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .modal-footer {
+    flex-wrap: wrap;
+  }
+
+  .modal-footer .btn {
+    flex: 1 1 calc(50% - 0.25rem);
+    min-width: 120px;
   }
 
   .modal-header {

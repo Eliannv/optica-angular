@@ -25,10 +25,8 @@ import { HistorialClinicoService } from '../../../../core/services/historial-cli
 import { FacturasService } from '../../../../core/services/facturas';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { AuthService } from '../../../../core/services/auth.service';
-import { ExcelService } from '../../../../core/services/excel.service';
 
 import { Cliente } from '../../../../core/models/cliente.model';
-import { HistoriaClinica } from '../../../../core/models/historia-clinica.model';
 
 @Component({
   imports: [CommonModule, FormsModule],
@@ -60,9 +58,7 @@ export class HistorialClinicoComponent implements OnInit {
   mostrarPanelFiltros = false;
 
   clienteSeleccionado: Cliente | null = null;
-  historialClinico: HistoriaClinica | null = null;
   mostrarModal = false;
-  cargandoHistorial = false;
 
   /**
    * Verifica si el usuario actual es administrador.
@@ -78,8 +74,7 @@ export class HistorialClinicoComponent implements OnInit {
     private readonly historialSrv: HistorialClinicoService,
     private readonly facturasSrv: FacturasService,
     private readonly cajasChicaService: CajaChicaService,
-    private readonly authService: AuthService,
-    private readonly excelService: ExcelService
+    private readonly authService: AuthService
   ) {}
 
   /**
@@ -145,89 +140,8 @@ export class HistorialClinicoComponent implements OnInit {
    * @param clienteId Identificador del cliente cuyo historial se imprimirá.
    */
   imprimirHistorial(clienteId: string): void {
-  this.router.navigate(['/historial-print', clienteId]);
-}
-
-  /**
-   * Exporta el historial clínico del cliente a Excel usando la plantilla predefinida.
-   *
-   * @param clienteId Identificador del cliente cuyo historial se exportará.
-   */
-  async exportarExcel(clienteId: string): Promise<void> {
-    try {
-      // Buscar el cliente
-      const cliente = this.clientes.find(c => c.id === clienteId);
-      if (!cliente) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'Cliente no encontrado'
-        });
-        return;
-      }
-
-      // Obtener el historial clínico
-      const historialSnapshot = await this.historialSrv.obtenerHistorial(clienteId);
-
-      if (!historialSnapshot.exists()) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Sin historial',
-          text: 'Este cliente no tiene historial clínico registrado'
-        });
-        return;
-      }
-
-      const historial = historialSnapshot.data() as HistoriaClinica;
-
-      // Exportar a Excel usando ExcelJS (preserva formato original)
-      await this.excelService.exportarHistorialClinicoPedido(cliente, historial);
-
-      // Mostrar mensaje de éxito
-      Swal.fire({
-        icon: 'success',
-        title: '¡Exportado!',
-        text: 'El pedido ha sido exportado a Excel exitosamente',
-        timer: 2000,
-        showConfirmButton: false
-      });
-
-    } catch (error) {
-      console.error('Error al exportar Excel:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Hubo un problema al generar el archivo Excel'
-      });
-    }
+    this.router.navigate(['/historial-print', clienteId]);
   }
-
-  /**
-   * Descarga la plantilla original de Excel sin modificaciones.
-   */
-  async descargarPlantilla(): Promise<void> {
-    try {
-      await this.excelService.descargarPlantillaPedido();
-
-      // Mostrar mensaje de éxito
-      Swal.fire({
-        icon: 'success',
-        title: '¡Descargado!',
-        text: 'La plantilla original ha sido descargada exitosamente',
-        timer: 2000,
-        showConfirmButton: false
-      });
-
-    } catch (error) {
-      console.error('Error al descargar plantilla:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Hubo un problema al descargar la plantilla'
-      });
-    }
-  }
-
 
   /**
    * Carga en paralelo las deudas pendientes de todos los clientes.
@@ -409,40 +323,21 @@ export class HistorialClinicoComponent implements OnInit {
   }
 
   /**
-   * Muestra el modal con los detalles del historial clínico de un cliente.
-   *
-   * Carga asíncronamente el historial clínico del cliente seleccionado desde
-   * Firestore y lo muestra en un modal. Maneja estados de carga y errores.
+   * Muestra el modal con la información personal del cliente.
    *
    * @param cliente Cliente cuyos detalles se mostrarán.
    */
   async verDetalle(cliente: Cliente): Promise<void> {
     this.clienteSeleccionado = cliente;
     this.mostrarModal = true;
-    this.cargandoHistorial = true;
-    this.historialClinico = null;
-
-    try {
-      if (cliente.id) {
-        const snap = await this.historialSrv.obtenerHistorial(cliente.id);
-        if (snap.exists()) {
-          this.historialClinico = snap.data() as HistoriaClinica;
-        }
-      }
-    } catch (error) {
-      console.error('Error al cargar historial clínico:', error);
-    } finally {
-      this.cargandoHistorial = false;
-    }
   }
 
   /**
-   * Cierra el modal y limpia los datos del cliente y historial seleccionados.
+   * Cierra el modal y limpia los datos del cliente seleccionado.
    */
   cerrarModal(): void {
     this.mostrarModal = false;
     this.clienteSeleccionado = null;
-    this.historialClinico = null;
   }
 
   /**

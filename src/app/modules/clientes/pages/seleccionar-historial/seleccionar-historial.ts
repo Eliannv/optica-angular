@@ -24,6 +24,7 @@ import Swal from 'sweetalert2';
 import { ClientesService } from '../../../../core/services/clientes';
 import { HistorialClinicoService } from '../../../../core/services/historial-clinico.service';
 import { AnalisisClinicoService, DashboardClinico } from '../../../../core/services/analisis-clinico.service';
+import { ExcelService } from '../../../../core/services/excel.service';
 import { HistoriaClinica } from '../../../../core/models/historia-clinica.model';
 import { Cliente } from '../../../../core/models/cliente.model';
 import { DashboardClinicoComponent } from '../../components/dashboard-clinico/dashboard-clinico.component';
@@ -59,7 +60,7 @@ export class SeleccionarHistorialComponent implements OnInit, OnDestroy {
   mostrarDashboard = false;
   
   // Vista de historiales
-  vistaActual: 'tarjetas' | 'tabla' = 'tarjetas';
+  vistaActual: 'tarjetas' | 'tabla' = 'tabla';
   
   private subscription: Subscription | null = null;
 
@@ -68,7 +69,8 @@ export class SeleccionarHistorialComponent implements OnInit, OnDestroy {
     private readonly route: ActivatedRoute,
     private readonly clientesSrv: ClientesService,
     private readonly historialSrv: HistorialClinicoService,
-    private readonly analisisSrv: AnalisisClinicoService
+    private readonly analisisSrv: AnalisisClinicoService,
+    private readonly excelService: ExcelService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -242,6 +244,58 @@ export class SeleccionarHistorialComponent implements OnInit, OnDestroy {
   verDetalles(historial: HistoriaClinica): void {
     this.historialSeleccionado = historial;
     this.mostrarModal = true;
+  }
+
+  /**
+   * Exporta un historial clínico específico a Excel usando la plantilla predefinida.
+   *
+   * @param historial Historial clínico a exportar.
+   */
+  async exportarExcel(historial: HistoriaClinica): Promise<void> {
+    if (!historial.id || !this.cliente) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se puede exportar: datos incompletos'
+      });
+      return;
+    }
+
+    try {
+      // Obtener el historial clínico específico con todos sus datos
+      const historialSnapshot = await this.historialSrv.obtenerHistorialPorId(this.clienteId, historial.id);
+
+      if (!historialSnapshot.exists()) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Sin historial',
+          text: 'Este historial clínico no existe'
+        });
+        return;
+      }
+
+      const historialCompleto = historialSnapshot.data() as HistoriaClinica;
+
+      // Exportar a Excel usando ExcelJS (preserva formato original)
+      await this.excelService.exportarHistorialClinicoPedido(this.cliente, historialCompleto);
+
+      // Mostrar mensaje de éxito
+      Swal.fire({
+        icon: 'success',
+        title: '¡Exportado!',
+        text: 'El pedido ha sido exportado a Excel exitosamente',
+        timer: 2000,
+        showConfirmButton: false
+      });
+
+    } catch (error) {
+      console.error('Error al exportar Excel:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Hubo un problema al generar el archivo Excel'
+      });
+    }
   }
 
   /**
