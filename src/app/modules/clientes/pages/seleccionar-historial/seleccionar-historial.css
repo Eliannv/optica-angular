@@ -8,7 +8,6 @@
 /* Header */
 .card-header {
   padding: 1.5rem;
-  border-bottom: 1px solid var(--border-color, #e0e0e0);
   background: var(--card-bg, #ffffff);
 }
 
@@ -59,8 +58,6 @@
 /* Dashboard wrapper */
 .dashboard-wrapper {
   background: var(--secondary-bg, #f8f9fa);
-  border-top: 1px solid var(--border-color, #e0e0e0);
-  border-bottom: 1px solid var(--border-color, #e0e0e0);
   padding: 1.5rem;
 }
 
@@ -71,7 +68,6 @@
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
-  border-bottom: 1px solid var(--border-color, #e0e0e0);
 }
 
 .filtro-vista label {
@@ -487,14 +483,24 @@
 
 .acciones-col {
   min-width: 140px;
-  text-align: center;
+  max-width: 160px;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+}
+
+.acciones-wrapper {
+  display: flex;
+  justify-content: flex-start;
 }
 
 .acciones-group {
-  display: flex;
+  display: inline-flex;
   gap: 6px;
-  justify-content: center;
   align-items: center;
+  background: var(--bg-light, #f8f9fa);
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #e0e0e0);
 }
 
 /* Botones de icono */

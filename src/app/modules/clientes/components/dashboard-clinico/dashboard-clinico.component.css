@@ -27,7 +27,7 @@
 
 .resumen-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.25rem;
   margin-bottom: 2rem;
 }
@@ -70,6 +70,11 @@
   border-color: rgba(149, 165, 166, 0.2);
 }
 
+.stat-card-info {
+  background: linear-gradient(135deg, rgba(23, 162, 184, 0.08) 0%, rgba(23, 162, 184, 0.04) 100%);
+  border-color: rgba(23, 162, 184, 0.2);
+}
+
 .stat-icon {
   font-size: 2rem;
   min-width: 50px;
@@ -91,6 +96,10 @@
 
 .stat-card-secondary .stat-icon {
   color: rgba(149, 165, 166, 1);
+}
+
+.stat-card-info .stat-icon {
+  color: rgba(23, 162, 184, 1);
 }
 
 .stat-content {
