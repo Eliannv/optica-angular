@@ -21,6 +21,7 @@ import {
   getDocs,
   serverTimestamp,
   Timestamp,
+  writeBatch,
   orderBy,
   limit,
   startAfter,
@@ -185,6 +186,36 @@ export class FacturasDeudaService {
       id: doc.id,
       fechaPago: data.fechaPago?.toDate ? data.fechaPago.toDate() : new Date(data.fechaPago)
     } as FacturaDeuda;
+  }
+
+  /**
+   * Actualiza SOLO el estado de todos los pagos de deuda asociados a una factura.
+   * No modifica montos, fechas, cliente ni ningun otro campo.
+   *
+   * @param facturaId ID de la factura original
+   * @param estado Nuevo estado (PENDIENTE o PAGADA)
+   * @returns Cantidad de documentos actualizados
+   */
+  async actualizarEstadoPagosDeuda(facturaId: string, estado: 'PENDIENTE' | 'PAGADA'): Promise<number> {
+    const q = query(
+      this.facturasDeudaRef,
+      where('facturaId', '==', facturaId)
+    );
+
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      return 0;
+    }
+
+    const batch = writeBatch(this.fs);
+    snap.docs.forEach(docSnap => {
+      batch.update(docSnap.ref, {
+        estadoPago: estado
+      } as any);
+    });
+
+    await batch.commit();
+    return snap.size;
   }
 
   /**

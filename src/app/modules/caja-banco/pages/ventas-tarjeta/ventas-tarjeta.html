@@ -1,0 +1,128 @@
+<div class="caja-container">
+    <div class="caja-card">
+        <div class="caja-header">
+            <div class="header-content">
+                <div>
+                    <h1 class="caja-title">Cobros de Ventas con Tarjeta</h1>
+                    <p class="subtitle">Registra ingresos diferidos del banco sin alterar facturas</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="caja-body">
+            <div class="resumen-container" *ngIf="!cargando">
+                <div class="resumen-card">
+                    <div class="resumen-label">Total Pendiente</div>
+                    <div class="resumen-valor">{{ formatoMoneda(getTotalPendiente()) }}</div>
+                </div>
+                <div class="resumen-card">
+                    <div class="resumen-label">Total Recibido</div>
+                    <div class="resumen-valor">{{ formatoMoneda(getTotalRecibido()) }}</div>
+                </div>
+                <div class="resumen-card">
+                    <div class="resumen-label">Ventas Pendientes</div>
+                    <div class="resumen-valor">{{ getCantidadPendientes() }}</div>
+                </div>
+                <div class="resumen-card">
+                    <div class="resumen-label">Ventas Liquidadas</div>
+                    <div class="resumen-valor">{{ getCantidadLiquidadas() }}</div>
+                </div>
+            </div>
+
+            <div class="filtros-container">
+                <div class="filtro-group">
+                    <label>Estado:</label>
+                    <div class="filtro-buttons">
+                        <button class="filtro-btn" [class.active]="filtroEstado === 'TODAS'" (click)="filtroEstado = 'TODAS'; aplicarFiltros()">Todas</button>
+                        <button class="filtro-btn" [class.active]="filtroEstado === 'PENDIENTE'" (click)="filtroEstado = 'PENDIENTE'; aplicarFiltros()">Pendientes</button>
+                        <button class="filtro-btn" [class.active]="filtroEstado === 'LIQUIDADA'" (click)="filtroEstado = 'LIQUIDADA'; aplicarFiltros()">Liquidadas</button>
+                    </div>
+                </div>
+                <div class="filtro-group">
+                    <label>Factura:</label>
+                    <input class="form-control" type="text" placeholder="Buscar factura" [(ngModel)]="filtroFactura" (input)="aplicarFiltros()" />
+                </div>
+            </div>
+
+            <div class="tabla-responsive" *ngIf="!cargando && ventasFiltradas.length">
+                <table class="tabla">
+                    <thead>
+                        <tr>
+                            <th>Factura</th>
+                            <th>Cliente</th>
+                            <th>Fecha Venta</th>
+                            <th>Total</th>
+                            <th>Recibido</th>
+                            <th>Pendiente</th>
+                            <th>Estado</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="tabla-row" *ngFor="let venta of ventasFiltradas">
+                            <td>{{ venta.facturaIdPersonalizado || venta.facturaId }}</td>
+                            <td>{{ venta.clienteNombre }}</td>
+                            <td>{{ formatoFecha(venta.fechaVenta) }}</td>
+                            <td>{{ formatoMoneda(venta.montoTotal) }}</td>
+                            <td>{{ formatoMoneda(venta.montoRecibido) }}</td>
+                            <td>{{ formatoMoneda(venta.saldoPendiente) }}</td>
+                            <td>
+                                <span class="badge" [class.badge-success]="venta.estado === 'LIQUIDADA'" [class.badge-warning]="venta.estado === 'PENDIENTE'">
+                                    {{ venta.estado }}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn-secondary" (click)="seleccionarVenta(venta)">Registrar ingreso</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="text-muted" *ngIf="!cargando && !ventasFiltradas.length">
+                No hay ventas con tarjeta para mostrar.
+            </div>
+
+            <div class="card" *ngIf="ventaSeleccionada">
+                <div class="card-header">
+                    <h3 class="card-title">Ingreso del banco</h3>
+                </div>
+                <div class="card-body">
+                    <div class="detalle-seleccion">
+                        <strong>Factura:</strong> {{ ventaSeleccionada.facturaIdPersonalizado || ventaSeleccionada.facturaId }}
+                        <span class="divider">•</span>
+                        <strong>Saldo pendiente:</strong> {{ formatoMoneda(ventaSeleccionada.saldoPendiente) }}
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Fecha de deposito</label>
+                            <input type="date" class="form-control" [(ngModel)]="ingresoFecha" />
+                        </div>
+                        <div class="form-group">
+                            <label>Monto recibido</label>
+                            <input type="number" class="form-control" min="0.01" step="0.01" [(ngModel)]="ingresoMonto" />
+                        </div>
+                        <div class="form-group">
+                            <label>Banco</label>
+                            <input type="text" class="form-control" [(ngModel)]="ingresoBanco" />
+                        </div>
+                        <div class="form-group">
+                            <label>Numero de lote</label>
+                            <input type="text" class="form-control" [(ngModel)]="ingresoLote" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Observacion</label>
+                        <input type="text" class="form-control" [(ngModel)]="ingresoObservacion" />
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button class="btn-secondary" (click)="limpiarSeleccion()">Cancelar</button>
+                    <button class="btn-primary" (click)="registrarIngreso()">Registrar ingreso</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

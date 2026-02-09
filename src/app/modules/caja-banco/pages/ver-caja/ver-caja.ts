@@ -62,6 +62,9 @@ export class VerCajaComponent implements OnInit {
   /** ID de la caja banco (parámetro de ruta) */
   cajaId: string = '';
 
+  /** ID de la ultima caja banco abierta */
+  ultimaCajaAbiertaId: string | null = null;
+
   /**
    * Resumen financiero de la caja.
    * Incluye totales de ingresos y egresos desglosados.
@@ -91,6 +94,18 @@ export class VerCajaComponent implements OnInit {
   }
 
   /**
+   * Solo el admin puede editar/eliminar y solo si es la ultima caja abierta.
+   */
+  get puedeEditarMovimientos(): boolean {
+    return Boolean(
+      this.esAdministrador &&
+      this.caja?.estado === 'ABIERTA' &&
+      this.caja?.id &&
+      this.caja.id === this.ultimaCajaAbiertaId
+    );
+  }
+
+  /**
    * Hook de inicialización de Angular.
    * Obtiene el ID de la caja del parámetro de ruta y carga sus datos.
    */
@@ -114,6 +129,7 @@ export class VerCajaComponent implements OnInit {
    */
   cargarDatos(): void {
     this.cargando = true;
+    this.cargarUltimaCajaAbierta();
     this.cajaBancoService.getCajaBancoById(this.cajaId).subscribe(c => {
       this.caja = c;
       // Asociar movimientos antiguos que no tengan caja_banco_id
@@ -144,6 +160,141 @@ export class VerCajaComponent implements OnInit {
         this.cargando = false;
       }
     });
+  }
+
+  private async cargarUltimaCajaAbierta(): Promise<void> {
+    try {
+      const ultima = await this.cajaBancoService.getCajaBancoAbierta();
+      this.ultimaCajaAbiertaId = ultima?.id || null;
+    } catch (error) {
+      console.error('Error obteniendo ultima caja abierta:', error);
+      this.ultimaCajaAbiertaId = null;
+    }
+  }
+
+  async editarMovimiento(mov: MovimientoCajaBanco): Promise<void> {
+    if (!this.puedeEditarMovimientos || !this.cajaId || !mov.id) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Accion no permitida',
+        text: 'Solo el administrador puede editar movimientos en la ultima caja abierta.'
+      });
+      return;
+    }
+
+    const fechaActual = mov.fecha ? new Date(mov.fecha) : new Date();
+    const fechaIso = `${fechaActual.getFullYear()}-${(fechaActual.getMonth() + 1).toString().padStart(2, '0')}-${fechaActual.getDate().toString().padStart(2, '0')}`;
+
+    const result = await Swal.fire({
+      title: 'Editar movimiento',
+      html: `
+        <div style="text-align:left; display:grid; gap:10px;">
+          <label>Fecha</label>
+          <input id="mov-fecha" type="date" class="swal2-input" value="${fechaIso}">
+          <label>Descripcion</label>
+          <input id="mov-descripcion" type="text" class="swal2-input" value="${mov.descripcion || ''}">
+          <label>Referencia</label>
+          <input id="mov-referencia" type="text" class="swal2-input" value="${mov.referencia || ''}">
+          <label>Monto</label>
+          <input id="mov-monto" type="number" class="swal2-input" value="${mov.monto || 0}" min="0.01" step="0.01">
+        </div>
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: 'Guardar',
+      cancelButtonText: 'Cancelar',
+      preConfirm: () => {
+        const fecha = (document.getElementById('mov-fecha') as HTMLInputElement)?.value;
+        const descripcion = (document.getElementById('mov-descripcion') as HTMLInputElement)?.value || '';
+        const referencia = (document.getElementById('mov-referencia') as HTMLInputElement)?.value || '';
+        const monto = Number((document.getElementById('mov-monto') as HTMLInputElement)?.value || 0);
+
+        if (!fecha) {
+          Swal.showValidationMessage('La fecha es obligatoria');
+          return null;
+        }
+        if (!descripcion.trim()) {
+          Swal.showValidationMessage('La descripcion es obligatoria');
+          return null;
+        }
+        if (monto <= 0) {
+          Swal.showValidationMessage('El monto debe ser mayor a 0');
+          return null;
+        }
+
+        return {
+          fecha: new Date(fecha),
+          descripcion: descripcion.trim(),
+          referencia: referencia.trim(),
+          monto
+        };
+      }
+    });
+
+    if (!result.isConfirmed || !result.value) {
+      return;
+    }
+
+    try {
+      await this.cajaBancoService.actualizarMovimientoEnUltimaCaja(this.cajaId, mov.id, result.value);
+      await Swal.fire({
+        icon: 'success',
+        title: 'Movimiento actualizado',
+        timer: 1500,
+        showConfirmButton: false
+      });
+      this.cargarDatos();
+    } catch (error: any) {
+      console.error('Error al editar movimiento:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'No se pudo editar',
+        text: error?.message || 'Error desconocido'
+      });
+    }
+  }
+
+  async eliminarMovimiento(mov: MovimientoCajaBanco): Promise<void> {
+    if (!this.puedeEditarMovimientos || !this.cajaId || !mov.id) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Accion no permitida',
+        text: 'Solo el administrador puede eliminar movimientos en la ultima caja abierta.'
+      });
+      return;
+    }
+
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: 'Eliminar movimiento',
+      text: 'Esta accion no se puede deshacer.',
+      showCancelButton: true,
+      confirmButtonText: 'Eliminar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#d33'
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    try {
+      await this.cajaBancoService.eliminarMovimientoEnUltimaCaja(this.cajaId, mov.id);
+      await Swal.fire({
+        icon: 'success',
+        title: 'Movimiento eliminado',
+        timer: 1500,
+        showConfirmButton: false
+      });
+      this.cargarDatos();
+    } catch (error: any) {
+      console.error('Error al eliminar movimiento:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'No se pudo eliminar',
+        text: error?.message || 'Error desconocido'
+      });
+    }
   }
 
   /**

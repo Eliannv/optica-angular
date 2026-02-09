@@ -14,6 +14,7 @@ import { RouterModule, Routes } from '@angular/router';
 import { ListarCajasComponent } from './pages/listar-cajas/listar-cajas';
 import { VerCajaComponent } from './pages/ver-caja/ver-caja';
 import { RegistrarMovimientoComponent } from './pages/registrar-movimiento/registrar-movimiento';
+import { VentasTarjetaComponent } from './pages/ventas-tarjeta/ventas-tarjeta';
 
 /**
  * Rutas disponibles bajo el prefijo de caja-banco.
@@ -24,7 +25,8 @@ import { RegistrarMovimientoComponent } from './pages/registrar-movimiento/regis
 const routes: Routes = [
   { path: '', component: ListarCajasComponent },
   { path: ':id/ver', component: VerCajaComponent },
-  { path: 'registrar-movimiento', component: RegistrarMovimientoComponent }
+  { path: 'registrar-movimiento', component: RegistrarMovimientoComponent },
+  { path: 'ventas-tarjeta', component: VentasTarjetaComponent }
 ];
 
 /**

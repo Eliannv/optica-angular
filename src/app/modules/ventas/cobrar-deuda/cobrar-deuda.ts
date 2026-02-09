@@ -457,9 +457,10 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
       // Guardar en la nueva colección (factura original no se modifica)
       await this.facturasDeudaService.crearPagoDeuda(deuda);
 
-      // ✅ Si la deuda quedó saldada, marcar SOLO el estado de la factura original como PAGADA
+      // ✅ Si la deuda quedó saldada, marcar SOLO el estado de la factura original y sus cobros
       if (estadoPago === 'PAGADA') {
         await this.facturasSrv.marcarFacturaComoPagada(f.id);
+        await this.facturasDeudaService.actualizarEstadoPagosDeuda(f.id, 'PAGADA');
       }
 
       // ✅ enriquecer ítems con código real si falta

@@ -251,6 +251,41 @@ export class CajaBancoService {
   }
 
   /**
+   * Obtiene la caja banco del periodo especificado sin validar estado (ABIERTA/CERRADA).
+   * Retorna la primera caja activa del periodo.
+   */
+  async getCajaBancoPorPeriodoSinEstado(year: number, monthIndex0: number): Promise<CajaBanco | null> {
+    try {
+      const { inicio, fin } = rangoPeriodo(year, monthIndex0);
+
+      const cajasRef = collection(this.firestore, 'cajas_banco');
+      const q = query(
+        cajasRef,
+        where('fecha', '>=', inicio),
+        where('fecha', '<', fin)
+      );
+
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        return null;
+      }
+
+      const cajasValidas = snapshot.docs
+        .map(doc => ({
+          ...doc.data(),
+          id: doc.id
+        } as CajaBanco))
+        .filter(c => c.activo !== false);
+
+      return cajasValidas.length > 0 ? cajasValidas[0] : null;
+    } catch (error) {
+      console.error('Error obteniendo caja banco por periodo (sin estado):', error);
+      return null;
+    }
+  }
+
+  /**
    * Verifica si la caja banco del periodo de una fecha está abierta.
    * Útil para validar que no se registren movimientos en periodos cerrados.
    * 
@@ -553,6 +588,59 @@ export class CajaBancoService {
     }
   }
 
+  /**
+   * Registra un movimiento en caja banco sin bloquear por estado CERRADA.
+   * Se usa para ingresos diferidos (ej: ventas con tarjeta).
+   */
+  async registrarMovimientoIgnorarCierre(movimiento: MovimientoCajaBanco): Promise<string> {
+    const movimientosRef = collection(this.firestore, 'movimientos_cajas_banco');
+
+    if (!movimiento.caja_banco_id) {
+      const nuevoMovimiento: MovimientoCajaBanco = {
+        ...movimiento,
+        createdAt: Timestamp.now()
+      };
+      const docRef = await addDoc(movimientosRef, nuevoMovimiento);
+      return docRef.id;
+    }
+
+    const cajaDoc = await getDoc(doc(this.firestore, `cajas_banco/${movimiento.caja_banco_id}`));
+    const caja = cajaDoc.data() as CajaBanco;
+
+    if (!caja) {
+      throw new Error('La caja banco no existe');
+    }
+
+    const saldoAnterior = caja.saldo_actual;
+    let nuevoSaldo = saldoAnterior;
+
+    if (movimiento.tipo === 'INGRESO') {
+      nuevoSaldo += movimiento.monto;
+    } else if (movimiento.tipo === 'EGRESO') {
+      nuevoSaldo -= movimiento.monto;
+    }
+
+    if (nuevoSaldo < 0) {
+      throw new Error('La caja banco no tiene suficiente saldo para este egreso');
+    }
+
+    const nuevoMovimiento: MovimientoCajaBanco = {
+      ...movimiento,
+      saldo_anterior: saldoAnterior,
+      saldo_nuevo: nuevoSaldo,
+      createdAt: Timestamp.now()
+    };
+
+    const docRef = await addDoc(movimientosRef, nuevoMovimiento);
+
+    await updateDoc(doc(this.firestore, `cajas_banco/${movimiento.caja_banco_id}`), {
+      saldo_actual: nuevoSaldo,
+      updatedAt: Timestamp.now()
+    });
+
+    return docRef.id;
+  }
+
   // 🔹 Obtener movimientos de caja banco
   getMovimientosCajaBanco(cajaBancoId?: string): Observable<MovimientoCajaBanco[]> {
     const movimientosRef = collection(this.firestore, 'movimientos_cajas_banco');
@@ -721,6 +809,111 @@ export class CajaBancoService {
     } catch (error) {
       throw error;
     }
+  }
+
+  /**
+   * Valida que la caja exista, este ABIERTA y sea la ultima caja abierta.
+   */
+  private async validarUltimaCajaAbierta(cajaBancoId: string): Promise<void> {
+    const cajaDoc = await getDoc(doc(this.firestore, `cajas_banco/${cajaBancoId}`));
+    const caja = cajaDoc.data() as CajaBanco | undefined;
+
+    if (!caja) {
+      throw new Error('La caja banco no existe');
+    }
+
+    if (caja.estado !== 'ABIERTA') {
+      throw new Error('La caja banco esta cerrada. No se puede modificar.');
+    }
+
+    const ultima = await this.getCajaBancoAbierta();
+    if (!ultima?.id || ultima.id !== cajaBancoId) {
+      throw new Error('Solo se permite modificar movimientos en la ultima caja banco abierta.');
+    }
+  }
+
+  /**
+   * Actualiza un movimiento en la ultima caja abierta (solo para admins).
+   * Ajusta el saldo de la caja si cambia el monto.
+   */
+  async actualizarMovimientoEnUltimaCaja(
+    cajaBancoId: string,
+    movimientoId: string,
+    cambios: {
+      fecha?: Date;
+      descripcion?: string;
+      referencia?: string;
+      observacion?: string;
+      monto?: number;
+    }
+  ): Promise<void> {
+    await this.validarUltimaCajaAbierta(cajaBancoId);
+
+    const movimientoRef = doc(this.firestore, `movimientos_cajas_banco/${movimientoId}`);
+    const movimientoSnap = await getDoc(movimientoRef);
+
+    if (!movimientoSnap.exists()) {
+      throw new Error('El movimiento no existe');
+    }
+
+    const movimiento = movimientoSnap.data() as MovimientoCajaBanco;
+    const cajaDoc = await getDoc(doc(this.firestore, `cajas_banco/${cajaBancoId}`));
+    const caja = cajaDoc.data() as CajaBanco;
+
+    const montoActual = Number(movimiento.monto || 0);
+    const montoNuevo = cambios.monto !== undefined ? Number(cambios.monto) : montoActual;
+    const delta = +(montoNuevo - montoActual).toFixed(2);
+
+    let nuevoSaldo = caja.saldo_actual;
+    if (delta !== 0) {
+      if (movimiento.tipo === 'INGRESO') {
+        nuevoSaldo += delta;
+      } else {
+        nuevoSaldo -= delta;
+      }
+
+      if (nuevoSaldo < 0) {
+        throw new Error('La caja banco no tiene suficiente saldo para este ajuste.');
+      }
+
+      await updateDoc(doc(this.firestore, `cajas_banco/${cajaBancoId}`), {
+        saldo_actual: nuevoSaldo,
+        updatedAt: Timestamp.now()
+      });
+    }
+
+    const payload: any = {
+      updatedAt: Timestamp.now()
+    };
+
+    if (cambios.fecha) {
+      payload.fecha = Timestamp.fromDate(cambios.fecha);
+    }
+    if (cambios.descripcion !== undefined) {
+      payload.descripcion = cambios.descripcion;
+    }
+    if (cambios.referencia !== undefined) {
+      payload.referencia = cambios.referencia;
+    }
+    if (cambios.observacion !== undefined) {
+      payload.observacion = cambios.observacion;
+    }
+    if (cambios.monto !== undefined) {
+      payload.monto = montoNuevo;
+      if (movimiento.saldo_nuevo !== undefined) {
+        payload.saldo_nuevo = +(Number(movimiento.saldo_nuevo) + (movimiento.tipo === 'INGRESO' ? delta : -delta)).toFixed(2);
+      }
+    }
+
+    await updateDoc(movimientoRef, payload);
+  }
+
+  /**
+   * Elimina un movimiento solo si pertenece a la ultima caja abierta.
+   */
+  async eliminarMovimientoEnUltimaCaja(cajaBancoId: string, movimientoId: string): Promise<void> {
+    await this.validarUltimaCajaAbierta(cajaBancoId);
+    await this.eliminarMovimiento(cajaBancoId, movimientoId);
   }
 
   /**

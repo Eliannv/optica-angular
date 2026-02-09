@@ -20,6 +20,7 @@ import { CajaBancoRoutingModule } from './caja-banco-routing-module';
 import { ListarCajasComponent } from './pages/listar-cajas/listar-cajas';
 import { VerCajaComponent } from './pages/ver-caja/ver-caja';
 import { RegistrarMovimientoComponent } from './pages/registrar-movimiento/registrar-movimiento';
+import { VentasTarjetaComponent } from './pages/ventas-tarjeta/ventas-tarjeta';
 
 /**
  * Módulo que agrupa los componentes y rutas relacionados con la gestión
@@ -34,7 +35,8 @@ import { RegistrarMovimientoComponent } from './pages/registrar-movimiento/regis
   declarations: [
     ListarCajasComponent,
     VerCajaComponent,
-    RegistrarMovimientoComponent
+    RegistrarMovimientoComponent,
+    VentasTarjetaComponent
   ],
   imports: [
     CommonModule,

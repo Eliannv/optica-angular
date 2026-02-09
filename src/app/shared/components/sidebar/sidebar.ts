@@ -125,7 +125,24 @@ export class SidebarComponent implements OnInit {
         `),
         route: '/caja-banco',
         active: false,
-        roles: [RolUsuario.ADMINISTRADOR]
+        roles: [RolUsuario.ADMINISTRADOR],
+        expanded: false,
+        children: [
+          {
+            label: 'Cajas Banco',
+            icon: '',
+            route: '/caja-banco',
+            active: false,
+            roles: [RolUsuario.ADMINISTRADOR]
+          },
+          {
+            label: 'Cobros Tarjeta',
+            icon: '',
+            route: '/caja-banco/ventas-tarjeta',
+            active: false,
+            roles: [RolUsuario.ADMINISTRADOR]
+          }
+        ]
       },
       {
         label: 'Cuentas',
