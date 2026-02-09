@@ -221,8 +221,12 @@ export class FacturasService {
       .filter(f => f?.tipoFactura !== 'COBRO_DEUDA')
       .forEach(data => {
         const total = Number(data?.total || 0);
+        const abonadoInicial = Number(data?.abonado || 0);
+        const saldoBase = isFinite(Number(data?.saldoPendiente))
+          ? Number(data?.saldoPendiente)
+          : Math.max(0, +(total - abonadoInicial).toFixed(2));
         const pagado = Number(pagosPorFactura.get(data.id) || 0);
-        const saldo = Math.max(0, +(total - pagado).toFixed(2));
+        const saldo = Math.max(0, +(saldoBase - pagado).toFixed(2));
         const esCreditoPersonal = Boolean(
           data?.esCredito ||
           (data?.tipoVenta && String(data.tipoVenta).toUpperCase() === 'CREDITO') ||
@@ -280,12 +284,17 @@ export class FacturasService {
           .filter(f => f?.tipoFactura !== 'COBRO_DEUDA')
           .map(f => {
             const total = Number(f?.total || 0);
+            const abonadoInicial = Number(f?.abonado || 0);
+            const saldoBase = isFinite(Number(f?.saldoPendiente))
+              ? Number(f?.saldoPendiente)
+              : Math.max(0, +(total - abonadoInicial).toFixed(2));
             const pagado = Number(pagosPorFactura.get(f?.id) || 0);
-            const saldoRestante = Math.max(0, +(total - pagado).toFixed(2));
+            const saldoRestante = Math.max(0, +(saldoBase - pagado).toFixed(2));
+            const abonadoTotal = +(abonadoInicial + pagado).toFixed(2);
 
             return {
               ...f,
-              abonado: pagado,
+              abonado: abonadoTotal,
               saldoPendiente: saldoRestante
             };
           })
