@@ -319,8 +319,8 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
       const f = this.facturaSeleccionada;
 
       const total = Number(f?.total || 0);
-      const abonadoAnterior = Number(f?.abonado || 0);
-      const saldoAnterior = Number(f?.saldoPendiente || 0);
+      const saldoAnterior = await this.facturasDeudaService.calcularSaldoRestante(f.id, total);
+      const abonadoAnterior = +(total - saldoAnterior).toFixed(2);
 
       const abonoReal = Math.min(this.abono, saldoAnterior);
 

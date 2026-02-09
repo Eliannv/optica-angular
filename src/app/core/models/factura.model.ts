@@ -86,6 +86,9 @@ export interface Factura {
   /** Método de pago utilizado (efectivo, transferencia, tarjeta, etc.) */
   metodoPago: string;
 
+  /** Observación opcional sobre la venta */
+  observacion?: string;
+
   /** Código de transferencia bancaria cuando el pago es por transferencia */
   codigoTransferencia?: string;
 
@@ -121,6 +124,9 @@ export interface Factura {
 
   /** Tipo de factura: 'NORMAL' (venta convencional) o 'COBRO_DEUDA' (abono de deuda pendiente) */
   tipoFactura?: 'NORMAL' | 'COBRO_DEUDA';
+
+  /** ID de la factura original a la que referencia este cobro (solo COBRO_DEUDA) */
+  facturaOriginalId?: string;
 }
 
 /**

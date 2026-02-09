@@ -126,10 +126,10 @@
 
                 <!-- Si eligió -->
                 <div class="carrito-content" *ngIf="facturaSeleccionada">
-                    
+
                     <!-- 🎯 PANEL COMPACTO - DISEÑO POS PROFESIONAL -->
                     <div class="carrito-totales">
-                        
+
                         <!-- 1️⃣ CÁLCULOS EN 2 COLUMNAS: SUBTOTALES + TOTAL DESTACADO -->
                         <div class="calculos-container">
                             <!-- Columna Izquierda: Subtotales -->
@@ -171,7 +171,7 @@
                                 <input type="time" step="1" class="input-compacto" [(ngModel)]="horaPago" />
                             </div>
                         </div>
-                        
+
                         <!-- Si es Efectivo o no es admin: 2 columnas (método + hora si es admin) -->
                         <div class="pago-hora-row" *ngIf="!esAdmin || metodoPago === 'Efectivo'">
                             <div class="pago-col">
@@ -221,7 +221,7 @@
                             <input type="text" class="input-compacto" [(ngModel)]="ultimosCuatroTarjeta" placeholder="1234" maxlength="4" />
                         </div>
 
-                         <!-- 4️⃣ CRÉDITO PERSONAL (CHECKBOX COMPACTO) -->
+                        <!-- 4️⃣ CRÉDITO PERSONAL (CHECKBOX COMPACTO) -->
                         <div class="credito-checkbox" *ngIf="facturaSeleccionada">
                             <label class="checkbox-label">
                                 <input type="checkbox" [(ngModel)]="esCreditoPersonal" class="checkbox-input" />
@@ -244,10 +244,7 @@
                                 <!-- Abono (izquierda) -->
                                 <div class="abono-col">
                                     <label class="label-compacto">Abono Hoy</label>
-                                    <input type="number" min="0" step="0.01" class="input-abono" 
-                                           [ngModel]="abono" 
-                                           (ngModelChange)="onChangeAbono($event)" 
-                                           placeholder="0.00" />
+                                    <input type="number" min="0" step="0.01" class="input-abono" [ngModel]="abono" (ngModelChange)="onChangeAbono($event)" placeholder="0.00" />
                                     <small style="color: #666; font-size: 0.75rem; margin-top: 0.25rem; display: block;">
                                         Máx: ${{ (facturaSeleccionada.saldoPendiente || 0) | number:'1.2-2' }}
                                     </small>
@@ -265,17 +262,10 @@
 
                         <!-- 7️⃣ BOTONES -->
                         <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
-                            <button class="btn-secondary" 
-                                    type="button" 
-                                    (click)="volver()" 
-                                    style="flex: 1; padding: 1rem; font-size: 1rem; font-weight: 600;">
+                            <button class="btn-secondary" type="button" (click)="volver()" style="flex: 1; padding: 1rem; font-size: 1rem; font-weight: 600;">
                                 <span>Cancelar</span>
                             </button>
-                            <button class="btn-primary" 
-                                    type="button" 
-                                    [disabled]="pagando || abono <= 0" 
-                                    (click)="registrarAbono()" 
-                                    style="flex: 1; padding: 1rem; font-size: 1rem; font-weight: 700;">
+                            <button class="btn-primary" type="button" [disabled]="pagando || abono <= 0" (click)="registrarAbono()" style="flex: 1; padding: 1rem; font-size: 1rem; font-weight: 700;">
                                 <span>{{ pagando ? 'Procesando...' : 'Guardar + Imprimir' }}</span>
                             </button>
                         </div>
@@ -294,6 +284,7 @@
     <div class="t-center t-bold">ÓPTICA MACÍAS PASAJE</div>
     <div class="t-center t-small">RUC: 0912477528001</div>
     <div class="t-center t-small">Pasaje - Ecuador</div>
+    <div class="t-center t-small">Telf: 0990391361</div>
 
     <div class="t-hr"></div>
 
@@ -358,12 +349,12 @@
     </div>
 
     <div class="t-center t-small" style="margin-top: 6px;">
-        {{ ticketPago.saldoNuevo <= 0 ? '✅ DEUDA CANCELADA' : '⚠️ SALDO PENDIENTE' }}
+        {{ ticketPago.saldoNuevo
+        <=0 ? '✅ DEUDA CANCELADA' : '⚠️ SALDO PENDIENTE' }} </div>
+
+            <div class="t-hr"></div>
+
+            <div class="t-center t-small">Gracias</div>
+            <div class="t-center t-small">Conserve este comprobante</div>
+
     </div>
-
-    <div class="t-hr"></div>
-
-    <div class="t-center t-small">Gracias</div>
-    <div class="t-center t-small">Conserve este comprobante</div>
-
-</div>

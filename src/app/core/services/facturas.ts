@@ -24,6 +24,7 @@ import {
   where,
   getDocs,
   updateDoc,
+  writeBatch,
   orderBy,
   setDoc,
   deleteDoc,
@@ -34,7 +35,7 @@ import {
   endBefore,
   limitToLast
 } from '@angular/fire/firestore';
-import { Observable, BehaviorSubject, shareReplay, map, tap } from 'rxjs';
+import { Observable, BehaviorSubject, shareReplay, map, tap, combineLatest } from 'rxjs';
 import { Factura } from '../models/factura.model';
 import { PaginationResult } from '../models/pagination.model';
 
@@ -42,6 +43,7 @@ import { PaginationResult } from '../models/pagination.model';
 export class FacturasService {
   private readonly fs: Firestore;
   private readonly facturasRef;
+  private readonly facturasDeudaRef;
 
   // 🎯 CACHÉ con shareReplay
   private facturasCache$ = new BehaviorSubject<Factura[]>([]);
@@ -50,6 +52,7 @@ export class FacturasService {
   constructor() {
     this.fs = inject(Firestore);
     this.facturasRef = collection(this.fs, 'facturas');
+    this.facturasDeudaRef = collection(this.fs, 'facturas_deudas');
   }
 
   /**
@@ -192,26 +195,47 @@ export class FacturasService {
     );
 
     const snap = await getDocs(q);
+    const facturas = snap.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    })) as any[];
+
+    const pagosSnap = await getDocs(
+      query(this.facturasDeudaRef, where('clienteId', '==', clienteId))
+    );
+
+    const pagosPorFactura = new Map<string, number>();
+    pagosSnap.forEach(docSnap => {
+      const data: any = docSnap.data();
+      const facturaId = data?.facturaId;
+      if (!facturaId) return;
+      const monto = Number(data?.montoPagado || 0);
+      pagosPorFactura.set(facturaId, (pagosPorFactura.get(facturaId) || 0) + monto);
+    });
+
     let deudaTotal = 0;
     let pendientes = 0;
     let creditosActivos = 0;
 
-    snap.forEach(d => {
-      const data: any = d.data();
-      const saldo = Number(data?.saldoPendiente || 0);
-      const esCreditoPersonal = Boolean(
-        data?.esCredito ||
-        (data?.tipoVenta && String(data.tipoVenta).toUpperCase() === 'CREDITO') ||
-        (data?.estadoCredito && String(data.estadoCredito).toUpperCase() === 'ACTIVO')
-      );
-      if (saldo > 0) {
-        deudaTotal += saldo;
-        pendientes++;
-        if (esCreditoPersonal) {
-          creditosActivos++;
+    facturas
+      .filter(f => f?.tipoFactura !== 'COBRO_DEUDA')
+      .forEach(data => {
+        const total = Number(data?.total || 0);
+        const pagado = Number(pagosPorFactura.get(data.id) || 0);
+        const saldo = Math.max(0, +(total - pagado).toFixed(2));
+        const esCreditoPersonal = Boolean(
+          data?.esCredito ||
+          (data?.tipoVenta && String(data.tipoVenta).toUpperCase() === 'CREDITO') ||
+          (data?.estadoCredito && String(data.estadoCredito).toUpperCase() === 'ACTIVO')
+        );
+        if (saldo > 0) {
+          deudaTotal += saldo;
+          pendientes++;
+          if (esCreditoPersonal) {
+            creditosActivos++;
+          }
         }
-      }
-    });
+      });
 
     return {
       deudaTotal: +deudaTotal.toFixed(2),
@@ -234,16 +258,75 @@ export class FacturasService {
       // Sin orderBy para evitar necesidad de índice compuesto
     );
 
-    return collectionData(q, { idField: 'id' }).pipe(
-      map((facturas: any[]) => {
+    const pagosQuery = query(
+      this.facturasDeudaRef,
+      where('clienteId', '==', clienteId)
+    );
+
+    return combineLatest([
+      collectionData(q, { idField: 'id' }),
+      collectionData(pagosQuery, { idField: 'id' })
+    ]).pipe(
+      map(([facturas, pagos]: [any[], any[]]) => {
+        const pagosPorFactura = new Map<string, number>();
+        (pagos || []).forEach(p => {
+          const facturaId = p?.facturaId;
+          if (!facturaId) return;
+          const monto = Number(p?.montoPagado || 0);
+          pagosPorFactura.set(facturaId, (pagosPorFactura.get(facturaId) || 0) + monto);
+        });
+
+        const filtradas = (facturas || [])
+          .filter(f => f?.tipoFactura !== 'COBRO_DEUDA')
+          .map(f => {
+            const total = Number(f?.total || 0);
+            const pagado = Number(pagosPorFactura.get(f?.id) || 0);
+            const saldoRestante = Math.max(0, +(total - pagado).toFixed(2));
+
+            return {
+              ...f,
+              abonado: pagado,
+              saldoPendiente: saldoRestante
+            };
+          })
+          .filter(f => Number(f?.saldoPendiente || 0) > 0);
+
         // Ordenar en el cliente en lugar de en Firestore
-        return (facturas || []).sort((a, b) => {
+        return filtradas.sort((a, b) => {
           const fechaA = a?.fecha?.toDate?.() || new Date(a?.fecha || 0);
           const fechaB = b?.fecha?.toDate?.() || new Date(b?.fecha || 0);
           return fechaB.getTime() - fechaA.getTime(); // descendente
         });
       })
     ) as Observable<any[]>;
+  }
+
+  /**
+   * Marca como PAGADA cualquier factura de cobro de deuda asociada a la original.
+   * Útil para evitar múltiples cobros pendientes para la misma deuda.
+   */
+  async marcarCobrosDeudaComoPagados(facturaOriginalId: string): Promise<number> {
+    const q = query(
+      this.facturasRef,
+      where('tipoFactura', '==', 'COBRO_DEUDA'),
+      where('facturaOriginalId', '==', facturaOriginalId),
+      where('estadoPago', '==', 'PENDIENTE')
+    );
+
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      return 0;
+    }
+
+    const batch = writeBatch(this.fs);
+    snap.docs.forEach(docSnap => {
+      batch.update(docSnap.ref, {
+        estadoPago: 'PAGADA'
+      } as any);
+    });
+
+    await batch.commit();
+    return snap.size;
   }
 
   /**

@@ -108,6 +108,16 @@ service cloud.firestore {
       allow read, write: if isAdmin() || isAuthorizedOperator();
     }
 
+    // ===== FACTURAS_DEUDAS =====
+    match /facturas_deudas/{deudaId} {
+      allow read, write: if isAdmin() || isAuthorizedOperator();
+    }
+
+    // ===== VENTAS TARJETA =====
+    match /ventas_tarjeta/{ventaId} {
+      allow read, write: if isAdmin() || isAuthorizedOperator();
+    }
+
     // ===== MOVIMIENTOS DE STOCK =====
     match /movimientos_stock/{movId} {
       allow read, write: if isAdmin() || isAuthorizedOperator();

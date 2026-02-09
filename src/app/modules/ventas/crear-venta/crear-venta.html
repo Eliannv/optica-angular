@@ -13,111 +13,111 @@
     <!-- ✅ ZONA NO IMPRIMIBLE (POS) -->
     <div class="venta-container no-print" *ngIf="!loading">
         <div class="venta-card">
-        <!-- HEADER -->
-        <div class="venta-header">
-            <div class="header-content">
-                <h3 class="venta-title">                    Punto de Venta (POS)</h3>
-            </div>
-
-            <div class="cliente-info">
-                <div class="info-item">
-                    <span class="info-label">Cliente:</span>
-                    <span class="info-value">{{ cliente?.nombres }} {{ cliente?.apellidos }}</span>
+            <!-- HEADER -->
+            <div class="venta-header">
+                <div class="header-content">
+                    <h3 class="venta-title"> Punto de Venta (POS)</h3>
                 </div>
-                <div class="info-item">
-                    <span class="info-label">Historial:</span>
-                    <span class="badge" [class.badge-success]="historial" [class.badge-danger]="!historial">
+
+                <div class="cliente-info">
+                    <div class="info-item">
+                        <span class="info-label">Cliente:</span>
+                        <span class="info-value">{{ cliente?.nombres }} {{ cliente?.apellidos }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Historial:</span>
+                        <span class="badge" [class.badge-success]="historial" [class.badge-danger]="!historial">
             {{ historial ? '✓ Disponible' : '✗ No disponible' }}
           </span>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- BODY -->
-        <div class="venta-body">
-            <!-- PRODUCTOS -->
-            <div class="productos-section">
-                <div class="section-header">
-                    <h4>Buscar Productos</h4>
-                </div>
+            <!-- BODY -->
+            <div class="venta-body">
+                <!-- PRODUCTOS -->
+                <div class="productos-section">
+                    <div class="section-header">
+                        <h4>Buscar Productos</h4>
+                    </div>
 
-                <div class="search-container">
-                    <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <div class="search-container">
+                        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"></circle>
             <path d="m21 21-4.35-4.35"></path>
           </svg>
-                    <input class="search-input" placeholder="Buscar por nombre, modelo, color, código, ID interno... (usa ↑↓ y Enter)" [(ngModel)]="filtro" (input)="filtrarProductos()" (keydown)="onSearchKeydown($event)" />
-                    <button class="clear-btn" *ngIf="filtro" (click)="filtro = ''; filtrarProductos()">
+                        <input class="search-input" placeholder="Buscar por nombre, modelo, color, código, ID interno... (usa ↑↓ y Enter)" [(ngModel)]="filtro" (input)="filtrarProductos()" (keydown)="onSearchKeydown($event)" />
+                        <button class="clear-btn" *ngIf="filtro" (click)="filtro = ''; filtrarProductos()">
             ✕
           </button>
-                </div>
+                    </div>
 
-                <!-- Botones de acción rápida -->
-                <div class="action-buttons">
-                    <button class="btn-action" [class.active]="mostrarFiltros" (click)="toggleFiltros()" title="Mostrar/Ocultar filtros avanzados">
+                    <!-- Botones de acción rápida -->
+                    <div class="action-buttons">
+                        <button class="btn-action" [class.active]="mostrarFiltros" (click)="toggleFiltros()" title="Mostrar/Ocultar filtros avanzados">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
                         </svg>
                         Filtros
                     </button>
 
-                    <button class="btn-action" [class.active]="mostrarRecientes" (click)="toggleRecientes()" title="Mostrar productos recientes">
+                        <button class="btn-action" [class.active]="mostrarRecientes" (click)="toggleRecientes()" title="Mostrar productos recientes">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                         </svg>
                         Recientes
                     </button>
-                </div>
+                    </div>
 
-                <!-- Panel de filtros colapsable -->
-                <div class="filters-panel" *ngIf="mostrarFiltros">
-                    <div class="filter-row">
-                        <div class="filter-group">
-                            <label class="filter-label">Grupo:</label>
-                            <select class="filter-select" [(ngModel)]="grupoSeleccionado" (change)="recargarProductos()">
+                    <!-- Panel de filtros colapsable -->
+                    <div class="filters-panel" *ngIf="mostrarFiltros">
+                        <div class="filter-row">
+                            <div class="filter-group">
+                                <label class="filter-label">Grupo:</label>
+                                <select class="filter-select" [(ngModel)]="grupoSeleccionado" (change)="recargarProductos()">
                                 <option value="">Todos</option>
                                 <option *ngFor="let grupo of gruposDisponibles" [value]="grupo">{{ grupo }}</option>
                             </select>
-                            <button *ngIf="grupoSeleccionado" class="filter-clear" (click)="limpiarFiltroGrupo()" title="Limpiar">✕</button>
-                        </div>
+                                <button *ngIf="grupoSeleccionado" class="filter-clear" (click)="limpiarFiltroGrupo()" title="Limpiar">✕</button>
+                            </div>
 
-                        <div class="filter-group">
-                            <label class="filter-label">Proveedor:</label>
-                            <select class="filter-select" [(ngModel)]="proveedorSeleccionado" (change)="recargarProductos()">
+                            <div class="filter-group">
+                                <label class="filter-label">Proveedor:</label>
+                                <select class="filter-select" [(ngModel)]="proveedorSeleccionado" (change)="recargarProductos()">
                                 <option value="">Todos</option>
                                 <option *ngFor="let proveedor of proveedoresDisponibles" [value]="proveedor">{{ proveedor }}</option>
                             </select>
-                            <button *ngIf="proveedorSeleccionado" class="filter-clear" (click)="limpiarFiltroProveedor()" title="Limpiar">✕</button>
-                        </div>
+                                <button *ngIf="proveedorSeleccionado" class="filter-clear" (click)="limpiarFiltroProveedor()" title="Limpiar">✕</button>
+                            </div>
 
-                        <div class="filter-group">
-                            <label class="filter-label">Stock:</label>
-                            <select class="filter-select" [(ngModel)]="tipoStockSeleccionado" (change)="recargarProductos()">
+                            <div class="filter-group">
+                                <label class="filter-label">Stock:</label>
+                                <select class="filter-select" [(ngModel)]="tipoStockSeleccionado" (change)="recargarProductos()">
                                 <option value="">Todos</option>
                                 <option value="NORMAL">Normal</option>
                                 <option value="ILIMITADO">Ilimitado</option>
                             </select>
-                            <button *ngIf="tipoStockSeleccionado" class="filter-clear" (click)="limpiarFiltroStock()" title="Limpiar">✕</button>
-                        </div>
+                                <button *ngIf="tipoStockSeleccionado" class="filter-clear" (click)="limpiarFiltroStock()" title="Limpiar">✕</button>
+                            </div>
 
-                        <button *ngIf="grupoSeleccionado || proveedorSeleccionado || tipoStockSeleccionado" class="btn-clear-all" (click)="limpiarTodosFiltros()" title="Limpiar todos los filtros">
+                            <button *ngIf="grupoSeleccionado || proveedorSeleccionado || tipoStockSeleccionado" class="btn-clear-all" (click)="limpiarTodosFiltros()" title="Limpiar todos los filtros">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                             Limpiar todo
                         </button>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Lista de productos -->
-                <div class="productos-list">
-                    <!-- 🚀 LOADING STATE -->
-                    <div *ngIf="cargandoProductos" class="loading-state" style="text-align: center; padding: 20px; color: #6c757d;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;">
+                    <!-- Lista de productos -->
+                    <div class="productos-list">
+                        <!-- 🚀 LOADING STATE -->
+                        <div *ngIf="cargandoProductos" class="loading-state" style="text-align: center; padding: 20px; color: #6c757d;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;">
                             <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
                         </svg>
-                        <p style="margin: 10px 0 0 0;">Cargando productos...</p>
-                    </div>
+                            <p style="margin: 10px 0 0 0;">Cargando productos...</p>
+                        </div>
 
-                    <button class="producto-item" type="button" *ngFor="let p of productosFiltrados; let i = index" [class.producto-selected]="i === selectedIndex" (click)="onProductoClick(p, i)">
+                        <button class="producto-item" type="button" *ngFor="let p of productosFiltrados; let i = index" [class.producto-selected]="i === selectedIndex" (click)="onProductoClick(p, i)">
             <div class="producto-info">
               <div class="producto-nombre">{{ p.nombre }}</div>
               <div class="producto-detalles">
@@ -137,326 +137,334 @@
             </div>
           </button>
 
-                    <div class="empty-state" *ngIf="!cargandoProductos && !productosFiltrados.length">
-                        <span>🔍 No se encontraron productos</span>
-                    </div>
+                        <div class="empty-state" *ngIf="!cargandoProductos && !productosFiltrados.length">
+                            <span>🔍 No se encontraron productos</span>
+                        </div>
 
-                    <!-- 🚀 BOTÓN CARGAR MÁS -->
-                    <div *ngIf="!cargandoProductos && productosFiltrados.length > 0 && hayMasProductos" style="padding: 10px; text-align: center;">
-                        <button type="button" class="btn-action" (click)="cargarMasProductos()" style="width: 100%; padding: 10px; background-color: #e9ecef; border: 1px solid #dee2e6; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
+                        <!-- 🚀 BOTÓN CARGAR MÁS -->
+                        <div *ngIf="!cargandoProductos && productosFiltrados.length > 0 && hayMasProductos" style="padding: 10px; text-align: center;">
+                            <button type="button" class="btn-action" (click)="cargarMasProductos()" style="width: 100%; padding: 10px; background-color: #e9ecef; border: 1px solid #dee2e6; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px;">
                                 <path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>
                             </svg>
                             Cargar más productos
                         </button>
-                    </div>
+                        </div>
 
-                    <div *ngIf="!hayMasProductos && productosFiltrados.length > 0" style="padding: 10px; text-align: center; color: #6c757d; font-size: 12px;">
-                        ✓ Todos los resultados cargados
+                        <div *ngIf="!hayMasProductos && productosFiltrados.length > 0" style="padding: 10px; text-align: center; color: #6c757d; font-size: 12px;">
+                            ✓ Todos los resultados cargados
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- CARRITO -->
-            <div class="carrito-section">
-                <div class="section-header">
-                    <h4>Carrito de Compras</h4>
-                    <span class="items-count" *ngIf="items.length">{{ items.length }} item(s)</span>
-                </div>
+                <!-- CARRITO -->
+                <div class="carrito-section">
+                    <div class="section-header">
+                        <h4>Carrito de Compras</h4>
+                        <span class="items-count" *ngIf="items.length">{{ items.length }} item(s)</span>
+                    </div>
 
-                <!-- 🔧 BOTÓN AGREGAR SERVICIO -->
-                <div style="margin: 10px 0;">
-                    <button type="button" class="btn-secondary" (click)="toggleFormServicio()" style="width: 100%;">
+                    <!-- 🔧 BOTÓN AGREGAR SERVICIO -->
+                    <div style="margin: 10px 0;">
+                        <button type="button" class="btn-secondary" (click)="toggleFormServicio()" style="width: 100%;">
                         <span *ngIf="!mostrarFormServicio">Agregar Servicio</span>
                         <span *ngIf="mostrarFormServicio">Cerrar Formulario</span>
                     </button>
-                </div>
-
-                <!-- 🔧 FORMULARIO SERVICIO -->
-                <div *ngIf="mostrarFormServicio" class="form-servicio" style="background-color: #f8f9fa; border: 2px dashed #0d6efd; border-radius: 8px; padding: 15px; margin: 10px 0;">
-                    <div class="form-group" style="margin-bottom: 12px;">
-                        <label for="servicioNombre" style="font-weight: 600; font-size: 13px; color: #495057; margin-bottom: 5px; display: block;">Nombre del Servicio *</label>
-                        <input id="servicioNombre" type="text" class="search-input" [(ngModel)]="servicioNuevo.nombre" placeholder="Ej: Limpieza de lentes, Ajuste de armazón" (keydown.enter)="agregarServicio()" style="padding: 8px 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 13px; width: 100%;"
-                        />
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
-                        <div class="form-group">
-                            <label for="servicioCantidad" style="font-weight: 600; font-size: 13px; color: #495057; margin-bottom: 5px; display: block;">Cantidad</label>
-                            <input id="servicioCantidad" type="number" class="search-input" [(ngModel)]="servicioNuevo.cantidad" min="1" value="1" (keydown.enter)="agregarServicio()" style="padding: 8px 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 13px; width: 100%;"
+                    <!-- 🔧 FORMULARIO SERVICIO -->
+                    <div *ngIf="mostrarFormServicio" class="form-servicio" style="background-color: #f8f9fa; border: 2px dashed #0d6efd; border-radius: 8px; padding: 15px; margin: 10px 0;">
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label for="servicioNombre" style="font-weight: 600; font-size: 13px; color: #495057; margin-bottom: 5px; display: block;">Nombre del Servicio *</label>
+                            <input id="servicioNombre" type="text" class="search-input" [(ngModel)]="servicioNuevo.nombre" placeholder="Ej: Limpieza de lentes, Ajuste de armazón" (keydown.enter)="agregarServicio()" style="padding: 8px 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 13px; width: 100%;"
                             />
                         </div>
 
-                        <div class="form-group">
-                            <label for="servicioPrecio" style="font-weight: 600; font-size: 13px; color: #495057; margin-bottom: 5px; display: block;">Precio *</label>
-                            <input id="servicioPrecio" type="number" class="search-input" [(ngModel)]="servicioNuevo.precio" min="0.01" step="0.01" placeholder="0.00" (keydown.enter)="agregarServicio()" style="padding: 8px 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 13px; width: 100%;"
-                            />
-                        </div>
-                    </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                            <div class="form-group">
+                                <label for="servicioCantidad" style="font-weight: 600; font-size: 13px; color: #495057; margin-bottom: 5px; display: block;">Cantidad</label>
+                                <input id="servicioCantidad" type="number" class="search-input" [(ngModel)]="servicioNuevo.cantidad" min="1" value="1" (keydown.enter)="agregarServicio()" style="padding: 8px 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 13px; width: 100%;"
+                                />
+                            </div>
 
-                    <button type="button" class="btn-primary" (click)="agregarServicio()" style="width: 100%;">
+                            <div class="form-group">
+                                <label for="servicioPrecio" style="font-weight: 600; font-size: 13px; color: #495057; margin-bottom: 5px; display: block;">Precio *</label>
+                                <input id="servicioPrecio" type="number" class="search-input" [(ngModel)]="servicioNuevo.precio" min="0.01" step="0.01" placeholder="0.00" (keydown.enter)="agregarServicio()" style="padding: 8px 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 13px; width: 100%;"
+                                />
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn-primary" (click)="agregarServicio()" style="width: 100%;">
                         Agregar Servicio
                     </button>
-                </div>
-
-                <div class="carrito-content" *ngIf="items.length; else empty">
-                    <div class="carrito-items">
-                        <div class="carrito-item" *ngFor="let it of items">
-                            <div class="item-info">
-                                <div class="item-nombre">
-                                    {{ $any(it).nombre }}
-                                    <span *ngIf="$any(it).esServicio" style="display: inline-block; background-color: #0d6efd; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 5px; font-weight: 600;">
-                                        🔧 SERVICIO
-                                    </span>
-                                </div>
-                                <div class="item-tipo">{{ $any(it).tipo }}</div>
-                            </div>
-
-                            <div class="item-cantidad">
-                                <label>Cant.</label>
-                                <input #cantInput type="number" min="1" [max]="it.stockDisponible" [ngModel]="it.cantidad" (ngModelChange)="cambiarCantidad(it, $event)" (keydown.enter)="onInputEnter($event, 'cantidad', items.indexOf(it))" />
-                                <span class="precio-unit">× ${{ it.precioUnitario.toFixed(2) }}</span>
-                            </div>
-
-                            <div class="item-total">
-                                <div class="total-precio">${{ $any(it).total.toFixed(2) }}</div>
-                                <button class="btn-remove" type="button" (click)="quitar(it)" title="Eliminar">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
-                            </div>
-                        </div>
                     </div>
 
-                    <!-- 🎯 PANEL COMPACTO - DISEÑO POS PROFESIONAL -->
-                    <div class="carrito-totales">
-                        
-                        <!-- 1️⃣ CÁLCULOS EN 2 COLUMNAS: SUBTOTALES + TOTAL DESTACADO -->
-                        <div class="calculos-container">
-                            <!-- Columna Izquierda: Subtotales en fila horizontal -->
-                            <div class="subtotales-col">
-                                <div class="subtotales-row">
-                                    <div class="calculo-item">
-                                        <span class="calculo-label">Subtotal bruto</span>
-                                        <span class="calculo-valor">${{ (subtotal + descuentoMonto).toFixed(2) }}</span>
+                    <div class="carrito-content" *ngIf="items.length; else empty">
+                        <div class="carrito-items">
+                            <div class="carrito-item" *ngFor="let it of items">
+                                <div class="item-info">
+                                    <div class="item-nombre">
+                                        {{ $any(it).nombre }}
+                                        <span *ngIf="$any(it).esServicio" style="display: inline-block; background-color: #0d6efd; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 5px; font-weight: 600;">
+                                        🔧 SERVICIO
+                                    </span>
                                     </div>
-                                    <div class="calculo-item descuento-compacto">
-                                        <span class="calculo-label">Descuento</span>
-                                        <div class="descuento-input-group">
-                                            <input #descuentoInput type="number" min="0" max="100" class="input-inline" [(ngModel)]="descuentoPorcentaje" (ngModelChange)="cambiarDescuento()" (blur)="validarDescuento()" (focus)="selectAll($event)" (keydown.enter)="onInputEnter($event, 'descuento')" placeholder="0" />
-                                            <span class="descuento-simbolo">%</span>
+                                    <div class="item-tipo">{{ $any(it).tipo }}</div>
+                                </div>
+
+                                <div class="item-cantidad">
+                                    <label>Cant.</label>
+                                    <input #cantInput type="number" min="1" [max]="it.stockDisponible" [ngModel]="it.cantidad" (ngModelChange)="cambiarCantidad(it, $event)" (keydown.enter)="onInputEnter($event, 'cantidad', items.indexOf(it))" />
+                                    <span class="precio-unit">× ${{ it.precioUnitario.toFixed(2) }}</span>
+                                </div>
+
+                                <div class="item-total">
+                                    <div class="total-precio">${{ $any(it).total.toFixed(2) }}</div>
+                                    <button class="btn-remove" type="button" (click)="quitar(it)" title="Eliminar">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 🎯 PANEL COMPACTO - DISEÑO POS PROFESIONAL -->
+                        <div class="carrito-totales">
+
+                            <!-- 1️⃣ CÁLCULOS EN 2 COLUMNAS: SUBTOTALES + TOTAL DESTACADO -->
+                            <div class="calculos-container">
+                                <!-- Columna Izquierda: Subtotales en fila horizontal -->
+                                <div class="subtotales-col">
+                                    <div class="subtotales-row">
+                                        <div class="calculo-item">
+                                            <span class="calculo-label">Subtotal bruto</span>
+                                            <span class="calculo-valor">${{ (subtotal + descuentoMonto).toFixed(2) }}</span>
                                         </div>
-                                        <span class="calculo-valor descuento-monto">-${{ descuentoMonto.toFixed(2) }}</span>
+                                        <div class="calculo-item descuento-compacto">
+                                            <span class="calculo-label">Descuento</span>
+                                            <div class="descuento-input-group">
+                                                <input #descuentoInput type="number" min="0" max="100" class="input-inline" [(ngModel)]="descuentoPorcentaje" (ngModelChange)="cambiarDescuento()" (blur)="validarDescuento()" (focus)="selectAll($event)" (keydown.enter)="onInputEnter($event, 'descuento')"
+                                                    placeholder="0" />
+                                                <span class="descuento-simbolo">%</span>
+                                            </div>
+                                            <span class="calculo-valor descuento-monto">-${{ descuentoMonto.toFixed(2) }}</span>
+                                        </div>
+                                        <div class="calculo-item">
+                                            <span class="calculo-label">Subtotal neto</span>
+                                            <span class="calculo-valor">${{ subtotal.toFixed(2) }}</span>
+                                        </div>
                                     </div>
-                                    <div class="calculo-item">
-                                        <span class="calculo-label">Subtotal neto</span>
-                                        <span class="calculo-valor">${{ subtotal.toFixed(2) }}</span>
+                                    <div class="calculo-item iva-item" *ngIf="iva > 0">
+                                        <span class="calculo-label">IVA incluido</span>
+                                        <span class="calculo-valor">${{ iva.toFixed(2) }}</span>
                                     </div>
                                 </div>
-                                <div class="calculo-item iva-item" *ngIf="iva > 0">
-                                    <span class="calculo-label">IVA incluido</span>
-                                    <span class="calculo-valor">${{ iva.toFixed(2) }}</span>
+
+                                <!-- Columna Derecha: Total Destacado -->
+                                <div class="total-destacado">
+                                    <span class="total-label">TOTAL A PAGAR</span>
+                                    <span class="total-valor">${{ total.toFixed(2) }}</span>
                                 </div>
                             </div>
 
-                            <!-- Columna Derecha: Total Destacado -->
-                            <div class="total-destacado">
-                                <span class="total-label">TOTAL A PAGAR</span>
-                                <span class="total-valor">${{ total.toFixed(2) }}</span>
-                            </div>
-                        </div>
-
-                        <!-- 3️⃣ MÉTODO DE PAGO, FECHA Y HORA (FILA COMPACTA DINÁMICA) -->
-                        <!-- Si es Transferencia/Tarjeta + Admin: 3 columnas (método + fecha + hora) -->
-                        <div class="pago-hora-row" *ngIf="esAdmin && (metodoPago === 'Transferencia' || metodoPago === 'Tarjeta')" [class.pago-tres-columnas]="true">
-                            <div class="pago-col">
-                                <label class="label-compacto">Método de Pago</label>
-                                <select #metodoPagoSelect class="select-compacto" [(ngModel)]="metodoPago" (keydown.enter)="onInputEnter($event, 'metodo')">
+                            <!-- 3️⃣ MÉTODO DE PAGO, FECHA Y HORA (FILA COMPACTA DINÁMICA) -->
+                            <!-- Si es Transferencia/Tarjeta + Admin: 3 columnas (método + fecha + hora) -->
+                            <div class="pago-hora-row" *ngIf="esAdmin && (metodoPago === 'Transferencia' || metodoPago === 'Tarjeta')" [class.pago-tres-columnas]="true">
+                                <div class="pago-col">
+                                    <label class="label-compacto">Método de Pago</label>
+                                    <select #metodoPagoSelect class="select-compacto" [(ngModel)]="metodoPago" (keydown.enter)="onInputEnter($event, 'metodo')">
                                     <option value="Efectivo" *ngIf="hayCajaAbierta">Efectivo</option>
                                     <option value="Transferencia">Transferencia</option>
                                     <option value="Tarjeta">Tarjeta</option>
                                 </select>
+                                </div>
+                                <div class="pago-col">
+                                    <label class="label-compacto">Fecha Pago</label>
+                                    <input type="date" class="input-compacto" [(ngModel)]="fechaPago" [min]="fechaMinima" [max]="fechaMaxima" (keydown.enter)="onInputEnter($event, 'fechaPago')" />
+                                </div>
+                                <div class="pago-col">
+                                    <label class="label-compacto">Hora Pago</label>
+                                    <input type="time" step="1" class="input-compacto" [(ngModel)]="horaPago" (keydown.enter)="onInputEnter($event, 'horaPago')" />
+                                </div>
                             </div>
-                            <div class="pago-col">
-                                <label class="label-compacto">Fecha Pago</label>
-                                <input type="date" class="input-compacto" [(ngModel)]="fechaPago" [min]="fechaMinima" [max]="fechaMaxima" (keydown.enter)="onInputEnter($event, 'fechaPago')" />
-                            </div>
-                            <div class="pago-col">
-                                <label class="label-compacto">Hora Pago</label>
-                                <input type="time" step="1" class="input-compacto" [(ngModel)]="horaPago" (keydown.enter)="onInputEnter($event, 'horaPago')" />
-                            </div>
-                        </div>
-                        
-                        <!-- Si es Efectivo o no es admin: 2 columnas (método + hora si es admin) -->
-                        <div class="pago-hora-row" *ngIf="!esAdmin || metodoPago === 'Efectivo'">
-                            <div class="pago-col">
-                                <label class="label-compacto">Método de Pago</label>
-                                <select #metodoPagoSelect class="select-compacto" [(ngModel)]="metodoPago" (keydown.enter)="onInputEnter($event, 'metodo')">
+
+                            <!-- Si es Efectivo o no es admin: 2 columnas (método + hora si es admin) -->
+                            <div class="pago-hora-row" *ngIf="!esAdmin || metodoPago === 'Efectivo'">
+                                <div class="pago-col">
+                                    <label class="label-compacto">Método de Pago</label>
+                                    <select #metodoPagoSelect class="select-compacto" [(ngModel)]="metodoPago" (keydown.enter)="onInputEnter($event, 'metodo')">
                                     <option value="Efectivo" *ngIf="hayCajaAbierta">Efectivo</option>
                                     <option value="Transferencia">Transferencia</option>
                                     <option value="Tarjeta">Tarjeta</option>
                                 </select>
+                                </div>
+                                <div class="pago-col" *ngIf="esAdmin">
+                                    <label class="label-compacto">Hora Pago</label>
+                                    <input type="time" step="1" class="input-compacto" [(ngModel)]="horaPago" (keydown.enter)="onInputEnter($event, 'horaPago')" />
+                                </div>
                             </div>
-                            <div class="pago-col" *ngIf="esAdmin">
-                                <label class="label-compacto">Hora Pago</label>
-                                <input type="time" step="1" class="input-compacto" [(ngModel)]="horaPago" (keydown.enter)="onInputEnter($event, 'horaPago')" />
+
+                            <!-- Hint de periodo (solo si es Transferencia/Tarjeta y hay periodo) -->
+                            <div class="hint-periodo" *ngIf="(metodoPago === 'Transferencia' || metodoPago === 'Tarjeta') && periodoNombre">
+                                <small class="hint-text">Periodo: <strong>{{ periodoNombre }}</strong></small>
                             </div>
-                        </div>
 
-                        <!-- Hint de periodo (solo si es Transferencia/Tarjeta y hay periodo) -->
-                        <div class="hint-periodo" *ngIf="(metodoPago === 'Transferencia' || metodoPago === 'Tarjeta') && periodoNombre">
-                            <small class="hint-text">Periodo: <strong>{{ periodoNombre }}</strong></small>
-                        </div>
+                            <!-- 5️⃣ DATOS ADICIONALES DE PAGO (SOLO SI APLICA) -->
+                            <div class="datos-pago-adicionales" *ngIf="metodoPago === 'Transferencia'">
+                                <label class="label-compacto">Código Transferencia</label>
+                                <input #transferenciInput type="text" class="input-compacto" [(ngModel)]="codigoTransferencia" (keydown.enter)="onInputEnter($event, 'transferencia')" placeholder="Ej: TRF-20260112-001" />
+                            </div>
 
-                        <!-- 5️⃣ DATOS ADICIONALES DE PAGO (SOLO SI APLICA) -->
-                        <div class="datos-pago-adicionales" *ngIf="metodoPago === 'Transferencia'">
-                            <label class="label-compacto">Código Transferencia</label>
-                            <input #transferenciInput type="text" class="input-compacto" [(ngModel)]="codigoTransferencia" (keydown.enter)="onInputEnter($event, 'transferencia')" placeholder="Ej: TRF-20260112-001" />
-                        </div>
+                            <div class="datos-pago-adicionales" *ngIf="metodoPago === 'Tarjeta'">
+                                <label class="label-compacto">Últimos 4 Dígitos</label>
+                                <input #tarjetaInput type="text" class="input-compacto" [(ngModel)]="ultimosCuatroTarjeta" (keydown.enter)="onInputEnter($event, 'tarjeta')" placeholder="1234" maxlength="4" />
+                            </div>
 
-                        <div class="datos-pago-adicionales" *ngIf="metodoPago === 'Tarjeta'">
-                            <label class="label-compacto">Últimos 4 Dígitos</label>
-                            <input #tarjetaInput type="text" class="input-compacto" [(ngModel)]="ultimosCuatroTarjeta" (keydown.enter)="onInputEnter($event, 'tarjeta')" placeholder="1234" maxlength="4" />
-                        </div>
-
-                        <!-- 6️⃣ CRÉDITO PERSONAL (CHECKBOX COMPACTO) -->
-                        <div class="credito-checkbox">
-                            <label class="checkbox-label">
+                            <!-- 6️⃣ CRÉDITO PERSONAL (CHECKBOX COMPACTO) -->
+                            <div class="credito-checkbox">
+                                <label class="checkbox-label">
                                 <input type="checkbox" [(ngModel)]="esCredito" class="checkbox-input" />
                                 <span class="checkbox-text">Venta a Crédito Personal</span>
                             </label>
-                        </div>
+                            </div>
 
-                        <!-- 7️⃣ SECCIÓN DE CRÉDITO (SOLO SI ESTÁ ACTIVA) -->
-                        <div class="credito-seccion" *ngIf="esCredito || abono > 0 || saldoPendiente > 0">
-                            <div class="credito-grid">
-                                <div class="credito-item">
-                                    <label class="label-compacto">{{ esCredito ? 'Abono inicial' : 'Abono hoy' }}</label>
-                                    <input #abonoInput type="number" min="0" class="input-abono" [(ngModel)]="abono" (ngModelChange)="recalcularAbono()" (blur)="validarAbono()" (focus)="selectAll($event)" (keydown.enter)="onInputEnter($event, 'abono')" placeholder="0.00" />
+                            <div class="datos-pago-adicionales">
+                                <label class="label-compacto">Observación</label>
+                                <textarea class="input-compacto" rows="2" [(ngModel)]="observacion" placeholder="Detalle opcional de la venta"></textarea>
+                            </div>
+
+                            <!-- 7️⃣ SECCIÓN DE CRÉDITO (SOLO SI ESTÁ ACTIVA) -->
+                            <div class="credito-seccion" *ngIf="esCredito || abono > 0 || saldoPendiente > 0">
+                                <div class="credito-grid">
+                                    <div class="credito-item">
+                                        <label class="label-compacto">{{ esCredito ? 'Abono inicial' : 'Abono hoy' }}</label>
+                                        <input #abonoInput type="number" min="0" class="input-abono" [(ngModel)]="abono" (ngModelChange)="recalcularAbono()" (blur)="validarAbono()" (focus)="selectAll($event)" (keydown.enter)="onInputEnter($event, 'abono')" placeholder="0.00" />
+                                    </div>
+                                    <div class="credito-item">
+                                        <span class="label-compacto">Saldo pendiente</span>
+                                        <span class="saldo-valor">${{ saldoPendiente.toFixed(2) }}</span>
+                                    </div>
                                 </div>
-                                <div class="credito-item">
-                                    <span class="label-compacto">Saldo pendiente</span>
-                                    <span class="saldo-valor">${{ saldoPendiente.toFixed(2) }}</span>
+
+                                <!-- VUELTO (SOLO EFECTIVO) -->
+                                <div class="vuelto-alert" *ngIf="metodoPago === 'Efectivo' && abono > 0">
+                                    <span class="vuelto-label">🔄 Vuelto a entregar:</span>
+                                    <span class="vuelto-valor" [class.vuelto-negativo]="vuelto < 0">${{ vuelto | number:'1.2-2' }}</span>
                                 </div>
                             </div>
 
-                            <!-- VUELTO (SOLO EFECTIVO) -->
-                            <div class="vuelto-alert" *ngIf="metodoPago === 'Efectivo' && abono > 0">
-                                <span class="vuelto-label">🔄 Vuelto a entregar:</span>
-                                <span class="vuelto-valor" [class.vuelto-negativo]="vuelto < 0">${{ vuelto | number:'1.2-2' }}</span>
-                            </div>
-                        </div>
-
-                        <!-- BOTONES DE ACCIÓN -->
-                        <div style="display: flex; gap: 10px; margin-top: 20px; align-items: center;">
-                            <div style="flex: 1;"></div>
-                            <button class="btn-secondary" type="button" (click)="volver()">
+                            <!-- BOTONES DE ACCIÓN -->
+                            <div style="display: flex; gap: 10px; margin-top: 20px; align-items: center;">
+                                <div style="flex: 1;"></div>
+                                <button class="btn-secondary" type="button" (click)="volver()">
                                 <span>← Volver</span>
                             </button>
-                            <button #btnGuardar class="btn-primary" type="button" [disabled]="guardando || !puedeGuardar" (click)="guardarEImprimir()" (keydown.enter)="guardarEImprimir()" style="min-width: 200px;">
+                                <button #btnGuardar class="btn-primary" type="button" [disabled]="guardando || !puedeGuardar" (click)="guardarEImprimir()" (keydown.enter)="guardarEImprimir()" style="min-width: 200px;">
                                 <span>{{ guardando ? 'Guardando...' : 'Guardar + Imprimir' }}</span>
                             </button>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <ng-template #empty>
-                    <div class="carrito-empty">
-                        <div class="empty-icon">🛒</div>
-                        <p>Tu carrito está vacío</p>
-                        <span>Agrega productos para generar la venta</span>
-                    </div>
-                </ng-template>
+                    <ng-template #empty>
+                        <div class="carrito-empty">
+                            <div class="empty-icon">🛒</div>
+                            <p>Tu carrito está vacío</p>
+                            <span>Agrega productos para generar la venta</span>
+                        </div>
+                    </ng-template>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- ================= TICKET / FACTURA (oculto, solo para impresión) ================= -->
-<div id="ticket" class="ticket" *ngIf="facturaParaImprimir">
+    <!-- ================= TICKET / FACTURA (oculto, solo para impresión) ================= -->
+    <div id="ticket" class="ticket" *ngIf="facturaParaImprimir">
 
-    <div class="t-center t-bold">ÓPTICA MACÍAS PASAJE</div>
-    <div class="t-center t-small">RUC: 0912477528001</div>
-    <div class="t-center t-small">Pasaje - Ecuador</div>
+        <div class="t-center t-bold">ÓPTICA MACÍAS PASAJE</div>
+        <div class="t-center t-small">RUC: 0912477528001</div>
+        <div class="t-center t-small">Pasaje - Ecuador</div>
+        <div class="t-center t-small">Telf: 0990391361</div>
 
-    <div class="t-hr"></div>
+        <div class="t-hr"></div>
 
-    <div class="t-small">
-        <div><b>FACTURA No:</b> {{ facturaParaImprimir.id }}</div>
-        <div><b>Fecha:</b> {{ facturaParaImprimir.fecha | date:'dd/MM/yyyy HH:mm' }}</div>
-        <div><b>Cliente:</b> {{ facturaParaImprimir.clienteNombre }}</div>
-        <div *ngIf="facturaParaImprimir.clienteTelefono"><b>Tel:</b> {{ facturaParaImprimir.clienteTelefono }}</div>
-        <div><b>Método pago:</b> {{ facturaParaImprimir.metodoPago }}</div>
-        <!-- ✅ INDICADOR DE CRÉDITO PERSONAL -->
-        <div *ngIf="facturaParaImprimir.esCredito" class="t-small" style="margin-top: 4px; padding-top: 4px;">
-            VENTA A CRÉDITO PERSONAL
+        <div class="t-small">
+            <div><b>FACTURA No:</b> {{ facturaParaImprimir.id }}</div>
+            <div><b>Fecha:</b> {{ facturaParaImprimir.fecha | date:'dd/MM/yyyy HH:mm' }}</div>
+            <div><b>Cliente:</b> {{ facturaParaImprimir.clienteNombre }}</div>
+            <div *ngIf="facturaParaImprimir.clienteTelefono"><b>Tel:</b> {{ facturaParaImprimir.clienteTelefono }}</div>
+            <div><b>Método pago:</b> {{ facturaParaImprimir.metodoPago }}</div>
+            <div *ngIf="facturaParaImprimir.observacion"><b>Observación:</b> {{ facturaParaImprimir.observacion }}</div>
+            <!-- ✅ INDICADOR DE CRÉDITO PERSONAL -->
+            <div *ngIf="facturaParaImprimir.esCredito" class="t-small" style="margin-top: 4px; padding-top: 4px;">
+                VENTA A CRÉDITO PERSONAL
+            </div>
         </div>
-    </div>
 
-    <div class="t-hr"></div>
+        <div class="t-hr"></div>
 
-    <!-- TABLA -->
-    <div class="t-table-head t-small">
-        <span>COD</span>
-        <span>NOMBRE</span>
-        <span>CANT</span>
-        <span>P.U</span>
-        <span>P.T</span>
-    </div>
+        <!-- TABLA -->
+        <div class="t-table-head t-small">
+            <span>COD</span>
+            <span>NOMBRE</span>
+            <span>CANT</span>
+            <span>P.U</span>
+            <span>P.T</span>
+        </div>
 
-    <div class="t-table-row t-small" *ngFor="let it of facturaParaImprimir.items; let i = index">
-        <span class="t-cell">{{ it.idInterno || it.codigo || (i + 1) }}</span>
-        <span class="t-cell t-cut">{{ it.nombre }}</span>
-        <span class="t-cell t-right">{{ it.cantidad }}</span>
-        <span class="t-cell t-right">{{ it.precioUnitario | number:'1.2-2' }}</span>
-        <span class="t-cell t-right">{{ it.total | number:'1.2-2' }}</span>
-    </div>
+        <div class="t-table-row t-small" *ngFor="let it of facturaParaImprimir.items; let i = index">
+            <span class="t-cell">{{ it.idInterno || it.codigo || (i + 1) }}</span>
+            <span class="t-cell t-cut">{{ it.nombre }}</span>
+            <span class="t-cell t-right">{{ it.cantidad }}</span>
+            <span class="t-cell t-right">{{ it.precioUnitario | number:'1.2-2' }}</span>
+            <span class="t-cell t-right">{{ it.total | number:'1.2-2' }}</span>
+        </div>
 
-    <div class="t-hr"></div>
+        <div class="t-hr"></div>
 
-    <!-- TOTALES -->
-    <div class="t-kv t-small">
-        <span>Subtotal*</span>
-        <span>{{ (facturaParaImprimir.subtotal + (facturaParaImprimir.descuentoMonto || 0)) | number:'1.2-2' }}</span>
-    </div>
-    <div class="t-kv t-small" *ngIf="facturaParaImprimir.descuentoMonto > 0">
-        <span>Descuento ({{ facturaParaImprimir.descuentoPorcentaje }}%)</span>
-        <span>-{{ facturaParaImprimir.descuentoMonto | number:'1.2-2' }}</span>
-    </div>
-    <div class="t-kv t-small">
-        <span>Subtotal Neto</span>
-        <span>{{ facturaParaImprimir.subtotal | number:'1.2-2' }}</span>
-    </div>
-    <div class="t-kv t-small" *ngIf="facturaParaImprimir.iva > 0">
-        <span>IVA</span>
-        <span>{{ facturaParaImprimir.iva | number:'1.2-2' }}</span>
-    </div>
-    <div class="t-kv t-bold">
-        <span>TOTAL</span>
-        <span>{{ facturaParaImprimir.total | number:'1.2-2' }}</span>
-    </div>
-    <div class="t-kv t-small" *ngIf="facturaParaImprimir.abonado > 0">
-        <span>Abono</span>
-        <span>{{ facturaParaImprimir.abonado | number:'1.2-2' }}</span>
-    </div>
-    <div class="t-kv t-small" *ngIf="facturaParaImprimir.saldoPendiente > 0">
-        <span>Saldo pendiente</span>
-        <span>{{ facturaParaImprimir.saldoPendiente | number:'1.2-2' }}</span>
-    </div>
-    <div class="t-kv t-small" *ngIf="facturaParaImprimir.abonado > facturaParaImprimir.total">
-        <span>Vuelto</span>
-        <span>{{ (facturaParaImprimir.abonado - facturaParaImprimir.total) | number:'1.2-2' }}</span>
-    </div>
+        <!-- TOTALES -->
+        <div class="t-kv t-small">
+            <span>Subtotal*</span>
+            <span>{{ (facturaParaImprimir.subtotal + (facturaParaImprimir.descuentoMonto || 0)) | number:'1.2-2' }}</span>
+        </div>
+        <div class="t-kv t-small" *ngIf="facturaParaImprimir.descuentoMonto > 0">
+            <span>Descuento ({{ facturaParaImprimir.descuentoPorcentaje }}%)</span>
+            <span>-{{ facturaParaImprimir.descuentoMonto | number:'1.2-2' }}</span>
+        </div>
+        <div class="t-kv t-small">
+            <span>Subtotal Neto</span>
+            <span>{{ facturaParaImprimir.subtotal | number:'1.2-2' }}</span>
+        </div>
+        <div class="t-kv t-small" *ngIf="facturaParaImprimir.iva > 0">
+            <span>IVA</span>
+            <span>{{ facturaParaImprimir.iva | number:'1.2-2' }}</span>
+        </div>
+        <div class="t-kv t-bold">
+            <span>TOTAL</span>
+            <span>{{ facturaParaImprimir.total | number:'1.2-2' }}</span>
+        </div>
+        <div class="t-kv t-small" *ngIf="facturaParaImprimir.abonado > 0">
+            <span>Abono</span>
+            <span>{{ facturaParaImprimir.abonado | number:'1.2-2' }}</span>
+        </div>
+        <div class="t-kv t-small" *ngIf="facturaParaImprimir.saldoPendiente > 0">
+            <span>Saldo pendiente</span>
+            <span>{{ facturaParaImprimir.saldoPendiente | number:'1.2-2' }}</span>
+        </div>
+        <div class="t-kv t-small" *ngIf="facturaParaImprimir.abonado > facturaParaImprimir.total">
+            <span>Vuelto</span>
+            <span>{{ (facturaParaImprimir.abonado - facturaParaImprimir.total) | number:'1.2-2' }}</span>
+        </div>
 
-    <div class="t-hr"></div>
-    <div class="t-center t-small">*IVA incluido en los precios</div>
+        <div class="t-hr"></div>
+        <div class="t-center t-small">*IVA incluido en los precios</div>
 
-    <!-- ✅ NOTA DE CRÉDITO PERSONAL -->
-    <div class="t-small" *ngIf="facturaParaImprimir.esCredito" style="margin: 6px 0;">
-        CLIENTE SE LLEVÓ EL LENTE CON DEUDA<br> Saldo pendiente: ${{ facturaParaImprimir.saldoPendiente | number:'1.2-2' }}
+        <!-- ✅ NOTA DE CRÉDITO PERSONAL -->
+        <div class="t-small" *ngIf="facturaParaImprimir.esCredito" style="margin: 6px 0;">
+            CLIENTE SE LLEVÓ EL LENTE CON DEUDA<br> Saldo pendiente: ${{ facturaParaImprimir.saldoPendiente | number:'1.2-2' }}
+        </div>
+
+        <div class="t-center t-small">Gracias por su compra</div>
+        <div class="t-center t-small">Conserve su factura</div>
+
     </div>
-
-    <div class="t-center t-small">Gracias por su compra</div>
-    <div class="t-center t-small">Conserve su factura</div>
-
-</div>
 </div>

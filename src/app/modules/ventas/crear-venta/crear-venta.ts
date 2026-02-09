@@ -80,6 +80,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   metodoPago = 'Efectivo';
   codigoTransferencia = ''; // Código de transferencia bancaria
   ultimosCuatroTarjeta = ''; // Últimos 4 dígitos de la tarjeta
+  observacion = '';
   
   // � FECHA Y HORA DE PAGO
   horaPago = ''; // Hora del pago (HH:mm) - para todos los métodos
@@ -1153,15 +1154,7 @@ async guardarEImprimir() {
   // ✅ VALIDACIÓN: La venta es válida si tiene items (productos O servicios)
   // No requerimos que sean solo productos
 
-  // ✅ VALIDACIÓN: Si NO es crédito personal, requiere abono > 0
-  if (!this.esCredito && this.abono <= 0) {
-    Swal.fire({
-      icon: 'warning',
-      title: 'Abono requerido',
-      text: 'Debe ingresar un abono mayor a 0. Si desea vender a crédito personal, active esa opción.'
-    });
-    return;
-  }
+  // ✅ Permitir ventas con abono 0 (con o sin crédito personal)
 
   // 🔒 Protección adicional en modo edición
   if (this.modoEdicion && !this.facturaOriginal) {
@@ -1365,6 +1358,7 @@ async guardarEImprimir() {
     console.log('✅ Fecha validada (Date):', fechaFinal);
 
     // ✅ CREAR FACTURA CON DATOS DE CRÉDITO
+    const observacionLimpia = (this.observacion || '').trim();
     const factura: any = {
       clienteId: this.clienteId,
       historialClinicoId: this.historialId || undefined, // ✅ NUEVO: ID del historial usado
@@ -1392,6 +1386,7 @@ async guardarEImprimir() {
 
       metodoPago: this.metodoPago,
       codigoTransferencia: this.metodoPago === 'Transferencia' ? this.codigoTransferencia : undefined,
+      observacion: observacionLimpia || undefined,
       fecha: fechaFinal,  // Firestore convertirá Date a Timestamp automáticamente
       usuarioId: 'admin',
 
@@ -1877,6 +1872,8 @@ private cleanUndefined(obj: any): any {
         const segundos = fechaFactura.getSeconds().toString().padStart(2, '0');
         this.horaPago = `${horas}:${minutos}:${segundos}`;
       }
+
+      this.observacion = factura.observacion || '';
 
       console.log('✅ Factura cargada para edición:', factura);
       

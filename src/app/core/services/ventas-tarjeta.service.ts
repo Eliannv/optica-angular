@@ -51,7 +51,6 @@ export class VentasTarjetaService {
 
     const ventaParaGuardar: any = {
       ...venta,
-      cuentaBancoId: cuentaBancoId || undefined,
       fechaVenta: Timestamp.fromDate(fechaVenta),
       montoRecibido: 0,
       saldoPendiente: venta.montoTotal,
@@ -60,6 +59,10 @@ export class VentasTarjetaService {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
+
+    if (cuentaBancoId) {
+      ventaParaGuardar.cuentaBancoId = cuentaBancoId;
+    }
 
     await setDoc(docRef, ventaParaGuardar);
     return docRef.id;
