@@ -23,7 +23,7 @@
                     Buscar:
                 </label>
                 <div class="search-input-group">
-                    <input id="buscar-input" class="form-control" placeholder="Cliente, ID de la factura..." [(ngModel)]="term" (input)="filtrar()" />
+                    <input id="buscar-input" class="form-control" placeholder="Nombre / cédula cliente, # factura..." [(ngModel)]="term" (input)="filtrar()" />
                     <button class="btn-clear-busqueda" *ngIf="term" (click)="term = ''; filtrar()">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -100,7 +100,7 @@
                 <table class="facturas-table">
                     <thead>
                         <tr>
-                            <th class="col-id">ID</th>
+                            <th class="col-id">#</th>
                             <th class="col-cliente">Cliente</th>
                             <th class="col-pago">Método Pago</th>
 

@@ -25,6 +25,8 @@ import { ClientesService } from '../../../../core/services/clientes';
 import { HistorialClinicoService } from '../../../../core/services/historial-clinico.service';
 import { AnalisisClinicoService, DashboardClinico } from '../../../../core/services/analisis-clinico.service';
 import { ExcelService } from '../../../../core/services/excel.service';
+import { FacturasService } from '../../../../core/services/facturas';
+import { PrintService } from '../../../../core/services/print.service';
 import { HistoriaClinica } from '../../../../core/models/historia-clinica.model';
 import { Cliente } from '../../../../core/models/cliente.model';
 import { DashboardClinicoComponent } from '../../components/dashboard-clinico/dashboard-clinico.component';
@@ -70,7 +72,9 @@ export class SeleccionarHistorialComponent implements OnInit, OnDestroy {
     private readonly clientesSrv: ClientesService,
     private readonly historialSrv: HistorialClinicoService,
     private readonly analisisSrv: AnalisisClinicoService,
-    private readonly excelService: ExcelService
+    private readonly excelService: ExcelService,
+    private readonly facturasSrv: FacturasService,
+    private readonly printSrv: PrintService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -303,7 +307,7 @@ export class SeleccionarHistorialComponent implements OnInit, OnDestroy {
    *
    * @param historial Historial clínico a imprimir.
    */
-  imprimirHistorial(historial: HistoriaClinica): void {
+  async imprimirHistorial(historial: HistoriaClinica): Promise<void> {
     if (!historial.id) {
       Swal.fire({
         icon: 'error',
@@ -314,9 +318,23 @@ export class SeleccionarHistorialComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.router.navigate(['/historial-print', this.clienteId], {
-      queryParams: { historialId: historial.id }
-    });
+    try {
+      // Cargar facturas del cliente
+      const facturas = await firstValueFrom(
+        this.facturasSrv.getPendientesPorCliente(this.clienteId)
+      );
+
+      // Llamar al servicio de impresión sin navegar
+      this.printSrv.imprimirHistorialClinico(this.cliente!, historial, facturas);
+    } catch (error) {
+      console.error('Error al imprimir historial:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo cargar la información para imprimir',
+        confirmButtonText: 'Entendido'
+      });
+    }
   }
 
   /**

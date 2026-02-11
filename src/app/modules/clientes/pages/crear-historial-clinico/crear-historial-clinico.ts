@@ -28,6 +28,8 @@ import Swal from 'sweetalert2';
 
 import { HistorialClinicoService } from '../../../../core/services/historial-clinico.service';
 import { ClientesService } from '../../../../core/services/clientes';
+import { AuthService } from '../../../../core/services/auth.service';
+import { RolUsuario } from '../../../../core/models/usuario.model';
 import { Cliente } from '../../../../core/models/cliente.model';
 import { EnterNextDirective } from '../../../../shared/directives/enter-next.directive';
 
@@ -65,12 +67,18 @@ export class CrearHistorialClinicoComponent implements OnInit {
   validandoCedula = false;
   validandoEmail = false;
 
+  // ✅ NUEVO: Control de acceso para fecha/hora de chequeo
+  esAdmin = false;
+  esOperador = false;
+  mostrarCampoFechaHora = false;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private fb: FormBuilder,
     private historialSrv: HistorialClinicoService,
-    private clientesSrv: ClientesService
+    private clientesSrv: ClientesService,
+    private authService: AuthService
   ) {}
 
   /**
@@ -108,6 +116,10 @@ export class CrearHistorialClinicoComponent implements OnInit {
       observacion: [''],
 
       doctor: [''],
+      
+      // Fecha y hora del chequeo médico
+      fechaChequeo: [''],
+      horaChequeo: [''],
 
       // Medidas del armazón (montura)
       armazonH: [''],
@@ -156,6 +168,13 @@ export class CrearHistorialClinicoComponent implements OnInit {
     // Determinar modo: si hay historialId, es edición; si no, es creación
     this.mode = this.historialId ? 'edit' : 'create';
 
+    // ✅ NUEVO: Verificar rol del usuario y determinar permisos
+    const usuarioActual = this.authService.getCurrentUser();
+    this.esAdmin = usuarioActual?.rol === RolUsuario.ADMINISTRADOR;
+    this.esOperador = usuarioActual?.rol === RolUsuario.OPERADOR;
+    // Campo visible SOLO para administrador
+    this.mostrarCampoFechaHora = this.esAdmin;
+
     this.cliente = await firstValueFrom(
       this.clientesSrv.getClienteById(this.clienteId)
     );
@@ -174,6 +193,21 @@ export class CrearHistorialClinicoComponent implements OnInit {
         this.existeHistorial = true;
         const historialData = snap.data();
         this.form.patchValue(historialData);
+        
+        // ✅ NUEVO: Si existe fechaHoraChequeo, convertir a fecha y hora separadas
+        if (historialData?.['fechaHoraChequeo']) {
+          const fecha = this.convertirTimestampAFechaHora(historialData['fechaHoraChequeo']);
+          this.form.patchValue({
+            fechaChequeo: fecha.fecha,
+            horaChequeo: fecha.hora
+          });
+        }
+        
+        // ✅ NUEVO: En modo edición, operadores no pueden cambiar la fecha/hora
+        if (this.esOperador && this.mostrarCampoFechaHora) {
+          this.form.get('fechaChequeo')?.disable();
+          this.form.get('horaChequeo')?.disable();
+        }
       } else {
         await Swal.fire({
           icon: 'error',
@@ -186,12 +220,95 @@ export class CrearHistorialClinicoComponent implements OnInit {
         });
         return;
       }
+    } else {
+      // ✅ NUEVO: Inicializar fecha y hora en modo creación
+      const now = new Date();
+      this.form.patchValue({
+        fechaChequeo: this.formatDateForInput(now),
+        horaChequeo: this.formatTimeForInput(now)
+      });
+      
+      // ✅ NUEVO: Si es operador en modo creación, deshabilitar campos (auto-relleno, read-only)
+      if (this.esOperador && this.mostrarCampoFechaHora) {
+        this.form.get('fechaChequeo')?.disable();
+        this.form.get('horaChequeo')?.disable();
+      }
     }
 
     // Configurar validaciones reactivas para cédula y email
     this.setupValidacionesReactivas();
 
     this.loading = false;
+  }
+
+  /**
+   * Formatea una fecha en formato 'YYYY-MM-DD' para el input date de HTML.
+   */
+  private formatDateForInput(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
+   * Formatea una hora en formato 'HH:MM' para el input time de HTML.
+   */
+  private formatTimeForInput(date: Date): string {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+
+  /**
+   * Convierte un timestamp de Firestore a objetos de fecha y hora separados.
+   * @param timestamp Puede ser Date, Timestamp de Firestore, o número en ms
+   * @returns Objeto con propiedades fecha (YYYY-MM-DD) y hora (HH:MM)
+   */
+  private convertirTimestampAFechaHora(timestamp: any): { fecha: string; hora: string } {
+    let date: Date;
+    
+    // Manejar diferentes tipos de timestamp
+    if (typeof timestamp?.toDate === 'function') {
+      // Timestamp de Firestore
+      date = timestamp.toDate();
+    } else if (timestamp instanceof Date) {
+      date = timestamp;
+    } else if (typeof timestamp === 'number') {
+      date = new Date(timestamp);
+    } else {
+      // Fallback a fecha actual
+      date = new Date();
+    }
+
+    return {
+      fecha: this.formatDateForInput(date),
+      hora: this.formatTimeForInput(date)
+    };
+  }
+
+  /**
+   * Obtiene la fecha máxima permitida (hoy) en formato para el input date.
+   */
+  get fechaMaximaChequeo(): string {
+    return this.formatDateForInput(new Date());
+  }
+
+  /**
+   * Combina fecha y hora en un timestamp de Firestore.
+   * Utilizado internamente antes de guardar el historial.
+   */
+  private obtenerTimestampChequeo(): Date {
+    const fechaStr = this.form.get('fechaChequeo')?.value || '';
+    const horaStr = this.form.get('horaChequeo')?.value || '00:00';
+
+    if (!fechaStr) {
+      return new Date();
+    }
+
+    const [year, month, day] = fechaStr.split('-').map(Number);
+    const [hours, minutes] = horaStr.split(':').map(Number);
+    return new Date(year, month - 1, day, hours, minutes, 0);
   }
 
   /**
@@ -329,6 +446,14 @@ export class CrearHistorialClinicoComponent implements OnInit {
 
     try {
       const data = this.form.getRawValue();
+
+      // ✅ NUEVO: Convertir fecha y hora a timestamp
+      const timestampChequeo = this.obtenerTimestampChequeo();
+      data.fechaHoraChequeo = timestampChequeo;
+      
+      // Remover campos individuales de fecha/hora antes de guardar
+      delete data.fechaChequeo;
+      delete data.horaChequeo;
 
       // ✅ ACTUALIZADO: Usar crearHistorial() o actualizarHistorial() según el modo
       if (this.mode === 'create') {

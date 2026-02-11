@@ -37,6 +37,7 @@ import { FacturaDeuda } from '../models/factura-deuda.model';
 export class FacturasDeudaService {
   private fs = inject(Firestore);
   private facturasDeudaRef = collection(this.fs, 'facturas_deudas');
+  private clientesRef = collection(this.fs, 'clientes');
 
   /**
    * Crea un nuevo registro de pago de deuda.
@@ -61,6 +62,16 @@ export class FacturasDeudaService {
 
     console.log('✅ Pago de deuda registrado:', docRef.id);
     return docRef;
+  }
+
+  /**
+   * Obtiene un pago de deuda por su ID
+   */
+  getPagoDeudaById(id: string): Observable<any> {
+    const q = query(this.facturasDeudaRef, where('__name__', '==', id));
+    return collectionData(q, { idField: 'id' }).pipe(
+      map(pagos => pagos[0] || null)
+    );
   }
 
   /**
@@ -385,14 +396,21 @@ export class FacturasDeudaService {
     // Aplicar búsqueda en múltiples campos
     if (terminoBusqueda.trim()) {
       const termino = terminoBusqueda.toLowerCase().trim();
+      const tokens = termino.split(/\s+/).filter(Boolean);
+      const clienteIdsPorCedula = await this.obtenerClienteIdsPorCedula(terminoBusqueda.trim());
       pagos = pagos.filter((p: any) => {
         const clienteNombre = (p.clienteNombre || '').toLowerCase();
         const facturaIdPersonalizado = (p.facturaIdPersonalizado || '').toLowerCase();
         const id = (p.id || '').toLowerCase();
+        const clienteId = String(p.clienteId || '');
+        const matchNombre = tokens.length
+          ? tokens.every(token => clienteNombre.includes(token))
+          : false;
 
-        return clienteNombre.includes(termino) ||
+        return matchNombre ||
                facturaIdPersonalizado.includes(termino) ||
-               id.includes(termino);
+               id.includes(termino) ||
+               (clienteId && clienteIdsPorCedula.has(clienteId));
       });
     }
 
@@ -407,5 +425,12 @@ export class FacturasDeudaService {
       firstDoc: null,
       hasMore
     };
+  }
+
+  private async obtenerClienteIdsPorCedula(cedula: string): Promise<Set<string>> {
+    if (!cedula) return new Set<string>();
+    const q = query(this.clientesRef, where('cedula', '==', cedula));
+    const snap = await getDocs(q);
+    return new Set(snap.docs.map(docSnap => docSnap.id));
   }
 }

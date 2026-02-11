@@ -51,6 +51,7 @@ export class HistorialClinicoComponent implements OnInit {
   deudas: Record<string, { deudaTotal: number; pendientes: number; creditosActivos: number; creditoPersonalActivo: boolean }> = {};
   filtroEstado: 'todos' | 'conHistorial' | 'sinHistorial' = 'todos';
   filtroCredito: 'todos' | 'conCredito' | 'sinCredito' = 'todos';
+  filtroDeuda: 'todos' | 'conDeuda' | 'sinDeuda' = 'todos';
   ordenarPor: 'fecha' | 'credito' = 'fecha';
   cajaChicaAbierta = false;
 
@@ -212,6 +213,7 @@ export class HistorialClinicoComponent implements OnInit {
   limpiarFiltros(): void {
     this.filtroEstado = 'todos';
     this.filtroCredito = 'todos';
+    this.filtroDeuda = 'todos';
     this.ordenarPor = 'fecha';
     this.aplicarFiltro();
     this.cerrarPanelFiltros();
@@ -249,6 +251,13 @@ export class HistorialClinicoComponent implements OnInit {
       base = base.filter(c => c.id && !!this.deudas[c.id]?.creditoPersonalActivo);
     } else if (this.filtroCredito === 'sinCredito') {
       base = base.filter(c => c.id && !this.deudas[c.id]?.creditoPersonalActivo);
+    }
+
+    // 4) Filtro deuda
+    if (this.filtroDeuda === 'conDeuda') {
+      base = base.filter(c => c.id && (this.deudas[c.id]?.deudaTotal ?? 0) > 0);
+    } else if (this.filtroDeuda === 'sinDeuda') {
+      base = base.filter(c => c.id && (this.deudas[c.id]?.deudaTotal ?? 0) === 0);
     }
 
     // 4) Ordenar (por defecto más reciente; opcional: crédito personal primero)

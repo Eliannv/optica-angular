@@ -18,6 +18,7 @@ import {
   collectionData,
   doc,
   docData,
+  getDoc,
   serverTimestamp,
   Timestamp,
   query,
@@ -44,6 +45,7 @@ export class FacturasService {
   private readonly fs: Firestore;
   private readonly facturasRef;
   private readonly facturasDeudaRef;
+  private readonly clientesRef;
 
   // 🎯 CACHÉ con shareReplay
   private facturasCache$ = new BehaviorSubject<Factura[]>([]);
@@ -53,6 +55,7 @@ export class FacturasService {
     this.fs = inject(Firestore);
     this.facturasRef = collection(this.fs, 'facturas');
     this.facturasDeudaRef = collection(this.fs, 'facturas_deudas');
+    this.clientesRef = collection(this.fs, 'clientes');
   }
 
   /**
@@ -176,6 +179,17 @@ export class FacturasService {
   getFacturaById(id: string): Observable<Factura> {
     const ref = doc(this.fs, `facturas/${id}`);
     return docData(ref, { idField: 'id' }) as Observable<Factura>;
+  }
+
+  /**
+   * Obtiene una factura por ID de forma asíncrona (Promise)
+   * Útil para obtener datos de factura sin suscripción
+   */
+  async getFacturaByIdAsync(id: string): Promise<any> {
+    const ref = doc(this.fs, `facturas/${id}`);
+    const snapshot = await getDoc(ref);
+    if (!snapshot.exists()) return null;
+    return { id: snapshot.id, ...snapshot.data() };
   }
 
   // =========================================================
@@ -597,14 +611,23 @@ export class FacturasService {
 
     // Aplicar búsqueda en múltiples campos
     const termino = terminoBusqueda.toLowerCase().trim();
+    const tokens = termino.split(/\s+/).filter(Boolean);
+    const clienteIdsPorCedula = termino
+      ? await this.obtenerClienteIdsPorCedula(terminoBusqueda.trim())
+      : new Set<string>();
     facturas = facturas.filter(f => {
       const clienteNombre = (f.clienteNombre || '').toLowerCase();
       const idPersonalizado = (f.idPersonalizado || '').toLowerCase();
       const id = (f.id || '').toLowerCase();
+      const clienteId = String(f.clienteId || '');
+      const matchNombre = tokens.length
+        ? tokens.every(token => clienteNombre.includes(token))
+        : false;
 
-      return clienteNombre.includes(termino) ||
+      return matchNombre ||
              idPersonalizado.includes(termino) ||
-             id.includes(termino);
+             id.includes(termino) ||
+             (clienteId && clienteIdsPorCedula.has(clienteId));
     });
 
     // Aplicar paginación manual (en memoria)
@@ -618,6 +641,13 @@ export class FacturasService {
       firstDoc: null,
       hasMore
     };
+  }
+
+  private async obtenerClienteIdsPorCedula(cedula: string): Promise<Set<string>> {
+    if (!cedula) return new Set<string>();
+    const q = query(this.clientesRef, where('cedula', '==', cedula));
+    const snap = await getDocs(q);
+    return new Set(snap.docs.map(docSnap => docSnap.id));
   }
 
   /**

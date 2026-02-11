@@ -133,7 +133,7 @@
 
 .info-grid-2rows {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 1.5rem;
     margin-top: 1rem;
 }
@@ -167,6 +167,31 @@
     color: #2ecc71;
     border: 1px solid rgba(46, 204, 113, 0.25);
     width: fit-content;
+}
+
+.badge-tipo {
+    display: inline-block;
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.8rem;
+    width: fit-content;
+}
+
+.badge-tipo-cobro {
+    background: #ff9800;
+    color: #fff;
+}
+
+.badge-tipo-normal {
+    background: #2196F3;
+    color: #fff;
+}
+
+@media (max-width: 1024px) {
+    .info-grid-2rows {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 

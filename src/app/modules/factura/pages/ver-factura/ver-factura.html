@@ -35,6 +35,12 @@
                             <span class="badge-pago">{{ factura.metodoPago }}</span>
                         </div>
                         <div class="info-item">
+                            <span class="info-label">Tipo</span>
+                            <span class="badge-tipo" [ngClass]="factura.tipoFactura === 'COBRO_DEUDA' ? 'badge-tipo-cobro' : 'badge-tipo-normal'">
+                                {{ factura.tipoFactura === 'COBRO_DEUDA' ? 'COBRO' : (factura.tipoFactura || 'NORMAL') }}
+                            </span>
+                        </div>
+                        <div class="info-item">
                             <span class="info-label">Fecha</span>
                             <span class="info-value">
                 {{ factura.fecha?.toDate ? (factura.fecha.toDate() | date:'dd/MM/yyyy HH:mm') : (factura.fecha | date:'dd/MM/yyyy HH:mm') }}
@@ -43,19 +49,19 @@
                         <!-- FILA 2: Subtotal, Descuento%, Total -->
                         <div class="info-item">
                             <span class="info-label">Subtotal</span>
-                            <strong class="info-value" style="color: #6c757d;">${{ (factura.subtotal + factura.descuentoMonto).toFixed(2) }}</strong>
+                            <strong class="info-value" style="color: #6c757d;">${{ ((factura.subtotal || 0) + (factura.descuentoMonto || 0)).toFixed(2) }}</strong>
                         </div>
-                        <div class="info-item" *ngIf="factura.descuentoPorcentaje > 0">
+                        <div class="info-item">
                             <span class="info-label">Descuento</span>
-                            <strong class="info-value" style="color: #e74c3c;">{{ factura.descuentoPorcentaje }}% (${{ factura.descuentoMonto.toFixed(2) }})</strong>
+                            <strong class="info-value" style="color: #e74c3c;">{{ factura.descuentoPorcentaje || 0 }}% (${{ (factura.descuentoMonto || 0).toFixed(2) }})</strong>
                         </div>
-                        <div class="info-item" *ngIf="factura.descuentoPorcentaje === undefined || factura.descuentoPorcentaje <= 0">
-                            <span class="info-label">&nbsp;</span>
-                            <span class="info-value">&nbsp;</span>
+                        <div class="info-item">
+                            <span class="info-label">Abono</span>
+                            <strong class="info-value" style="color: #28a745;">${{ (factura.abonado || 0).toFixed(2) }}</strong>
                         </div>
                         <div class="info-item">
                             <span class="info-label">Total a Pagar</span>
-                            <strong class="info-value" style="color: #007bff; font-size: 1.1em;">${{ factura.total.toFixed(2) }}</strong>
+                            <strong class="info-value" style="color: #007bff; font-size: 1.1em;">${{ (factura.total || 0).toFixed(2) }}</strong>
                         </div>
                     </div>
                 </div>
@@ -135,6 +141,7 @@
             <div><b>Cliente:</b> {{ factura.clienteNombre }}</div>
             <div *ngIf="clienteTelefono"><b>Tel:</b> {{ clienteTelefono }}</div>
             <div><b>Método pago:</b> {{ factura.metodoPago }}</div>
+            <div><b>Tipo:</b> {{ factura.tipoFactura === 'COBRO_DEUDA' ? 'COBRO' : (factura.tipoFactura || 'NORMAL') }}</div>
         </div>
 
         <div class="t-hr"></div>
@@ -175,7 +182,7 @@
             <span>{{ factura.abonado | number:'1.2-2' }}</span>
         </div>
 
-        <div class="t-kv t-small" *ngIf="factura.saldoPendiente > 0">
+        <div class="t-kv t-small" *ngIf="factura.saldoPendiente > 0 || factura.tipoFactura === 'COBRO_DEUDA'">
             <span>Saldo pendiente</span>
             <span>{{ factura.saldoPendiente | number:'1.2-2' }}</span>
         </div>

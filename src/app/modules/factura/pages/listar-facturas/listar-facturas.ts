@@ -392,6 +392,60 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
     return isNaN(d.getTime()) ? new Date() : d;
   }
 
+  /**
+   * ✅ Mapea cobros de deuda obteniendo valores reales de las facturas originales
+   * NO calcula nada, solo lee lo que ya está en la BD
+   */
+  private async mapearCobrosDeuda(pagos: any[]): Promise<any[]> {
+    // Obtener facturas originales para cada pago de deuda
+    const facturasOriginalesMap = new Map<string, any>();
+    const facturasIds = [...new Set(pagos.map((p: any) => p.facturaId).filter(Boolean))];
+    
+    await Promise.all(
+      facturasIds.map(async (facturaId: string) => {
+        const factura = await this.facturasSrv.getFacturaByIdAsync(facturaId);
+        if (factura) {
+          facturasOriginalesMap.set(facturaId, factura);
+        }
+      })
+    );
+
+    return pagos.map((deuda: any) => {
+      const facturaOriginal = facturasOriginalesMap.get(deuda.facturaId);
+      // ✅ Para COBROS_DEUDA:
+      // - abonado: monto pagado EN ESTE cobro específico (montoPagado)
+      // - saldoPendiente y total: valores actuales de la factura original
+      const montoPagado = Number(deuda.montoPagado || 0);
+      const saldoPendiente = facturaOriginal?.saldoPendiente ?? Number(deuda.saldoRestante || 0);
+      const total = facturaOriginal?.total ?? Number(deuda.totalFactura || 0);
+
+      return {
+        // ✅ Para COBROS_DEUDA, usar el ID del pago para navegación
+        id: deuda.id,
+        facturaId: deuda.facturaId,  // Guardar referencia a factura original
+        idPersonalizado: deuda.facturaIdPersonalizado || deuda.id,
+        clienteNombre: deuda.clienteNombre || '',
+        clienteTelefono: deuda.clienteTelefono || '',
+        clienteId: deuda.clienteId || '',
+        fecha: deuda.fechaPago || new Date(),
+        total,
+        abonado: montoPagado,  // ✅ Monto de ESTE pago (no acumulado)
+        saldoPendiente,  // ✅ Saldo actual de la factura original
+        metodoPago: deuda.metodoPago || '',
+        items: deuda.items || [],
+        esCredito: deuda.esCreditoPersonal || false,
+        estadoPago: facturaOriginal?.estadoPago ?? 'PENDIENTE',
+        tipoFactura: 'COBRO_DEUDA',
+        usuarioId: deuda.usuarioId || '',
+        usuarioNombre: deuda.usuarioNombre || '',
+        createdAt: deuda.createdAt || new Date(),
+        updatedAt: deuda.updatedAt || new Date(),
+        origenCaja: deuda.origenCaja || '',
+        cajaChicaId: deuda.cajaChicaId || ''
+      };
+    });
+  }
+
   private async cargarPrimeraPage(): Promise<void> {
     this.isLoading = true;
     this.paginaActual = 1;
@@ -418,7 +472,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
         this.facturasPaginadas = resultado.facturas.map(f => {
           const total = Number(f?.total || 0);
           const saldoPendiente = Number(f?.saldoPendiente || 0);
-          const abonado = Math.max(0, +(total - saldoPendiente).toFixed(2));
+          const abonado = Number(f?.abonado || 0);
 
           return {
             ...f,
@@ -458,34 +512,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           fechaExacta
         });
 
-        const saldoActualMap = this.buildSaldoActualMap(resultado.pagos);
-
-        this.facturasPaginadas = resultado.pagos.map((deuda: any) => {
-          const saldoActual = Number(saldoActualMap.get(deuda.facturaId) ?? deuda.saldoRestante ?? 0);
-
-          return {
-            id: deuda.facturaIdPersonalizado || deuda.id,
-            idPersonalizado: deuda.facturaIdPersonalizado || deuda.id,
-            clienteNombre: deuda.clienteNombre || '',
-            clienteTelefono: deuda.clienteTelefono || '',
-            clienteId: deuda.clienteId || '',
-            fecha: deuda.fechaPago || new Date(),
-            total: Number(deuda.totalFactura || 0),
-            abonado: Number(deuda.montoPagado || 0),
-            saldoPendiente: saldoActual,
-            metodoPago: deuda.metodoPago || '',
-            items: deuda.items || [],
-            esCredito: deuda.esCreditoPersonal || false,
-            estadoPago: saldoActual <= 0 ? 'PAGADA' : 'PENDIENTE',
-            tipoFactura: 'COBRO_DEUDA',
-            usuarioId: deuda.usuarioId || '',
-            usuarioNombre: deuda.usuarioNombre || '',
-            createdAt: deuda.createdAt || new Date(),
-            updatedAt: deuda.updatedAt || new Date(),
-            origenCaja: deuda.origenCaja || '',
-            cajaChicaId: deuda.cajaChicaId || ''
-          };
-        });
+        this.facturasPaginadas = await this.mapearCobrosDeuda(resultado.pagos);
 
         this.lastVisibleDeuda = resultado.lastDoc;
         this.firstVisibleDeuda = resultado.firstDoc;
@@ -534,7 +561,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           const facturaId = f?.id;
           const total = Number(f?.total || 0);
           const saldoActual = Number((facturaId ? saldoActualMap.get(facturaId) : undefined) ?? f?.saldoPendiente ?? 0);
-          const abonado = Math.max(0, +(total - saldoActual).toFixed(2));
+          const abonado = Number(f?.abonado || 0);
 
           return {
             ...f,
@@ -545,32 +572,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           };
         });
 
-        const facturasDeudaConvertidas = resultadoPagos.pagos.map((deuda: any) => {
-          const saldoActual = Number(saldoActualMap.get(deuda.facturaId) ?? deuda.saldoRestante ?? 0);
-
-          return {
-            id: deuda.facturaIdPersonalizado || deuda.id,
-            idPersonalizado: deuda.facturaIdPersonalizado || deuda.id,
-            clienteNombre: deuda.clienteNombre || '',
-            clienteTelefono: deuda.clienteTelefono || '',
-            clienteId: deuda.clienteId || '',
-            fecha: deuda.fechaPago || new Date(),
-            total: Number(deuda.totalFactura || 0),
-            abonado: Number(deuda.montoPagado || 0),
-            saldoPendiente: saldoActual,
-            metodoPago: deuda.metodoPago || '',
-            items: deuda.items || [],
-            esCredito: deuda.esCreditoPersonal || false,
-            estadoPago: saldoActual <= 0 ? 'PAGADA' : 'PENDIENTE',
-            tipoFactura: 'COBRO_DEUDA',
-            usuarioId: deuda.usuarioId || '',
-            usuarioNombre: deuda.usuarioNombre || '',
-            createdAt: deuda.createdAt || new Date(),
-            updatedAt: deuda.updatedAt || new Date(),
-            origenCaja: deuda.origenCaja || '',
-            cajaChicaId: deuda.cajaChicaId || ''
-          };
-        });
+        const facturasDeudaConvertidas = await this.mapearCobrosDeuda(resultadoPagos.pagos);
 
         const todasFacturas = [...facturasNormales, ...facturasDeudaConvertidas];
         todasFacturas.sort((a, b) => this.getFechaMs(b) - this.getFechaMs(a));
@@ -627,7 +629,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
         this.facturasPaginadas = resultado.facturas.map(f => {
           const total = Number(f?.total || 0);
           const saldoPendiente = Number(f?.saldoPendiente || 0);
-          const abonado = Math.max(0, +(total - saldoPendiente).toFixed(2));
+          const abonado = Number(f?.abonado || 0);
 
           return {
             ...f,
@@ -654,32 +656,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
 
         const saldoActualMap = this.buildSaldoActualMap(resultado.pagos);
 
-        this.facturasPaginadas = resultado.pagos.map((deuda: any) => {
-          const saldoActual = Number(saldoActualMap.get(deuda.facturaId) ?? deuda.saldoRestante ?? 0);
-
-          return {
-            id: deuda.facturaIdPersonalizado || deuda.id,
-            idPersonalizado: deuda.facturaIdPersonalizado || deuda.id,
-            clienteNombre: deuda.clienteNombre || '',
-            clienteTelefono: deuda.clienteTelefono || '',
-            clienteId: deuda.clienteId || '',
-            fecha: deuda.fechaPago || new Date(),
-            total: Number(deuda.totalFactura || 0),
-            abonado: Number(deuda.montoPagado || 0),
-            saldoPendiente: saldoActual,
-            metodoPago: deuda.metodoPago || '',
-            items: deuda.items || [],
-            esCredito: deuda.esCreditoPersonal || false,
-            estadoPago: saldoActual <= 0 ? 'PAGADA' : 'PENDIENTE',
-            tipoFactura: 'COBRO_DEUDA',
-            usuarioId: deuda.usuarioId || '',
-            usuarioNombre: deuda.usuarioNombre || '',
-            createdAt: deuda.createdAt || new Date(),
-            updatedAt: deuda.updatedAt || new Date(),
-            origenCaja: deuda.origenCaja || '',
-            cajaChicaId: deuda.cajaChicaId || ''
-          };
-        });
+        this.facturasPaginadas = await this.mapearCobrosDeuda(resultado.pagos);
 
         this.hasMore = resultado.hasMore;
 
@@ -714,7 +691,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           const facturaId = f?.id;
           const total = Number(f?.total || 0);
           const saldoActual = Number((facturaId ? saldoActualMap.get(facturaId) : undefined) ?? f?.saldoPendiente ?? 0);
-          const abonado = Math.max(0, +(total - saldoActual).toFixed(2));
+          const abonado = Number(f?.abonado || 0);
 
           return {
             ...f,
@@ -725,32 +702,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           };
         });
 
-        const facturasDeudaConvertidas = resultadoPagos.pagos.map((deuda: any) => {
-          const saldoActual = Number(saldoActualMap.get(deuda.facturaId) ?? deuda.saldoRestante ?? 0);
-
-          return {
-            id: deuda.facturaIdPersonalizado || deuda.id,
-            idPersonalizado: deuda.facturaIdPersonalizado || deuda.id,
-            clienteNombre: deuda.clienteNombre || '',
-            clienteTelefono: deuda.clienteTelefono || '',
-            clienteId: deuda.clienteId || '',
-            fecha: deuda.fechaPago || new Date(),
-            total: Number(deuda.totalFactura || 0),
-            abonado: Number(deuda.montoPagado || 0),
-            saldoPendiente: saldoActual,
-            metodoPago: deuda.metodoPago || '',
-            items: deuda.items || [],
-            esCredito: deuda.esCreditoPersonal || false,
-            estadoPago: saldoActual <= 0 ? 'PAGADA' : 'PENDIENTE',
-            tipoFactura: 'COBRO_DEUDA',
-            usuarioId: deuda.usuarioId || '',
-            usuarioNombre: deuda.usuarioNombre || '',
-            createdAt: deuda.createdAt || new Date(),
-            updatedAt: deuda.updatedAt || new Date(),
-            origenCaja: deuda.origenCaja || '',
-            cajaChicaId: deuda.cajaChicaId || ''
-          };
-        });
+        const facturasDeudaConvertidas = await this.mapearCobrosDeuda(resultadoPagos.pagos);
 
         const todasFacturas = [...facturasNormales, ...facturasDeudaConvertidas];
         todasFacturas.sort((a, b) => this.getFechaMs(b) - this.getFechaMs(a));
@@ -808,7 +760,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
         this.facturasPaginadas = resultado.facturas.map(f => {
           const total = Number(f?.total || 0);
           const saldoPendiente = Number(f?.saldoPendiente || 0);
-          const abonado = Math.max(0, +(total - saldoPendiente).toFixed(2));
+          const abonado = Number(f?.abonado || 0);
 
           return {
             ...f,
@@ -845,32 +797,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
 
         const saldoActualMap = this.buildSaldoActualMap(resultado.pagos);
 
-        this.facturasPaginadas = resultado.pagos.map((deuda: any) => {
-          const saldoActual = Number(saldoActualMap.get(deuda.facturaId) ?? deuda.saldoRestante ?? 0);
-
-          return {
-            id: deuda.facturaIdPersonalizado || deuda.id,
-            idPersonalizado: deuda.facturaIdPersonalizado || deuda.id,
-            clienteNombre: deuda.clienteNombre || '',
-            clienteTelefono: deuda.clienteTelefono || '',
-            clienteId: deuda.clienteId || '',
-            fecha: deuda.fechaPago || new Date(),
-            total: Number(deuda.totalFactura || 0),
-            abonado: Number(deuda.montoPagado || 0),
-            saldoPendiente: saldoActual,
-            metodoPago: deuda.metodoPago || '',
-            items: deuda.items || [],
-            esCredito: deuda.esCreditoPersonal || false,
-            estadoPago: saldoActual <= 0 ? 'PAGADA' : 'PENDIENTE',
-            tipoFactura: 'COBRO_DEUDA',
-            usuarioId: deuda.usuarioId || '',
-            usuarioNombre: deuda.usuarioNombre || '',
-            createdAt: deuda.createdAt || new Date(),
-            updatedAt: deuda.updatedAt || new Date(),
-            origenCaja: deuda.origenCaja || '',
-            cajaChicaId: deuda.cajaChicaId || ''
-          };
-        });
+        this.facturasPaginadas = await this.mapearCobrosDeuda(resultado.pagos);
 
         this.lastVisibleDeuda = resultado.lastDoc;
         this.firstVisibleDeuda = resultado.firstDoc;
@@ -915,7 +842,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           const facturaId = f?.id;
           const total = Number(f?.total || 0);
           const saldoActual = Number((facturaId ? saldoActualMap.get(facturaId) : undefined) ?? f?.saldoPendiente ?? 0);
-          const abonado = Math.max(0, +(total - saldoActual).toFixed(2));
+          const abonado = Number(f?.abonado || 0);
 
           return {
             ...f,
@@ -926,32 +853,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           };
         });
 
-        const facturasDeudaConvertidas = resultadoPagos.pagos.map((deuda: any) => {
-          const saldoActual = Number(saldoActualMap.get(deuda.facturaId) ?? deuda.saldoRestante ?? 0);
-
-          return {
-            id: deuda.facturaIdPersonalizado || deuda.id,
-            idPersonalizado: deuda.facturaIdPersonalizado || deuda.id,
-            clienteNombre: deuda.clienteNombre || '',
-            clienteTelefono: deuda.clienteTelefono || '',
-            clienteId: deuda.clienteId || '',
-            fecha: deuda.fechaPago || new Date(),
-            total: Number(deuda.totalFactura || 0),
-            abonado: Number(deuda.montoPagado || 0),
-            saldoPendiente: saldoActual,
-            metodoPago: deuda.metodoPago || '',
-            items: deuda.items || [],
-            esCredito: deuda.esCreditoPersonal || false,
-            estadoPago: saldoActual <= 0 ? 'PAGADA' : 'PENDIENTE',
-            tipoFactura: 'COBRO_DEUDA',
-            usuarioId: deuda.usuarioId || '',
-            usuarioNombre: deuda.usuarioNombre || '',
-            createdAt: deuda.createdAt || new Date(),
-            updatedAt: deuda.updatedAt || new Date(),
-            origenCaja: deuda.origenCaja || '',
-            cajaChicaId: deuda.cajaChicaId || ''
-          };
-        });
+        const facturasDeudaConvertidas = await this.mapearCobrosDeuda(resultadoPagos.pagos);
 
         const todasFacturas = [...facturasNormales, ...facturasDeudaConvertidas];
         todasFacturas.sort((a, b) => this.getFechaMs(b) - this.getFechaMs(a));
@@ -1043,32 +945,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
 
         const saldoActualMap = this.buildSaldoActualMap(resultado.pagos);
 
-        this.facturasPaginadas = resultado.pagos.map((deuda: any) => {
-          const saldoActual = Number(saldoActualMap.get(deuda.facturaId) ?? deuda.saldoRestante ?? 0);
-
-          return {
-            id: deuda.facturaIdPersonalizado || deuda.id,
-            idPersonalizado: deuda.facturaIdPersonalizado || deuda.id,
-            clienteNombre: deuda.clienteNombre || '',
-            clienteTelefono: deuda.clienteTelefono || '',
-            clienteId: deuda.clienteId || '',
-            fecha: deuda.fechaPago || new Date(),
-            total: Number(deuda.totalFactura || 0),
-            abonado: Number(deuda.montoPagado || 0),
-            saldoPendiente: saldoActual,
-            metodoPago: deuda.metodoPago || '',
-            items: deuda.items || [],
-            esCredito: deuda.esCreditoPersonal || false,
-            estadoPago: saldoActual <= 0 ? 'PAGADA' : 'PENDIENTE',
-            tipoFactura: 'COBRO_DEUDA',
-            usuarioId: deuda.usuarioId || '',
-            usuarioNombre: deuda.usuarioNombre || '',
-            createdAt: deuda.createdAt || new Date(),
-            updatedAt: deuda.updatedAt || new Date(),
-            origenCaja: deuda.origenCaja || '',
-            cajaChicaId: deuda.cajaChicaId || ''
-          };
-        });
+        this.facturasPaginadas = await this.mapearCobrosDeuda(resultado.pagos);
 
         this.hasMore = true;
 
@@ -1103,32 +980,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           };
         });
 
-        const facturasDeudaConvertidas = resultadoPagos.pagos.map((deuda: any) => {
-          const saldoActual = Number(saldoActualMap.get(deuda.facturaId) ?? deuda.saldoRestante ?? 0);
-
-          return {
-            id: deuda.facturaIdPersonalizado || deuda.id,
-            idPersonalizado: deuda.facturaIdPersonalizado || deuda.id,
-            clienteNombre: deuda.clienteNombre || '',
-            clienteTelefono: deuda.clienteTelefono || '',
-            clienteId: deuda.clienteId || '',
-            fecha: deuda.fechaPago || new Date(),
-            total: Number(deuda.totalFactura || 0),
-            abonado: Number(deuda.montoPagado || 0),
-            saldoPendiente: saldoActual,
-            metodoPago: deuda.metodoPago || '',
-            items: deuda.items || [],
-            esCredito: deuda.esCreditoPersonal || false,
-            estadoPago: saldoActual <= 0 ? 'PAGADA' : 'PENDIENTE',
-            tipoFactura: 'COBRO_DEUDA',
-            usuarioId: deuda.usuarioId || '',
-            usuarioNombre: deuda.usuarioNombre || '',
-            createdAt: deuda.createdAt || new Date(),
-            updatedAt: deuda.updatedAt || new Date(),
-            origenCaja: deuda.origenCaja || '',
-            cajaChicaId: deuda.cajaChicaId || ''
-          };
-        });
+        const facturasDeudaConvertidas = await this.mapearCobrosDeuda(resultadoPagos.pagos);
 
         const todasFacturas = [...facturasNormales, ...facturasDeudaConvertidas];
         todasFacturas.sort((a, b) => this.getFechaMs(b) - this.getFechaMs(a));

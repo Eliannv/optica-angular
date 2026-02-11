@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { FacturasService } from '../../../../core/services/facturas';
+import { FacturasDeudaService } from '../../../../core/services/facturas-deuda.service';
 import { firstValueFrom } from 'rxjs';
 import { ProductosService } from '../../../../core/services/productos';
 import { ClientesService } from '../../../../core/services/clientes';
@@ -130,19 +131,69 @@ export class VerFacturaComponent implements OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private facturasSrv: FacturasService,
+    private facturasDeudaSrv: FacturasDeudaService,
     private productosSrv: ProductosService,
     private clientesSrv: ClientesService
   ) {
     const id = this.route.snapshot.paramMap.get('id')!;
-    this.sub = this.facturasSrv.getFacturaById(id).subscribe(f => {
-      this.factura = f;
-      // Cargar teléfono del cliente
-      if (f?.clienteId) {
-        this.clientesSrv.getClienteById(f.clienteId).subscribe((cliente: any) => {
-          this.clienteTelefono = cliente?.telefono || '';
+    
+    // Intentar obtener como factura normal primero
+    this.sub = this.facturasSrv.getFacturaById(id).subscribe(async f => {
+      if (f && f.tipoFactura !== 'COBRO_DEUDA') {
+        // Es una factura normal
+        this.factura = f;
+        if (f?.clienteId) {
+          this.clientesSrv.getClienteById(f.clienteId).subscribe((cliente: any) => {
+            this.clienteTelefono = cliente?.telefono || '';
+          });
+        }
+        this.loading = false;
+      } else {
+        // Puede ser un pago de deuda, intentar obtener de facturas_deudas
+        this.facturasDeudaSrv.getPagoDeudaById(id).subscribe(async pago => {
+          if (pago) {
+            // Es un pago de deuda, obtener factura original para items/total
+            const facturaOriginal = await this.facturasSrv.getFacturaByIdAsync(pago.facturaId);
+            
+            // Mapear el pago como factura para visualización
+            this.factura = {
+              id: pago.id,
+              idPersonalizado: pago.facturaIdPersonalizado || pago.id,
+              clienteId: pago.clienteId,
+              clienteNombre: pago.clienteNombre,
+              clienteTelefono: pago.clienteTelefono,
+              fecha: pago.fechaPago,
+              metodoPago: pago.metodoPago || 'Tarjeta',
+              items: pago.items || facturaOriginal?.items || [],
+              total: facturaOriginal?.total || Number(pago.totalFactura || 0),
+              subtotal: facturaOriginal?.subtotal ?? facturaOriginal?.total ?? Number(pago.totalFactura || 0),
+              descuentoMonto: facturaOriginal?.descuentoMonto ?? 0,
+              descuentoPorcentaje: facturaOriginal?.descuentoPorcentaje ?? 0,
+              abonado: Number(pago.montoPagado || 0),  // ✅ Monto de ESTE pago
+              saldoPendiente: Number(pago.saldoRestante || 0),  // ✅ Saldo después de este pago
+              tipoFactura: 'COBRO_DEUDA',
+              estadoPago: facturaOriginal?.estadoPago || 'PENDIENTE',
+              usuarioId: pago.usuarioId || '',
+              usuarioNombre: pago.usuarioNombre || ''
+            };
+            
+            if (pago?.clienteId) {
+              this.clientesSrv.getClienteById(pago.clienteId).subscribe((cliente: any) => {
+                this.clienteTelefono = cliente?.telefono || '';
+              });
+            }
+          } else if (f) {
+            // Si existe f pero no el pago, usar f de todas formas
+            this.factura = f;
+            if (f?.clienteId) {
+              this.clientesSrv.getClienteById(f.clienteId).subscribe((cliente: any) => {
+                this.clienteTelefono = cliente?.telefono || '';
+              });
+            }
+          }
+          this.loading = false;
         });
       }
-      this.loading = false;
     });
   }
 

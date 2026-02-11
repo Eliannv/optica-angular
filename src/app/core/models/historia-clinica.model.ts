@@ -98,6 +98,9 @@ export interface HistoriaClinica {
   /** Nombre del médico u optometrista que realizó la prescripción */
   doctor?: string;
 
+  /** ✅ NUEVO: Fecha y hora en que se realizó el chequeo/control oftalmológico */
+  fechaHoraChequeo?: any;
+
   // ✅ NUEVO: Metadatos de migración (solo para historiales migrados desde "main")
   
   /** Indica de dónde se migró este historial (valor: "main") */
