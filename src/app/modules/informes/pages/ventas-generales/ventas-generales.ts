@@ -77,8 +77,8 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   // Opciones de tipos disponibles (nuevos filtros basados en facturas)
   tiposDisponibles = [
     { valor: 'VENTAS', label: 'Ventas (Facturas)' },
-    { valor: 'PAGOS_EFECTIVO', label: 'Pagos en Efectivo' },
-    { valor: 'PAGOS_TARJETA', label: 'Pagos por Tarjeta' },
+    { valor: 'PAGOS_EFECTIVO', label: 'Efectivo (Ventas)' },
+    { valor: 'VENTAS_TARJETA', label: 'Tarjeta (Ventas)' },
     { valor: 'TRANSFERENCIA_VENTAS', label: 'Transferencia (Ventas)' },
     { valor: 'TRANSFERENCIA_DEUDAS', label: 'Transferencia (Cobro de Deudas)' },
     { valor: 'FACTURAS_DEUDA', label: 'Pagos de Deuda (Todos)' },
@@ -317,11 +317,13 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     if (this.tiposSeleccionados.length > 0) {
       const mostrarVentas = this.tiposSeleccionados.includes('VENTAS');
       const mostrarEfectivo = this.tiposSeleccionados.includes('PAGOS_EFECTIVO');
-      const mostrarTarjeta = this.tiposSeleccionados.includes('PAGOS_TARJETA');
+      const mostrarTarjeta = this.tiposSeleccionados.includes('VENTAS_TARJETA');
       const mostrarTransferenciaVentas = this.tiposSeleccionados.includes('TRANSFERENCIA_VENTAS');
 
-      // Si se seleccionó VENTAS, mostrar todas las facturas
-      if (mostrarVentas) {
+      const hayFiltroMetodo = mostrarEfectivo || mostrarTransferenciaVentas || mostrarTarjeta;
+
+      // Si se seleccionó VENTAS sin filtros de método, mostrar todas las facturas
+      if (mostrarVentas && !hayFiltroMetodo) {
         facturasFiltradas = [...this.facturas];
       } else {
         // Filtrar por método de pago
@@ -381,9 +383,6 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     if (mostrarFacturasDeuda) {
       const pagosDeudaFiltrados = this.getPagosDeudaFiltrados();
       this.totalPagosDeuda = pagosDeudaFiltrados.reduce((sum, p) => sum + p.montoPagado, 0);
-      
-      // Sumar los pagos de deuda al total vendido
-      this.totalVendido += this.totalPagosDeuda;
     } else {
       this.totalPagosDeuda = 0;
     }
@@ -449,41 +448,31 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     // Total Caja Chica = Efectivo + Tarjeta
     this.totalCajaChica = 0;
     
-    // Facturas en efectivo
-    const facturasEfectivo = this.facturasFiltradas.filter(f => f.metodoPago === 'Efectivo');
-    this.totalCajaChica += facturasEfectivo.reduce((sum, f) => sum + f.total, 0);
+    // Facturas en efectivo (solo abonos realmente recibidos)
+    const facturasEfectivo = this.facturas.filter(f => f.metodoPago === 'Efectivo');
+    this.totalCajaChica += facturasEfectivo.reduce((sum, f) => sum + Number(f?.abonado ?? f?.total ?? 0), 0);
     
     // Pagos de deuda en efectivo
-    const mostrarFacturasDeuda = this.tiposSeleccionados.includes('FACTURAS_DEUDA') || 
-                                  this.tiposSeleccionados.includes('TRANSFERENCIA_DEUDAS') || 
-                                  this.tiposSeleccionados.length === 0;
-    
-    if (mostrarFacturasDeuda) {
-      const deudasEfectivo = this.getPagosDeudaFiltrados().filter(d => d.metodoPago === 'Efectivo');
-      this.totalCajaChica += deudasEfectivo.reduce((sum, d) => sum + d.montoPagado, 0);
-    }
+    const deudasEfectivo = this.pagosDeuda.filter(d => d.metodoPago === 'Efectivo');
+    this.totalCajaChica += deudasEfectivo.reduce((sum, d) => sum + d.montoPagado, 0);
     
     // Restar egresos
-    if (this.tiposSeleccionados.includes('EGRESOS') || this.tiposSeleccionados.length === 0) {
-      this.totalCajaChica -= this.totalEgresos;
-    }
+    this.totalCajaChica -= this.totalEgresos;
     
     // Total Caja Banco = Transferencias + Tarjeta
     this.totalCajaBanco = 0;
     
     // Facturas con transferencia o tarjeta
-    const facturasBanco = this.facturasFiltradas.filter(f => 
+    const facturasBanco = this.facturas.filter(f => 
       f.metodoPago === 'Transferencia' || f.metodoPago === 'Tarjeta'
     );
     this.totalCajaBanco += facturasBanco.reduce((sum, f) => sum + f.total, 0);
     
     // Pagos de deuda con transferencia o tarjeta
-    if (mostrarFacturasDeuda) {
-      const deudasBanco = this.getPagosDeudaFiltrados().filter(d => 
-        d.metodoPago === 'Transferencia' || d.metodoPago === 'Tarjeta'
-      );
-      this.totalCajaBanco += deudasBanco.reduce((sum, d) => sum + d.montoPagado, 0);
-    }
+    const deudasBanco = this.pagosDeuda.filter(d => 
+      d.metodoPago === 'Transferencia' || d.metodoPago === 'Tarjeta'
+    );
+    this.totalCajaBanco += deudasBanco.reduce((sum, d) => sum + d.montoPagado, 0);
     
     // Calcular total combinado
     this.calcularTotalCajas();
@@ -713,9 +702,10 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     if (this.tiposSeleccionados.length > 0) {
       const tipoLabels: { [key: string]: string } = {
         'VENTAS': 'Ventas (Facturas)',
-        'PAGOS_EFECTIVO': 'Pagos en Efectivo',
-        'PAGOS_TRANSFERENCIA': 'Pagos por Transferencia',
-        'PAGOS_TARJETA': 'Pagos por Tarjeta',
+        'PAGOS_EFECTIVO': 'Efectivo (Ventas)',
+        'TRANSFERENCIA_VENTAS': 'Transferencia (Ventas)',
+        'TRANSFERENCIA_DEUDAS': 'Transferencia (Cobro de Deudas)',
+        'VENTAS_TARJETA': 'Tarjeta (Ventas)',
         'FACTURAS_DEUDA': 'Facturas de Deuda',
         'EGRESOS': 'Egresos'
       };

@@ -415,12 +415,19 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           fechaExacta
         });
 
-        this.facturasPaginadas = resultado.facturas.map(f => ({
-          ...f,
-          total: Number(f?.total || 0),
-          saldoPendiente: Number(f?.saldoPendiente || 0),
-          tipoFactura: f.tipoFactura || 'NORMAL'
-        }));
+        this.facturasPaginadas = resultado.facturas.map(f => {
+          const total = Number(f?.total || 0);
+          const saldoPendiente = Number(f?.saldoPendiente || 0);
+          const abonado = Math.max(0, +(total - saldoPendiente).toFixed(2));
+
+          return {
+            ...f,
+            total,
+            saldoPendiente,
+            abonado,
+            tipoFactura: f.tipoFactura || 'NORMAL'
+          };
+        });
 
         this.lastVisible = resultado.lastDoc;
         this.firstVisible = resultado.firstDoc;
@@ -525,12 +532,15 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
 
         const facturasNormales = resultadoFacturas.facturas.map(f => {
           const facturaId = f?.id;
+          const total = Number(f?.total || 0);
           const saldoActual = Number((facturaId ? saldoActualMap.get(facturaId) : undefined) ?? f?.saldoPendiente ?? 0);
+          const abonado = Math.max(0, +(total - saldoActual).toFixed(2));
 
           return {
             ...f,
-            total: Number(f?.total || 0),
+            total,
             saldoPendiente: saldoActual,
+            abonado,
             tipoFactura: f.tipoFactura || 'NORMAL'
           };
         });
@@ -614,12 +624,19 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           fechaExacta
         });
 
-        this.facturasPaginadas = resultado.facturas.map(f => ({
-          ...f,
-          total: Number(f?.total || 0),
-          saldoPendiente: Number(f?.saldoPendiente || 0),
-          tipoFactura: f.tipoFactura || 'NORMAL'
-        }));
+        this.facturasPaginadas = resultado.facturas.map(f => {
+          const total = Number(f?.total || 0);
+          const saldoPendiente = Number(f?.saldoPendiente || 0);
+          const abonado = Math.max(0, +(total - saldoPendiente).toFixed(2));
+
+          return {
+            ...f,
+            total,
+            saldoPendiente,
+            abonado,
+            tipoFactura: f.tipoFactura || 'NORMAL'
+          };
+        });
 
         this.hasMore = resultado.hasMore;
 
@@ -695,12 +712,15 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
 
         const facturasNormales = resultadoFacturas.facturas.map(f => {
           const facturaId = f?.id;
+          const total = Number(f?.total || 0);
           const saldoActual = Number((facturaId ? saldoActualMap.get(facturaId) : undefined) ?? f?.saldoPendiente ?? 0);
+          const abonado = Math.max(0, +(total - saldoActual).toFixed(2));
 
           return {
             ...f,
-            total: Number(f?.total || 0),
+            total,
             saldoPendiente: saldoActual,
+            abonado,
             tipoFactura: f.tipoFactura || 'NORMAL'
           };
         });
@@ -785,12 +805,19 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           fechaExacta
         });
 
-        this.facturasPaginadas = resultado.facturas.map(f => ({
-          ...f,
-          total: Number(f?.total || 0),
-          saldoPendiente: Number(f?.saldoPendiente || 0),
-          tipoFactura: f.tipoFactura || 'NORMAL'
-        }));
+        this.facturasPaginadas = resultado.facturas.map(f => {
+          const total = Number(f?.total || 0);
+          const saldoPendiente = Number(f?.saldoPendiente || 0);
+          const abonado = Math.max(0, +(total - saldoPendiente).toFixed(2));
+
+          return {
+            ...f,
+            total,
+            saldoPendiente,
+            abonado,
+            tipoFactura: f.tipoFactura || 'NORMAL'
+          };
+        });
 
         this.lastVisible = resultado.lastDoc;
         this.firstVisible = resultado.firstDoc;
@@ -886,12 +913,15 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
 
         const facturasNormales = resultadoFacturas.facturas.map(f => {
           const facturaId = f?.id;
+          const total = Number(f?.total || 0);
           const saldoActual = Number((facturaId ? saldoActualMap.get(facturaId) : undefined) ?? f?.saldoPendiente ?? 0);
+          const abonado = Math.max(0, +(total - saldoActual).toFixed(2));
 
           return {
             ...f,
-            total: Number(f?.total || 0),
+            total,
             saldoPendiente: saldoActual,
+            abonado,
             tipoFactura: f.tipoFactura || 'NORMAL'
           };
         });

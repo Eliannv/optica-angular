@@ -165,6 +165,7 @@
                     <th class="col-cliente">Cliente/Descripción</th>
                     <th class="col-metodo">Método Pago</th>
                     <th class="col-monto">Monto</th>
+                    <th class="col-abono">Abono</th>
                     <th class="col-saldo">Saldo</th>
                 </tr>
             </thead>
@@ -190,6 +191,9 @@
                     </td>
                     <td class="col-monto">
                         <span class="monto">{{ formatoMoneda(factura.total) }}</span>
+                    </td>
+                    <td class="col-abono">
+                        <span>{{ formatoMoneda(factura.abonado || 0) }}</span>
                     </td>
                     <td class="col-saldo">
                         <span>{{ formatoMoneda(factura.saldoPendiente || 0) }}</span>
@@ -218,6 +222,9 @@
                     <td class="col-monto">
                         <span class="monto">{{ formatoMoneda(deuda.montoPagado) }}</span>
                     </td>
+                    <td class="col-abono">
+                        <span>{{ formatoMoneda(deuda.montoPagado || 0) }}</span>
+                    </td>
                     <td class="col-saldo">
                         <span>{{ formatoMoneda(deuda.saldoRestante || 0) }}</span>
                     </td>
@@ -245,6 +252,9 @@
                     <td class="col-monto">
                         <span class="monto">{{ formatoMoneda(transferencia.monto) }}</span>
                     </td>
+                    <td class="col-abono">
+                        <span>-</span>
+                    </td>
                     <td class="col-saldo">
                         <span>-</span>
                     </td>
@@ -269,6 +279,9 @@
                     </td>
                     <td class="col-monto">
                         <span class="monto">{{ formatoMoneda(egreso.monto) }}</span>
+                    </td>
+                    <td class="col-abono">
+                        <span>-</span>
                     </td>
                     <td class="col-saldo">
                         <span>-</span>
