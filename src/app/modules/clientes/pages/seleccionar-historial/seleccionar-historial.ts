@@ -15,7 +15,7 @@
  * - Lazy loading: solo carga historiales cuando se accede a este componente
  */
 
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { Subscription, firstValueFrom } from 'rxjs';
@@ -40,7 +40,9 @@ import { DashboardClinicoComponent } from '../../components/dashboard-clinico/da
 })
 export class SeleccionarHistorialComponent implements OnInit, OnDestroy {
   
-  clienteId = '';
+  // ✅ NUEVO: Permitir recibir clienteId como Input para reutilización
+  @Input() clienteId = '';
+  
   cliente: Cliente | null = null;
   
   historiales: HistoriaClinica[] = [];
@@ -78,8 +80,10 @@ export class SeleccionarHistorialComponent implements OnInit, OnDestroy {
   ) {}
 
   async ngOnInit(): Promise<void> {
-    // Obtener clienteId de query params
-    this.clienteId = this.route.snapshot.queryParamMap.get('clienteId') || '';
+    // ✅ ACTUALIZADO: Obtener clienteId de Input o de queryParams
+    if (!this.clienteId) {
+      this.clienteId = this.route.snapshot.queryParamMap.get('clienteId') || '';
+    }
     
     if (!this.clienteId) {
       await Swal.fire({

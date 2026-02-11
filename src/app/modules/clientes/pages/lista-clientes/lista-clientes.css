@@ -1,0 +1,21 @@
+/* Estilos adicionales para la lista de clientes */
+
+.badge {
+  font-weight: 500;
+}
+
+.table > tbody > tr {
+  cursor: default;
+}
+
+.table > tbody > tr:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.modal.show {
+  display: block;
+}
+
+.modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.5);
+}

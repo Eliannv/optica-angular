@@ -1,14 +1,29 @@
-/* Contenedor principal */
+/* Contenedor principal ocupa TODO el espacio */
 .seleccionar-historial-wrapper {
-  padding: 1.5rem;
+  padding: 2rem;
   max-width: 100%;
-  margin: 0 auto;
+  margin: 0;
+  min-height: 100%;
+}
+
+/* Card sin bordes ni sombras para ocupar todo el espacio */
+.seleccionar-historial-wrapper .card {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  border-radius: 0;
+  margin: 0;
+}
+
+.seleccionar-historial-wrapper .card-body {
+  padding: 0;
 }
 
 /* Header */
 .card-header {
-  padding: 1.5rem;
-  background: var(--card-bg, #ffffff);
+  padding: 0 0 1rem 0;
+  background: transparent;
+  border: none;
 }
 
 .header-row {
@@ -18,11 +33,7 @@
   flex-wrap: wrap;
 }
 
-.btn-back {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
+
 
 .cliente-info {
   flex: 1;
@@ -59,11 +70,13 @@
 .dashboard-wrapper {
   background: var(--secondary-bg, #f8f9fa);
   padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-radius: var(--radius-md);
 }
 
 /* Filtro de Vista */
 .filtro-vista {
-  padding: 16px 0;
+  padding: 0 0 1rem 0;
   display: flex;
   align-items: center;
   gap: 12px;

@@ -59,6 +59,7 @@ export class SidebarComponent implements OnInit {
     @Inject(PLATFORM_ID) private readonly platformId: Object
   ) {
     this.allMenuItems = [
+      // ✅ NUEVA SECCIÓN: Gestión Administrativa de Clientes
       {
         label: 'Clientes',
         icon: this.sanitizer.bypassSecurityTrustHtml(`
@@ -71,8 +72,19 @@ export class SidebarComponent implements OnInit {
                 <circle cx="9" cy="7" r="4"/>
               </svg>
         `),
-        route: '/clientes/historial-clinico',
+        route: '/clientes/lista',
         active: true,
+        badge: 0,
+        roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
+      },
+      // ✅ REFACTORIZADO: Historial Clínico (Atención Clínica)
+      {
+        label: 'Fichas clinicas',
+        icon: this.sanitizer.bypassSecurityTrustHtml(`
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-stethoscope-icon lucide-stethoscope"><path d="M11 2v2"/><path d="M5 2v2"/><path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"/><path d="M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/></svg>
+        `),
+        route: '/clientes/historial-clinico',
+        active: false,
         badge: 0,
         roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
       },

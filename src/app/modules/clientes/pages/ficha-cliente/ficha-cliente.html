@@ -1,0 +1,627 @@
+<div class="form-cliente-container">
+  <!-- Indicador de carga -->
+  @if (cargando) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Cargando información del cliente...</p>
+    </div>
+  }
+
+  @if (!cargando && cliente) {
+    <!-- Encabezado del cliente -->
+    <div class="cliente-header">
+      <div class="cliente-header-content">
+        <!-- Avatar y datos principales -->
+        <div class="cliente-info-principal">
+          <div class="cliente-avatar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          
+          <div class="cliente-datos">
+            <h1 class="cliente-nombre">
+              {{ cliente.nombres }} {{ cliente.apellidos }}
+            </h1>
+            <div class="cliente-detalles">
+              <span class="detalle-item">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-id-card-icon lucide-id-card"><path d="M16 10h2"/><path d="M16 14h2"/><path d="M6.17 15a3 3 0 0 1 5.66 0"/><circle cx="9" cy="11" r="2"/><rect x="2" y="5" width="20" height="14" rx="2"/></svg>
+                {{ cliente.cedula || 'Sin cédula' }}
+              </span>
+              @if (cliente.telefono) {
+                <span class="detalle-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="14" height="20" x="5" y="2" rx="2" ry="2"/>
+                    <path d="M12 18h.01"/>
+                  </svg>
+                  {{ cliente.telefono }}
+                </span>
+              }
+              @if (cliente.email) {
+                <span class="detalle-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mail-icon lucide-mail"><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>
+                  {{ cliente.email }}
+                </span>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Botones de acción -->
+        <div class="cliente-acciones">
+          <button
+            class="btn-action btn-secondary"
+            (click)="volverBuscador()"
+            title="Volver al buscador"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m12 19-7-7 7-7"/>
+              <path d="M19 12H5"/>
+            </svg>
+            Volver
+          </button>
+          <button
+            class="btn-action btn-primary"
+            (click)="editarCliente()"
+            title="Editar información del cliente"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+              <path d="m15 5 4 4"/>
+            </svg>
+            Editar
+          </button>
+        </div>
+      </div>
+
+      <!-- Alerta de deuda -->
+      @if (resumenDeuda.deudaTotal > 0) {
+        <div class="alerta-deuda">
+          <div class="alerta-contenido">
+            <div class="alerta-info">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                <path d="M12 9v4"/>
+                <path d="M12 17h.01"/>
+              </svg>
+              <div>
+                <strong>Deuda pendiente:</strong>
+                <span class="alerta-monto">{{ formatearMoneda(resumenDeuda.deudaTotal) }}</span>
+                <span class="alerta-detalle">
+                  ({{ resumenDeuda.pendientes }} factura{{ resumenDeuda.pendientes !== 1 ? 's' : '' }})
+                </span>
+              </div>
+            </div>
+            <button
+              class="btn-cobrar-deuda"
+              (click)="cobrarDeuda()"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
+            <path d="M12 18V6"/>
+          </svg>
+              Cobrar Deuda
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Navegación de tabs (navbar) -->
+    <nav class="tabs-navbar">
+      <button
+        class="tab-button"
+        [class.active]="tabActiva === 'informacion'"
+        (click)="cambiarTab('informacion')"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+        <span>Información</span>
+      </button>
+      
+      <button
+        class="tab-button"
+        [class.active]="tabActiva === 'historial'"
+        (click)="cambiarTab('historial')"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <path d="M10 13h4"/>
+          <path d="M10 17h4"/>
+        </svg>
+        <span>Historial Clínico</span>
+        @if (cliente.tieneHistorialClinico) {
+          <span class="tab-badge tab-badge-success">
+            ✓
+          </span>
+        }
+      </button>
+      
+      <button
+        class="tab-button"
+        [class.active]="tabActiva === 'facturas'"
+        (click)="cambiarTab('facturas')"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16l4-2 4 2 4-2 4 2V8z"/>
+            <path d="M14 2v6h6"/>
+            <path d="M8 13h8"/>
+            <path d="M8 17h8"/>
+          </svg>
+        <span>Facturación</span>
+        @if (resumenDeuda.deudaTotal > 0) {
+          <span class="tab-badge tab-badge-warning">
+            !
+          </span>
+        }
+      </button>
+    </nav>
+
+    <!-- Contenido de tabs -->
+    <div class="tab-content-container">
+      <!-- PESTAÑA: Información -->
+      @if (tabActiva === 'informacion') {
+        <div class="tab-pane fade-in">
+          <!-- SECCIÓN: INFORMACIÓN PERSONAL -->
+          <div class="form-section">
+            <h3 class="section-title">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              Información Personal
+            </h3>
+
+            <div class="form-grid">
+              <!-- Nombres -->
+              <div class="form-field">
+                <label class="field-label">Nombres</label>
+                <p class="field-value">{{ cliente.nombres }}</p>
+              </div>
+
+              <!-- Apellidos -->
+              <div class="form-field">
+                <label class="field-label">Apellidos</label>
+                <p class="field-value">{{ cliente.apellidos }}</p>
+              </div>
+
+              <!-- Cédula -->
+              <div class="form-field">
+                <label class="field-label">Cédula</label>
+                <p class="field-value">{{ cliente.cedula || '-' }}</p>
+              </div>
+
+              <!-- Teléfono -->
+              <div class="form-field">
+                <label class="field-label">Teléfono</label>
+                <p class="field-value">{{ cliente.telefono || '-' }}</p>
+              </div>
+
+              <!-- Correo Electrónico -->
+              <div class="form-field">
+                <label class="field-label">Correo Electrónico</label>
+                <p class="field-value">{{ cliente.email || '-' }}</p>
+              </div>
+
+              <!-- Fecha de Nacimiento -->
+              <div class="form-field">
+                <label class="field-label">Fecha de Nacimiento</label>
+                <p class="field-value">{{ formatearFecha(cliente.fechaNacimiento) }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECCIÓN: UBICACIÓN -->
+          <div class="form-section">
+            <h3 class="section-title">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+              Ubicación
+            </h3>
+
+            <div class="form-grid">
+              <!-- País -->
+              <div class="form-field">
+                <label class="field-label">País</label>
+                <p class="field-value">{{ cliente.pais || '-' }}</p>
+              </div>
+
+              <!-- Provincia -->
+              <div class="form-field">
+                <label class="field-label">Provincia</label>
+                <p class="field-value">{{ cliente.provincia || '-' }}</p>
+              </div>
+
+              <!-- Ciudad -->
+              <div class="form-field">
+                <label class="field-label">Ciudad</label>
+                <p class="field-value">{{ cliente.ciudad || '-' }}</p>
+              </div>
+
+              <!-- Dirección -->
+              <div class="form-field full-width">
+                <label class="field-label">Dirección</label>
+                <p class="field-value">{{ cliente.direccion || '-' }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- PESTAÑA: Historial Clínico -->
+      @if (tabActiva === 'historial') {
+        <div class="tab-pane tab-pane-full fade-in">
+          <app-seleccionar-historial
+            [clienteId]="clienteId!"
+          ></app-seleccionar-historial>
+        </div>
+      }
+
+      <!-- PESTAÑA: Facturación (Dashboard Financiero Completo) -->
+      @if (tabActiva === 'facturas') {
+        <div class="tab-pane fade-in">
+          <!-- Cargando facturas -->
+          @if (cargandoFacturas) {
+            <div class="loading-state">
+              <div class="spinner"></div>
+              <p>Cargando información financiera...</p>
+            </div>
+          }
+
+          <!-- Sin facturas -->
+          @if (!cargandoFacturas && facturas.length === 0) {
+            <div class="empty-state">
+              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" x2="8" y1="13" y2="13"/>
+                <line x1="16" x2="8" y1="17" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+              <p>Este cliente no tiene facturas registradas</p>
+            </div>
+          }
+
+          <!-- Dashboard Financiero + Tabla de Facturas -->
+          @if (!cargandoFacturas && facturas.length > 0) {
+            <div class="facturacion-container">
+              <!-- 🔎 FILTROS (primero) -->
+              <div class="filtros-section">
+                <h4 class="section-subtitle">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                  </svg>
+                  Filtros
+                </h4>
+
+              <div class="filtros-grid">
+                <!-- Búsqueda por número -->
+                <div class="filtro-field">
+                  <label for="busqueda">Buscar por número</label>
+                  <input
+                    id="busqueda"
+                    type="text"
+                    class="filtro-input"
+                    placeholder="Ej: FAC-001"
+                    [(ngModel)]="filtros.busqueda"
+                    (ngModelChange)="aplicarFiltros()"
+                  />
+                </div>
+
+                <!-- Filtro de periodo (Mes/Año) -->
+                <div class="filtro-field">
+                  <label for="periodo">Periodo</label>
+                  <select
+                    id="periodo"
+                    class="filtro-select"
+                    [(ngModel)]="filtros.periodo"
+                    (ngModelChange)="aplicarFiltros()"
+                  >
+                    <option value="todos">Todos</option>
+                    @for (periodo of periodosDisponibles; track periodo.value) {
+                      <option [value]="periodo.value">{{ periodo.label }}</option>
+                    }
+                  </select>
+                </div>
+
+                <!-- Filtro de estado -->
+                <div class="filtro-field">
+                  <label for="estado">Estado</label>
+                  <select
+                    id="estado"
+                    class="filtro-select"
+                    [(ngModel)]="filtros.estado"
+                    (ngModelChange)="aplicarFiltros()"
+                  >
+                    <option value="todos">Todos</option>
+                    <option value="PAGADA">Pagada</option>
+                    <option value="PENDIENTE">Pendiente</option>
+                  </select>
+                </div>
+
+                <!-- Filtro de tipo -->
+                <div class="filtro-field">
+                  <label for="tipo">Tipo</label>
+                  <select
+                    id="tipo"
+                    class="filtro-select"
+                    [(ngModel)]="filtros.tipo"
+                    (ngModelChange)="aplicarFiltros()"
+                  >
+                    <option value="todos">Todos</option>
+                    <option value="NORMAL">Normal</option>
+                    <option value="COBRO_DEUDA">Cobro de deuda</option>
+                  </select>
+                </div>
+
+                <!-- Botón limpiar filtros -->
+                <div class="filtro-field filtro-actions">
+                  <button
+                    class="btn-limpiar-filtros"
+                    (click)="limpiarFiltros()"
+                    title="Limpiar todos los filtros"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 6h18"/>
+                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                      <line x1="10" x2="10" y1="11" y2="17"/>
+                      <line x1="14" x2="14" y1="11" y2="17"/>
+                    </svg>
+                    Limpiar
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 📊 RESUMEN FINANCIERO (estadísticas globales, NO filtradas) -->
+            <div class="resumen-financiero-section">
+              <h4 class="section-subtitle">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" x2="12" y1="2" y2="22"/>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+                Resumen Financiero
+              </h4>
+
+              <div class="resumen-stats">
+                <!-- 💰 Total Facturado -->
+                <div class="stat-card stat-card-primary">
+                  <div class="stat-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="12" x2="12" y1="2" y2="22"/>
+                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    </svg>
+                  </div>
+                  <div class="stat-content">
+                    <span class="stat-label">Total Facturado</span>
+                    <span class="stat-value">{{ formatearMoneda(estadisticasFinancieras.totalFacturado) }}</span>
+                    <span class="stat-sublabel">Histórico de ventas</span>
+                  </div>
+                </div>
+
+                <!-- ✅ Total Pagado -->
+                <div class="stat-card stat-card-primary">
+                  <div class="stat-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                      <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                  </div>
+                  <div class="stat-content">
+                    <span class="stat-label">Total Pagado</span>
+                    <span class="stat-value">{{ formatearMoneda(estadisticasFinancieras.totalPagado) }}</span>
+                    <span class="stat-sublabel">Cobros realizados</span>
+                  </div>
+                </div>
+
+                <!-- ⚠️ Total Pendiente -->
+                <div class="stat-card stat-card-primary">
+                  <div class="stat-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                      <path d="M12 9v4"/>
+                      <path d="M12 17h.01"/>
+                    </svg>
+                  </div>
+                  <div class="stat-content">
+                    <span class="stat-label">Total Pendiente</span>
+                    <span class="stat-value">{{ formatearMoneda(estadisticasFinancieras.totalPendiente) }}</span>
+                    <span class="stat-sublabel">{{ resumenDeuda.pendientes }} factura(s)</span>
+                  </div>
+                </div>
+
+                <!-- 🧾 Última Factura -->
+                <div class="stat-card stat-card-primary">
+                  <div class="stat-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                  </div>
+                  <div class="stat-content">
+                    <span class="stat-label">Última Factura</span>
+                    @if (estadisticasFinancieras.ultimaFactura) {
+                      <span class="stat-value stat-value-small">{{ estadisticasFinancieras.ultimaFactura.idPersonalizado || estadisticasFinancieras.ultimaFactura.id }}</span>
+                      <span class="stat-sublabel">
+                        {{ formatearFecha(estadisticasFinancieras.ultimaFactura.fecha) }} - 
+                        {{ formatearMoneda(estadisticasFinancieras.ultimaFactura.total || 0) }}
+                      </span>
+                    } @else {
+                      <span class="stat-value">-</span>
+                    }
+                  </div>
+                </div>
+
+                <!-- 📊 Promedio de Compra -->
+                <div class="stat-card stat-card-primary">
+                  <div class="stat-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 3v18h18"/>
+                      <path d="m19 9-5 5-4-4-3 3"/>
+                    </svg>
+                  </div>
+                  <div class="stat-content">
+                    <span class="stat-label">Promedio de Compra</span>
+                    <span class="stat-value">{{ formatearMoneda(estadisticasFinancieras.promedioCompra) }}</span>
+                    <span class="stat-sublabel">{{ estadisticasFinancieras.numeroFacturas }} factura(s)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 📋 TABLA DE FACTURAS -->
+            <div class="tabla-section">
+              @if (facturasFiltradas.length === 0) {
+              <div class="empty-state">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"/>
+                  <path d="m21 21-4.35-4.35"/>
+                  <path d="M11 8v6"/>
+                  <path d="M8 11h6"/>
+                </svg>
+                <p>No se encontraron facturas con los filtros aplicados</p>
+                <button class="btn-secondary" (click)="limpiarFiltros()">
+                  Limpiar filtros
+                </button>
+              </div>
+            } @else {
+              <div class="table-wrapper">
+                <table class="facturas-table">
+                  <thead>
+                    <tr>
+                      <th class="col-id">#</th>
+                      <th class="col-fecha">Fecha</th>
+                      <th class="col-pago">Método Pago</th>
+                      <th class="col-tipo">Tipo</th>
+                      <th class="col-total">Total</th>
+                      <th class="col-abono">Pagado</th>
+                      <th class="col-saldo">Saldo</th>
+                      <th class="col-estado">Estado</th>
+                      <th class="col-acciones">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (factura of facturasPaginadas; track factura.id) {
+                      <tr class="factura-row">
+                        <td class="col-id">
+                          <span class="badge-id">{{ factura.idPersonalizado || factura.id }}</span>
+                        </td>
+                        
+                        <td class="col-fecha">
+                          {{ formatearFecha(factura.fecha) }}
+                        </td>
+
+                        <td class="col-pago">
+                          <span class="badge-pago">{{ factura.metodoPago }}</span>
+                        </td>
+
+                        <td class="col-tipo">
+                          @if (factura.tipoFactura === 'COBRO_DEUDA') {
+                            <span class="badge badge-warning">Cobro</span>
+                          } @else {
+                            <span class="badge badge-info">Normal</span>
+                          }
+                        </td>
+
+                        <td class="col-total">
+                          <span class="precio">{{ formatearMoneda(factura.total || calcularTotalFactura(factura)) }}</span>
+                        </td>
+
+                        <td class="col-abono">
+                          <span class="precio">{{ formatearMoneda(factura.abonado || 0) }}</span>
+                        </td>
+
+                        <td class="col-saldo">
+                          <span class="precio precio-saldo">
+                            {{ formatearMoneda((factura.total || calcularTotalFactura(factura)) - (factura.abonado || 0)) }}
+                          </span>
+                        </td>
+
+                        <td class="col-estado">
+                          @if (factura.estadoPago === 'PAGADA') {
+                            <span class="badge badge-success">
+                              ✓ Pagada
+                            </span>
+                          } @else {
+                            <span class="badge badge-danger">
+                              Pendiente
+                            </span>
+                          }
+                        </td>
+
+                        <td class="col-acciones">
+                          <div class="action-buttons">
+                            <button 
+                              class="btn-action btn-action-view"
+                              (click)="verFactura(factura)"
+                              title="Ver factura">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                              </svg>
+                            </button>
+                            @if (factura.estadoPago !== 'PAGADA' && (factura.total || calcularTotalFactura(factura)) > (factura.abonado || 0)) {
+                              <button 
+                                class="btn-action btn-action-payment"
+                                (click)="cobrarFactura(factura)"
+                                title="Cobrar deuda">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
+            <path d="M12 18V6"/>
+          </svg>
+                              </button>
+                            }
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Controles de paginación -->
+              <div class="pagination-controls">
+                <div class="pagination-info">
+                  <span class="text-muted">
+                    Mostrando {{ facturasPaginadas.length }} facturas (página {{ paginaActual }} de {{ totalPaginas }})
+                  </span>
+                </div>
+
+                <div class="pagination-buttons">
+                  <button 
+                    class="btn-pagination" 
+                    [disabled]="paginaActual === 1" 
+                    (click)="paginaAnterior()"
+                  >
+                    ← Anterior
+                  </button>
+                  <button 
+                    class="btn-pagination" 
+                    [disabled]="paginaActual >= totalPaginas" 
+                    (click)="paginaSiguiente()"
+                  >
+                    Siguiente →
+                  </button>
+                </div>
+              </div>
+            }
+            </div>
+          </div>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

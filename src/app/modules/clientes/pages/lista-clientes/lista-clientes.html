@@ -1,0 +1,306 @@
+<div class="container-fluid py-4">
+  <!-- Encabezado -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">
+      <i class="bi bi-people-fill me-2"></i>
+      Gestión de Clientes
+    </h2>
+    <button class="btn btn-primary" (click)="crearCliente()">
+      <i class="bi bi-plus-circle me-2"></i>
+      Nuevo Cliente
+    </button>
+  </div>
+
+  <!-- Barra de búsqueda y filtros -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="row g-3">
+        <!-- Buscador -->
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text">
+              <i class="bi bi-search"></i>
+            </span>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Buscar por nombre, cédula o teléfono..."
+              [(ngModel)]="terminoBusqueda"
+              (input)="buscarClientes()"
+            />
+            <button
+              class="btn btn-outline-secondary"
+              type="button"
+              (click)="limpiarBusqueda()"
+              [disabled]="!terminoBusqueda"
+            >
+              <i class="bi bi-x-circle"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filtro de estado -->
+        <div class="col-md-3">
+          <select
+            class="form-select"
+            [(ngModel)]="filtroEstado"
+            (change)="aplicarFiltro()"
+          >
+            <option value="todos">Todos los clientes</option>
+            <option value="conHistorial">Con historial clínico</option>
+            <option value="sinHistorial">Sin historial clínico</option>
+          </select>
+        </div>
+
+        <!-- Resultados -->
+        <div class="col-md-3 text-end">
+          <div class="badge bg-primary fs-6 p-2">
+            {{ totalClientes }} cliente{{ totalClientes !== 1 ? 's' : '' }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Indicador de carga -->
+  <div *ngIf="cargando" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <p class="mt-3 text-muted">Cargando clientes...</p>
+  </div>
+
+  <!-- Lista de clientes -->
+  <div *ngIf="!cargando" class="card">
+    <div class="card-body">
+      <!-- Sin resultados -->
+      <div *ngIf="clientesPaginados.length === 0" class="text-center py-5">
+        <i class="bi bi-inbox display-1 text-muted"></i>
+        <p class="mt-3 text-muted">No se encontraron clientes</p>
+        <button class="btn btn-primary" (click)="crearCliente()">
+          <i class="bi bi-plus-circle me-2"></i>
+          Crear primer cliente
+        </button>
+      </div>
+
+      <!-- Tabla de clientes -->
+      <div *ngIf="clientesPaginados.length > 0" class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Nombre Completo</th>
+              <th>Cédula</th>
+              <th>Teléfono</th>
+              <th>Email</th>
+              <th class="text-center">Estado Historial</th>
+              <th class="text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let cliente of clientesPaginados; trackBy: trackByClienteId">
+              <td>
+                <strong>{{ cliente.nombres }} {{ cliente.apellidos }}</strong>
+              </td>
+              <td>{{ cliente.cedula || '-' }}</td>
+              <td>{{ cliente.telefono || '-' }}</td>
+              <td>{{ cliente.email || '-' }}</td>
+              <td class="text-center">
+                <span
+                  *ngIf="cliente.tieneHistorialClinico"
+                  class="badge bg-success"
+                  title="Cliente tiene historial clínico"
+                >
+                  <i class="bi bi-check-circle me-1"></i>
+                  Con historial
+                </span>
+                <span
+                  *ngIf="!cliente.tieneHistorialClinico"
+                  class="badge bg-secondary"
+                  title="Cliente sin historial clínico"
+                >
+                  <i class="bi bi-circle me-1"></i>
+                  Sin historial
+                </span>
+              </td>
+              <td class="text-center">
+                <div class="btn-group btn-group-sm" role="group">
+                  <button
+                    class="btn btn-outline-primary"
+                    (click)="verDetalle(cliente)"
+                    title="Ver detalles"
+                  >
+                    <i class="bi bi-eye"></i>
+                  </button>
+                  <button
+                    class="btn btn-outline-secondary"
+                    (click)="editarCliente(cliente.id!)"
+                    title="Editar cliente"
+                  >
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button
+                    *ngIf="esAdmin"
+                    class="btn btn-outline-danger"
+                    (click)="desactivarCliente(cliente.id!)"
+                    title="Desactivar cliente"
+                  >
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Paginación -->
+      <div *ngIf="totalClientes > clientesPorPagina" class="d-flex justify-content-between align-items-center mt-4">
+        <div class="text-muted">
+          Mostrando {{ (paginaActual - 1) * clientesPorPagina + 1 }} -
+          {{ Math.min(paginaActual * clientesPorPagina, totalClientes) }} de
+          {{ totalClientes }}
+        </div>
+        <nav>
+          <ul class="pagination mb-0">
+            <li class="page-item" [class.disabled]="paginaActual === 1">
+              <button class="page-link" (click)="irPrimeraPagina()">
+                <i class="bi bi-chevron-double-left"></i>
+              </button>
+            </li>
+            <li class="page-item" [class.disabled]="paginaActual === 1">
+              <button class="page-link" (click)="paginaAnterior()">
+                <i class="bi bi-chevron-left"></i>
+              </button>
+            </li>
+            <li class="page-item active">
+              <span class="page-link">{{ paginaActual }}</span>
+            </li>
+            <li
+              class="page-item"
+              [class.disabled]="paginaActual * clientesPorPagina >= totalClientes"
+            >
+              <button class="page-link" (click)="paginaSiguiente()">
+                <i class="bi bi-chevron-right"></i>
+              </button>
+            </li>
+            <li
+              class="page-item"
+              [class.disabled]="paginaActual * clientesPorPagina >= totalClientes"
+            >
+              <button class="page-link" (click)="irUltimaPagina()">
+                <i class="bi bi-chevron-double-right"></i>
+              </button>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de detalles del cliente -->
+<div
+  *ngIf="mostrarModal && clienteSeleccionado"
+  class="modal fade show d-block"
+  tabindex="-1"
+  style="background-color: rgba(0,0,0,0.5)"
+  (click)="cerrarModal()"
+>
+  <div class="modal-dialog modal-lg" (click)="$event.stopPropagation()">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-person-circle me-2"></i>
+          Información del Cliente
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          (click)="cerrarModal()"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-bold">Nombres</label>
+            <p class="form-control-plaintext">{{ clienteSeleccionado.nombres }}</p>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">Apellidos</label>
+            <p class="form-control-plaintext">{{ clienteSeleccionado.apellidos }}</p>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">Cédula</label>
+            <p class="form-control-plaintext">{{ clienteSeleccionado.cedula || '-' }}</p>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">Teléfono</label>
+            <p class="form-control-plaintext">{{ clienteSeleccionado.telefono || '-' }}</p>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">Email</label>
+            <p class="form-control-plaintext">{{ clienteSeleccionado.email || '-' }}</p>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">Fecha de Nacimiento</label>
+            <p class="form-control-plaintext">
+              {{ clienteSeleccionado.fechaNacimiento ? (clienteSeleccionado.fechaNacimiento | date: 'dd/MM/yyyy') : '-' }}
+            </p>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold">Dirección</label>
+            <p class="form-control-plaintext">{{ clienteSeleccionado.direccion || '-' }}</p>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold">País</label>
+            <p class="form-control-plaintext">{{ clienteSeleccionado.pais || '-' }}</p>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold">Provincia</label>
+            <p class="form-control-plaintext">{{ clienteSeleccionado.provincia || '-' }}</p>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold">Ciudad</label>
+            <p class="form-control-plaintext">{{ clienteSeleccionado.ciudad || '-' }}</p>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold">Estado Historial Clínico</label>
+            <p class="form-control-plaintext">
+              <span
+                *ngIf="clienteSeleccionado.tieneHistorialClinico"
+                class="badge bg-success"
+              >
+                <i class="bi bi-check-circle me-1"></i>
+                Tiene historial clínico
+              </span>
+              <span
+                *ngIf="!clienteSeleccionado.tieneHistorialClinico"
+                class="badge bg-secondary"
+              >
+                <i class="bi bi-circle me-1"></i>
+                Sin historial clínico
+              </span>
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          (click)="cerrarModal()"
+        >
+          Cerrar
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          (click)="editarCliente(clienteSeleccionado.id!); cerrarModal()"
+        >
+          <i class="bi bi-pencil me-2"></i>
+          Editar Cliente
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -325,6 +325,22 @@ export class FacturasService {
   }
 
   /**
+   * ✅ NUEVO: Obtiene todas las facturas de un cliente (pendientes y pagadas)
+   * Útil para mostrar historial completo de ventas en la ficha del cliente
+   */
+  getFacturasPorCliente(clienteId: string): Observable<Factura[]> {
+    const q = query(
+      this.facturasRef,
+      where('clienteId', '==', clienteId),
+      orderBy('fecha', 'desc')
+    );
+
+    return collectionData(q, { idField: 'id' }).pipe(
+      map(data => data as Factura[])
+    );
+  }
+
+  /**
    * Marca como PAGADA cualquier factura de cobro de deuda asociada a la original.
    * Útil para evitar múltiples cobros pendientes para la misma deuda.
    */
