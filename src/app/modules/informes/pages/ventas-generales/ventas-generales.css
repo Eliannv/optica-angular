@@ -345,7 +345,9 @@
     }
 }
 
+
 /* ✅ EMPTY STATE (estado inicial antes de cargar) */
+
 .empty-state {
     text-align: center;
     padding: 4rem 2rem;
@@ -388,6 +390,7 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 0.875rem;
+    table-layout: fixed;
 }
 
 .ventas-table thead {
@@ -396,7 +399,7 @@
 }
 
 .ventas-table th {
-    padding: 1rem;
+    padding: 0.75rem 0.8rem;
     text-align: left;
     font-weight: 600;
     font-size: 0.75rem;
@@ -423,7 +426,7 @@
 }
 
 .ventas-table td {
-    padding: 1rem;
+    padding: 0.7rem 0.8rem;
     vertical-align: middle;
 }
 
@@ -431,7 +434,7 @@
 /* Columnas específicas */
 
 .col-fecha {
-    width: 10%;
+    width: 12%;
 }
 
 .col-factura {
@@ -439,27 +442,25 @@
 }
 
 .col-cliente {
-    width: 18%;
+    width: 22%;
 }
 
 .col-tipo {
-    width: 12%;
+    width: 8%;
     text-align: center;
 }
 
 .col-metodo {
-    width: 10%;
+    width: 12%;
     text-align: center;
 }
 
-.col-monto {
-    width: 12%;
-    text-align: right;
-}
-
+.col-monto,
+.col-abono,
 .col-saldo {
-    width: 12%;
+    width: 10%;
     text-align: right;
+    white-space: nowrap;
 }
 
 .col-credito {

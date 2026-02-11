@@ -23,13 +23,7 @@
                     Buscar:
                 </label>
                 <div class="search-input-group">
-                    <input 
-                        id="buscar-input"
-                        class="form-control" 
-                        placeholder="Cliente, ID de la factura..." 
-                        [(ngModel)]="term" 
-                        (input)="filtrar()"
-                    />
+                    <input id="buscar-input" class="form-control" placeholder="Cliente, ID de la factura..." [(ngModel)]="term" (input)="filtrar()" />
                     <button class="btn-clear-busqueda" *ngIf="term" (click)="term = ''; filtrar()">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -67,22 +61,9 @@
                     Fecha:
                 </label>
                 <div class="fecha-input-group">
-                    <input 
-                        type="date" 
-                        id="fecha-select" 
-                        class="form-control" 
-                        [class.has-value]="fechaSeleccionada"
-                        [(ngModel)]="fechaSeleccionada" 
-                        (change)="cambiarFiltroFecha(fechaSeleccionada)"
-                        [min]="minFechaPeriodo"
-                        [max]="maxFechaPeriodo"
-                        [disabled]="!periodoSeleccionado"
+                    <input type="date" id="fecha-select" class="form-control" [class.has-value]="fechaSeleccionada" [(ngModel)]="fechaSeleccionada" (change)="cambiarFiltroFecha(fechaSeleccionada)" [min]="minFechaPeriodo" [max]="maxFechaPeriodo" [disabled]="!periodoSeleccionado"
                     />
-                    <button 
-                        *ngIf="fechaSeleccionada" 
-                        class="btn-clear-fecha" 
-                        (click)="limpiarFiltroFecha()" 
-                        title="Limpiar filtro de fecha">
+                    <button *ngIf="fechaSeleccionada" class="btn-clear-fecha" (click)="limpiarFiltroFecha()" title="Limpiar filtro de fecha">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
                             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -127,6 +108,7 @@
                             <th class="col-pago">Tipo</th>
 
                             <th class="col-total">Total</th>
+                            <th class="col-abono">Abono</th>
 
                             <!-- ✅ NUEVO -->
                             <th class="col-total">Estado</th>
@@ -161,6 +143,10 @@
 
                             <td class="col-total">
                                 <span class="precio">${{ (Number(f.total) || 0).toFixed(2) }}</span>
+                            </td>
+
+                            <td class="col-abono">
+                                <span class="precio">${{ (Number(f.abonado) || 0).toFixed(2) }}</span>
                             </td>
 
                             <!-- ✅ NUEVO: Estado + saldo -->
@@ -226,6 +212,11 @@
                         <div class="total-mobile">
                             <span class="label">Total</span>
                             <span class="precio">${{ (Number(f.total) || 0).toFixed(2) }}</span>
+                        </div>
+
+                        <div class="total-mobile">
+                            <span class="label">Abono</span>
+                            <span class="precio">${{ (Number(f.abonado) || 0).toFixed(2) }}</span>
                         </div>
 
                         <!-- ✅ NUEVO: estado -->
