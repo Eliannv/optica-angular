@@ -28,6 +28,7 @@ import { FormsModule } from '@angular/forms';
 import Swal from 'sweetalert2';
 
 import { ClientesService } from '../../../../core/services/clientes';
+import { FacturasService } from '../../../../core/services/facturas';
 import { AuthService } from '../../../../core/services/auth.service';
 import { Cliente } from '../../../../core/models/cliente.model';
 
@@ -52,6 +53,9 @@ export class ListaClientesComponent implements OnInit {
 
   cargando = true;
   filtroEstado: 'todos' | 'conHistorial' | 'sinHistorial' = 'todos';
+  filtroCredito: 'todos' | 'conCredito' | 'sinCredito' = 'todos';
+
+  deudas: Record<string, { deudaTotal: number; pendientes: number; creditosActivos: number; creditoPersonalActivo: boolean }> = {};
   
   // Modal de información
   clienteSeleccionado: Cliente | null = null;
@@ -68,6 +72,7 @@ export class ListaClientesComponent implements OnInit {
   constructor(
     private readonly router: Router,
     private readonly clientesSrv: ClientesService,
+    private readonly facturasSrv: FacturasService,
     private readonly authService: AuthService
   ) {}
 
@@ -85,6 +90,23 @@ export class ListaClientesComponent implements OnInit {
   private async cargarClientes(): Promise<void> {
     const data = await firstValueFrom(this.clientesSrv.getClientes());
     this.clientes = (data as Cliente[]).sort((a, b) => this.getCreatedMs(b) - this.getCreatedMs(a));
+    this.aplicarFiltro();
+    await this.cargarDeudasClientes(this.clientes);
+  }
+
+  private async cargarDeudasClientes(lista: Cliente[]): Promise<void> {
+    const tasks = lista.map(async c => {
+      if (!c?.id) return;
+      try {
+        const res = await this.facturasSrv.getResumenDeuda(c.id);
+        this.deudas[c.id] = res;
+      } catch (e) {
+        console.error('Error deuda cliente', c.id, e);
+        this.deudas[c.id] = { deudaTotal: 0, pendientes: 0, creditosActivos: 0, creditoPersonalActivo: false };
+      }
+    });
+
+    await Promise.all(tasks);
     this.aplicarFiltro();
   }
 
@@ -138,6 +160,12 @@ export class ListaClientesComponent implements OnInit {
       base = base.filter(c => !!c.tieneHistorialClinico);
     } else if (this.filtroEstado === 'sinHistorial') {
       base = base.filter(c => !c.tieneHistorialClinico);
+    }
+
+    if (this.filtroCredito === 'conCredito') {
+      base = base.filter(c => c.id && !!this.deudas[c.id]?.creditoPersonalActivo);
+    } else if (this.filtroCredito === 'sinCredito') {
+      base = base.filter(c => c.id && !this.deudas[c.id]?.creditoPersonalActivo);
     }
 
     this.clientesFiltrados = base;

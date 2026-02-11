@@ -43,7 +43,7 @@
 }
 
 .filter-select {
-  min-width: 220px;
+  min-width: 210px;
   padding: 0.55rem 0.75rem;
   border: 2px solid #e5e7eb;
   border-radius: 8px;
@@ -147,6 +147,12 @@
 .col-acciones {
   width: 140px;
   text-align: center;
+}
+
+@media (max-width: 768px) {
+  .filter-select {
+    min-width: 100%;
+  }
 }
 
 .table-actions {

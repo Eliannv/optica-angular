@@ -18,7 +18,7 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, AbstractControl, AsyncValidatorFn, ValidationErrors } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule } from '@angular/forms';
-import { debounceTime, distinctUntilChanged } from 'rxjs';
+import { debounceTime, distinctUntilChanged, firstValueFrom } from 'rxjs';
 import Swal from 'sweetalert2';
 import { Cliente } from '../../../../core/models/cliente.model';
 import { ClientesService } from '../../../../core/services/clientes';
@@ -74,7 +74,9 @@ export class CrearCliente implements OnInit {
    * y asíncronas (unicidad de cédula y email).
    */
   ngOnInit() {
-    this.clienteIdEdicion = this.route.snapshot.queryParamMap.get('clienteId');
+    this.clienteIdEdicion =
+      this.route.snapshot.queryParamMap.get('clienteId') ||
+      this.route.snapshot.queryParamMap.get('id');
     
     // Formulario sin validaciones obligatorias
     this.clienteForm = this.fb.group({
@@ -108,7 +110,9 @@ export class CrearCliente implements OnInit {
    */
   private async cargarClienteParaEditar() {
     try {
-      const cliente = await this.clientesService.getClienteById(this.clienteIdEdicion!).toPromise();
+      const cliente = await firstValueFrom(
+        this.clientesService.getClienteById(this.clienteIdEdicion!)
+      );
       if (cliente) {
         this.clienteForm.patchValue({
           nombres: cliente.nombres,

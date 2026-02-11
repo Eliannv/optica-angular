@@ -34,18 +34,35 @@
             <option value="conHistorial">Con historial clínico</option>
             <option value="sinHistorial">Sin historial clínico</option>
           </select>
+          <select
+            class="form-select filter-select"
+            [(ngModel)]="filtroCredito"
+            (change)="aplicarFiltro()"
+          >
+            <option value="todos">Todos los créditos</option>
+            <option value="conCredito">Con crédito personal</option>
+            <option value="sinCredito">Sin crédito personal</option>
+          </select>
           <button class="btn btn-primary" (click)="crearCliente()">
             + Nuevo
           </button>
         </div>
       </div>
 
-      <div class="filter-info" *ngIf="terminoBusqueda || filtroEstado !== 'todos'">
+      <div class="filter-info" *ngIf="terminoBusqueda || filtroEstado !== 'todos' || filtroCredito !== 'todos'">
         <span class="badge badge-filter" *ngIf="filtroEstado !== 'todos'">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
             <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
           </svg>
           Estado: {{ filtroEstado === 'conHistorial' ? 'Con historial' : 'Sin historial' }}
+        </span>
+        <span class="badge badge-filter" *ngIf="filtroCredito !== 'todos'">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path>
+            <path d="M12 18V6"></path>
+          </svg>
+          Credito: {{ filtroCredito === 'conCredito' ? 'Con' : 'Sin' }} credito
         </span>
         <span class="text-muted" style="margin-left: 8px;">{{ totalClientes }} cliente(s) encontrado(s)</span>
       </div>
@@ -68,6 +85,7 @@
               <th>Telefono</th>
               <th>Email</th>
               <th>Estado Historial</th>
+              <th>Credito Personal</th>
               <th class="col-acciones">Acciones</th>
             </tr>
           </thead>
@@ -93,6 +111,17 @@
                 >
                   Sin historial
                 </span>
+              </td>
+              <td>
+                <span
+                  *ngIf="cliente.id && deudas[cliente.id]"
+                  class="badge"
+                  [class.bg-success]="deudas[cliente.id].creditoPersonalActivo"
+                  [class.bg-secondary]="!deudas[cliente.id].creditoPersonalActivo"
+                >
+                  {{ deudas[cliente.id].creditoPersonalActivo ? 'Con credito' : 'Sin credito' }}
+                </span>
+                <span *ngIf="!cliente.id || !deudas[cliente.id]" class="badge bg-secondary">Cargando...</span>
               </td>
               <td class="col-acciones">
                 <div class="table-actions">

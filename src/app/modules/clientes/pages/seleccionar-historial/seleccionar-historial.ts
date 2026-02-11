@@ -205,7 +205,7 @@ export class SeleccionarHistorialComponent implements OnInit, OnDestroy {
    */
   nuevoHistorial(): void {
     this.router.navigate(['/clientes/crear-historial'], {
-      queryParams: { clienteId: this.clienteId }
+      queryParams: { clienteId: this.clienteId, returnTo: this.router.url }
     });
   }
 
@@ -241,7 +241,8 @@ export class SeleccionarHistorialComponent implements OnInit, OnDestroy {
     this.router.navigate(['/clientes/crear-historial'], {
       queryParams: { 
         clienteId: this.clienteId,
-        historialId: historial.id 
+        historialId: historial.id,
+        returnTo: this.router.url
       }
     });
   }

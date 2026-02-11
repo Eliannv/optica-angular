@@ -44,6 +44,11 @@
                   {{ cliente.email }}
                 </span>
               }
+              <span class="detalle-item">
+                <span class="credito-badge" [class.credito-on]="resumenDeuda.creditoPersonalActivo" [class.credito-off]="!resumenDeuda.creditoPersonalActivo">
+                  {{ resumenDeuda.creditoPersonalActivo ? 'Con credito' : 'Sin credito' }}
+                </span>
+              </span>
             </div>
           </div>
         </div>

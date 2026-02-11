@@ -47,6 +47,7 @@ export class CrearHistorialClinicoComponent implements OnInit {
   clienteId = '';
   historialId = ''; // ✅ NUEVO: ID del historial a editar (solo en modo edit)
   cliente: Cliente | null = null;
+  returnTo = '';
 
   loading = true;
   form!: FormGroup;
@@ -164,6 +165,7 @@ export class CrearHistorialClinicoComponent implements OnInit {
 
     // ✅ NUEVO: Obtener historialId de query params (opcional, solo para edición)
     this.historialId = this.route.snapshot.queryParamMap.get('historialId') || '';
+    this.returnTo = this.route.snapshot.queryParamMap.get('returnTo') || '';
     
     // Determinar modo: si hay historialId, es edición; si no, es creación
     this.mode = this.historialId ? 'edit' : 'create';
@@ -480,10 +482,13 @@ export class CrearHistorialClinicoComponent implements OnInit {
         showConfirmButton: false
       });
 
-      // Navegar a la lista de historiales del cliente
-      this.router.navigate(['/clientes/historiales'], {
-        queryParams: { clienteId: this.clienteId }
-      });
+      if (this.returnTo) {
+        this.router.navigateByUrl(this.returnTo);
+      } else {
+        this.router.navigate(['/clientes/historiales'], {
+          queryParams: { clienteId: this.clienteId }
+        });
+      }
 
     } catch (error: any) {
       Swal.fire({
@@ -499,6 +504,10 @@ export class CrearHistorialClinicoComponent implements OnInit {
    * Cancela la operación y retorna a la lista de historiales del cliente.
    */
   cancelar() {
+    if (this.returnTo) {
+      this.router.navigateByUrl(this.returnTo);
+      return;
+    }
     this.router.navigate(['/clientes/historiales'], {
       queryParams: { clienteId: this.clienteId }
     });
