@@ -216,6 +216,10 @@ export class ListaClientesComponent implements OnInit {
    * Muestra el modal con la información personal del cliente.
    */
   async verDetalle(cliente: Cliente): Promise<void> {
+    if (this.clienteSeleccionado?.id === cliente.id && this.mostrarModal) {
+      this.cerrarModal();
+      return;
+    }
     this.clienteSeleccionado = cliente;
     this.mostrarModal = true;
   }
