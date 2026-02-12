@@ -826,8 +826,15 @@ export class CajaBancoService {
       throw new Error('La caja banco no existe');
     }
 
+    // Permitir modificar/eliminar en caja cerrada solo si el usuario es ADMINISTRADOR
     if (caja.estado !== 'ABIERTA') {
-      throw new Error('La caja banco esta cerrada. No se puede modificar.');
+      const esAdmin = this.authService.isAdmin ? this.authService.isAdmin() : false;
+      if (!esAdmin) {
+        throw new Error('La caja banco esta cerrada. No se puede modificar.');
+      } else {
+        // Si es admin, permitir continuar (no validar si es la última caja abierta)
+        return;
+      }
     }
 
     const ultima = await this.getCajaBancoAbierta();

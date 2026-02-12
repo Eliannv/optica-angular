@@ -162,9 +162,35 @@ export class RegistrarMovimientoComponent implements OnInit {
     if (!this.cajaId) {
       await this.obtenerCajaAbiertalAutomaticamente();
       this.cajaBanco = this.cajaBancoAbierta;
+      // Si la caja está abierta y el usuario es admin, limpiar loading y error
+      if (this.cajaBanco && this.cajaBanco.estado === 'ABIERTA') {
+        const esAdmin = this.authService.isAdmin ? this.authService.isAdmin() : false;
+        if (esAdmin) {
+          this.cargandoCaja = false;
+          this.errorCaja = '';
+        }
+      }
     } else {
       // Si ya tiene cajaId, obtener la caja (puede estar cerrada)
       this.cajaBanco = await firstValueFrom(this.cajaBancoService.getCajaBancoById(this.cajaId));
+      // Si la caja está cerrada pero el usuario es admin, permitir registrar
+      if (this.cajaBanco && this.cajaBanco.estado === 'CERRADA') {
+        const esAdmin = this.authService.isAdmin ? this.authService.isAdmin() : false;
+        if (esAdmin) {
+          this.cargandoCaja = false;
+          this.errorCaja = '';
+          this.cajaBancoAbierta = this.cajaBanco;
+        }
+      }
+      // Si la caja está abierta y el usuario es admin, limpiar loading y error
+      if (this.cajaBanco && this.cajaBanco.estado === 'ABIERTA') {
+        const esAdmin = this.authService.isAdmin ? this.authService.isAdmin() : false;
+        if (esAdmin) {
+          this.cargandoCaja = false;
+          this.errorCaja = '';
+          this.cajaBancoAbierta = this.cajaBanco;
+        }
+      }
     }
 
     console.log('🔍 CajaId final en registrar-movimiento:', this.cajaId);
@@ -461,12 +487,21 @@ export class RegistrarMovimientoComponent implements OnInit {
     if (tipo === 'INGRESO') {
       this.categorias_actuales = this.categorias_ingresos;
       categoriaControl?.setValue('CIERRE_CAJA_CHICA');
+      // Limpiar selecciones de egreso
+      this.proveedorSeleccionado = null;
+      this.deudaActual = 0;
+      this.deudaRestante = 0;
     } else {
       this.categorias_actuales = this.categorias_egresos;
       categoriaControl?.setValue('PAGO_TRABAJADOR');
+      // Limpiar selecciones de ingreso
+      this.proveedorSeleccionado = null;
+      this.deudaActual = 0;
+      this.deudaRestante = 0;
     }
     this.clienteSeleccionado = null;
     this.busquedaCliente = '';
+    this.personasBusqueda = [];
     this.actualizarOpcionesBusqueda();
   }
 
@@ -659,8 +694,13 @@ export class RegistrarMovimientoComponent implements OnInit {
       console.log('✅ Fecha final:', fechaFinal);
 
       // Construir movimiento evitando campos undefined (Firestore no los acepta)
+      // Asegurarse de que el tipo sea exactamente 'INGRESO' o 'EGRESO' según el formulario
+      let tipoMovimiento = this.formulario.get('tipo')?.value;
+      if (tipoMovimiento !== 'INGRESO' && tipoMovimiento !== 'EGRESO') {
+        tipoMovimiento = 'INGRESO'; // fallback seguro
+      }
       const movimientoBase: any = {
-        tipo: this.formulario.value.tipo,
+        tipo: tipoMovimiento,
         categoria: this.formulario.value.categoria,
         descripcion: this.formulario.value.descripcion,
         monto: this.formulario.value.monto,
