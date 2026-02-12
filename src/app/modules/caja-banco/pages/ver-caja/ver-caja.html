@@ -5,7 +5,7 @@
                 <h1 class="caja-title">Detalles de Caja Banco</h1>
                 <div class="header-actions">
                     <button class="btn btn-secondary" (click)="volver()">← Volver</button>
-                    <button *ngIf="caja?.estado === 'ABIERTA'" class="btn btn-action-move" (click)="registrarMovimiento()">
+                    <button *ngIf="puedeEditarMovimientos" class="btn btn-action-move" (click)="registrarMovimiento()">
                         + Registrar Movimiento
                     </button>
                     <!-- Botón Cerrar Caja: SOLO ADMIN y modo MANUAL -->

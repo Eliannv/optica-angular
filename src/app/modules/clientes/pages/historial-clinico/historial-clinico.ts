@@ -1,3 +1,4 @@
+// ...existing code...
 /**
  * Componente principal para la gestión de historiales clínicos de clientes.
  *
@@ -466,6 +467,16 @@ export class HistorialClinicoComponent implements OnInit {
 
   tieneCreditoPersonal(clienteId: string): boolean {
     return !!this.deudas[clienteId]?.creditoPersonalActivo;
+  }
+
+  /**
+   * Navega a la creación de venta sin historial clínico para el cliente dado.
+   * @param clienteId Identificador del cliente
+   */
+  ventaSinHistorial(clienteId: string): void {
+    this.router.navigate(['/ventas/crear'], {
+      queryParams: { clienteId, sinHistorial: true }
+    });
   }
 
   /**

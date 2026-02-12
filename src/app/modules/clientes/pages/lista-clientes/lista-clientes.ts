@@ -274,6 +274,14 @@ export class ListaClientesComponent implements OnInit {
     });
   }
 
+    /**
+     * Inicia una venta directa sin historial clínico para el cliente
+     */
+    ventaSinHistorial(clienteId: string) {
+      if (!clienteId) return;
+      this.router.navigate(['/ventas/crear'], { queryParams: { clienteId, sinHistorial: true } });
+    }
+
   /**
    * Navega al formulario de edición del cliente.
    */

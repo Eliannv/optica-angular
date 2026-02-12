@@ -27,6 +27,7 @@ import { Factura } from '../../../core/models/factura.model';
   styleUrls: ['./crear-venta.css', './crear-venta-compacto.css', './crear-venta-loading.css'],
 })
 export class CrearVentaComponent implements OnInit, OnDestroy {
+    sinHistorial = false;
   // Listener para navegación con teclado global
   @HostListener('document:keydown', ['$event'])
   handleKeyboardEvent(event: KeyboardEvent) {
@@ -239,9 +240,10 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     if (this.modoEdicion) {
       await this.cargarFacturaParaEditar();
     } else {
-      // MODO CREACIÓN: puedes entrar con /ventas/crear?clienteId=xxx&historialId=yyy
+      // MODO CREACIÓN: puedes entrar con /ventas/crear?clienteId=xxx&historialId=yyy&sinHistorial=true
       this.clienteId = this.route.snapshot.queryParamMap.get('clienteId') || '';
-      this.historialId = this.route.snapshot.queryParamMap.get('historialId') || ''; // ✅ NUEVO
+      this.historialId = this.route.snapshot.queryParamMap.get('historialId') || '';
+      this.sinHistorial = this.route.snapshot.queryParamMap.get('sinHistorial') === 'true';
     }
 
     if (!this.clienteId) {
@@ -253,16 +255,22 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     if (!this.cliente) {
       this.cliente = await firstValueFrom(this.clientesSrv.getClienteById(this.clienteId));
     }
-    
-    // ✅ NUEVO: Si hay historialId, cargar ese historial específico
-    if (this.historialId && !this.historial) {
-      const snap = await this.historialSrv.obtenerHistorialPorId(this.clienteId, this.historialId);
-      this.historial = snap.exists() ? { id: snap.id, ...snap.data() } : null;
-    } 
-    // ⚠️ FALLBACK (compatibilidad): Si NO hay historialId, intentar cargar documento 'main' (legacy)
-    else if (!this.historialId && !this.historial) {
-      const snap = await this.historialSrv.obtenerHistorial(this.clienteId);
-      this.historial = snap.exists() ? snap.data() : null;
+
+    // Si es venta sin historial, forzar historial a null y saltar carga de historial
+    if (this.sinHistorial) {
+      this.historial = null;
+      this.historialId = '';
+    } else {
+      // ✅ NUEVO: Si hay historialId, cargar ese historial específico
+      if (this.historialId && !this.historial) {
+        const snap = await this.historialSrv.obtenerHistorialPorId(this.clienteId, this.historialId);
+        this.historial = snap.exists() ? { id: snap.id, ...snap.data() } : null;
+      } 
+      // ⚠️ FALLBACK (compatibilidad): Si NO hay historialId, intentar cargar documento 'main' (legacy)
+      else if (!this.historialId && !this.historial) {
+        const snap = await this.historialSrv.obtenerHistorial(this.clienteId);
+        this.historial = snap.exists() ? snap.data() : null;
+      }
     }
 
     // 🚀 OPTIMIZADO: Cargar solo productos limitados inicialmente
@@ -1361,10 +1369,10 @@ async guardarEImprimir() {
     const observacionLimpia = (this.observacion || '').trim();
     const factura: any = {
       clienteId: this.clienteId,
-      historialClinicoId: this.historialId || undefined, // ✅ NUEVO: ID del historial usado
+      historialClinicoId: this.sinHistorial ? null : (this.historialId || undefined),
       clienteNombre: `${this.cliente?.nombres || ''} ${this.cliente?.apellidos || ''}`.trim(),
       clienteTelefono: this.cliente?.telefono || '',
-      historialSnapshot: this.historial || null,
+      historialSnapshot: this.sinHistorial ? null : (this.historial || null),
 
       items: this.items.map((i: any) => ({
         esServicio: i.esServicio || false, // ✅ Incluir flag de servicio
@@ -1399,7 +1407,7 @@ async guardarEImprimir() {
       estadoCredito: this.esCredito && saldoPendiente > 0 ? 'ACTIVO' : 'CANCELADO',
       
       // ✅ NUEVO: TIPO DE FACTURA (Normal = venta convencional, NO cobro de deuda)
-      tipoFactura: 'NORMAL'
+      tipoFactura: this.sinHistorial ? 'SIN_HISTORIAL' : 'NORMAL'
     };
 
     console.log('📄 FACTURA A GUARDAR:', factura);

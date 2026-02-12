@@ -13,6 +13,7 @@
  */
 
 import { Component, inject, OnInit } from '@angular/core';
+import { puedeModificarCaja } from '../../../../core/utils/permisos-caja';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
@@ -97,12 +98,14 @@ export class VerCajaComponent implements OnInit {
    * Solo el admin puede editar/eliminar y solo si es la ultima caja abierta.
    */
   get puedeEditarMovimientos(): boolean {
-    return Boolean(
-      this.esAdministrador &&
-      this.caja?.estado === 'ABIERTA' &&
-      this.caja?.id &&
-      this.caja.id === this.ultimaCajaAbiertaId
-    );
+    const usuario = this.authService.getCurrentUser();
+    if (!this.caja || !usuario) return false;
+    if (this.caja.estado === 'CERRADA') {
+      // Solo admin puede editar cualquier caja cerrada
+      return usuario.rol === 1; // RolUsuario.ADMINISTRADOR
+    }
+    // Si está ABIERTA, solo la última caja abierta puede ser editada
+    return this.caja.id === this.ultimaCajaAbiertaId && puedeModificarCaja(this.caja, usuario);
   }
 
   /**

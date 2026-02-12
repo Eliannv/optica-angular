@@ -1,71 +1,53 @@
 <div class="clientes-wrapper">
-  <div class="card">
-    <div class="card-header">
-      <div class="header-content">
-        <h3 class="card-title">Listado de Clientes</h3>
+    <div class="card">
+        <div class="card-header">
+            <div class="header-content">
+                <h3 class="card-title">Listado de Clientes</h3>
 
-        <div class="search-wrapper">
-          <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <div class="search-wrapper">
+                    <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8"></circle>
             <path d="m21 21-4.35-4.35"></path>
           </svg>
-          <input
-            type="text"
-            class="search-input"
-            placeholder="Buscar por nombre, cédula o teléfono..."
-            [(ngModel)]="terminoBusqueda"
-            (input)="buscarClientes()"
-          />
-          <button *ngIf="terminoBusqueda" class="clear-btn" (click)="limpiarBusqueda()" title="Limpiar búsqueda">
+                    <input type="text" class="search-input" placeholder="Buscar por nombre, cédula o teléfono..." [(ngModel)]="terminoBusqueda" (input)="buscarClientes()" />
+                    <button *ngIf="terminoBusqueda" class="clear-btn" (click)="limpiarBusqueda()" title="Limpiar búsqueda">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           </button>
-        </div>
+                </div>
 
-        <div class="action-buttons">
-          <select
-            class="form-select filter-select"
-            [(ngModel)]="filtroEstado"
-            (change)="aplicarFiltro()"
-          >
+                <div class="action-buttons">
+                    <select class="form-select filter-select" [(ngModel)]="filtroEstado" (change)="aplicarFiltro()">
             <option value="todos">Todos los clientes</option>
             <option value="conHistorial">Con historial clínico</option>
             <option value="sinHistorial">Sin historial clínico</option>
           </select>
-          <select
-            class="form-select filter-select"
-            [(ngModel)]="filtroCredito"
-            (change)="aplicarFiltro()"
-          >
+                    <select class="form-select filter-select" [(ngModel)]="filtroCredito" (change)="aplicarFiltro()">
             <option value="todos">Todos los créditos</option>
             <option value="conCredito">Con crédito personal</option>
             <option value="sinCredito">Sin crédito personal</option>
           </select>
-          <select
-            class="form-select filter-select"
-            [(ngModel)]="filtroDeuda"
-            (change)="aplicarFiltro()"
-          >
+                    <select class="form-select filter-select" [(ngModel)]="filtroDeuda" (change)="aplicarFiltro()">
             <option value="todos">Todas las deudas</option>
             <option value="conDeuda">Con deuda</option>
             <option value="sinDeuda">Sin deuda</option>
           </select>
-          <button class="btn btn-primary" (click)="crearCliente()">
+                    <button class="btn btn-primary" (click)="crearCliente()">
             + Nuevo
           </button>
-        </div>
-      </div>
+                </div>
+            </div>
 
-      <div class="filter-info" *ngIf="terminoBusqueda || filtroEstado !== 'todos' || filtroCredito !== 'todos' || filtroDeuda !== 'todos'">
-        <span class="badge badge-filter" *ngIf="filtroEstado !== 'todos'">
+            <div class="filter-info" *ngIf="terminoBusqueda || filtroEstado !== 'todos' || filtroCredito !== 'todos' || filtroDeuda !== 'todos'">
+                <span class="badge badge-filter" *ngIf="filtroEstado !== 'todos'">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
             <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
           </svg>
           Estado: {{ filtroEstado === 'conHistorial' ? 'Con historial' : 'Sin historial' }}
         </span>
-        <span class="badge badge-filter" *ngIf="filtroCredito !== 'todos'">
+                <span class="badge badge-filter" *ngIf="filtroCredito !== 'todos'">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
             <circle cx="12" cy="12" r="10"></circle>
             <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path>
@@ -73,7 +55,7 @@
           </svg>
           Credito: {{ filtroCredito === 'conCredito' ? 'Con' : 'Sin' }} credito
         </span>
-        <span class="badge badge-filter" *ngIf="filtroDeuda !== 'todos'">
+                <span class="badge badge-filter" *ngIf="filtroDeuda !== 'todos'">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
             <circle cx="12" cy="12" r="10"></circle>
             <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path>
@@ -81,76 +63,60 @@
           </svg>
           Deuda: {{ filtroDeuda === 'conDeuda' ? 'Con' : 'Sin' }} deuda
         </span>
-        <span class="text-muted" style="margin-left: 8px;">{{ totalClientes }} cliente(s) encontrado(s)</span>
-      </div>
-    </div>
-
-    <div class="card-body">
-      <div *ngIf="cargando" class="loading-spinner">
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">Cargando...</span>
+                <span class="text-muted" style="margin-left: 8px;">{{ totalClientes }} cliente(s) encontrado(s)</span>
+            </div>
         </div>
-        <p class="text-muted mt-2">Cargando clientes...</p>
-      </div>
 
-      <div class="table-responsive" [class.opacity-50]="cargando">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Nombre Completo</th>
-              <th>Cedula</th>
-              <th>Telefono</th>
-              <th>Email</th>
-              <th>Estado Historial</th>
-              <th>Credito Personal</th>
-              <th>Deuda</th>
-              <th class="col-acciones">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <ng-container *ngFor="let cliente of clientesPaginados; trackBy: trackByClienteId">
-              <tr (click)="verDetalle(cliente)">
-              <td><strong>{{ cliente.nombres }} {{ cliente.apellidos }}</strong></td>
-              <td>{{ cliente.cedula || '-' }}</td>
-              <td>{{ cliente.telefono || '-' }}</td>
-              <td>{{ cliente.email || '-' }}</td>
-              <td>
-                <span
-                  *ngIf="cliente.tieneHistorialClinico"
-                  class="badge badge-status-ok"
-                  title="Cliente tiene historial clínico"
-                >
+        <div class="card-body">
+            <div *ngIf="cargando" class="loading-spinner">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="text-muted mt-2">Cargando clientes...</p>
+            </div>
+
+            <div class="table-responsive" [class.opacity-50]="cargando">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Nombre Completo</th>
+                            <th>Cedula</th>
+                            <th>Telefono</th>
+                            <th>Email</th>
+                            <th>Estado Historial</th>
+                            <th>Credito Personal</th>
+                            <th>Deuda</th>
+                            <th class="col-acciones">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <ng-container *ngFor="let cliente of clientesPaginados; trackBy: trackByClienteId">
+                            <tr (click)="verDetalle(cliente)">
+                                <td><strong>{{ cliente.nombres }} {{ cliente.apellidos }}</strong></td>
+                                <td>{{ cliente.cedula || '-' }}</td>
+                                <td>{{ cliente.telefono || '-' }}</td>
+                                <td>{{ cliente.email || '-' }}</td>
+                                <td>
+                                    <span *ngIf="cliente.tieneHistorialClinico" class="badge badge-status-ok" title="Cliente tiene historial clínico">
                   Con historial
                 </span>
-                <span
-                  *ngIf="!cliente.tieneHistorialClinico"
-                  class="badge badge-status-bad"
-                  title="Cliente sin historial clínico"
-                >
+                                    <span *ngIf="!cliente.tieneHistorialClinico" class="badge badge-status-bad" title="Cliente sin historial clínico">
                   Sin historial
                 </span>
-              </td>
-              <td>
-                <ng-container *ngIf="getDeuda(cliente) as deuda; else deudaCargando">
-                  <span
-                    class="badge"
-                    [class.bg-success]="deuda.creditoPersonalActivo"
-                    [class.bg-danger]="!deuda.creditoPersonalActivo"
-                  >
+                                </td>
+                                <td>
+                                    <ng-container *ngIf="getDeuda(cliente) as deuda; else deudaCargando">
+                                        <span class="badge" [class.bg-success]="deuda.creditoPersonalActivo" [class.bg-danger]="!deuda.creditoPersonalActivo">
                     {{ deuda.creditoPersonalActivo ? 'Con credito' : 'Sin credito' }}
                   </span>
-                </ng-container>
-                <ng-template #deudaCargando>
-                  <span class="badge bg-secondary">Cargando...</span>
-                </ng-template>
-              </td>
-              <td>
-                <ng-container *ngIf="getDeuda(cliente) as deuda; else deudaCargando2">
-                  <span
-                    class="badge"
-                    [class.badge-debt-ok]="deuda.deudaTotal === 0"
-                    [class.badge-debt-bad]="deuda.deudaTotal > 0"
-                  >
+                                    </ng-container>
+                                    <ng-template #deudaCargando>
+                                        <span class="badge bg-secondary">Cargando...</span>
+                                    </ng-template>
+                                </td>
+                                <td>
+                                    <ng-container *ngIf="getDeuda(cliente) as deuda; else deudaCargando2">
+                                        <span class="badge" [class.badge-debt-ok]="deuda.deudaTotal === 0" [class.badge-debt-bad]="deuda.deudaTotal > 0">
                     <ng-container *ngIf="deuda.deudaTotal === 0; else deudaPendiente">
                       Al dia
                     </ng-container>
@@ -158,271 +124,245 @@
                       Debe ${{ deuda.deudaTotal | number: '1.2-2' }}
                     </ng-template>
                   </span>
-                  <span
-                    *ngIf="deuda.deudaTotal > 0 && deuda.pendientes > 0"
-                    class="text-muted ms-1"
-                  >
+                                        <span *ngIf="deuda.deudaTotal > 0 && deuda.pendientes > 0" class="text-muted ms-1">
                     ({{ deuda.pendientes }} pend.)
                   </span>
-                </ng-container>
-                <ng-template #deudaCargando2>
-                  <span class="badge bg-secondary">Cargando...</span>
-                </ng-template>
-              </td>
-              <td class="col-acciones">
-                <div class="table-actions">
-                  <button class="btn-action btn-action-view" (click)="$event.stopPropagation(); irFichaClinica(cliente.id!)" title="Ir a ficha clinica">
+                                    </ng-container>
+                                    <ng-template #deudaCargando2>
+                                        <span class="badge bg-secondary">Cargando...</span>
+                                    </ng-template>
+                                </td>
+                                <td class="col-acciones">
+                                    <div class="table-actions">
+                                        <button class="btn-action btn-action-view" (click)="$event.stopPropagation(); irFichaClinica(cliente.id!)" title="Ir a ficha clinica">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-stethoscope-icon lucide-stethoscope"><path d="M11 2v2"/><path d="M5 2v2"/><path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"/><path d="M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/></svg>
                   </button>
-                  <button class="btn-action btn-action-success" (click)="$event.stopPropagation(); abrirHistorialesPeriodo(cliente)" title="Historiales del periodo">
+                                        <button class="btn-action btn-action-success" (click)="$event.stopPropagation(); abrirHistorialesPeriodo(cliente)" title="Historiales del periodo">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M10 13h4"/><path d="M10 17h4"/></svg>
                   </button>
-                  <button
-                    class="btn-action btn-action-payment"
-                    (click)="$event.stopPropagation(); cobrarDeuda(cliente.id!)"
-                    [disabled]="!cajaChicaAbierta || !cliente.id || (getDeuda(cliente)?.deudaTotal ?? 0) <= 0"
-                    [title]="!cajaChicaAbierta ? 'Abre una caja chica primero' : (getDeuda(cliente)?.deudaTotal ?? 0) > 0 ? 'Cobrar deuda' : 'Sin deuda'"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
-                  </button>
-                  <button class="btn-action btn-action-warning" (click)="$event.stopPropagation(); editarCliente(cliente.id!)" title="Editar cliente">
+                                        <!-- Botón Venta sin historial -->
+                                        <button class="btn-action btn-action-info" (click)="$event.stopPropagation(); ventaSinHistorial(cliente.id!)" title="Venta sin historial clínico">
+                                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                                                            <circle cx="9" cy="21" r="1" />
+                                                                                            <circle cx="20" cy="21" r="1" />
+                                                                                            <path d="M1 1h2l3.6 7.59a2 2 0 0 0 1.7 1.18h9.72a2 2 0 0 0 1.98-1.7l1.38-7.09H6.16" />
+                                                                                        </svg>
+                                        </button>
+                                        <button class="btn-action btn-action-payment" (click)="$event.stopPropagation(); cobrarDeuda(cliente.id!)" [disabled]="!cajaChicaAbierta || !cliente.id || (getDeuda(cliente)?.deudaTotal ?? 0) <= 0" [title]="!cajaChicaAbierta ? 'Abre una caja chica primero' : (getDeuda(cliente)?.deudaTotal ?? 0) > 0 ? 'Cobrar deuda' : 'Sin deuda'">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+                                        </button>
+                                        <button class="btn-action btn-action-warning" (click)="$event.stopPropagation(); editarCliente(cliente.id!)" title="Editar cliente">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                   </button>
-                  <button
-                    *ngIf="esAdmin"
-                    class="btn-action btn-action-danger"
-                    (click)="$event.stopPropagation(); desactivarCliente(cliente.id!)"
-                    title="Desactivar cliente"
-                  >
+                                        <button *ngIf="esAdmin" class="btn-action btn-action-danger" (click)="$event.stopPropagation(); desactivarCliente(cliente.id!)" title="Desactivar cliente">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
                   </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </ng-container>
+                    </tbody>
+                </table>
+
+                <div *ngIf="clientesPaginados.length === 0 && !cargando" class="text-center p-4">
+                    <p class="text-muted">No se encontraron clientes</p>
+                    <button class="btn btn-primary" (click)="crearCliente()">Crear primer cliente</button>
                 </div>
-              </td>
-            </tr>
-            </ng-container>
-          </tbody>
-        </table>
 
-        <div *ngIf="clientesPaginados.length === 0 && !cargando" class="text-center p-4">
-          <p class="text-muted">No se encontraron clientes</p>
-          <button class="btn btn-primary" (click)="crearCliente()">Crear primer cliente</button>
-        </div>
-
-        <div class="pagination-controls" *ngIf="totalClientes > clientesPorPagina && !cargando">
-          <div class="pagination-info">
-            <span class="text-muted">
+                <div class="pagination-controls" *ngIf="totalClientes > clientesPorPagina && !cargando">
+                    <div class="pagination-info">
+                        <span class="text-muted">
               Mostrando {{ (paginaActual - 1) * clientesPorPagina + 1 }} -
               {{ Math.min(paginaActual * clientesPorPagina, totalClientes) }} de
               {{ totalClientes }}
             </span>
-          </div>
-          <div class="pagination-buttons">
-            <button
-              class="btn btn-secondary"
-              [disabled]="paginaActual === 1 || cargando"
-              (click)="irPrimeraPagina()"
-              title="Ir a la primera página"
-            >
+                    </div>
+                    <div class="pagination-buttons">
+                        <button class="btn btn-secondary" [disabled]="paginaActual === 1 || cargando" (click)="irPrimeraPagina()" title="Ir a la primera página">
               «« Primera
             </button>
-            <button
-              class="btn btn-secondary"
-              [disabled]="paginaActual === 1 || cargando"
-              (click)="paginaAnterior()"
-              title="Página anterior"
-            >
+                        <button class="btn btn-secondary" [disabled]="paginaActual === 1 || cargando" (click)="paginaAnterior()" title="Página anterior">
               ← Anterior
             </button>
-            <button
-              class="btn btn-secondary"
-              [disabled]="paginaActual * clientesPorPagina >= totalClientes || cargando"
-              (click)="paginaSiguiente()"
-              title="Página siguiente"
-            >
+                        <button class="btn btn-secondary" [disabled]="paginaActual * clientesPorPagina >= totalClientes || cargando" (click)="paginaSiguiente()" title="Página siguiente">
               Siguiente →
             </button>
-            <button
-              class="btn btn-secondary"
-              [disabled]="paginaActual * clientesPorPagina >= totalClientes || cargando"
-              (click)="irUltimaPagina()"
-              title="Ir a la última página"
-            >
+                        <button class="btn btn-secondary" [disabled]="paginaActual * clientesPorPagina >= totalClientes || cargando" (click)="irUltimaPagina()" title="Ir a la última página">
               Última »»
             </button>
-          </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
 </div>
 
 <!-- Modal de Detalle del Cliente -->
 <div class="modal-overlay" *ngIf="mostrarModal" (click)="cerrarModal()">
-  <div class="modal-content" (click)="$event.stopPropagation()">
-    <div class="modal-header">
-      <h2>Informacion del Cliente</h2>
-      <button class="btn-close" (click)="cerrarModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <h2>Informacion del Cliente</h2>
+            <button class="btn-close" (click)="cerrarModal()">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </button>
-    </div>
+        </div>
 
-    <div class="modal-body" *ngIf="clienteSeleccionado">
-      <div class="detalle-grid">
-        <div class="detalle-section">
-          <h3>Informacion Personal</h3>
-          <div class="detalle-item">
-            <span class="detalle-label">Nombres:</span>
-            <span class="detalle-value">{{ clienteSeleccionado.nombres }}</span>
-          </div>
-          <div class="detalle-item">
-            <span class="detalle-label">Apellidos:</span>
-            <span class="detalle-value">{{ clienteSeleccionado.apellidos }}</span>
-          </div>
-          <div class="detalle-item">
-            <span class="detalle-label">Cedula:</span>
-            <span class="detalle-value">{{ clienteSeleccionado.cedula || '-' }}</span>
-          </div>
-          <div class="detalle-item">
-            <span class="detalle-label">Fecha de Nacimiento:</span>
-            <span class="detalle-value">
+        <div class="modal-body" *ngIf="clienteSeleccionado">
+            <div class="detalle-grid">
+                <div class="detalle-section">
+                    <h3>Informacion Personal</h3>
+                    <div class="detalle-item">
+                        <span class="detalle-label">Nombres:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.nombres }}</span>
+                    </div>
+                    <div class="detalle-item">
+                        <span class="detalle-label">Apellidos:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.apellidos }}</span>
+                    </div>
+                    <div class="detalle-item">
+                        <span class="detalle-label">Cedula:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.cedula || '-' }}</span>
+                    </div>
+                    <div class="detalle-item">
+                        <span class="detalle-label">Fecha de Nacimiento:</span>
+                        <span class="detalle-value">
               {{ clienteSeleccionado.fechaNacimiento ? (clienteSeleccionado.fechaNacimiento | date: 'dd/MM/yyyy') : '-' }}
             </span>
-          </div>
-        </div>
+                    </div>
+                </div>
 
-        <div class="detalle-section">
-          <h3>Contacto</h3>
-          <div class="detalle-item">
-            <span class="detalle-label">Telefono:</span>
-            <span class="detalle-value">{{ clienteSeleccionado.telefono || '-' }}</span>
-          </div>
-          <div class="detalle-item">
-            <span class="detalle-label">Email:</span>
-            <span class="detalle-value">{{ clienteSeleccionado.email || '-' }}</span>
-          </div>
-          <div class="detalle-item">
-            <span class="detalle-label">Direccion:</span>
-            <span class="detalle-value">{{ clienteSeleccionado.direccion || '-' }}</span>
-          </div>
-        </div>
+                <div class="detalle-section">
+                    <h3>Contacto</h3>
+                    <div class="detalle-item">
+                        <span class="detalle-label">Telefono:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.telefono || '-' }}</span>
+                    </div>
+                    <div class="detalle-item">
+                        <span class="detalle-label">Email:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.email || '-' }}</span>
+                    </div>
+                    <div class="detalle-item">
+                        <span class="detalle-label">Direccion:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.direccion || '-' }}</span>
+                    </div>
+                </div>
 
-        <div class="detalle-section">
-          <h3>Ubicacion</h3>
-          <div class="detalle-item">
-            <span class="detalle-label">Pais:</span>
-            <span class="detalle-value">{{ clienteSeleccionado.pais || '-' }}</span>
-          </div>
-          <div class="detalle-item">
-            <span class="detalle-label">Provincia:</span>
-            <span class="detalle-value">{{ clienteSeleccionado.provincia || '-' }}</span>
-          </div>
-          <div class="detalle-item">
-            <span class="detalle-label">Ciudad:</span>
-            <span class="detalle-value">{{ clienteSeleccionado.ciudad || '-' }}</span>
-          </div>
-        </div>
+                <div class="detalle-section">
+                    <h3>Ubicacion</h3>
+                    <div class="detalle-item">
+                        <span class="detalle-label">Pais:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.pais || '-' }}</span>
+                    </div>
+                    <div class="detalle-item">
+                        <span class="detalle-label">Provincia:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.provincia || '-' }}</span>
+                    </div>
+                    <div class="detalle-item">
+                        <span class="detalle-label">Ciudad:</span>
+                        <span class="detalle-value">{{ clienteSeleccionado.ciudad || '-' }}</span>
+                    </div>
+                </div>
 
-        <div class="detalle-section">
-          <h3>Estado Historial Clinico</h3>
-          <div class="detalle-item">
-            <span class="detalle-label">Estado:</span>
-            <span>
+                <div class="detalle-section">
+                    <h3>Estado Historial Clinico</h3>
+                    <div class="detalle-item">
+                        <span class="detalle-label">Estado:</span>
+                        <span>
               <span *ngIf="clienteSeleccionado.tieneHistorialClinico" class="badge badge-success">Tiene historial clinico</span>
-              <span *ngIf="!clienteSeleccionado.tieneHistorialClinico" class="badge badge-secondary">Sin historial clinico</span>
-            </span>
-          </div>
+                        <span *ngIf="!clienteSeleccionado.tieneHistorialClinico" class="badge badge-secondary">Sin historial clinico</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
 
-    <div class="modal-footer">
-      <button class="btn btn-secondary" (click)="cerrarModal()">Cerrar</button>
-      <button class="btn btn-outline-primary" (click)="irFichaClinica(clienteSeleccionado!.id!); cerrarModal()">
+        <div class="modal-footer">
+            <button class="btn btn-secondary" (click)="cerrarModal()">Cerrar</button>
+            <button class="btn btn-outline-primary" (click)="irFichaClinica(clienteSeleccionado!.id!); cerrarModal()">
         Ir a ficha clinica
       </button>
-      <button class="btn btn-primary" (click)="editarCliente(clienteSeleccionado!.id!); cerrarModal()">
+            <button class="btn btn-primary" (click)="editarCliente(clienteSeleccionado!.id!); cerrarModal()">
         Editar Cliente
       </button>
+        </div>
     </div>
-  </div>
 </div>
 
 <!-- Modal de Historiales Recientes -->
 <div class="modal-overlay" *ngIf="mostrarHistorialesModal" (click)="cerrarHistorialesModal()">
-  <div class="modal-content modal-content-wide" (click)="$event.stopPropagation()">
-    <div class="modal-header">
-      <div>
-        <h2>Historiales recientes</h2>
-        <p class="modal-subtitle" *ngIf="clienteHistorialSeleccionado">
-          {{ clienteHistorialSeleccionado.nombres }} {{ clienteHistorialSeleccionado.apellidos }}
-        </p>
-      </div>
-      <button class="btn-close" (click)="cerrarHistorialesModal()">
+    <div class="modal-content modal-content-wide" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <div>
+                <h2>Historiales recientes</h2>
+                <p class="modal-subtitle" *ngIf="clienteHistorialSeleccionado">
+                    {{ clienteHistorialSeleccionado.nombres }} {{ clienteHistorialSeleccionado.apellidos }}
+                </p>
+            </div>
+            <button class="btn-close" (click)="cerrarHistorialesModal()">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </button>
-    </div>
-
-    <div class="modal-body">
-      <div *ngIf="historialesPeriodoCargando" class="loading-spinner">
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">Cargando...</span>
         </div>
-        <p class="text-muted mt-2">Cargando historiales recientes...</p>
-      </div>
 
-      <div *ngIf="!historialesPeriodoCargando && historialesPeriodo.length === 0" class="empty-state">
-        <p>No se encontraron historiales recientes.</p>
-      </div>
+        <div class="modal-body">
+            <div *ngIf="historialesPeriodoCargando" class="loading-spinner">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="text-muted mt-2">Cargando historiales recientes...</p>
+            </div>
 
-      <div *ngIf="!historialesPeriodoCargando && historialesPeriodo.length > 0" class="historiales-periodo-table">
-        <div class="table-responsive">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th class="acciones-col">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let historial of historialesPeriodo">
-                <td>{{ formatearFechaHistorial(historial.fechaHoraChequeo, historial.updatedAt, historial.createdAt) }}</td>
-                <td>
-                  <span class="badge bg-info">{{ historial.de || '-' }}</span>
-                </td>
-                <td class="acciones-col">
-                  <div class="acciones-inline">
-                    <button class="btn-icon btn-icon-success" (click)="exportarExcel(historial)" title="Exportar a Excel">
+            <div *ngIf="!historialesPeriodoCargando && historialesPeriodo.length === 0" class="empty-state">
+                <p>No se encontraron historiales recientes.</p>
+            </div>
+
+            <div *ngIf="!historialesPeriodoCargando && historialesPeriodo.length > 0" class="historiales-periodo-table">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Tipo</th>
+                                <th class="acciones-col">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let historial of historialesPeriodo">
+                                <td>{{ formatearFechaHistorial(historial.fechaHoraChequeo, historial.updatedAt, historial.createdAt) }}</td>
+                                <td>
+                                    <span class="badge bg-info">{{ historial.de || '-' }}</span>
+                                </td>
+                                <td class="acciones-col">
+                                    <div class="acciones-inline">
+                                        <button class="btn-icon btn-icon-success" (click)="exportarExcel(historial)" title="Exportar a Excel">
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14"/><path d="m18 13-6-6-6 6"/><path d="M12 7v14"/></svg>
                     </button>
-                    <button class="btn-icon btn-icon-info" (click)="imprimirHistorial(historial)" title="Imprimir">
+                                        <button class="btn-icon btn-icon-info" (click)="imprimirHistorial(historial)" title="Imprimir">
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
                     </button>
-                    <button class="btn-icon btn-icon-secondary" (click)="editarHistorial(historial)" title="Editar">
+                                        <button class="btn-icon btn-icon-secondary" (click)="editarHistorial(historial)" title="Editar">
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
                     </button>
-                    <button class="btn-icon btn-icon-warning" (click)="usarParaVenta(historial)" title="Usar para venta">
+                                        <button class="btn-icon btn-icon-warning" (click)="usarParaVenta(historial)" title="Usar para venta">
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 11-1 9"/><path d="m19 11-4-7"/><path d="M2 11h20"/><path d="m3.5 11 1.6 7.4a2 2 0 0 0 2 1.6h9.8a2 2 0 0 0 2-1.6l1.7-7.4"/><path d="M4.5 15.5h15"/><path d="m5 11 4-7"/><path d="m9 11 1 9"/></svg>
                     </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
 
         <div class="modal-footer">
-      <button class="btn btn-secondary" (click)="cerrarHistorialesModal()">Cerrar</button>
-      <button class="btn btn-primary" (click)="crearHistorialClinicoDesdeModal()">Nuevo historial</button>
+            <button class="btn btn-secondary" (click)="cerrarHistorialesModal()">Cerrar</button>
+            <button class="btn btn-primary" (click)="crearHistorialClinicoDesdeModal()">Nuevo historial</button>
+        </div>
     </div>
-  </div>
 </div>
-
