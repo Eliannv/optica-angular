@@ -244,9 +244,9 @@ export class AuthCarousel implements OnInit, OnDestroy {
         
         // Redirigir según el rol del usuario
         if (usuario.rol === RolUsuario.ADMINISTRADOR) {
-          this.router.navigate(['/clientes/historial-clinico']);
+          this.router.navigate(['/clientes/lista']);
         } else if (usuario.rol === RolUsuario.OPERADOR) {
-          this.router.navigate(['/clientes/historial-clinico']);
+          this.router.navigate(['/clientes/lista']);
         }
 
         Swal.fire({

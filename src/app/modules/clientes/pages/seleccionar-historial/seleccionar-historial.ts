@@ -353,11 +353,11 @@ export class SeleccionarHistorialComponent implements OnInit, OnDestroy {
   /**
    * Formatea la fecha de creación para visualización.
    */
-  formatearFecha(fecha: any): string {
+  formatearFecha(historial: any): string {
+    const fecha = historial?.fechaHoraChequeo ?? historial?.updatedAt ?? historial?.createdAt ?? historial;
     if (!fecha) return 'Sin fecha';
-    
+
     try {
-      // Manejar Firestore Timestamp
       if (typeof fecha.toDate === 'function') {
         return fecha.toDate().toLocaleDateString('es-ES', {
           year: 'numeric',
@@ -365,8 +365,7 @@ export class SeleccionarHistorialComponent implements OnInit, OnDestroy {
           day: 'numeric'
         });
       }
-      
-      // Manejar Date
+
       if (fecha instanceof Date) {
         return fecha.toLocaleDateString('es-ES', {
           year: 'numeric',
@@ -374,7 +373,7 @@ export class SeleccionarHistorialComponent implements OnInit, OnDestroy {
           day: 'numeric'
         });
       }
-      
+
       return 'Fecha inválida';
     } catch (error) {
       console.error('Error formateando fecha:', error);

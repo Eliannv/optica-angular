@@ -447,6 +447,7 @@ export class CrearHistorialClinicoComponent implements OnInit {
     }
 
     try {
+      let nuevoHistorialId = this.historialId;
       const data = this.form.getRawValue();
 
       // ✅ NUEVO: Convertir fecha y hora a timestamp
@@ -460,7 +461,7 @@ export class CrearHistorialClinicoComponent implements OnInit {
       // ✅ ACTUALIZADO: Usar crearHistorial() o actualizarHistorial() según el modo
       if (this.mode === 'create') {
         // Crear nuevo historial con ID auto-generado
-        const nuevoHistorialId = await this.historialSrv.crearHistorial(this.clienteId, data);
+        nuevoHistorialId = await this.historialSrv.crearHistorial(this.clienteId, data);
         console.log('✅ Historial creado con ID:', nuevoHistorialId);
       } else if (this.mode === 'edit' && this.historialId) {
         // Actualizar historial existente
@@ -474,13 +475,31 @@ export class CrearHistorialClinicoComponent implements OnInit {
         this.clienteForm.getRawValue() as Partial<Cliente>
       );
 
-      await Swal.fire({
-        icon: 'success',
-        title: 'Guardado exitoso',
-        text: `El historial clínico fue ${this.mode === 'create' ? 'creado' : 'actualizado'} correctamente.`,
-        timer: 2000,
-        showConfirmButton: false
-      });
+      if (this.mode === 'create' && nuevoHistorialId) {
+        const result = await Swal.fire({
+          icon: 'success',
+          title: 'Guardado exitoso',
+          text: '¿Usar este historial para una venta?',
+          showCancelButton: true,
+          confirmButtonText: 'Si, ir a venta',
+          cancelButtonText: 'No, volver'
+        });
+
+        if (result.isConfirmed) {
+          this.router.navigate(['/ventas/crear'], {
+            queryParams: { clienteId: this.clienteId, historialId: nuevoHistorialId }
+          });
+          return;
+        }
+      } else {
+        await Swal.fire({
+          icon: 'success',
+          title: 'Guardado exitoso',
+          text: `El historial clínico fue ${this.mode === 'create' ? 'creado' : 'actualizado'} correctamente.`,
+          timer: 2000,
+          showConfirmButton: false
+        });
+      }
 
       if (this.returnTo) {
         this.router.navigateByUrl(this.returnTo);

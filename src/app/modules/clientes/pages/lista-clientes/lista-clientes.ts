@@ -29,8 +29,13 @@ import Swal from 'sweetalert2';
 
 import { ClientesService } from '../../../../core/services/clientes';
 import { FacturasService } from '../../../../core/services/facturas';
+import { HistorialClinicoService } from '../../../../core/services/historial-clinico.service';
+import { ExcelService } from '../../../../core/services/excel.service';
+import { PrintService } from '../../../../core/services/print.service';
+import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { Cliente } from '../../../../core/models/cliente.model';
+import { HistoriaClinica } from '../../../../core/models/historia-clinica.model';
 
 @Component({
   imports: [CommonModule, FormsModule],
@@ -54,12 +59,20 @@ export class ListaClientesComponent implements OnInit {
   cargando = true;
   filtroEstado: 'todos' | 'conHistorial' | 'sinHistorial' = 'todos';
   filtroCredito: 'todos' | 'conCredito' | 'sinCredito' = 'todos';
+  filtroDeuda: 'todos' | 'conDeuda' | 'sinDeuda' = 'todos';
 
   deudas: Record<string, { deudaTotal: number; pendientes: number; creditosActivos: number; creditoPersonalActivo: boolean }> = {};
+  cajaChicaAbierta = false;
   
   // Modal de información
   clienteSeleccionado: Cliente | null = null;
   mostrarModal = false;
+
+  // Modal de historiales por periodo
+  mostrarHistorialesModal = false;
+  clienteHistorialSeleccionado: Cliente | null = null;
+  historialesPeriodo: HistoriaClinica[] = [];
+  historialesPeriodoCargando = false;
 
   /**
    * Verifica si el usuario actual es administrador.
@@ -69,10 +82,22 @@ export class ListaClientesComponent implements OnInit {
     return this.authService.isAdmin();
   }
 
+  /**
+   * Obtiene el resumen de deuda de un cliente si existe.
+   */
+  getDeuda(cliente: Cliente | null | undefined): { deudaTotal: number; pendientes: number; creditosActivos: number; creditoPersonalActivo: boolean } | undefined {
+    const id = cliente?.id;
+    return id ? this.deudas[id] : undefined;
+  }
+
   constructor(
     private readonly router: Router,
     private readonly clientesSrv: ClientesService,
     private readonly facturasSrv: FacturasService,
+    private readonly historialSrv: HistorialClinicoService,
+    private readonly excelService: ExcelService,
+    private readonly printSrv: PrintService,
+    private readonly cajaChicaService: CajaChicaService,
     private readonly authService: AuthService
   ) {}
 
@@ -81,8 +106,23 @@ export class ListaClientesComponent implements OnInit {
    */
   async ngOnInit(): Promise<void> {
     await this.cargarClientes();
+    await this.validarCajaChica();
     this.cargando = false;
   }
+
+  /**
+   * Valida si existe alguna caja chica abierta.
+   */
+  private async validarCajaChica(): Promise<void> {
+    try {
+      const validacion = await this.cajaChicaService.validarCajaAbierta();
+      this.cajaChicaAbierta = validacion.valida;
+    } catch (error) {
+      console.error('Error verificando caja chica:', error);
+      this.cajaChicaAbierta = false;
+    }
+  }
+
 
   /**
    * Carga todos los clientes activos ordenados por fecha de creación.
@@ -168,6 +208,12 @@ export class ListaClientesComponent implements OnInit {
       base = base.filter(c => c.id && !this.deudas[c.id]?.creditoPersonalActivo);
     }
 
+    if (this.filtroDeuda === 'conDeuda') {
+      base = base.filter(c => c.id && (this.deudas[c.id]?.deudaTotal ?? 0) > 0);
+    } else if (this.filtroDeuda === 'sinDeuda') {
+      base = base.filter(c => c.id && (this.deudas[c.id]?.deudaTotal ?? 0) === 0);
+    }
+
     this.clientesFiltrados = base;
     this.totalClientes = this.clientesFiltrados.length;
     this.paginaActual = 1;
@@ -241,6 +287,23 @@ export class ListaClientesComponent implements OnInit {
   }
 
   /**
+   * Abre la ventana con historiales del cliente por periodo de caja banco.
+   */
+  async abrirHistorialesPeriodo(cliente: Cliente): Promise<void> {
+    if (!cliente?.id) return;
+    this.clienteHistorialSeleccionado = cliente;
+    this.mostrarHistorialesModal = true;
+    await this.cargarHistorialesPeriodo(cliente.id);
+  }
+
+  /**
+   * Navega a la ficha clinica del cliente.
+   */
+  irFichaClinica(clienteId: string): void {
+    this.router.navigate(['/clientes/ficha', clienteId]);
+  }
+
+  /**
    * Muestra el modal con la información personal del cliente.
    */
   async verDetalle(cliente: Cliente): Promise<void> {
@@ -258,6 +321,228 @@ export class ListaClientesComponent implements OnInit {
   cerrarModal(): void {
     this.mostrarModal = false;
     this.clienteSeleccionado = null;
+  }
+
+  /**
+   * Cierra el modal de historiales por periodo.
+   */
+  cerrarHistorialesModal(): void {
+    this.mostrarHistorialesModal = false;
+    this.clienteHistorialSeleccionado = null;
+    this.historialesPeriodo = [];
+  }
+
+  /**
+   * Navega al formulario para crear un nuevo historial clinico del cliente.
+   */
+  crearHistorialClinicoDesdeModal(): void {
+    if (!this.clienteHistorialSeleccionado?.id) return;
+    this.router.navigate(['/clientes/crear-historial'], {
+      queryParams: {
+        clienteId: this.clienteHistorialSeleccionado.id,
+        returnTo: '/clientes/lista'
+      }
+    });
+    this.cerrarHistorialesModal();
+  }
+
+  /**
+   * Carga los 3 historiales mas recientes del cliente.
+   */
+  private async cargarHistorialesPeriodo(clienteId: string): Promise<void> {
+    this.historialesPeriodo = [];
+    this.historialesPeriodoCargando = true;
+
+    try {
+      const paginaResult = await this.historialSrv.getHistorialesPaginadosOnce(
+        clienteId,
+        3
+      );
+      this.historialesPeriodo = paginaResult.items;
+    } catch (error) {
+      console.error('Error cargando historiales recientes:', error);
+    } finally {
+      this.historialesPeriodoCargando = false;
+    }
+  }
+
+  /**
+   * Convierte una fecha a Date manejando Timestamp de Firestore.
+   */
+  private convertirFecha(fecha: any): Date | null {
+    if (!fecha) return null;
+    if (typeof fecha?.toDate === 'function') return fecha.toDate();
+    if (fecha instanceof Date) return fecha;
+    const f = new Date(fecha);
+    return isNaN(f.getTime()) ? null : f;
+  }
+
+  /**
+   * Formatea la fecha de creación para visualización.
+   */
+  formatearFechaHistorial(fechaHoraChequeo: any, updatedAt?: any, createdAt?: any): string {
+    const f = this.obtenerFechaHistorial(fechaHoraChequeo, updatedAt, createdAt);
+    if (!f) return 'Fecha invalida';
+    return f.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  }
+
+  /**
+   * Prioriza fechaHoraChequeo, luego updatedAt y finalmente createdAt.
+   */
+  private obtenerFechaHistorial(fechaHoraChequeo: any, updatedAt?: any, createdAt?: any): Date | null {
+    return (
+      this.convertirFecha(fechaHoraChequeo) ||
+      this.convertirFecha(updatedAt) ||
+      this.convertirFecha(createdAt)
+    );
+  }
+
+  /**
+   * Exporta un historial clinico a Excel.
+   */
+  async exportarExcel(historial: HistoriaClinica): Promise<void> {
+    if (!historial.id || !this.clienteHistorialSeleccionado?.id) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se puede exportar: datos incompletos'
+      });
+      return;
+    }
+
+    try {
+      const snap = await this.historialSrv.obtenerHistorialPorId(
+        this.clienteHistorialSeleccionado.id,
+        historial.id
+      );
+
+      if (!snap.exists()) {
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Sin historial',
+          text: 'Este historial clinico no existe'
+        });
+        return;
+      }
+
+      const historialCompleto = snap.data() as HistoriaClinica;
+      await this.excelService.exportarHistorialClinicoPedido(
+        this.clienteHistorialSeleccionado,
+        historialCompleto
+      );
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'Exportado',
+        text: 'El pedido fue exportado a Excel',
+        timer: 2000,
+        showConfirmButton: false
+      });
+    } catch (error) {
+      console.error('Error al exportar Excel:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Hubo un problema al generar el archivo Excel'
+      });
+    }
+  }
+
+  /**
+   * Imprime un historial clinico.
+   */
+  async imprimirHistorial(historial: HistoriaClinica): Promise<void> {
+    if (!historial.id || !this.clienteHistorialSeleccionado?.id) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'El historial no tiene un ID valido',
+        confirmButtonText: 'Entendido'
+      });
+      return;
+    }
+
+    try {
+      const facturas = await firstValueFrom(
+        this.facturasSrv.getPendientesPorCliente(this.clienteHistorialSeleccionado.id)
+      );
+      this.printSrv.imprimirHistorialClinico(this.clienteHistorialSeleccionado, historial, facturas);
+    } catch (error) {
+      console.error('Error al imprimir historial:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo cargar la informacion para imprimir',
+        confirmButtonText: 'Entendido'
+      });
+    }
+  }
+
+  /**
+   * Navega al formulario de edicion del historial.
+   */
+  editarHistorial(historial: HistoriaClinica): void {
+    if (!historial.id || !this.clienteHistorialSeleccionado?.id) return;
+    this.router.navigate(['/clientes/crear-historial'], {
+      queryParams: {
+        clienteId: this.clienteHistorialSeleccionado.id,
+        historialId: historial.id,
+        returnTo: '/clientes/lista'
+      }
+    });
+    this.cerrarHistorialesModal();
+  }
+
+  /**
+   * Usa un historial para crear una venta.
+   */
+  usarParaVenta(historial: HistoriaClinica): void {
+    if (!historial.id || !this.clienteHistorialSeleccionado?.id) return;
+    this.router.navigate(['/ventas/crear'], {
+      queryParams: {
+        clienteId: this.clienteHistorialSeleccionado.id,
+        historialId: historial.id
+      }
+    });
+    this.cerrarHistorialesModal();
+  }
+
+  /**
+   * Inicia el proceso de cobro de deuda para un cliente.
+   */
+  async cobrarDeuda(clienteId: string): Promise<void> {
+    try {
+      const validacion = await this.cajaChicaService.validarCajaAbierta();
+      if (validacion.valida) {
+        this.router.navigate(['/ventas/deuda'], {
+          queryParams: { clienteId }
+        });
+        return;
+      }
+
+      await Swal.fire({
+        icon: 'error',
+        title: 'Caja Chica Requerida',
+        text: 'Debe tener al menos una caja chica ABIERTA para cobrar deudas (puede ser de cualquier fecha).',
+        confirmButtonText: 'Ir a Caja Chica',
+        allowOutsideClick: false,
+        allowEscapeKey: false
+      }).then(() => {
+        this.router.navigate(['/caja-chica']);
+      });
+    } catch (error) {
+      console.error('Error verificando caja chica:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al verificar la caja chica. Intente nuevamente.',
+        confirmButtonText: 'Volver'
+      });
+    }
   }
 
   /**

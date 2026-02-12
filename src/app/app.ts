@@ -96,7 +96,7 @@ export class App implements OnInit, OnDestroy {
         if (usuario) {
           // Sesión válida restaurada, redirigir al dashboard si está en login
           if (this.router.url === '/' || this.router.url === '/login') {
-            this.router.navigate(['/clientes/historial-clinico']);
+            this.router.navigate(['/clientes/lista']);
           }
         } else if (!this.isAuthRoute()) {
           // No hay sesión, redirigir al login

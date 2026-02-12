@@ -100,7 +100,7 @@
           <div class="historial-header">
             <div class="historial-fecha">
               Fecha: 
-              {{ formatearFecha(historial.createdAt) }}
+              {{ formatearFecha(historial) }}
             </div>
 
             <div class="historial-badges">
@@ -220,7 +220,7 @@
               <tr *ngFor="let historial of historiales; trackBy: trackByHistorialId">
                 <td class="fecha-col">
                   <div class="fecha-wrapper">
-                    {{ formatearFecha(historial.createdAt) }}
+                    {{ formatearFecha(historial) }}
                     
                   </div>
                 </td>
@@ -313,7 +313,7 @@
 
       <div class="modal-body" *ngIf="historialSeleccionado">
         <div class="detalle-fecha">
-          <strong>Fecha de creación:</strong> {{ formatearFecha(historialSeleccionado.createdAt) }}
+          <strong>Fecha de creación:</strong> {{ formatearFecha(historialSeleccionado) }}
         </div>
 
         <div class="detalle-grid">

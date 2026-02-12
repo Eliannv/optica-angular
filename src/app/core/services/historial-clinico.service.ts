@@ -24,6 +24,7 @@ import {
   doc,
   setDoc,
   getDoc,
+  getDocs,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -164,6 +165,37 @@ export class HistorialClinicoService {
 
     const q = query(colRef, ...constraints);
     return collectionData(q, { idField: 'id' }) as Observable<HistoriaClinica[]>;
+  }
+
+  /**
+   * Obtiene una pagina de historiales usando getDocs (Promise).
+   * Util para contextos donde collectionData no es viable.
+   */
+  async getHistorialesPaginadosOnce(
+    clienteId: string,
+    limit: number = 10,
+    startAfterDoc?: any
+  ): Promise<{ items: HistoriaClinica[]; lastDoc: any | null }> {
+    const colRef = collection(this.fs, `clientes/${clienteId}/historialClinico`);
+
+    const constraints: QueryConstraint[] = [
+      orderBy('createdAt', 'desc'),
+      firestoreLimit(limit)
+    ];
+
+    if (startAfterDoc) {
+      constraints.push(startAfter(startAfterDoc));
+    }
+
+    const q = query(colRef, ...constraints);
+    const snap = await getDocs(q);
+    const items = snap.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    })) as HistoriaClinica[];
+
+    const lastDoc = snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : null;
+    return { items, lastDoc };
   }
 
   /**
