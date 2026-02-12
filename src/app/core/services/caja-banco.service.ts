@@ -528,7 +528,7 @@ export class CajaBancoService {
         categoria: movimiento.categoria
       });
       
-      // Si el movimiento es ligado a una caja específica, validar que esté ABIERTA
+      // Si el movimiento es ligado a una caja específica, validar que esté ABIERTA o que el usuario sea ADMINISTRADOR
       if (movimiento.caja_banco_id) {
         const cajaDoc = await getDoc(doc(this.firestore, `cajas_banco/${movimiento.caja_banco_id}`));
         const caja = cajaDoc.data() as CajaBanco;
@@ -537,8 +537,12 @@ export class CajaBancoService {
           throw new Error('La caja banco no existe');
         }
 
+        // Permitir registrar movimientos en caja cerrada solo si el usuario es ADMINISTRADOR
         if (caja.estado !== 'ABIERTA') {
-          throw new Error(`❌ No se pueden registrar movimientos. La caja banco está ${caja.estado}. Solo se puede imprimir.`);
+          const esAdmin = this.authService.isAdmin ? this.authService.isAdmin() : false;
+          if (!esAdmin) {
+            throw new Error(`❌ No se pueden registrar movimientos. La caja banco está ${caja.estado}. Solo se puede imprimir.`);
+          }
         }
 
         const saldoAnterior = caja.saldo_actual;
