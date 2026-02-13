@@ -131,6 +131,10 @@ export class RegistrarMovimientoComponent implements OnInit {
   /** Categorías actualmente válidas según el tipo de movimiento seleccionado */
   categorias_actuales: string[] = this.categorias_ingresos;
 
+  get esOperador(): boolean {
+    return !this.authService.isAdmin();
+  }
+
   /**
    * Hook de inicialización de Angular.
    *
@@ -879,18 +883,6 @@ export class RegistrarMovimientoComponent implements OnInit {
   }
 
   /**
-   * Obtener nombre de la caja para mostrar en la UI
-   */
-  get nombreCaja(): string {
-    if (!this.cajaBancoAbierta) return '';
-    const fecha = this.cajaBancoAbierta.fecha;
-    if (fecha?.toDate) {
-      return fecha.toDate().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-    }
-    return '';
-  }
-
-  /**
    * Combina una fecha con una hora para crear un Date válido
    * @param fecha - Fecha como string (YYYY-MM-DD)
    * @param hora - Hora como string (HH:mm:ss)
@@ -925,6 +917,10 @@ export class RegistrarMovimientoComponent implements OnInit {
   volver(): void {
     if (this.returnTo) {
       this.router.navigateByUrl(this.returnTo);
+      return;
+    }
+
+    if (!this.authService.isAdmin()) {
       return;
     }
 
