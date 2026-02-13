@@ -384,6 +384,216 @@ a:hover {
     background-color: var(--btn-danger-hover);
 }
 
+.btn-volver {
+    padding: 0.65rem 1.25rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.btn-volver:hover:not(:disabled) {
+    background: var(--border-color);
+}
+
+.btn-volver:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-reimprimir {
+    padding: 0.65rem 1.25rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+}
+
+.btn-reimprimir:hover:not(:disabled) {
+    transform: translateY(-2px);
+    background: var(--btn-primary-hover);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-reimprimir:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-cobrar-deuda {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background: #ffc107;
+    color: #212529;
+    border: none;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.btn-cobrar-deuda:hover:not(:disabled) {
+    background: #ffca2c;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+}
+
+/* Table action buttons (list actions) */
+.table-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: nowrap;
+}
+
+.table-actions .btn-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.table-actions .btn-action:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    box-shadow: none;
+    transform: none;
+}
+
+.table-actions .btn-action:disabled:hover {
+    box-shadow: none;
+    transform: none;
+}
+
+.table-actions .btn-action svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2;
+}
+
+.table-actions .btn-action-view {
+    color: #fff;
+    background: #3b82f6;
+}
+
+.table-actions .btn-action-view:hover:not(:disabled) {
+    background: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+}
+
+.table-actions .btn-action-warning {
+    color: #fff;
+    background: #6c757d;
+}
+
+.table-actions .btn-action-warning:hover:not(:disabled) {
+    background: #5a6268;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.25);
+}
+
+.table-actions .btn-action-danger {
+    color: #fff;
+    background: #ef4444;
+}
+
+.table-actions .btn-action-danger:hover:not(:disabled) {
+    background: #dc2626;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+}
+
+.table-actions .btn-action-payment {
+    color: #fff;
+    background: #f59e0b;
+}
+
+.table-actions .btn-action-payment:hover:not(:disabled) {
+    background: #d97706;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+}
+
+.table-actions .btn-action-payment:disabled {
+    background: rgba(245, 158, 11, 0.35);
+    color: rgba(255, 255, 255, 0.75);
+    opacity: 0.75;
+}
+
+.table-actions .btn-action-success {
+    color: #fff;
+    background: #22c55e;
+}
+
+.table-actions .btn-action-success:hover:not(:disabled) {
+    background: #16a34a;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.25);
+}
+
+.table-actions .btn-action-info {
+    color: #fff;
+    background: #0ea5e9;
+}
+
+.table-actions .btn-action-info:hover:not(:disabled) {
+    background: #0284c7;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
+}
+
+.table-actions .btn-action-edit {
+    color: #fff;
+    background: #6c757d;
+}
+
+.table-actions .btn-action-edit:hover:not(:disabled) {
+    background: #5a6268;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.25);
+}
+
+.table-actions .btn-action-delete {
+    color: #fff;
+    background: #ef4444;
+}
+
+.table-actions .btn-action-delete:hover:not(:disabled) {
+    background: #dc2626;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+}
+
 .btn-sm {
     padding: var(--spacing-xs) var(--spacing-md);
     font-size: 0.875rem;

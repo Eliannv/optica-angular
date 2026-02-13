@@ -154,7 +154,7 @@
               Exportar
             </button>
 
-            <button class="btn btn-sm btn-info" (click)="imprimirHistorial(historial)">
+            <button class="btn-reimprimir btn-sm" (click)="imprimirHistorial(historial)">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M6 9V2h12v7"/>
                 <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
@@ -238,16 +238,15 @@
                   <span class="badge badge-info">{{ historial.de || '-' }}</span>
                 </td>
                 <td class="acciones-col">
-                  <div class="acciones-wrapper">
-                    <div class="acciones-group">
+                  <div class="table-actions">
                       <button 
-                        class="btn-icon btn-outline-success" 
+                        class="btn-action btn-action-view" 
                         (click)="exportarExcel(historial)"
                         title="Exportar a Excel">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-to-line-icon lucide-arrow-up-to-line"><path d="M5 3h14"/><path d="m18 13-6-6-6 6"/><path d="M12 7v14"/></svg>
                       </button>
                       <button 
-                        class="btn-icon btn-icon-info" 
+                        class="btn-action btn-action-info" 
                         (click)="imprimirHistorial(historial)"
                         title="Imprimir">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -257,7 +256,7 @@
                         </svg>
                       </button>
                       <button 
-                        class="btn-icon btn-icon-secondary" 
+                        class="btn-action btn-action-warning" 
                         (click)="editarHistorial(historial)"
                         title="Editar">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -266,12 +265,11 @@
                         </svg>
                       </button>
                       <button 
-                        class="btn-icon btn-icon-success" 
+                        class="btn-action btn-action-success" 
                         (click)="usarParaVenta(historial)"
                         title="Usar para Venta">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shopping-cart-icon lucide-shopping-cart"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
                       </button>
-                    </div>
                   </div>
                 </td>
               </tr>

@@ -51,6 +51,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   cargandoProductos = false;
   limitProductos = 10; // Límite inicial de productos
   hayMasProductos = true; // Indica si hay más productos por cargar
+  private preservarLimite = false; // Flag para preservar límite al limpiar filtro
   
   // Filtros adicionales
   mostrarFiltros: boolean = false; // Panel de filtros colapsable
@@ -339,7 +340,11 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
         
         // 🔧 FIX: Si la búsqueda está vacía Y no hay filtros Y no está en modo recientes, resetear límite y cargar iniciales
         if (!searchTerm.trim() && !this.grupoSeleccionado && !this.proveedorSeleccionado && !this.tipoStockSeleccionado && !this.mostrarRecientes) {
-          this.limitProductos = 10; // Resetear límite a inicial
+          // Solo resetear límite si no se ha marcado la flag de preservar
+          if (!this.preservarLimite) {
+            this.limitProductos = 10; // Resetear límite a inicial
+          }
+          this.preservarLimite = false; // Resetear flag después de usar
           return this.productosSrv.getProductosLimitados(this.limitProductos, 'idInterno');
         }
         
@@ -399,13 +404,15 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   /**
    * 🔧 FIX: Forzar recarga de productos (para cuando se limpian filtros)
    */
-  async recargarProductos() {
+  async recargarProductos(resetLimit: boolean = true) {
     try {
       this.cargandoProductos = true;
       
       // Si no hay filtros ni búsqueda ni recientes, cargar productos iniciales
       if (!this.filtro.trim() && !this.grupoSeleccionado && !this.proveedorSeleccionado && !this.tipoStockSeleccionado && !this.mostrarRecientes) {
-        this.limitProductos = 10;
+        if (resetLimit) {
+          this.limitProductos = 10;
+        }
         const productos = await firstValueFrom(
           this.productosSrv.getProductosLimitados(this.limitProductos, 'idInterno')
         );
@@ -528,7 +535,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     }
     
     // 🔧 FIX: Usar recargarProductos para forzar recarga inmediata
-    this.recargarProductos();
+    this.recargarProductos(false);
   }
 
   /**
@@ -536,7 +543,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
    */
   limpiarFiltroGrupo() {
     this.grupoSeleccionado = '';
-    this.recargarProductos();
+    this.recargarProductos(false);
   }
 
   /**
@@ -544,7 +551,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
    */
   limpiarFiltroProveedor() {
     this.proveedorSeleccionado = '';
-    this.recargarProductos();
+    this.recargarProductos(false);
   }
 
   /**
@@ -579,10 +586,10 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     this.selectedIndex = index;
     // Agregar el producto al carrito
     this.agregarProducto(producto);
-    // Limpiar el filtro de búsqueda
+    // Marcar flag para preservar límite al limpiar filtro
+    this.preservarLimite = true;
+    // Limpiar el filtro de búsqueda (el observable se encargará de recargar con límite preservado)
     this.filtro = '';
-    // 🔧 FIX: Usar recargarProductos para forzar recarga inmediata
-    this.recargarProductos();
     // NO resetear selectedIndex para permitir navegación con flechas desde este producto
   }
 

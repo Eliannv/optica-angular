@@ -271,14 +271,6 @@
 
 /* ACTION BUTTONS - Matching caja-chica design */
 
-.action-buttons {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: nowrap;
-}
-
 .btn-action-move {
     border-radius: 12px;
     color: #16a34a;
@@ -289,58 +281,6 @@
     background: #bbf7d0;
     transform: translateY(-2px);
     color: #15803d;
-}
-
-.btn-action {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    padding: 0;
-    flex-shrink: 0;
-}
-
-.btn-action svg {
-    width: 20px;
-    height: 20px;
-    stroke-width: 2;
-}
-
-.btn-action-view {
-    color: var(--info-color);
-    background: rgba(52, 152, 219, 0.1);
-}
-
-.btn-action-view:hover {
-    background: rgba(52, 152, 219, 0.2);
-    transform: translateY(-2px);
-    color: var(--primary-dark);
-}
-
-.btn-action-edit {
-    color: #f39c12;
-    background: rgba(243, 156, 18, 0.12);
-}
-
-.btn-action-edit:hover {
-    background: rgba(243, 156, 18, 0.25);
-    transform: translateY(-2px);
-}
-
-.btn-action-delete {
-    color: #e74c3c;
-    background: rgba(231, 76, 60, 0.12);
-}
-
-.btn-action-delete:hover {
-    background: rgba(231, 76, 60, 0.25);
-    transform: translateY(-2px);
 }
 
 

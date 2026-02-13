@@ -355,7 +355,7 @@
                             <!-- BOTONES DE ACCIÓN -->
                             <div style="display: flex; gap: 10px; margin-top: 20px; align-items: center;">
                                 <div style="flex: 1;"></div>
-                                <button class="btn-secondary" type="button" (click)="volver()">
+                                <button class="btn-volver" type="button" (click)="volver()">
                                 <span>← Volver</span>
                             </button>
                                 <button #btnGuardar class="btn-primary" type="button" [disabled]="guardando || !puedeGuardar" (click)="guardarEImprimir()" (keydown.enter)="guardarEImprimir()" style="min-width: 200px;">
