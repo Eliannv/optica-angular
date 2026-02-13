@@ -1016,7 +1016,10 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
       return;
     }
     this.router.navigate(['/ventas/deuda'], {
-      queryParams: { clienteId }
+      queryParams: { 
+        clienteId,
+        returnTo: this.router.url
+      }
     });
   }
 

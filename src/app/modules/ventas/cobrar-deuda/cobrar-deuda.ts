@@ -28,6 +28,7 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
   clienteId = '';
   clienteNombre = '';
   clienteTelefono = '';
+  returnTo = '';
 
   pendientes: any[] = [];
   deudaTotal = 0;
@@ -152,8 +153,14 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     await this.verificarCajaAbierta();    
     // 🏦 Verificar si hay caja banco abierta (para transferencia/tarjeta)
     await this.verificarCajaBancoAbierta();
+    this.returnTo = this.route.snapshot.queryParamMap.get('returnTo') || '';
     this.clienteId = this.route.snapshot.queryParamMap.get('clienteId') || '';
     if (!this.clienteId) {
+      if (this.returnTo) {
+        this.router.navigateByUrl(this.returnTo);
+        return;
+      }
+
       this.router.navigate(['/clientes/historial-clinico']);
       return;
     }
@@ -675,6 +682,11 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
         confirmButtonText: 'Aceptar'
       });
 
+      if (this.returnTo) {
+        this.router.navigateByUrl(this.returnTo);
+        return;
+      }
+
       // Regresar a historial-clinico
       this.router.navigate(['/clientes/historial-clinico']);
 
@@ -931,6 +943,11 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
   }
 
   volver() {
+    if (this.returnTo) {
+      this.router.navigateByUrl(this.returnTo);
+      return;
+    }
+
     this.router.navigate(['/clientes/historial-clinico']);
   }
 }

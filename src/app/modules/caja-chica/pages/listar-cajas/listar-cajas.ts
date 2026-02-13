@@ -367,7 +367,9 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
    * Navega a la página de detalles de una caja chica específica.
    */
   verDetalles(cajaId: string): void {
-    this.router.navigate(['/caja-chica/ver', cajaId]);
+    this.router.navigate(['/caja-chica/ver', cajaId], {
+      queryParams: { returnTo: this.router.url }
+    });
   }
 
   /**

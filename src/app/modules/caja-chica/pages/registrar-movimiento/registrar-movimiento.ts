@@ -404,7 +404,9 @@ export class RegistrarMovimientoComponent implements OnInit {
       timer: 1500,
       showConfirmButton: false
     }).then(() => {
-      this.router.navigate(['/caja-chica/ver', this.cajaId]);
+      this.router.navigate(['/caja-chica/ver', this.cajaId], {
+        queryParams: { returnTo: this.router.url }
+      });
     });
   }
 
@@ -445,7 +447,9 @@ export class RegistrarMovimientoComponent implements OnInit {
    * @returns void
    */
   volver(): void {
-    this.router.navigate(['/caja-chica/ver', this.cajaId]);
+    this.router.navigate(['/caja-chica/ver', this.cajaId], {
+      queryParams: { returnTo: this.router.url }
+    });
   }
 
   /**

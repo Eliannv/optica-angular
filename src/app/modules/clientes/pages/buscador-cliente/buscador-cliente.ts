@@ -109,7 +109,9 @@ export class BuscadorClienteComponent implements OnInit {
     if (!cliente.id) return;
     
     // Navegar a la ficha del cliente
-    this.router.navigate(['/clientes/ficha', cliente.id]);
+    this.router.navigate(['/clientes/ficha', cliente.id], {
+      queryParams: { returnTo: this.router.url }
+    });
   }
 
   /**

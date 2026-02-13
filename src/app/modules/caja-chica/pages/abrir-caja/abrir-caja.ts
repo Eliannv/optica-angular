@@ -543,7 +543,9 @@ export class AbrirCajaComponent implements OnInit, OnDestroy {
       timer: 1500,
       showConfirmButton: false
     }).then(() => {
-      this.router.navigate(['/caja-chica/ver', cajaId]);
+      this.router.navigate(['/caja-chica/ver', cajaId], {
+        queryParams: { returnTo: this.router.url }
+      });
     });
   }
 

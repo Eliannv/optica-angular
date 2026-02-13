@@ -384,7 +384,10 @@ export class HistorialClinicoComponent implements OnInit {
       // ✅ Caja ABIERTA - Permitir entrada
       if (validacion.valida) {
         this.router.navigate(['/ventas/deuda'], {
-          queryParams: { clienteId }
+          queryParams: { 
+            clienteId,
+            returnTo: this.router.url
+          }
         });
         return;
       }

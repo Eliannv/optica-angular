@@ -17,7 +17,7 @@ import { RolUsuario, Usuario } from '../../../../core/models/usuario.model';
 
 import { Component, inject, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { ClientesService } from '../../../../core/services/clientes';
@@ -50,6 +50,7 @@ export class RegistrarMovimientoComponent implements OnInit {
 
   /** Router para navegación */
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   /** Servicio de cajas banco */
   private cajaBancoService = inject(CajaBancoService);
@@ -77,6 +78,7 @@ export class RegistrarMovimientoComponent implements OnInit {
 
   /** ID de la caja banco a la que se asocia el movimiento */
   cajaId: string = '';
+  returnTo = '';
 
   /** Lista de clientes cargados del sistema */
   clientes: any[] = [];
@@ -143,6 +145,8 @@ export class RegistrarMovimientoComponent implements OnInit {
   async ngOnInit(): Promise<void> {
     // 🕐 Inicializar fecha y hora por defecto
     this.inicializarFechaHora();
+
+    this.returnTo = this.route.snapshot.queryParamMap.get('returnTo') || '';
     
     // Capturar el cajaId del estado del router - usar sessionStorage como fallback
     const navigation = this.router.getCurrentNavigation();
@@ -761,6 +765,11 @@ export class RegistrarMovimientoComponent implements OnInit {
         timer: 1500,
         showConfirmButton: false
       }).then(() => {
+        if (this.returnTo) {
+          this.router.navigateByUrl(this.returnTo);
+          return;
+        }
+
         // Volver a la caja específica si viene de ver-caja, sino ir a listar
         if (this.cajaId) {
           this.router.navigate(['/caja-banco', this.cajaId, 'ver']);
@@ -914,6 +923,16 @@ export class RegistrarMovimientoComponent implements OnInit {
    * Navega de vuelta a la lista de cajas banco.
    */
   volver(): void {
+    if (this.returnTo) {
+      this.router.navigateByUrl(this.returnTo);
+      return;
+    }
+
+    if (this.cajaId) {
+      this.router.navigate(['/caja-banco', this.cajaId, 'ver']);
+      return;
+    }
+
     this.router.navigate(['/caja-banco']);
   }
 }

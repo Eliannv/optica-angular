@@ -480,7 +480,9 @@ export class ListaClientesComponent implements OnInit, OnDestroy {
    * Navega a la ficha clinica del cliente.
    */
   irFichaClinica(clienteId: string): void {
-    this.router.navigate(['/clientes/ficha', clienteId]);
+    this.router.navigate(['/clientes/ficha', clienteId], {
+      queryParams: { returnTo: this.router.url }
+    });
   }
 
   /**
@@ -702,7 +704,10 @@ export class ListaClientesComponent implements OnInit, OnDestroy {
       const validacion = await this.cajaChicaService.validarCajaAbierta();
       if (validacion.valida) {
         this.router.navigate(['/ventas/deuda'], {
-          queryParams: { clienteId }
+          queryParams: { 
+            clienteId,
+            returnTo: this.router.url
+          }
         });
         return;
       }

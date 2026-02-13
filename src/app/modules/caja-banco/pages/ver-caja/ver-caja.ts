@@ -422,7 +422,8 @@ export class VerCajaComponent implements OnInit {
     // Guardar el ID en sessionStorage para que registrar-movimiento lo pueda recuperar
     sessionStorage.setItem('cajaBancoIdActual', this.cajaId);
     this.router.navigate(['/caja-banco/registrar-movimiento'], {
-      state: { cajaId: this.cajaId }
+      state: { cajaId: this.cajaId },
+      queryParams: { returnTo: this.router.url }
     });
   }
 
@@ -529,7 +530,9 @@ export class VerCajaComponent implements OnInit {
    */
   verCajaChica(cajaChicaId: string): void {
     // Redirigir a ver-caja de caja chica
-    this.router.navigate(['/caja-chica/ver', cajaChicaId]);
+    this.router.navigate(['/caja-chica/ver', cajaChicaId], {
+      queryParams: { returnTo: this.router.url }
+    });
   }
 
   /**

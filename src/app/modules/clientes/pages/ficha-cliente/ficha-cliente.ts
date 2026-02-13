@@ -45,6 +45,7 @@ export class FichaClienteComponent implements OnInit {
   clienteId: string | null = null;
   cliente: Cliente | null = null;
   cargando = true;
+  returnTo = '';
   
   // Control de pestañas (Cuentas eliminada - todo en Facturación)
   tabActiva: 'informacion' | 'historial' | 'facturas' = 'informacion';
@@ -101,6 +102,7 @@ export class FichaClienteComponent implements OnInit {
   async ngOnInit(): Promise<void> {
     // Obtener ID del cliente desde la ruta
     this.clienteId = this.route.snapshot.paramMap.get('id');
+    this.returnTo = this.route.snapshot.queryParamMap.get('returnTo') || '';
     console.log('🆔 Cliente ID desde ruta:', this.clienteId);
     
     if (!this.clienteId) {
@@ -465,7 +467,10 @@ export class FichaClienteComponent implements OnInit {
     if (!this.clienteId) return;
     
     this.router.navigate(['/ventas/deuda'], {
-      queryParams: { clienteId: this.clienteId }
+      queryParams: { 
+        clienteId: this.clienteId,
+        returnTo: this.router.url
+      }
     });
   }
 
@@ -473,6 +478,11 @@ export class FichaClienteComponent implements OnInit {
    * Navega al buscador de clientes.
    */
   volverBuscador(): void {
+    if (this.returnTo) {
+      this.router.navigateByUrl(this.returnTo);
+      return;
+    }
+
     this.router.navigate(['/clientes/historial-clinico']);
   }
 
@@ -544,7 +554,8 @@ export class FichaClienteComponent implements OnInit {
     this.router.navigate(['/ventas/deuda'], {
       queryParams: { 
         clienteId: this.clienteId,
-        facturaId: factura.id 
+        facturaId: factura.id,
+        returnTo: this.router.url
       }
     });
   }

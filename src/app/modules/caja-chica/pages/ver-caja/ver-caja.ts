@@ -58,6 +58,7 @@ export class VerCajaComponent implements OnInit, OnDestroy {
 
   cajaId: string = '';
   caja: CajaChica | null = null;
+  returnTo = '';
   
   // 📄 Movimientos con paginación (navegación anterior/siguiente)
   movimientos: MovimientoCajaChica[] = [];
@@ -86,6 +87,7 @@ export class VerCajaComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.cajaId = this.route.snapshot.paramMap.get('id') || '';
+    this.returnTo = this.route.snapshot.queryParamMap.get('returnTo') || '';
     this.esAdmin = this.authService.isAdmin();
     this.cargarDetallesCaja();
   }
@@ -616,6 +618,11 @@ export class VerCajaComponent implements OnInit, OnDestroy {
    * @returns void
    */
   volver(): void {
+    if (this.returnTo) {
+      this.router.navigateByUrl(this.returnTo);
+      return;
+    }
+
     this.router.navigate(['/caja-chica']);
   }
 
