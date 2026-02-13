@@ -80,6 +80,8 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     { valor: 'PAGOS_EFECTIVO', label: 'Efectivo (Ventas)' },
     { valor: 'VENTAS_TARJETA', label: 'Tarjeta (Ventas)' },
     { valor: 'TRANSFERENCIA_VENTAS', label: 'Transferencia (Ventas)' },
+    { valor: 'PAGO_DEUDA_EFECTIVO', label: 'Pago Deuda (Efectivo)' },
+    { valor: 'PAGO_DEUDA_TARJETA', label: 'Pago Deuda (Tarjeta)' },
     { valor: 'TRANSFERENCIA_DEUDAS', label: 'Transferencia (Cobro de Deudas)' },
     { valor: 'FACTURAS_DEUDA', label: 'Pagos de Deuda (Todos)' },
     { valor: 'EGRESOS', label: 'Egresos' }
@@ -394,42 +396,44 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       this.totalEgresos = 0;
     }
 
-    // Agrupar por método de pago
+    // Agrupar por método de pago SOLO para ventas (facturas)
     this.totalesPorMetodo = {};
-    
-    // Procesar facturas normales
-    this.facturasFiltradas.forEach(f => {
-      let metodo = f.metodoPago || 'Sin Método';
-      
-      // Si es transferencia, clasificar como "Transferencia (Ventas)"
-      if (metodo === 'Transferencia') {
-        metodo = 'Transferencia (Ventas)';
-      }
-      
-      this.totalesPorMetodo[metodo] = (this.totalesPorMetodo[metodo] || 0) + f.total;
-    });
 
-    // Procesar pagos de deuda (si están en filtros)
-    const soloTransferenciasDeuda = this.tiposSeleccionados.includes('TRANSFERENCIA_DEUDAS') && 
-                                     !this.tiposSeleccionados.includes('FACTURAS_DEUDA');
-    
+    // Ventas (facturas)
+    let totalEfectivoVentas = 0;
+    let totalTarjetaVentas = 0;
+    let totalTransferenciaVentas = 0;
+    let totalAbonosEfectivo = 0;
+    this.facturasFiltradas.forEach(f => {
+      if (f.metodoPago === 'Efectivo') {
+        totalEfectivoVentas += f.total;
+        // Sumar todos los abonos en efectivo si existe el campo abonado y es > 0
+        if (typeof f.abonado === 'number' && f.abonado > 0) {
+          totalAbonosEfectivo += f.abonado;
+        }
+      } else if (f.metodoPago === 'Tarjeta') {
+        totalTarjetaVentas += f.total;
+      } else if (f.metodoPago === 'Transferencia') {
+        totalTransferenciaVentas += f.total;
+      }
+    });
+    this.totalesPorMetodo['Efectivo'] = totalEfectivoVentas;
+    this.totalesPorMetodo['Abonos (Efectivo)'] = totalAbonosEfectivo;
+    this.totalesPorMetodo['Tarjeta'] = totalTarjetaVentas;
+    this.totalesPorMetodo['Transferencia (Ventas)'] = totalTransferenciaVentas;
+
+    // Pagos de deuda (solo desglose de pagos de deuda)
+    let totalEfectivoDeuda = 0;
+    let totalTarjetaDeuda = 0;
+    let totalTransferenciaDeuda = 0;
     if (mostrarFacturasDeuda) {
-      this.pagosDeuda.forEach(p => {
-        let metodo = p.metodoPago || 'Sin Método';
-        
-        // Si solo se pidieron transferencias de deuda, filtrar
-        if (soloTransferenciasDeuda && metodo !== 'Transferencia') {
-          return;
-        }
-        
-        // Si es transferencia, clasificar como "Transferencia (Cobro de Deudas)"
-        if (metodo === 'Transferencia') {
-          metodo = 'Transferencia (Cobro de Deudas)';
-        }
-        
-        this.totalesPorMetodo[metodo] = (this.totalesPorMetodo[metodo] || 0) + p.montoPagado;
-      });
+      totalEfectivoDeuda = this.pagosDeuda.filter(p => p.metodoPago === 'Efectivo').reduce((sum, p) => sum + p.montoPagado, 0);
+      totalTarjetaDeuda = this.pagosDeuda.filter(p => p.metodoPago === 'Tarjeta').reduce((sum, p) => sum + p.montoPagado, 0);
+      totalTransferenciaDeuda = this.pagosDeuda.filter(p => p.metodoPago === 'Transferencia').reduce((sum, p) => sum + p.montoPagado, 0);
     }
+    this.totalesPorMetodo['Efectivo pago de deudas'] = totalEfectivoDeuda;
+    this.totalesPorMetodo['Tarjeta pago de deudas'] = totalTarjetaDeuda;
+    this.totalesPorMetodo['Transferencia (Cobro de Deudas)'] = totalTransferenciaDeuda;
 
     console.log('📊 Totales calculados:');
     console.log('  - Total vendido:', this.totalVendido);
@@ -610,14 +614,36 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   getPagosDeudaFiltrados(): FacturaDeuda[] {
     const mostrarTodos = this.tiposSeleccionados.includes('FACTURAS_DEUDA') || this.tiposSeleccionados.length === 0;
     const mostrarSoloTransferencias = this.tiposSeleccionados.includes('TRANSFERENCIA_DEUDAS');
-    
-    if (!mostrarTodos && !mostrarSoloTransferencias) {
+    const mostrarSoloEfectivo = this.tiposSeleccionados.includes('PAGO_DEUDA_EFECTIVO');
+    const mostrarSoloTarjeta = this.tiposSeleccionados.includes('PAGO_DEUDA_TARJETA');
+
+    // Si no hay ningún filtro de deuda seleccionado, no mostrar nada
+    if (!mostrarTodos && !mostrarSoloTransferencias && !mostrarSoloEfectivo && !mostrarSoloTarjeta) {
       return [];
     }
 
-    if (mostrarSoloTransferencias && !mostrarTodos) {
-      // Solo mostrar transferencias
+    // Solo transferencias
+    if (mostrarSoloTransferencias && !mostrarTodos && !mostrarSoloEfectivo && !mostrarSoloTarjeta) {
       return this.pagosDeuda.filter(p => p.metodoPago === 'Transferencia');
+    }
+
+    // Solo efectivo
+    if (mostrarSoloEfectivo && !mostrarTodos && !mostrarSoloTransferencias && !mostrarSoloTarjeta) {
+      return this.pagosDeuda.filter(p => p.metodoPago === 'Efectivo');
+    }
+
+    // Solo tarjeta
+    if (mostrarSoloTarjeta && !mostrarTodos && !mostrarSoloTransferencias && !mostrarSoloEfectivo) {
+      return this.pagosDeuda.filter(p => p.metodoPago === 'Tarjeta');
+    }
+
+    // Si hay varios filtros seleccionados, combinar resultados
+    if (!mostrarTodos) {
+      let filtros: ((p: FacturaDeuda) => boolean)[] = [];
+      if (mostrarSoloTransferencias) filtros.push(p => p.metodoPago === 'Transferencia');
+      if (mostrarSoloEfectivo) filtros.push(p => p.metodoPago === 'Efectivo');
+      if (mostrarSoloTarjeta) filtros.push(p => p.metodoPago === 'Tarjeta');
+      return this.pagosDeuda.filter(p => filtros.some(f => f(p)));
     }
 
     // Mostrar todos
@@ -706,7 +732,9 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
         'TRANSFERENCIA_VENTAS': 'Transferencia (Ventas)',
         'TRANSFERENCIA_DEUDAS': 'Transferencia (Cobro de Deudas)',
         'VENTAS_TARJETA': 'Tarjeta (Ventas)',
-        'FACTURAS_DEUDA': 'Facturas de Deuda',
+        'PAGO_DEUDA_EFECTIVO': 'Pago Deuda (Efectivo)',
+        'PAGO_DEUDA_TARJETA': 'Pago Deuda (Tarjeta)',
+        'FACTURAS_DEUDA': 'Pagos de Deuda (Todos)',
         'EGRESOS': 'Egresos'
       };
       const tiposTexto = this.tiposSeleccionados.map(t => tipoLabels[t] || t).join(', ');
@@ -782,13 +810,35 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     }).join('') : '';
 
     // Generar filas de totales por método
-    const totalesMetodo = Object.entries(this.totalesPorMetodo)
-      .map(([metodo, total]) => `
-        <div class="total-item">
-          <span>${metodo}:</span>
-          <span class="total-value">${this.formatoMoneda(total)}</span>
-        </div>
-      `).join('');
+    // Mostrar todos los tipos seleccionados en el desglose, aunque el total sea 0
+    const tipoLabels: { [key: string]: string } = {
+      'VENTAS': 'Ventas (Facturas)',
+      'PAGOS_EFECTIVO': 'Efectivo (Ventas)',
+      'TRANSFERENCIA_VENTAS': 'Transferencia (Ventas)',
+      'TRANSFERENCIA_DEUDAS': 'Transferencia (Cobro de Deudas)',
+      'VENTAS_TARJETA': 'Tarjeta (Ventas)',
+      'PAGO_DEUDA_EFECTIVO': 'Pago Deuda (Efectivo)',
+      'PAGO_DEUDA_TARJETA': 'Pago Deuda (Tarjeta)',
+      'FACTURAS_DEUDA': 'Pagos de Deuda (Todos)',
+      'EGRESOS': 'Egresos'
+    };
+    // Métodos de pago posibles a mostrar
+    const metodosMostrar = [
+      'Efectivo',
+      'Abonos (Efectivo)',
+      'Tarjeta',
+      'Transferencia (Ventas)',
+      'Efectivo pago de deudas',
+      'Tarjeta pago de deudas',
+      'Transferencia (Cobro de Deudas)'
+    ];
+    // Mostrar todos los métodos seleccionados aunque el total sea 0
+    const totalesMetodo = metodosMostrar.map(metodo => `
+      <div class="total-item">
+        <span>${metodo}:</span>
+        <span class="total-value">${this.formatoMoneda(this.totalesPorMetodo[metodo] || 0)}</span>
+      </div>
+    `).join('');
 
     return `
       <!DOCTYPE html>

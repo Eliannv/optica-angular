@@ -1,3 +1,4 @@
+import { RolUsuario, Usuario } from '../../../../core/models/usuario.model';
 /**
  * Componente para registrar movimientos financieros en cajas banco.
  *
@@ -33,6 +34,17 @@ import Swal from 'sweetalert2';
   styleUrls: ['./registrar-movimiento.css']
 })
 export class RegistrarMovimientoComponent implements OnInit {
+  /** Caja banco actual (puede estar abierta o cerrada) */
+  cajaBanco: any = null;
+
+  /** Helper: retorna true si el usuario puede modificar la caja actual */
+  puedeModificarCaja(): boolean {
+    const usuario: Usuario | null = this.authService.getCurrentUser();
+    if (!this.cajaBanco) return false;
+    if (!usuario) return false;
+    if (this.cajaBanco.estado === 'ABIERTA') return true;
+    return usuario.rol === RolUsuario.ADMINISTRADOR;
+  }
   /** Form builder para construcción reactiva de formularios */
   private fb = inject(FormBuilder);
 
@@ -149,9 +161,36 @@ export class RegistrarMovimientoComponent implements OnInit {
     // 🔐 Si no hay cajaId, obtener automáticamente la última caja abierta
     if (!this.cajaId) {
       await this.obtenerCajaAbiertalAutomaticamente();
+      this.cajaBanco = this.cajaBancoAbierta;
+      // Si la caja está abierta y el usuario es admin, limpiar loading y error
+      if (this.cajaBanco && this.cajaBanco.estado === 'ABIERTA') {
+        const esAdmin = this.authService.isAdmin ? this.authService.isAdmin() : false;
+        if (esAdmin) {
+          this.cargandoCaja = false;
+          this.errorCaja = '';
+        }
+      }
     } else {
-      // Si ya tiene cajaId, validar que esté abierta
-      await this.validarCajaAbierta();
+      // Si ya tiene cajaId, obtener la caja (puede estar cerrada)
+      this.cajaBanco = await firstValueFrom(this.cajaBancoService.getCajaBancoById(this.cajaId));
+      // Si la caja está cerrada pero el usuario es admin, permitir registrar
+      if (this.cajaBanco && this.cajaBanco.estado === 'CERRADA') {
+        const esAdmin = this.authService.isAdmin ? this.authService.isAdmin() : false;
+        if (esAdmin) {
+          this.cargandoCaja = false;
+          this.errorCaja = '';
+          this.cajaBancoAbierta = this.cajaBanco;
+        }
+      }
+      // Si la caja está abierta y el usuario es admin, limpiar loading y error
+      if (this.cajaBanco && this.cajaBanco.estado === 'ABIERTA') {
+        const esAdmin = this.authService.isAdmin ? this.authService.isAdmin() : false;
+        if (esAdmin) {
+          this.cargandoCaja = false;
+          this.errorCaja = '';
+          this.cajaBancoAbierta = this.cajaBanco;
+        }
+      }
     }
 
     console.log('🔍 CajaId final en registrar-movimiento:', this.cajaId);
@@ -160,13 +199,20 @@ export class RegistrarMovimientoComponent implements OnInit {
     this.cargarClientes();
     this.cargarEmpleados();
     this.cargarProveedores();
-    
     // 🔒 Cargar restricciones de fecha según el periodo de la caja
     this.cargarRestriccionesFecha();
-    
-    // Si no hay caja abierta, deshabilitar el formulario
-    if (!this.cajaId || this.errorCaja) {
+
+    // Bloquear formulario si no puede modificar la caja
+    if (!this.puedeModificarCaja()) {
       this.formulario.disable();
+      if (this.cajaBanco && this.cajaBanco.estado === 'CERRADA') {
+        this.mensaje = 'No se puede registrar movimientos. La caja banco está cerrada.';
+      } else {
+        this.mensaje = 'No tiene permisos para modificar esta caja.';
+      }
+    } else {
+      this.formulario.enable();
+      this.mensaje = '';
     }
   }
 
@@ -441,12 +487,21 @@ export class RegistrarMovimientoComponent implements OnInit {
     if (tipo === 'INGRESO') {
       this.categorias_actuales = this.categorias_ingresos;
       categoriaControl?.setValue('CIERRE_CAJA_CHICA');
+      // Limpiar selecciones de egreso
+      this.proveedorSeleccionado = null;
+      this.deudaActual = 0;
+      this.deudaRestante = 0;
     } else {
       this.categorias_actuales = this.categorias_egresos;
       categoriaControl?.setValue('PAGO_TRABAJADOR');
+      // Limpiar selecciones de ingreso
+      this.proveedorSeleccionado = null;
+      this.deudaActual = 0;
+      this.deudaRestante = 0;
     }
     this.clienteSeleccionado = null;
     this.busquedaCliente = '';
+    this.personasBusqueda = [];
     this.actualizarOpcionesBusqueda();
   }
 
@@ -639,8 +694,13 @@ export class RegistrarMovimientoComponent implements OnInit {
       console.log('✅ Fecha final:', fechaFinal);
 
       // Construir movimiento evitando campos undefined (Firestore no los acepta)
+      // Asegurarse de que el tipo sea exactamente 'INGRESO' o 'EGRESO' según el formulario
+      let tipoMovimiento = this.formulario.get('tipo')?.value;
+      if (tipoMovimiento !== 'INGRESO' && tipoMovimiento !== 'EGRESO') {
+        tipoMovimiento = 'INGRESO'; // fallback seguro
+      }
       const movimientoBase: any = {
-        tipo: this.formulario.value.tipo,
+        tipo: tipoMovimiento,
         categoria: this.formulario.value.categoria,
         descripcion: this.formulario.value.descripcion,
         monto: this.formulario.value.monto,

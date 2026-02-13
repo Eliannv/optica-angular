@@ -29,7 +29,7 @@
         </div>
 
         <div class="form-body">
-            <form [formGroup]="formulario" (ngSubmit)="guardarMovimiento()">
+            <form *ngIf="formulario" [formGroup]="formulario" (ngSubmit)="guardarMovimiento()">
                 <div class="form-group">
                     <label for="tipo">Tipo de Movimiento</label>
                     <select id="tipo" formControlName="tipo" class="form-control">
@@ -89,12 +89,21 @@
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="descripcion">Descripción</label>
+                <!-- Descripción para INGRESO -->
+                <div class="form-group" *ngIf="formulario.get('tipo')?.value === 'INGRESO'">
+                    <label for="descripcion">Descripción de Ingreso</label>
                     <input id="descripcion" type="text" formControlName="descripcion" placeholder="Ej: Transferencia cliente Juan" class="form-control" [class.is-invalid]="formulario.get('descripcion')?.touched && formulario.get('descripcion')?.invalid" />
                     <small class="form-error" *ngIf="formulario.get('descripcion')?.touched && formulario.get('descripcion')?.invalid">
-            Mínimo 5 caracteres
-          </small>
+                        Mínimo 5 caracteres
+                    </small>
+                </div>
+                <!-- Descripción para EGRESO -->
+                <div class="form-group" *ngIf="formulario.get('tipo')?.value === 'EGRESO'">
+                    <label for="descripcion">Descripción de Egreso</label>
+                    <input id="descripcion" type="text" formControlName="descripcion" placeholder="Ej: Pago a proveedor, pago de nómina, etc." class="form-control" [class.is-invalid]="formulario.get('descripcion')?.touched && formulario.get('descripcion')?.invalid" />
+                    <small class="form-error" *ngIf="formulario.get('descripcion')?.touched && formulario.get('descripcion')?.invalid">
+                        Mínimo 5 caracteres
+                    </small>
                 </div>
 
                 <div class="form-group">
