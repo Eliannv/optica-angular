@@ -417,6 +417,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
       // - saldoPendiente y total: valores actuales de la factura original
       const montoPagado = Number(deuda.montoPagado || 0);
       const saldoPendiente = facturaOriginal?.saldoPendiente ?? Number(deuda.saldoRestante || 0);
+      const saldoRestante = Number(deuda.saldoRestante ?? saldoPendiente ?? 0);
       const total = facturaOriginal?.total ?? Number(deuda.totalFactura || 0);
 
       return {
@@ -431,6 +432,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
         total,
         abonado: montoPagado,  // ✅ Monto de ESTE pago (no acumulado)
         saldoPendiente,  // ✅ Saldo actual de la factura original
+        saldoRestante, // ✅ Saldo restante registrado en facturas_deudas
         metodoPago: deuda.metodoPago || '',
         items: deuda.items || [],
         esCredito: deuda.esCreditoPersonal || false,

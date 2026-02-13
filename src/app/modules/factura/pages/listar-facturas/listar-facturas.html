@@ -154,7 +154,12 @@
                                 <ng-container *ngIf="f.estadoPago === 'PENDIENTE'; else pagada">
                                     <span class="badge badge-danger">Deuda</span>
                                     <div style="font-size: 0.82rem; opacity: 0.85; margin-top: 2px;">
-                                        Saldo: <b>${{ (Number(f.saldoPendiente) || 0).toFixed(2) }}</b>
+                                        <ng-container *ngIf="f.tipoFactura === 'COBRO_DEUDA'; else saldoNormal">
+                                            Saldo: <b>${{ (Number(f.saldoRestante) || 0).toFixed(2) }}</b>
+                                        </ng-container>
+                                        <ng-template #saldoNormal>
+                                            Saldo: <b>${{ (Number(f.saldoPendiente) || 0).toFixed(2) }}</b>
+                                        </ng-template>
                                     </div>
                                 </ng-container>
 
@@ -170,7 +175,7 @@
                     </button>
 
                                     <!-- ✅ Cobrar deuda -->
-                                    <button class="btn-action btn-action-payment" *ngIf="f.estadoPago === 'PENDIENTE'" (click)="cobrarDeuda(f.clienteId, $event)" [disabled]="!cajaChicaAbiertaId" [title]="!cajaChicaAbiertaId ? 'Abre una caja chica primero' : 'Cobrar deuda'">
+                                    <button class="btn-action btn-action-payment" *ngIf="f.estadoPago === 'PENDIENTE' && f.tipoFactura !== 'COBRO_DEUDA'" (click)="cobrarDeuda(f.clienteId, $event)" [disabled]="!cajaChicaAbiertaId" [title]="!cajaChicaAbiertaId ? 'Abre una caja chica primero' : 'Cobrar deuda'">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/>
@@ -222,9 +227,14 @@
                         <!-- ✅ NUEVO: estado -->
                         <div class="total-mobile" style="margin-top: 6px;">
                             <span class="label">Estado</span>
-                            <span *ngIf="f.estadoPago === 'PENDIENTE'" class="badge badge-danger">
-                Deuda ${{ (Number(f.saldoPendiente) || 0).toFixed(2) }}
-              </span>
+                                                        <span *ngIf="f.estadoPago === 'PENDIENTE'" class="badge badge-danger">
+                                <ng-container *ngIf="f.tipoFactura === 'COBRO_DEUDA'; else deudaNormal">
+                                    Deuda ${{ (Number(f.saldoRestante) || 0).toFixed(2) }}
+                                </ng-container>
+                                <ng-template #deudaNormal>
+                                    Deuda ${{ (Number(f.saldoPendiente) || 0).toFixed(2) }}
+                                </ng-template>
+                            </span>
                             <span *ngIf="f.estadoPago === 'PAGADA'" class="badge badge-success">
                 Final
               </span>
@@ -239,7 +249,7 @@
                             </button>
 
                             <!-- ✅ Cobrar deuda -->
-                            <button class="btn-action-payment-mobile" *ngIf="f.estadoPago === 'PENDIENTE'" (click)="cobrarDeuda(f.clienteId, $event)" [disabled]="!cajaChicaAbiertaId" [title]="!cajaChicaAbiertaId ? 'Abre una caja chica primero' : 'Cobrar deuda'">
+                            <button class="btn-action-payment-mobile" *ngIf="f.estadoPago === 'PENDIENTE' && f.tipoFactura !== 'COBRO_DEUDA'" (click)="cobrarDeuda(f.clienteId, $event)" [disabled]="!cajaChicaAbiertaId" [title]="!cajaChicaAbiertaId ? 'Abre una caja chica primero' : 'Cobrar deuda'">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
                                     <path d="M16 11h-4"></path>
