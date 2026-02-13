@@ -110,16 +110,26 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
         }
       }
 
+      const esCreditoFactura = this.esFacturaCredito(f);
+
       // Filtro por crédito
-      if (this.filtroCredito === 'conCredito' && !f.esCredito) {
+      if (this.filtroCredito === 'conCredito' && !esCreditoFactura) {
         return false;
       }
-      if (this.filtroCredito === 'sinCredito' && f.esCredito) {
+      if (this.filtroCredito === 'sinCredito' && esCreditoFactura) {
         return false;
       }
 
       return true;
     });
+  }
+
+  private esFacturaCredito(f: any): boolean {
+    return Boolean(
+      f?.esCredito ||
+      (f?.tipoVenta && String(f.tipoVenta).toUpperCase() === 'CREDITO') ||
+      (f?.estadoCredito && String(f.estadoCredito).toUpperCase() === 'ACTIVO')
+    );
   }
 
   constructor(
@@ -217,7 +227,7 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
           this.metodoPago = 'Efectivo';
           this.codigoTransferencia = '';
           this.ultimosCuatroTarjeta = '';
-          this.esCreditoPersonal = f?.esCredito || false;
+          this.esCreditoPersonal = this.esFacturaCredito(f);
           this.recalcularSaldoNuevo();
         }
       }
@@ -265,7 +275,7 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     this.codigoTransferencia = '';
     this.ultimosCuatroTarjeta = '';
     // ✅ Cargar estado de crédito personal si aplica
-    this.esCreditoPersonal = f?.esCredito || false;
+    this.esCreditoPersonal = this.esFacturaCredito(f);
     this.recalcularSaldoNuevo();
     // Solo recalcular índice si se hizo click (no desde keyboard)
     if (!desdeKeyboard) {
@@ -327,6 +337,8 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
       const abonadoNuevo = +(abonadoAnterior + abonoReal).toFixed(2);
       const saldoNuevo = +(total - abonadoNuevo).toFixed(2);
       const estadoPago = saldoNuevo <= 0 ? 'PAGADA' : 'PENDIENTE';
+      const esCreditoFactura = this.esFacturaCredito(f);
+      const marcarCredito = this.esCreditoPersonal || esCreditoFactura;
 
       // 🕐 OBTENER CAJA CHICA ABIERTA (necesaria para ambas ramas)
       let cajaChicaAbierta: any = null;
@@ -438,7 +450,7 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
         estadoPago,
         tipoMovimiento: 'PAGO_DEUDA',
         origenCaja: origenCaja,
-        esCredito: this.esCreditoPersonal,
+        esCredito: marcarCredito,
         cajaChicaId: cajaChicaAbierta?.id,
         usuarioId: usuario?.id,
         usuarioNombre: usuario?.nombre || 'Desconocido',
@@ -461,6 +473,19 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
       if (estadoPago === 'PAGADA') {
         await this.facturasSrv.marcarFacturaComoPagada(f.id);
         await this.facturasDeudaService.actualizarEstadoPagosDeuda(f.id, 'PAGADA');
+      }
+
+      // ✅ Si se marcó crédito personal, actualizar estado de crédito en la factura original
+      if (marcarCredito) {
+        try {
+          await this.facturasSrv.actualizarFactura(f.id, {
+            esCredito: true,
+            tipoVenta: 'CREDITO',
+            estadoCredito: saldoNuevo > 0 ? 'ACTIVO' : 'CANCELADO'
+          });
+        } catch (err) {
+          console.warn('⚠️ No se pudo actualizar estado de crédito en factura:', err);
+        }
       }
 
       // 💳💰 ACTUALIZAR CAMPOS DE DEUDA/CRÉDITO EN CLIENTE
