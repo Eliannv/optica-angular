@@ -463,6 +463,16 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
         await this.facturasDeudaService.actualizarEstadoPagosDeuda(f.id, 'PAGADA');
       }
 
+      // 💳💰 ACTUALIZAR CAMPOS DE DEUDA/CRÉDITO EN CLIENTE
+      // Después de registrar pago, actualizar los campos denormalizados
+      try {
+        await this.clientesSrv.actualizarCamposDeudaCredito(this.clienteId);
+        console.log('✅ Campos de deuda/crédito actualizados en cliente');
+      } catch (err) {
+        console.warn('⚠️ No se pudieron actualizar campos de deuda/crédito:', err);
+        // No bloquear el flujo, solo advertir
+      }
+
       // ✅ enriquecer ítems con código real si falta
       const items = Array.isArray(f.items) ? [...f.items] : [];
       for (const it of items) {

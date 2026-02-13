@@ -23,9 +23,17 @@ import {
   getDocs,
   query,
   where,
+  orderBy,
+  limit,
+  startAfter,
+  endBefore,
+  limitToLast,
+  DocumentSnapshot,
+  QueryDocumentSnapshot
 } from '@angular/fire/firestore';
 import { Observable, shareReplay, map } from 'rxjs';
 import { Cliente } from '../models/cliente.model';
+import { FacturasService } from './facturas';
 
 @Injectable({
   providedIn: 'root',
@@ -33,6 +41,7 @@ import { Cliente } from '../models/cliente.model';
 export class ClientesService {
   private readonly firestore = inject(Firestore);
   private readonly clientesRef = collection(this.firestore, 'clientes');
+  private readonly facturasSrv = inject(FacturasService);
 
   // 🎯 CACHÉ con shareReplay
   private cachedClientes$: Observable<Cliente[]> | null = null;
@@ -278,4 +287,307 @@ export class ClientesService {
     console.log('✅ Resultado final:', existeEnUsuarios);
     return existeEnUsuarios;
   }
-}
+
+  /**
+   * 🚀 PAGINACIÓN REAL DESDE FIRESTORE
+   * 
+   * Obtiene clientes con paginación real usando cursores de Firestore.
+   * Solo carga 10 clientes por consulta, reduciendo uso de memoria y lecturas.
+   * 
+   * @param options - Opciones de paginación
+   * @param options.pageSize - Cantidad de clientes por página (default: 10)
+   * @param options.lastVisible - Snapshot del último documento visible (para "siguiente")
+   * @param options.firstVisible - Snapshot del primer documento visible (para "anterior")
+   * @param options.direction - Dirección de navegación: 'next' | 'prev' (default: 'next')
+   * @param options.ordenamiento - Campo para ordenar: 'reciente' | 'nombre' (default: 'reciente')
+   * @param options.terminoBusqueda - Término para buscar en nombre, cédula, teléfono
+   * 
+   * @returns Promise con productos, cursores y flag hasMore
+   * 
+   * @example
+   * // Primera carga
+   * const result = await getClientesPaginadosReal({ pageSize: 10 });
+   * 
+   * // Página siguiente
+   * const nextPage = await getClientesPaginadosReal({ 
+   *   pageSize: 10, 
+   *   lastVisible: result.lastDoc, 
+   *   direction: 'next' 
+   * });
+   */
+  async getClientesPaginadosReal(options: {
+    pageSize?: number;
+    lastVisible?: DocumentSnapshot | null;
+    firstVisible?: DocumentSnapshot | null;
+    direction?: 'next' | 'prev';
+    ordenamiento?: 'reciente' | 'nombre';
+    terminoBusqueda?: string;
+    filtroEstado?: 'todos' | 'conHistorial' | 'sinHistorial';
+    filtroCredito?: 'todos' | 'conCredito' | 'sinCredito';
+    filtroDeuda?: 'todos' | 'conDeuda' | 'sinDeuda';
+  }): Promise<{
+    clientes: Cliente[];
+    lastDoc: DocumentSnapshot | null;
+    firstDoc: DocumentSnapshot | null;
+    hasMore: boolean;
+  }> {
+    const {
+      pageSize = 10,
+      lastVisible = null,
+      firstVisible = null,
+      direction = 'next',
+      ordenamiento = 'reciente',
+      terminoBusqueda = '',
+      filtroEstado = 'todos',
+      filtroCredito = 'todos',
+      filtroDeuda = 'todos'
+    } = options;
+
+    // 🔍 SI HAY BÚSQUEDA ACTIVA, traer TODOS los clientes y filtrar
+    if (terminoBusqueda.trim()) {
+      return this.buscarClientesSinPaginacion(
+        terminoBusqueda,
+        ordenamiento,
+        pageSize,
+        filtroEstado,
+        filtroCredito,
+        filtroDeuda
+      );
+    }
+
+    // ✅ Construir query base con ordenamiento y filtro de historial
+    let q;
+    
+    // 🎯 Aplicar filtro de historial clínico si existe
+    const hasHistorialFilter = filtroEstado !== 'todos';
+    const hasCreditoFilter = filtroCredito !== 'todos';
+    const hasDeudaFilter = filtroDeuda !== 'todos';
+
+    const baseFilters: any[] = [where('activo', '!=', false)];
+    const baseOrderBy: any[] = [orderBy('activo')];
+
+    if (hasHistorialFilter) {
+      baseFilters.push(where('tieneHistorialClinico', '==', filtroEstado === 'conHistorial'));
+      baseOrderBy.push(orderBy('tieneHistorialClinico'));
+    }
+
+    if (hasCreditoFilter) {
+      baseFilters.push(where('tieneCredito', '==', filtroCredito === 'conCredito'));
+      baseOrderBy.push(orderBy('tieneCredito'));
+    }
+
+    if (hasDeudaFilter) {
+      baseFilters.push(where('tieneDeuda', '==', filtroDeuda === 'conDeuda'));
+      baseOrderBy.push(orderBy('tieneDeuda'));
+    }
+    
+    if (ordenamiento === 'reciente') {
+      // Ordenar por fecha de creación descendente
+      if (direction === 'prev' && firstVisible) {
+        q = query(
+          this.clientesRef,
+          ...baseFilters,
+          ...baseOrderBy,
+          orderBy('createdAt', 'desc'),
+          endBefore(firstVisible),
+          limitToLast(pageSize + 1)
+        );
+      } else if (direction === 'next' && lastVisible) {
+        q = query(
+          this.clientesRef,
+          ...baseFilters,
+          ...baseOrderBy,
+          orderBy('createdAt', 'desc'),
+          startAfter(lastVisible),
+          limit(pageSize + 1)
+        );
+      } else {
+        // Primera carga
+        q = query(
+          this.clientesRef,
+          ...baseFilters,
+          ...baseOrderBy,
+          orderBy('createdAt', 'desc'),
+          limit(pageSize + 1)
+        );
+      }
+    } else {
+      // Ordenar por nombre ascendente
+      if (direction === 'prev' && firstVisible) {
+        q = query(
+          this.clientesRef,
+          ...baseFilters,
+          ...baseOrderBy,
+          orderBy('nombres', 'asc'),
+          endBefore(firstVisible),
+          limitToLast(pageSize + 1)
+        );
+      } else if (direction === 'next' && lastVisible) {
+        q = query(
+          this.clientesRef,
+          ...baseFilters,
+          ...baseOrderBy,
+          orderBy('nombres', 'asc'),
+          startAfter(lastVisible),
+          limit(pageSize + 1)
+        );
+      } else {
+        // Primera carga
+        q = query(
+          this.clientesRef,
+          ...baseFilters,
+          ...baseOrderBy,
+          orderBy('nombres', 'asc'),
+          limit(pageSize + 1)
+        );
+      }
+    }
+
+    const snapshot = await getDocs(q);
+    const docs = snapshot.docs;
+
+    // ✅ Determinar si hay más páginas
+    const hasMore = docs.length > pageSize;
+    const clientesFinales = docs.slice(0, pageSize);
+
+    return {
+      clientes: clientesFinales.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Cliente[],
+      lastDoc: clientesFinales.length > 0 ? clientesFinales[clientesFinales.length - 1] : null,
+      firstDoc: clientesFinales.length > 0 ? clientesFinales[0] : null,
+      hasMore
+    };
+  }
+
+  /**
+   * 🔍 Buscar clientes SIN paginación (trae todos y filtra en cliente)
+   * Se usa cuando hay un término de búsqueda activo
+   */
+  private async buscarClientesSinPaginacion(
+    terminoBusqueda: string,
+    ordenamiento: 'reciente' | 'nombre',
+    pageSize: number,
+    filtroEstado: 'todos' | 'conHistorial' | 'sinHistorial' = 'todos',
+    filtroCredito: 'todos' | 'conCredito' | 'sinCredito' = 'todos',
+    filtroDeuda: 'todos' | 'conDeuda' | 'sinDeuda' = 'todos'
+  ): Promise<{
+    clientes: Cliente[];
+    lastDoc: DocumentSnapshot | null;
+    firstDoc: DocumentSnapshot | null;
+    hasMore: boolean;
+  }> {
+    // Traer TODOS los clientes activos (con filtros si aplican)
+    let q;
+    const hasHistorialFilter = filtroEstado !== 'todos';
+    const hasCreditoFilter = filtroCredito !== 'todos';
+    const hasDeudaFilter = filtroDeuda !== 'todos';
+
+    const baseFilters: any[] = [where('activo', '!=', false)];
+    const baseOrderBy: any[] = [orderBy('activo')];
+
+    if (hasHistorialFilter) {
+      baseFilters.push(where('tieneHistorialClinico', '==', filtroEstado === 'conHistorial'));
+      baseOrderBy.push(orderBy('tieneHistorialClinico'));
+    }
+
+    if (hasCreditoFilter) {
+      baseFilters.push(where('tieneCredito', '==', filtroCredito === 'conCredito'));
+      baseOrderBy.push(orderBy('tieneCredito'));
+    }
+
+    if (hasDeudaFilter) {
+      baseFilters.push(where('tieneDeuda', '==', filtroDeuda === 'conDeuda'));
+      baseOrderBy.push(orderBy('tieneDeuda'));
+    }
+    
+    if (ordenamiento === 'reciente') {
+      q = query(
+        this.clientesRef,
+        ...baseFilters,
+        ...baseOrderBy,
+        orderBy('createdAt', 'desc')
+      );
+    } else {
+      q = query(
+        this.clientesRef,
+        ...baseFilters,
+        ...baseOrderBy,
+        orderBy('nombres', 'asc')
+      );
+    }
+
+    const snapshot = await getDocs(q);
+    let clientes = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Cliente[];
+
+    // Aplicar búsqueda en múltiples campos
+    const termino = terminoBusqueda.toLowerCase().trim();
+    clientes = clientes.filter(c => {
+      const nombre = `${c.nombres ?? ''} ${c.apellidos ?? ''}`.toLowerCase();
+      const cedula = (c.cedula ?? '').toLowerCase();
+      const telefono = (c.telefono ?? '').toLowerCase();
+      return nombre.includes(termino) || cedula.includes(termino) || telefono.includes(termino);
+    });
+
+    // Aplicar paginación manual (en memoria)
+    const hasMore = clientes.length > pageSize;
+    const clientesFinales = clientes.slice(0, pageSize);
+
+    return {
+      clientes: clientesFinales,
+      lastDoc: null,
+      firstDoc: null,
+      hasMore
+    };
+  }
+
+  /**
+   * 💳💰 ACTUALIZA CAMPOS DE DEUDA Y CRÉDITO EN DOC DEL CLIENTE
+   * 
+   * Calcula automáticamente los campos tieneCredito, tieneDeuda, _deudaCalculada, _facturasPendientes
+   * y los actualiza en el documento del cliente. Esto permite filtros eficientes a nivel de Firestore.
+   * 
+   * USAR DESPUÉS DE:
+   * - Crear/editar una venta (crear-venta)
+   * - Registrar un abono/pago (cobrar-deuda)
+   * - Cualquier operación que modifique el estado de facturas del cliente
+   * 
+   * @param clienteId ID del cliente a actualizar
+   * @returns Promise que se resuelve cuando la actualización se completa
+   */
+  async actualizarCamposDeudaCredito(clienteId: string): Promise<void> {
+    try {
+      console.log('💳 Actualizando campos de deuda/crédito para cliente:', clienteId);
+      
+      // Obtener resumen de deuda actual usando el servicio de facturas
+      const resumen = await this.facturasSrv.getResumenDeuda(clienteId);
+      
+      console.log('📊 Resumen de deuda obtenido:', resumen);
+      
+      // Preparar campos a actualizar
+      const camposActualizar = {
+        tieneCredito: resumen.creditoPersonalActivo, // true si tiene al menos 1 crédito personal activo
+        tieneDeuda: resumen.deudaTotal > 0, // true si debe más de 0
+        _deudaCalculada: resumen.deudaTotal, // monto total de deuda
+        _facturasPendientes: resumen.pendientes, // cantidad de facturas pendientes
+        ultimaActualizacionDeuda: new Date(), // timestamp de actualización
+        updatedAt: new Date()
+      };
+      
+      console.log('✅ Campos a actualizar:', camposActualizar);
+      
+      // Actualizar documento del cliente
+      const clienteDoc = doc(this.firestore, `clientes/${clienteId}`);
+      await updateDoc(clienteDoc, camposActualizar);
+      
+      console.log('✅ Campos de deuda/crédito actualizados correctamente');
+    } catch (error) {
+      console.error('❌ Error actualizando campos de deuda/crédito:', error);
+      // No lanzar error para que no bloquee el flujo principal
+      // Solo loguear para debugging
+    }
+  }}

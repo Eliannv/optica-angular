@@ -20,12 +20,14 @@
  * - Vista liviana y rápida
  */
 
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import Swal from 'sweetalert2';
+import { DocumentSnapshot } from '@angular/fire/firestore';
 
 import { ClientesService } from '../../../../core/services/clientes';
 import { FacturasService } from '../../../../core/services/facturas';
@@ -44,22 +46,40 @@ import { HistoriaClinica } from '../../../../core/models/historia-clinica.model'
   templateUrl: './lista-clientes.html',
   styleUrl: './lista-clientes.css'
 })
-export class ListaClientesComponent implements OnInit {
+export class ListaClientesComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
 
   terminoBusqueda = '';
   totalClientes = 0;
 
+  // 🚀 PAGINACIÓN REAL DESDE FIRESTORE
+  clientesPaginados: Cliente[] = [];
+  paginaActual: number = 1;
+  clientesPorPagina: number = 10;
+  Math = Math;
+  
+  // 🎯 Snapshots para navegación Firestore
+  lastVisible: DocumentSnapshot | null = null;
+  firstVisible: DocumentSnapshot | null = null;
+  hasMore: boolean = false;
+  isLoading: boolean = false;
+  
+  // 🔍 Historial de páginas para navegación hacia atrás
+  paginasHistorial: Array<{
+    firstDoc: DocumentSnapshot | null;
+    lastDoc: DocumentSnapshot | null;
+    pageNumber: number;
+  }> = [];
+
+  // ⚠️ Mantenemos clientes solo para exportación (carga lazy)
   clientes: Cliente[] = [];
   clientesFiltrados: Cliente[] = [];
-  clientesPaginados: Cliente[] = [];
-  paginaActual = 1;
-  clientesPorPagina = 10;
-  Math = Math;
 
   cargando = true;
   filtroEstado: 'todos' | 'conHistorial' | 'sinHistorial' = 'todos';
   filtroCredito: 'todos' | 'conCredito' | 'sinCredito' = 'todos';
   filtroDeuda: 'todos' | 'conDeuda' | 'sinDeuda' = 'todos';
+  ordenamiento: 'reciente' | 'nombre' = 'reciente';
 
   deudas: Record<string, { deudaTotal: number; pendientes: number; creditosActivos: number; creditoPersonalActivo: boolean }> = {};
   cajaChicaAbierta = false;
@@ -102,12 +122,27 @@ export class ListaClientesComponent implements OnInit {
   ) {}
 
   /**
-   * Inicializa el componente cargando la lista de clientes.
+   * Inicializa el componente cargando la lista de clientes con paginación real.
    */
   async ngOnInit(): Promise<void> {
-    await this.cargarClientes();
+    this.cargando = true;
     await this.validarCajaChica();
+    // 🚀 PAGINACIÓN REAL: Cargar solo primera página
+    await this.cargarPrimeraPage();
     this.cargando = false;
+  }
+
+  /**
+   * Limpia suscripciones al destruir el componente
+   */
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    // 🗑️ Liberar memoria
+    this.clientes = [];
+    this.clientesFiltrados = [];
+    this.clientesPaginados = [];
+    this.deudas = {};
   }
 
   /**
@@ -125,17 +160,70 @@ export class ListaClientesComponent implements OnInit {
 
 
   /**
-   * Carga todos los clientes activos ordenados por fecha de creación.
+   * 🚀 Carga la primera página de clientes con paginación real
    */
-  private async cargarClientes(): Promise<void> {
-    const data = await firstValueFrom(this.clientesSrv.getClientes());
-    this.clientes = (data as Cliente[]).sort((a, b) => this.getCreatedMs(b) - this.getCreatedMs(a));
-    this.aplicarFiltro();
-    await this.cargarDeudasClientes(this.clientes);
+  private async cargarPrimeraPage(): Promise<void> {
+    this.isLoading = true;
+    this.paginaActual = 1;
+    this.paginasHistorial = [];
+    this.deudas = {}; // 🗑️ Limpiar deudas de página anterior
+    
+    try {
+      const resultado = await this.clientesSrv.getClientesPaginadosReal({
+        pageSize: this.clientesPorPagina,
+        ordenamiento: this.ordenamiento,
+        terminoBusqueda: this.terminoBusqueda,
+        filtroEstado: this.filtroEstado, // 🎯 Pasar filtro de historial a Firestore
+        filtroCredito: this.filtroCredito,
+        filtroDeuda: this.filtroDeuda
+      });
+      
+      this.clientesPaginados = resultado.clientes;
+      this.lastVisible = resultado.lastDoc;
+      this.firstVisible = resultado.firstDoc;
+      this.hasMore = resultado.hasMore;
+      
+      // Guardar en historial
+      if (resultado.firstDoc) {
+        this.paginasHistorial.push({
+          firstDoc: resultado.firstDoc,
+          lastDoc: resultado.lastDoc,
+          pageNumber: 1
+        });
+      }
+      
+      // Actualizar total estimado (solo para UI)
+      this.totalClientes = resultado.clientes.length;
+      
+      // 🚀 Cargar deudas SOLO de la página actual
+      await this.cargarDeudasPaginaActual();
+      
+      // ⚠️ NO aplicar filtros locales - mantener los 10 clientes cargados
+      // Los filtros de crédito/deuda son solo informativos (badges visuales)
+      
+    } catch (error) {
+      console.error('Error al cargar clientes:', error);
+      Swal.fire('Error', 'No se pudieron cargar los clientes', 'error');
+    } finally {
+      this.isLoading = false;
+    }
   }
 
-  private async cargarDeudasClientes(lista: Cliente[]): Promise<void> {
-    const tasks = lista.map(async c => {
+  /**
+   * 🗑️ DEPRECATED: Método legacy mantenido por compatibilidad
+   * Ahora se usa cargarPrimeraPage() con paginación real
+   */
+  private async cargarClientes(): Promise<void> {
+    console.warn('cargarClientes() está deprecated - usando paginación real');
+    await this.cargarPrimeraPage();
+  }
+
+  /**
+   * 🚀 Carga deudas SOLO de los clientes de la página actual
+   * NO carga deudas de todos los clientes (optimización crítica)
+   */
+  private async cargarDeudasPaginaActual(): Promise<void> {
+    const tasks = this.clientesPaginados.map(async c => {
       if (!c?.id) return;
       try {
         const res = await this.facturasSrv.getResumenDeuda(c.id);
@@ -147,7 +235,15 @@ export class ListaClientesComponent implements OnInit {
     });
 
     await Promise.all(tasks);
-    this.aplicarFiltro();
+  }
+
+  /**
+   * 🗑️ DEPRECATED: Método legacy
+   * Ahora se usa cargarDeudasPaginaActual() para evitar sobrecarga
+   */
+  private async cargarDeudasClientes(lista: Cliente[]): Promise<void> {
+    console.warn('cargarDeudasClientes() está deprecated - usando cargarDeudasPaginaActual()');
+    await this.cargarDeudasPaginaActual();
   }
 
   /**
@@ -168,7 +264,8 @@ export class ListaClientesComponent implements OnInit {
    * Activa el filtrado de clientes basado en el término de búsqueda actual.
    */
   buscarClientes(): void {
-    this.aplicarFiltro();
+    // 🚀 Recargar desde primera página con el nuevo término
+    this.cargarPrimeraPage();
   }
 
   /**
@@ -176,93 +273,166 @@ export class ListaClientesComponent implements OnInit {
    */
   limpiarBusqueda(): void {
     this.terminoBusqueda = '';
-    this.aplicarFiltro();
+    this.cargarPrimeraPage();
   }
 
   /**
-   * Aplica filtros de búsqueda y estado a la lista de clientes.
+   * ⚠️ ACTUALIZADO: Ahora recarga desde primera página con los filtros
+   * - filtroEstado (con/sin historial) → Se aplica en Firestore ✅
+   * - filtroCredito y filtroDeuda → Se aplican en Firestore ✅
    */
   aplicarFiltro(): void {
-    const t = (this.terminoBusqueda || '').trim().toLowerCase();
-
-    // Filtro por texto
-    let base = !t
-      ? [...this.clientes]
-      : this.clientes.filter(c => {
-          const nombre = `${c.nombres ?? ''} ${c.apellidos ?? ''}`.toLowerCase();
-          const cedula = (c.cedula ?? '').toLowerCase();
-          const telefono = (c.telefono ?? '').toLowerCase();
-          return nombre.includes(t) || cedula.includes(t) || telefono.includes(t);
-        });
-
-    // Filtro por estado de historial
-    if (this.filtroEstado === 'conHistorial') {
-      base = base.filter(c => !!c.tieneHistorialClinico);
-    } else if (this.filtroEstado === 'sinHistorial') {
-      base = base.filter(c => !c.tieneHistorialClinico);
-    }
-
-    if (this.filtroCredito === 'conCredito') {
-      base = base.filter(c => c.id && !!this.deudas[c.id]?.creditoPersonalActivo);
-    } else if (this.filtroCredito === 'sinCredito') {
-      base = base.filter(c => c.id && !this.deudas[c.id]?.creditoPersonalActivo);
-    }
-
-    if (this.filtroDeuda === 'conDeuda') {
-      base = base.filter(c => c.id && (this.deudas[c.id]?.deudaTotal ?? 0) > 0);
-    } else if (this.filtroDeuda === 'sinDeuda') {
-      base = base.filter(c => c.id && (this.deudas[c.id]?.deudaTotal ?? 0) === 0);
-    }
-
-    this.clientesFiltrados = base;
-    this.totalClientes = this.clientesFiltrados.length;
-    this.paginaActual = 1;
-    this.actualizarPaginacion();
+    this.cargarPrimeraPage();
   }
 
   /**
-   * Actualiza el arreglo de clientes paginados según la página actual.
+   * 🗑️ DEPRECATED: Ya no se usan filtros locales que oculten clientes
+   * Los filtros de crédito/deuda son solo badges informativos
+   */
+  private aplicarFiltrosLocales(): void {
+    // Método deprecated - los filtros ya no ocultan clientes
+    // Solo el filtro de historial se aplica en Firestore
+    console.warn('aplicarFiltrosLocales() está deprecated - filtros son solo visuales');
+  }
+
+  /**
+   * ⚠️ DEPRECATED: Ya no se usa paginación en memoria
+   * Ahora la paginación es real desde Firestore
    */
   actualizarPaginacion(): void {
-    const inicio = (this.paginaActual - 1) * this.clientesPorPagina;
-    const fin = inicio + this.clientesPorPagina;
-    this.clientesPaginados = [...this.clientesFiltrados.slice(inicio, fin)];
+    console.warn('actualizarPaginacion() está deprecated - usando paginación real de Firestore');
   }
 
   /**
-   * Navega a la página siguiente si existe.
+   * 🚀 Navega a la página siguiente (PAGINACIÓN REAL)
    */
-  paginaSiguiente(): void {
-    if (this.paginaActual * this.clientesPorPagina < this.totalClientes) {
+  async paginaSiguiente(): Promise<void> {
+    if (!this.hasMore || this.isLoading) {
+      return;
+    }
+    
+    this.isLoading = true;
+    this.deudas = {}; // 🗑️ Limpiar deudas de página anterior
+    
+    try {
+      const resultado = await this.clientesSrv.getClientesPaginadosReal({
+        pageSize: this.clientesPorPagina,
+        lastVisible: this.lastVisible,
+        direction: 'next',
+        ordenamiento: this.ordenamiento,
+        terminoBusqueda: this.terminoBusqueda,
+        filtroEstado: this.filtroEstado, // 🎯 Pasar filtro de historial
+        filtroCredito: this.filtroCredito,
+        filtroDeuda: this.filtroDeuda
+      });
+      
+      this.clientesPaginados = resultado.clientes;
+      this.lastVisible = resultado.lastDoc;
+      this.firstVisible = resultado.firstDoc;
+      this.hasMore = resultado.hasMore;
       this.paginaActual++;
-      this.actualizarPaginacion();
+      
+      // Guardar en historial
+      if (resultado.firstDoc) {
+        this.paginasHistorial.push({
+          firstDoc: resultado.firstDoc,
+          lastDoc: resultado.lastDoc,
+          pageNumber: this.paginaActual
+        });
+      }
+      
+      // 🚀 Cargar deudas SOLO de la nueva página
+      await this.cargarDeudasPaginaActual();
+      
+    } catch (error) {
+      console.error('Error al cargar página siguiente:', error);
+      Swal.fire('Error', 'No se pudo cargar la siguiente página', 'error');
+    } finally {
+      this.isLoading = false;
     }
   }
 
   /**
-   * Navega a la página anterior si existe.
+   * 🚀 Navega a la página anterior (PAGINACIÓN REAL)
    */
-  paginaAnterior(): void {
-    if (this.paginaActual > 1) {
+  async paginaAnterior(): Promise<void> {
+    if (this.paginaActual <= 1 || this.isLoading) {
+      return;
+    }
+    
+    this.isLoading = true;
+    this.deudas = {}; // 🗑️ Limpiar deudas de página anterior
+    
+    try {
+      // Eliminar la página actual del historial
+      this.paginasHistorial.pop();
       this.paginaActual--;
-      this.actualizarPaginacion();
+      
+      // Obtener la página anterior (ahora la última en el historial)
+      const paginaAnterior = this.paginasHistorial[this.paginasHistorial.length - 1];
+      
+      if (!paginaAnterior) {
+        // Si no hay historial, recargar primera página
+        await this.cargarPrimeraPage();
+        return;
+      }
+      
+      // Si es la primera página, recargarla directamente
+      if (paginaAnterior.pageNumber === 1) {
+        await this.cargarPrimeraPage();
+        return;
+      }
+      
+      // Cargar desde el snapshot del historial usando el lastDoc de la página anterior
+      const resultado = await this.clientesSrv.getClientesPaginadosReal({
+        pageSize: this.clientesPorPagina,
+        lastVisible: this.paginasHistorial[this.paginasHistorial.length - 2]?.lastDoc || null,
+        direction: 'next',
+        ordenamiento: this.ordenamiento,
+        terminoBusqueda: this.terminoBusqueda,
+        filtroEstado: this.filtroEstado, // 🎯 Pasar filtro de historial
+        filtroCredito: this.filtroCredito,
+        filtroDeuda: this.filtroDeuda
+      });
+      
+      this.clientesPaginados = resultado.clientes;
+      this.lastVisible = paginaAnterior.lastDoc;
+      this.firstVisible = paginaAnterior.firstDoc;
+      this.hasMore = true; // Sabemos que hay más porque veníamos de una página posterior
+      
+      // 🚀 Cargar deudas SOLO de la nueva página
+      await this.cargarDeudasPaginaActual();
+      
+    } catch (error) {
+      console.error('Error al cargar página anterior:', error);
+      Swal.fire('Error', 'No se pudo cargar la página anterior', 'error');
+    } finally {
+      this.isLoading = false;
     }
   }
 
   /**
-   * Navega a la primera página de resultados.
+   * 🚀 Navega a la primera página (PAGINACIÓN REAL)
    */
-  irPrimeraPagina(): void {
-    this.paginaActual = 1;
-    this.actualizarPaginacion();
+  async irPrimeraPagina(): Promise<void> {
+    if (this.paginaActual === 1 || this.isLoading) {
+      return;
+    }
+    
+    await this.cargarPrimeraPage();
   }
 
   /**
-   * Navega a la última página de resultados.
+   * ⚠️ Navegar a última página no es eficiente con paginación cursor
+   * Se deshabilita esta funcionalidad
    */
   irUltimaPagina(): void {
-    this.paginaActual = Math.ceil(this.totalClientes / this.clientesPorPagina);
-    this.actualizarPaginacion();
+    Swal.fire({
+      icon: 'info',
+      title: 'Navegación optimizada',
+      text: 'Para mejor rendimiento, usa los botones Siguiente/Anterior para navegar por las páginas.',
+      confirmButtonText: 'Entendido'
+    });
   }
 
   /**
@@ -295,12 +465,14 @@ export class ListaClientesComponent implements OnInit {
   }
 
   /**
-   * Abre la ventana con historiales del cliente por periodo de caja banco.
+   * 🚀 Abre la ventana con historiales del cliente por periodo de caja banco.
+   * LAZY LOAD: Solo carga cuando el usuario hace click
    */
   async abrirHistorialesPeriodo(cliente: Cliente): Promise<void> {
     if (!cliente?.id) return;
     this.clienteHistorialSeleccionado = cliente;
     this.mostrarHistorialesModal = true;
+    // 🚀 Cargar SOLO cuando se abre el modal
     await this.cargarHistorialesPeriodo(cliente.id);
   }
 
@@ -333,10 +505,12 @@ export class ListaClientesComponent implements OnInit {
 
   /**
    * Cierra el modal de historiales por periodo.
+   * 🗑️ Libera memoria limpiando los historiales cargados
    */
   cerrarHistorialesModal(): void {
     this.mostrarHistorialesModal = false;
     this.clienteHistorialSeleccionado = null;
+    // 🗑️ Liberar memoria de historiales
     this.historialesPeriodo = [];
   }
 
@@ -355,7 +529,8 @@ export class ListaClientesComponent implements OnInit {
   }
 
   /**
-   * Carga los 3 historiales mas recientes del cliente.
+   * 🚀 Carga los 3 historiales más recientes del cliente.
+   * LAZY LOAD: Solo se ejecuta cuando se abre el modal
    */
   private async cargarHistorialesPeriodo(clienteId: string): Promise<void> {
     this.historialesPeriodo = [];
@@ -555,6 +730,7 @@ export class ListaClientesComponent implements OnInit {
 
   /**
    * Desactiva un cliente mediante soft-delete.
+   * 🚀 Recarga la página actual en lugar de todos los clientes
    */
   async desactivarCliente(clienteId: string): Promise<void> {
     const result = await Swal.fire({
@@ -570,7 +746,8 @@ export class ListaClientesComponent implements OnInit {
 
     try {
       await this.clientesSrv.desactivarCliente(clienteId);
-      await this.cargarClientes();
+      // 🚀 Recargar solo la página actual
+      await this.cargarPrimeraPage();
       await Swal.fire({
         icon: 'success',
         title: 'Desactivado',

@@ -24,46 +24,36 @@
             <option value="conHistorial">Con historial clínico</option>
             <option value="sinHistorial">Sin historial clínico</option>
           </select>
-                    <select class="form-select filter-select" [(ngModel)]="filtroCredito" (change)="aplicarFiltro()">
-            <option value="todos">Todos los créditos</option>
-            <option value="conCredito">Con crédito personal</option>
-            <option value="sinCredito">Sin crédito personal</option>
-          </select>
-                    <select class="form-select filter-select" [(ngModel)]="filtroDeuda" (change)="aplicarFiltro()">
-            <option value="todos">Todas las deudas</option>
-            <option value="conDeuda">Con deuda</option>
-            <option value="sinDeuda">Sin deuda</option>
-          </select>
+                                        <select class="form-select filter-select" [(ngModel)]="filtroCredito" (change)="aplicarFiltro()">
+                        <option value="todos">Todos los créditos</option>
+                        <option value="conCredito">Con crédito</option>
+                        <option value="sinCredito">Sin crédito</option>
+                    </select>
+                                        <select class="form-select filter-select" [(ngModel)]="filtroDeuda" (change)="aplicarFiltro()">
+                        <option value="todos">Todas las deudas</option>
+                        <option value="conDeuda">Con deuda</option>
+                        <option value="sinDeuda">Sin deuda</option>
+                    </select>
                     <button class="btn btn-primary" (click)="crearCliente()">
             + Nuevo
           </button>
                 </div>
             </div>
 
-            <div class="filter-info" *ngIf="terminoBusqueda || filtroEstado !== 'todos' || filtroCredito !== 'todos' || filtroDeuda !== 'todos'">
+                        <div class="filter-info" *ngIf="terminoBusqueda || filtroEstado !== 'todos' || filtroCredito !== 'todos' || filtroDeuda !== 'todos'">
                 <span class="badge badge-filter" *ngIf="filtroEstado !== 'todos'">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
             <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
           </svg>
           Estado: {{ filtroEstado === 'conHistorial' ? 'Con historial' : 'Sin historial' }}
         </span>
-                <span class="badge badge-filter" *ngIf="filtroCredito !== 'todos'">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
-            <circle cx="12" cy="12" r="10"></circle>
-            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path>
-            <path d="M12 18V6"></path>
-          </svg>
-          Credito: {{ filtroCredito === 'conCredito' ? 'Con' : 'Sin' }} credito
-        </span>
-                <span class="badge badge-filter" *ngIf="filtroDeuda !== 'todos'">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
-            <circle cx="12" cy="12" r="10"></circle>
-            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path>
-            <path d="M12 18V6"></path>
-          </svg>
-          Deuda: {{ filtroDeuda === 'conDeuda' ? 'Con' : 'Sin' }} deuda
-        </span>
-                <span class="text-muted" style="margin-left: 8px;">{{ totalClientes }} cliente(s) encontrado(s)</span>
+                                <span class="badge badge-filter" *ngIf="filtroCredito !== 'todos'">
+                    Crédito: {{ filtroCredito === 'conCredito' ? 'Con crédito' : 'Sin crédito' }}
+                </span>
+                                <span class="badge badge-filter" *ngIf="filtroDeuda !== 'todos'">
+                    Deuda: {{ filtroDeuda === 'conDeuda' ? 'Con deuda' : 'Sin deuda' }}
+                </span>
+                <span class="text-muted" style="margin-left: 8px;">{{ clientesPaginados.length }} cliente(s) en esta página</span>
             </div>
         </div>
 
@@ -137,16 +127,12 @@
                                         <button class="btn-action btn-action-view" (click)="$event.stopPropagation(); irFichaClinica(cliente.id!)" title="Ir a ficha clinica">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-stethoscope-icon lucide-stethoscope"><path d="M11 2v2"/><path d="M5 2v2"/><path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"/><path d="M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/></svg>
                   </button>
-                                        <button class="btn-action btn-action-success" (click)="$event.stopPropagation(); abrirHistorialesPeriodo(cliente)" title="Historiales del periodo">
+                                        <button class="btn-action btn-action-info" (click)="$event.stopPropagation(); abrirHistorialesPeriodo(cliente)" title="Historiales del periodo">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M10 13h4"/><path d="M10 17h4"/></svg>
                   </button>
                                         <!-- Botón Venta sin historial -->
-                                        <button class="btn-action btn-action-info" (click)="$event.stopPropagation(); ventaSinHistorial(cliente.id!)" title="Venta sin historial clínico">
-                                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                                                            <circle cx="9" cy="21" r="1" />
-                                                                                            <circle cx="20" cy="21" r="1" />
-                                                                                            <path d="M1 1h2l3.6 7.59a2 2 0 0 0 1.7 1.18h9.72a2 2 0 0 0 1.98-1.7l1.38-7.09H6.16" />
-                                                                                        </svg>
+                                        <button class="btn-action btn-action-success" (click)="$event.stopPropagation(); ventaSinHistorial(cliente.id!)" title="Venta sin historial clínico">
+                                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shopping-cart-icon lucide-shopping-cart"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
                                         </button>
                                         <button class="btn-action btn-action-payment" (click)="$event.stopPropagation(); cobrarDeuda(cliente.id!)" [disabled]="!cajaChicaAbierta || !cliente.id || (getDeuda(cliente)?.deudaTotal ?? 0) <= 0" [title]="!cajaChicaAbierta ? 'Abre una caja chica primero' : (getDeuda(cliente)?.deudaTotal ?? 0) > 0 ? 'Cobrar deuda' : 'Sin deuda'">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
@@ -169,26 +155,19 @@
                     <button class="btn btn-primary" (click)="crearCliente()">Crear primer cliente</button>
                 </div>
 
-                <div class="pagination-controls" *ngIf="totalClientes > clientesPorPagina && !cargando">
+                <!-- 🚀 Paginación real: se muestra si hay más páginas o no estamos en la primera -->
+                <div class="pagination-controls" *ngIf="(hasMore || paginaActual > 1) && !cargando">
                     <div class="pagination-info">
                         <span class="text-muted">
-              Mostrando {{ (paginaActual - 1) * clientesPorPagina + 1 }} -
-              {{ Math.min(paginaActual * clientesPorPagina, totalClientes) }} de
-              {{ totalClientes }}
+              Página {{ paginaActual }} • Mostrando {{ clientesPaginados.length }} cliente(s)
             </span>
                     </div>
                     <div class="pagination-buttons">
-                        <button class="btn btn-secondary" [disabled]="paginaActual === 1 || cargando" (click)="irPrimeraPagina()" title="Ir a la primera página">
-              «« Primera
-            </button>
-                        <button class="btn btn-secondary" [disabled]="paginaActual === 1 || cargando" (click)="paginaAnterior()" title="Página anterior">
+                        <button class="btn btn-secondary" [disabled]="paginaActual === 1 || isLoading" (click)="paginaAnterior()" title="Página anterior">
               ← Anterior
             </button>
-                        <button class="btn btn-secondary" [disabled]="paginaActual * clientesPorPagina >= totalClientes || cargando" (click)="paginaSiguiente()" title="Página siguiente">
+                        <button class="btn btn-secondary" [disabled]="!hasMore || isLoading" (click)="paginaSiguiente()" title="Página siguiente">
               Siguiente →
-            </button>
-                        <button class="btn btn-secondary" [disabled]="paginaActual * clientesPorPagina >= totalClientes || cargando" (click)="irUltimaPagina()" title="Ir a la última página">
-              Última »»
             </button>
                     </div>
                 </div>
@@ -339,7 +318,7 @@
                                 </td>
                                 <td class="acciones-col">
                                     <div class="acciones-inline">
-                                        <button class="btn-icon btn-icon-success" (click)="exportarExcel(historial)" title="Exportar a Excel">
+                                        <button class="btn-icon btn-outline-success" (click)="exportarExcel(historial)" title="Exportar a Excel">
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14"/><path d="m18 13-6-6-6 6"/><path d="M12 7v14"/></svg>
                     </button>
                                         <button class="btn-icon btn-icon-info" (click)="imprimirHistorial(historial)" title="Imprimir">
@@ -348,8 +327,8 @@
                                         <button class="btn-icon btn-icon-secondary" (click)="editarHistorial(historial)" title="Editar">
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
                     </button>
-                                        <button class="btn-icon btn-icon-warning" (click)="usarParaVenta(historial)" title="Usar para venta">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 11-1 9"/><path d="m19 11-4-7"/><path d="M2 11h20"/><path d="m3.5 11 1.6 7.4a2 2 0 0 0 2 1.6h9.8a2 2 0 0 0 2-1.6l1.7-7.4"/><path d="M4.5 15.5h15"/><path d="m5 11 4-7"/><path d="m9 11 1 9"/></svg>
+                                        <button class="btn-icon btn-icon-success" (click)="usarParaVenta(historial)" title="Usar para venta">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shopping-cart-icon lucide-shopping-cart"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
                     </button>
                                     </div>
                                 </td>

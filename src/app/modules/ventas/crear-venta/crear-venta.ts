@@ -1433,6 +1433,16 @@ async guardarEImprimir() {
       console.log('✅ Factura creada:', facturaId);
     }
 
+    // 💳💰 ACTUALIZAR CAMPOS DE DEUDA/CRÉDITO EN CLIENTE
+    // Después de crear/editar factura, actualizar los campos denormalizados
+    try {
+      await this.clientesSrv.actualizarCamposDeudaCredito(this.clienteId);
+      console.log('✅ Campos de deuda/crédito actualizados en cliente');
+    } catch (err) {
+      console.warn('⚠️ No se pudieron actualizar campos de deuda/crédito:', err);
+      // No bloquear el flujo, solo advertir
+    }
+
     // ✅ Registrar venta con tarjeta como cuenta por cobrar al banco
     if (this.metodoPago === 'Tarjeta' && !this.esCredito) {
       try {

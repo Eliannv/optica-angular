@@ -47,6 +47,21 @@ export interface Cliente {
   /** Indica si el cliente tiene al menos un historial clínico registrado */
   tieneHistorialClinico?: boolean;
 
+  /** 💳 Indica si el cliente tiene crédito personal activo */
+  tieneCredito?: boolean;
+
+  /** 💰 Indica si el cliente tiene deuda pendiente mayor a 0 */
+  tieneDeuda?: boolean;
+
+  /** Fecha de última actualización de campos de deuda/crédito */
+  ultimaActualizacionDeuda?: any;
+
+  /** Campo informativo: monto total de deuda calculada (solo para referencia) */
+  _deudaCalculada?: number;
+
+  /** Campo informativo: cantidad de facturas pendientes (solo para referencia) */
+  _facturasPendientes?: number;
+
   /** Fecha de creación del registro en Firestore */
   createdAt?: any;
 
