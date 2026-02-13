@@ -80,6 +80,8 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     { valor: 'PAGOS_EFECTIVO', label: 'Efectivo (Ventas)' },
     { valor: 'VENTAS_TARJETA', label: 'Tarjeta (Ventas)' },
     { valor: 'TRANSFERENCIA_VENTAS', label: 'Transferencia (Ventas)' },
+    { valor: 'PAGO_DEUDA_EFECTIVO', label: 'Pago Deuda (Efectivo)' },
+    { valor: 'PAGO_DEUDA_TARJETA', label: 'Pago Deuda (Tarjeta)' },
     { valor: 'TRANSFERENCIA_DEUDAS', label: 'Transferencia (Cobro de Deudas)' },
     { valor: 'FACTURAS_DEUDA', label: 'Pagos de Deuda (Todos)' },
     { valor: 'EGRESOS', label: 'Egresos' }
@@ -610,14 +612,36 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   getPagosDeudaFiltrados(): FacturaDeuda[] {
     const mostrarTodos = this.tiposSeleccionados.includes('FACTURAS_DEUDA') || this.tiposSeleccionados.length === 0;
     const mostrarSoloTransferencias = this.tiposSeleccionados.includes('TRANSFERENCIA_DEUDAS');
-    
-    if (!mostrarTodos && !mostrarSoloTransferencias) {
+    const mostrarSoloEfectivo = this.tiposSeleccionados.includes('PAGO_DEUDA_EFECTIVO');
+    const mostrarSoloTarjeta = this.tiposSeleccionados.includes('PAGO_DEUDA_TARJETA');
+
+    // Si no hay ningún filtro de deuda seleccionado, no mostrar nada
+    if (!mostrarTodos && !mostrarSoloTransferencias && !mostrarSoloEfectivo && !mostrarSoloTarjeta) {
       return [];
     }
 
-    if (mostrarSoloTransferencias && !mostrarTodos) {
-      // Solo mostrar transferencias
+    // Solo transferencias
+    if (mostrarSoloTransferencias && !mostrarTodos && !mostrarSoloEfectivo && !mostrarSoloTarjeta) {
       return this.pagosDeuda.filter(p => p.metodoPago === 'Transferencia');
+    }
+
+    // Solo efectivo
+    if (mostrarSoloEfectivo && !mostrarTodos && !mostrarSoloTransferencias && !mostrarSoloTarjeta) {
+      return this.pagosDeuda.filter(p => p.metodoPago === 'Efectivo');
+    }
+
+    // Solo tarjeta
+    if (mostrarSoloTarjeta && !mostrarTodos && !mostrarSoloTransferencias && !mostrarSoloEfectivo) {
+      return this.pagosDeuda.filter(p => p.metodoPago === 'Tarjeta');
+    }
+
+    // Si hay varios filtros seleccionados, combinar resultados
+    if (!mostrarTodos) {
+      let filtros: ((p: FacturaDeuda) => boolean)[] = [];
+      if (mostrarSoloTransferencias) filtros.push(p => p.metodoPago === 'Transferencia');
+      if (mostrarSoloEfectivo) filtros.push(p => p.metodoPago === 'Efectivo');
+      if (mostrarSoloTarjeta) filtros.push(p => p.metodoPago === 'Tarjeta');
+      return this.pagosDeuda.filter(p => filtros.some(f => f(p)));
     }
 
     // Mostrar todos
@@ -706,7 +730,9 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
         'TRANSFERENCIA_VENTAS': 'Transferencia (Ventas)',
         'TRANSFERENCIA_DEUDAS': 'Transferencia (Cobro de Deudas)',
         'VENTAS_TARJETA': 'Tarjeta (Ventas)',
-        'FACTURAS_DEUDA': 'Facturas de Deuda',
+        'PAGO_DEUDA_EFECTIVO': 'Pago Deuda (Efectivo)',
+        'PAGO_DEUDA_TARJETA': 'Pago Deuda (Tarjeta)',
+        'FACTURAS_DEUDA': 'Pagos de Deuda (Todos)',
         'EGRESOS': 'Egresos'
       };
       const tiposTexto = this.tiposSeleccionados.map(t => tipoLabels[t] || t).join(', ');
