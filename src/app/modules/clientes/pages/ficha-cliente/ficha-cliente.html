@@ -316,7 +316,7 @@
                     id="busqueda"
                     type="text"
                     class="filtro-input"
-                    placeholder="Ej: FAC-001"
+                    placeholder="Ej: 0000000045"
                     [(ngModel)]="filtros.busqueda"
                     (ngModelChange)="aplicarFiltros()"
                   />
@@ -495,9 +495,6 @@
                   <path d="M8 11h6"/>
                 </svg>
                 <p>No se encontraron facturas con los filtros aplicados</p>
-                <button class="btn-secondary" (click)="limpiarFiltros()">
-                  Limpiar filtros
-                </button>
               </div>
             } @else {
               <div class="table-wrapper">

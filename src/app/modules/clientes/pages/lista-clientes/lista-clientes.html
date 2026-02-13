@@ -39,22 +39,6 @@
           </button>
                 </div>
             </div>
-
-                        <div class="filter-info" *ngIf="terminoBusqueda || filtroEstado !== 'todos' || filtroCredito !== 'todos' || filtroDeuda !== 'todos'">
-                <span class="badge badge-filter" *ngIf="filtroEstado !== 'todos'">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
-            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-          </svg>
-          Estado: {{ filtroEstado === 'conHistorial' ? 'Con historial' : 'Sin historial' }}
-        </span>
-                                <span class="badge badge-filter" *ngIf="filtroCredito !== 'todos'">
-                    Crédito: {{ filtroCredito === 'conCredito' ? 'Con crédito' : 'Sin crédito' }}
-                </span>
-                                <span class="badge badge-filter" *ngIf="filtroDeuda !== 'todos'">
-                    Deuda: {{ filtroDeuda === 'conDeuda' ? 'Con deuda' : 'Sin deuda' }}
-                </span>
-                <span class="text-muted" style="margin-left: 8px;">{{ clientesPaginados.length }} cliente(s) en esta página</span>
-            </div>
         </div>
 
         <div class="card-body">

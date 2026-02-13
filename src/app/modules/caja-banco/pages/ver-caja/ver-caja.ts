@@ -187,46 +187,127 @@ export class VerCajaComponent implements OnInit {
 
     const fechaActual = mov.fecha ? new Date(mov.fecha) : new Date();
     const fechaIso = `${fechaActual.getFullYear()}-${(fechaActual.getMonth() + 1).toString().padStart(2, '0')}-${fechaActual.getDate().toString().padStart(2, '0')}`;
+    const horaActual = fechaActual.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 
     const result = await Swal.fire({
       title: 'Editar movimiento',
       html: `
-        <div style="text-align:left; display:grid; gap:10px;">
-          <label>Fecha</label>
-          <input id="mov-fecha" type="date" class="swal2-input" value="${fechaIso}">
-          <label>Descripcion</label>
-          <input id="mov-descripcion" type="text" class="swal2-input" value="${mov.descripcion || ''}">
-          <label>Referencia</label>
-          <input id="mov-referencia" type="text" class="swal2-input" value="${mov.referencia || ''}">
-          <label>Monto</label>
-          <input id="mov-monto" type="number" class="swal2-input" value="${mov.monto || 0}" min="0.01" step="0.01">
+        <div class="modern-modal-content">
+          <div class="info-section">
+            <div class="info-row">
+              <span class="info-label">Tipo:</span>
+              <span class="info-value">${mov.tipo === 'INGRESO' ? 'Ingreso' : 'Egreso'}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Monto original:</span>
+              <span class="info-value highlight">$${(mov.monto || 0).toFixed(2)}</span>
+            </div>
+          </div>
+          
+          <div class="form-group-modern">
+            <label for="mov-fecha" class="form-label-modern">Fecha</label>
+            <input id="mov-fecha" class="form-input-modern" type="date" value="${fechaIso}">
+          </div>
+          
+          <div class="form-group-modern">
+            <label for="mov-hora" class="form-label-modern">Hora</label>
+            <input id="mov-hora" class="form-input-modern" type="time" step="1" value="${horaActual}">
+          </div>
+          
+          <div class="form-group-modern">
+            <label for="mov-descripcion" class="form-label-modern">Descripción</label>
+            <input id="mov-descripcion" class="form-input-modern" type="text" placeholder="Descripción del movimiento" value="${mov.descripcion || ''}">
+          </div>
+          
+          <div class="form-group-modern">
+            <label for="mov-referencia" class="form-label-modern">Referencia (opcional)</label>
+            <input id="mov-referencia" class="form-input-modern" type="text" placeholder="Número de referencia o documento" value="${mov.referencia || ''}">
+          </div>
+          
+          <div class="form-group-modern">
+            <label for="mov-monto" class="form-label-modern">Monto</label>
+            <input id="mov-monto" class="form-input-modern" type="number" placeholder="0.00" step="0.01" min="0.01" value="${mov.monto || 0}">
+          </div>
+          
+          <div class="alert-modern">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 16v-4"/>
+              <path d="M12 8h.01"/>
+            </svg>
+            <span>Al editar este movimiento se actualizará el registro en la caja banco</span>
+          </div>
         </div>
+        
+        <style>
+          .modern-modal-content { text-align: left; padding: 0.5rem; }
+          .info-section { background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; border: 1px solid #e9ecef; }
+          .info-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+          .info-row:last-child { margin-bottom: 0; }
+          .info-label { font-weight: 500; color: #6c757d; font-size: 0.95rem; }
+          .info-value { font-weight: 600; color: #2c3e50; font-size: 1rem; }
+          .info-value.highlight { color: #3498db; font-size: 1.25rem; }
+          .form-group-modern { margin-bottom: 1.25rem; }
+          .form-label-modern { display: block; font-weight: 600; font-size: 0.95rem; color: #2c3e50; margin-bottom: 0.5rem; }
+          .form-input-modern { width: 100%; padding: 0.75rem 1rem; border: 2px solid #e9ecef; border-radius: 8px; font-size: 1rem; transition: all 0.2s; }
+          .form-input-modern:focus { outline: none; border-color: #3498db; box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1); }
+          .alert-modern { background: rgba(52, 152, 219, 0.1); color: #3498db; padding: 0.875rem 1rem; border-radius: 8px; font-size: 0.9rem; display: flex; align-items: center; gap: 0.75rem; border: 1px solid rgba(52, 152, 219, 0.2); }
+          .alert-modern svg { flex-shrink: 0; }
+        </style>
       `,
+      width: '550px',
       focusConfirm: false,
       showCancelButton: true,
-      confirmButtonText: 'Guardar',
+      confirmButtonText: '<i class="bi bi-check-lg"></i> Guardar cambios',
       cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#3498db',
+      cancelButtonColor: '#6c757d',
+      customClass: {
+        popup: 'modern-swal-popup',
+        title: 'modern-swal-title',
+        confirmButton: 'modern-confirm-btn',
+        cancelButton: 'modern-cancel-btn'
+      },
       preConfirm: () => {
-        const fecha = (document.getElementById('mov-fecha') as HTMLInputElement)?.value;
-        const descripcion = (document.getElementById('mov-descripcion') as HTMLInputElement)?.value || '';
-        const referencia = (document.getElementById('mov-referencia') as HTMLInputElement)?.value || '';
-        const monto = Number((document.getElementById('mov-monto') as HTMLInputElement)?.value || 0);
+        const fechaInput = document.getElementById('mov-fecha') as HTMLInputElement;
+        const horaInput = document.getElementById('mov-hora') as HTMLInputElement;
+        const descripcionInput = document.getElementById('mov-descripcion') as HTMLInputElement;
+        const referenciaInput = document.getElementById('mov-referencia') as HTMLInputElement;
+        const montoInput = document.getElementById('mov-monto') as HTMLInputElement;
+        
+        const fecha = fechaInput?.value;
+        const hora = horaInput?.value;
+        const descripcion = descripcionInput?.value || '';
+        const referencia = referenciaInput?.value || '';
+        const monto = Number(montoInput?.value || 0);
 
         if (!fecha) {
           Swal.showValidationMessage('La fecha es obligatoria');
           return null;
         }
-        if (!descripcion.trim()) {
-          Swal.showValidationMessage('La descripcion es obligatoria');
+        
+        if (!hora) {
+          Swal.showValidationMessage('La hora es obligatoria');
           return null;
         }
+        
+        if (!descripcion.trim()) {
+          Swal.showValidationMessage('La descripción es obligatoria');
+          return null;
+        }
+        
         if (monto <= 0) {
           Swal.showValidationMessage('El monto debe ser mayor a 0');
           return null;
         }
 
+        // Combinar fecha y hora
+        const [hours, minutes, seconds] = hora.split(':').map(Number);
+        const fechaCompleta = new Date(fecha + 'T00:00:00');
+        fechaCompleta.setHours(hours, minutes, seconds || 0);
+
         return {
-          fecha: new Date(fecha),
+          fecha: fechaCompleta,
           descripcion: descripcion.trim(),
           referencia: referencia.trim(),
           monto
