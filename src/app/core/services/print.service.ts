@@ -116,7 +116,7 @@ export class PrintService {
             <div><b>Total:</b> $${this.formatearNumero(ultimaFactura.total)}</div>
             <div><b>Abono:</b> $${this.formatearNumero(ultimaFactura.abonado)}</div>
             <div><b>Restante:</b> $${this.formatearNumero(this.calcularTotalRestante(ultimaFactura))}</div>
-            <div style="color: #333; margin-top: 4px;">
+            <div style="background: ${tieneArmazon ? '#d4edda' : '#cce5ff'}; color: #333; padding: 4px 8px; margin-top: 6px; border-radius: 4px; text-align: center;">
               ${tieneArmazon ? '✓ Armazón Incluido' : '- Armazón Propio'}
             </div>
           </div>
@@ -215,7 +215,10 @@ export class PrintService {
    * Verifica si una factura contiene un armazón entre sus ítems.
    */
   private tieneArmazon(factura: any): boolean {
-    return factura?.items?.some((item: any) => item?.tipo === 'armazon' || item?.armazon);
+    return factura?.items?.some((item: any) => {
+      const tipo = item?.tipo?.toUpperCase() || '';
+      return tipo === 'ARMAZON' || tipo === 'ARMAZONES' || item?.armazon;
+    });
   }
 
   /**

@@ -74,6 +74,9 @@ export interface Factura {
   /** Subtotal de todos los ítems antes de IVA y descuentos */
   subtotal: number;
 
+  /** Subtotal bruto antes de descuentos (opcional, para compatibilidad) */
+  subtotalBruto?: number;
+
   /** Monto del IVA aplicado a la venta */
   iva?: number;
 

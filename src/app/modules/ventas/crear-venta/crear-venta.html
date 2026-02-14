@@ -422,7 +422,7 @@
                                     <div class="subtotales-row">
                                         <div class="calculo-item">
                                             <span class="calculo-label">Subtotal bruto</span>
-                                            <span class="calculo-valor">${{ (subtotal + descuentoMonto).toFixed(2) }}</span>
+                                            <span class="calculo-valor">${{ subtotalBruto.toFixed(2) }}</span>
                                         </div>
                                         <div class="calculo-item descuento-compacto">
                                             <span class="calculo-label">Descuento</span>
@@ -571,7 +571,7 @@
         <!-- TOTALES -->
         <div class="t-kv t-small">
             <span>Subtotal*</span>
-            <span>{{ (facturaParaImprimir.subtotal + (facturaParaImprimir.descuentoMonto || 0)) | number:'1.2-2' }}</span>
+            <span>{{ ((facturaParaImprimir.subtotalBruto ?? (facturaParaImprimir.subtotal + (facturaParaImprimir.descuentoMonto || 0)))) | number:'1.2-2' }}</span>
         </div>
         <div class="t-kv t-small" *ngIf="facturaParaImprimir.descuentoMonto > 0">
             <span>Descuento ({{ facturaParaImprimir.descuentoPorcentaje }}%)</span>

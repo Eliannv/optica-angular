@@ -652,8 +652,12 @@ export class ListaClientesComponent implements OnInit, OnDestroy {
     }
 
     try {
+      // Buscar facturas que usen este historial clínico específico
       const facturas = await firstValueFrom(
-        this.facturasSrv.getPendientesPorCliente(this.clienteHistorialSeleccionado.id)
+        this.facturasSrv.getFacturasPorHistorialClinico(
+          this.clienteHistorialSeleccionado.id,
+          historial.id
+        )
       );
       this.printSrv.imprimirHistorialClinico(this.clienteHistorialSeleccionado, historial, facturas);
     } catch (error) {

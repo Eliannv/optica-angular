@@ -49,7 +49,7 @@
                         <!-- FILA 2: Subtotal, Descuento%, Total -->
                         <div class="info-item">
                             <span class="info-label">Subtotal</span>
-                            <strong class="info-value" style="color: #6c757d;">${{ ((factura.subtotal || 0) + (factura.descuentoMonto || 0)).toFixed(2) }}</strong>
+                            <strong class="info-value" style="color: #6c757d;">${{ ((factura.subtotalBruto ?? ((factura.subtotal || 0) + (factura.descuentoMonto || 0)))).toFixed(2) }}</strong>
                         </div>
                         <div class="info-item">
                             <span class="info-label">Descuento</span>
@@ -67,23 +67,23 @@
                 </div>
 
                 <!-- MEDIDAS (SI EXISTEN) -->
-                <div class="medidas-section" *ngIf="factura.historialSnapshot">
+                <div class="medidas-section" *ngIf="historialClinico">
                     <h4 class="section-title">Medidas Oftalmológicas</h4>
                     <div class="medidas-grid">
                         <div class="medida-ojo">
                             <div class="ojo-title">OD (Ojo Derecho)</div>
                             <div class="medida-valores">
-                                <span>Esf: <strong>{{ factura.historialSnapshot?.odEsfera || '-' }}</strong></span>
-                                <span>Cil: <strong>{{ factura.historialSnapshot?.odCilindro || '-' }}</strong></span>
-                                <span>Eje: <strong>{{ factura.historialSnapshot?.odEje || '-' }}</strong></span>
+                                <span>Esf: <strong>{{ historialClinico?.odEsfera || '-' }}</strong></span>
+                                <span>Cil: <strong>{{ historialClinico?.odCilindro || '-' }}</strong></span>
+                                <span>Eje: <strong>{{ historialClinico?.odEje || '-' }}</strong></span>
                             </div>
                         </div>
                         <div class="medida-ojo">
                             <div class="ojo-title">OI (Ojo Izquierdo)</div>
                             <div class="medida-valores">
-                                <span>Esf: <strong>{{ factura.historialSnapshot?.oiEsfera || '-' }}</strong></span>
-                                <span>Cil: <strong>{{ factura.historialSnapshot?.oiCilindro || '-' }}</strong></span>
-                                <span>Eje: <strong>{{ factura.historialSnapshot?.oiEje || '-' }}</strong></span>
+                                <span>Esf: <strong>{{ historialClinico?.oiEsfera || '-' }}</strong></span>
+                                <span>Cil: <strong>{{ historialClinico?.oiCilindro || '-' }}</strong></span>
+                                <span>Eje: <strong>{{ historialClinico?.oiEje || '-' }}</strong></span>
                             </div>
                         </div>
                     </div>
@@ -166,7 +166,7 @@
 
         <div class="t-kv t-small">
             <span>Subtotal</span>
-            <span>{{ (factura.subtotal + factura.descuentoMonto) | number:'1.2-2' }}</span>
+            <span>{{ (factura.subtotalBruto ?? (factura.subtotal + factura.descuentoMonto)) | number:'1.2-2' }}</span>
         </div>
         <div class="t-kv t-small" *ngIf="factura.descuentoPorcentaje > 0">
             <span>Descuento ({{ factura.descuentoPorcentaje }}%)</span>

@@ -93,6 +93,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   ivaPct = 0.15;
   private _descuentoPorcentaje = 0;
   descuentoMonto = 0; // Monto del descuento calculado
+  subtotalBruto = 0;
   subtotal = 0;
   iva = 0;
   total = 0;
@@ -541,6 +542,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     this.items = [];
     this.productoSeleccionado = null;
     this.selectedIndex = -1;
+    this.subtotalBruto = 0;
     this.subtotal = 0;
     this.iva = 0;
     this.total = 0;
@@ -1429,6 +1431,16 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     this.recalcularAbono(); // Recalcular saldo pendiente con el nuevo total
   }
 agregarProducto(p: any) {
+  if (!this.modoEdicion && !this.clienteId) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Selecciona un cliente',
+      text: 'Debes elegir un cliente antes de agregar productos.',
+      confirmButtonText: 'Entendido'
+    });
+    return;
+  }
+
   // ✅ VALIDAR: No permitir agregar productos si no se ha seleccionado opción de historial
   if (!this.modoEdicion && this.clienteId && !this.sinHistorial && !this.historialId) {
     Swal.fire({
@@ -1809,6 +1821,7 @@ private toNumber(v: any): number {
   recalcular() {
     // Calcular subtotal SIN IVA y el IVA desglosado
     const subtotalBruto = this.items.reduce((a: number, i: any) => a + (Number(i.totalSinIva) || 0), 0);
+    this.subtotalBruto = +subtotalBruto.toFixed(2);
     this.descuentoMonto = +(subtotalBruto * (this.descuentoPorcentaje / 100)).toFixed(2);
     this.subtotal = +(subtotalBruto - this.descuentoMonto).toFixed(2);
     this.iva = this.items.reduce((a: number, i: any) => (Number(i.total) || 0) - (Number(i.totalSinIva) || 0) + a, 0);
@@ -2042,7 +2055,7 @@ async guardarEImprimir() {
       historialClinicoId: this.sinHistorial ? null : (this.historialId || undefined),
       clienteNombre: `${this.cliente?.nombres || ''} ${this.cliente?.apellidos || ''}`.trim(),
       clienteTelefono: this.cliente?.telefono || '',
-      historialSnapshot: this.sinHistorial ? null : (this.historial || null),
+      historialSnapshot: undefined,
 
       items: this.items.map((i: any) => ({
         esServicio: i.esServicio || false, // ✅ Incluir flag de servicio
@@ -2056,7 +2069,8 @@ async guardarEImprimir() {
         idInterno: i.idInterno
       })),
 
-      subtotal: +this.subtotal.toFixed(2),
+      subtotal: +this.subtotalBruto.toFixed(2),
+      subtotalBruto: +this.subtotalBruto.toFixed(2),
       descuentoPorcentaje: this.descuentoPorcentaje,
       descuentoMonto: +this.descuentoMonto.toFixed(2),
       iva: +this.iva.toFixed(2),
@@ -2521,11 +2535,11 @@ private cleanUndefined(obj: any): any {
         this.cliente = await firstValueFrom(this.clientesSrv.getClienteById(this.clienteId));
         this.historialId = factura.historialClinicoId || '';
 
-        if (factura.historialSnapshot) {
-          this.historial = factura.historialSnapshot;
-        } else if (this.historialId) {
+        if (this.historialId) {
           const snap = await this.historialSrv.obtenerHistorialPorId(this.clienteId, this.historialId);
           this.historial = snap.exists() ? { id: snap.id, ...snap.data() } : null;
+        } else if (factura.historialSnapshot) {
+          this.historial = factura.historialSnapshot;
         } else {
           const historialReciente = await this.cargarHistorialReciente(this.clienteId);
           this.historial = historialReciente.historial;
@@ -2543,7 +2557,13 @@ private cleanUndefined(obj: any): any {
 
       // Pre-llenar totales
       this.descuentoPorcentaje = factura.descuentoPorcentaje || 0;
-      this.subtotal = factura.subtotal || 0;
+      if (factura.subtotalBruto !== undefined && factura.subtotalBruto !== null) {
+        this.subtotalBruto = factura.subtotalBruto;
+        this.subtotal = +(this.subtotalBruto - (factura.descuentoMonto || 0)).toFixed(2);
+      } else {
+        this.subtotal = factura.subtotal || 0;
+        this.subtotalBruto = +(this.subtotal + (factura.descuentoMonto || 0)).toFixed(2);
+      }
       this.iva = factura.iva || 0;
       this.total = factura.total || 0;
       this.descuentoMonto = factura.descuentoMonto || 0;

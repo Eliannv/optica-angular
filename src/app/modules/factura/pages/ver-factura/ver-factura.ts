@@ -7,6 +7,7 @@ import { FacturasDeudaService } from '../../../../core/services/facturas-deuda.s
 import { firstValueFrom } from 'rxjs';
 import { ProductosService } from '../../../../core/services/productos';
 import { ClientesService } from '../../../../core/services/clientes';
+import { HistorialClinicoService } from '../../../../core/services/historial-clinico.service';
 
 /**
  * Componente VerFacturaComponent - Visualización de detalles de factura individual.
@@ -72,6 +73,7 @@ export class VerFacturaComponent implements OnDestroy {
    * @default null (hasta que se complete la carga)
    */
   factura: any = null;
+  historialClinico: any = null;
 
   clienteTelefono: string = '';
 
@@ -133,7 +135,8 @@ export class VerFacturaComponent implements OnDestroy {
     private facturasSrv: FacturasService,
     private facturasDeudaSrv: FacturasDeudaService,
     private productosSrv: ProductosService,
-    private clientesSrv: ClientesService
+    private clientesSrv: ClientesService,
+    private historialSrv: HistorialClinicoService
   ) {
     const id = this.route.snapshot.paramMap.get('id')!;
     
@@ -142,6 +145,7 @@ export class VerFacturaComponent implements OnDestroy {
       if (f && f.tipoFactura !== 'COBRO_DEUDA') {
         // Es una factura normal
         this.factura = f;
+        await this.cargarHistorialClinicoDesdeFactura(this.factura);
         if (f?.clienteId) {
           this.clientesSrv.getClienteById(f.clienteId).subscribe((cliente: any) => {
             this.clienteTelefono = cliente?.telefono || '';
@@ -169,6 +173,7 @@ export class VerFacturaComponent implements OnDestroy {
               subtotal: facturaOriginal?.subtotal ?? facturaOriginal?.total ?? Number(pago.totalFactura || 0),
               descuentoMonto: facturaOriginal?.descuentoMonto ?? 0,
               descuentoPorcentaje: facturaOriginal?.descuentoPorcentaje ?? 0,
+              historialClinicoId: facturaOriginal?.historialClinicoId || null,
               abonado: Number(pago.montoPagado || 0),  // ✅ Monto de ESTE pago
               saldoPendiente: Number(pago.saldoRestante || 0),  // ✅ Saldo después de este pago
               tipoFactura: 'COBRO_DEUDA',
@@ -176,6 +181,7 @@ export class VerFacturaComponent implements OnDestroy {
               usuarioId: pago.usuarioId || '',
               usuarioNombre: pago.usuarioNombre || ''
             };
+            await this.cargarHistorialClinicoDesdeFactura(this.factura);
             
             if (pago?.clienteId) {
               this.clientesSrv.getClienteById(pago.clienteId).subscribe((cliente: any) => {
@@ -185,6 +191,7 @@ export class VerFacturaComponent implements OnDestroy {
           } else if (f) {
             // Si existe f pero no el pago, usar f de todas formas
             this.factura = f;
+            await this.cargarHistorialClinicoDesdeFactura(this.factura);
             if (f?.clienteId) {
               this.clientesSrv.getClienteById(f.clienteId).subscribe((cliente: any) => {
                 this.clienteTelefono = cliente?.telefono || '';
@@ -195,6 +202,20 @@ export class VerFacturaComponent implements OnDestroy {
         });
       }
     });
+  }
+
+  private async cargarHistorialClinicoDesdeFactura(factura: any): Promise<void> {
+    if (!factura?.clienteId || !factura?.historialClinicoId) {
+      this.historialClinico = null;
+      return;
+    }
+
+    try {
+      const snap = await this.historialSrv.obtenerHistorialPorId(factura.clienteId, factura.historialClinicoId);
+      this.historialClinico = snap.exists() ? { id: snap.id, ...snap.data() } : null;
+    } catch {
+      this.historialClinico = null;
+    }
   }
 
   /**

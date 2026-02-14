@@ -341,6 +341,23 @@ export class FacturasService {
   }
 
   /**
+   * Obtiene todas las facturas que usan un historial clínico específico,
+   * ordenadas por fecha (más reciente primero).
+   */
+  getFacturasPorHistorialClinico(clienteId: string, historialClinicoId: string): Observable<Factura[]> {
+    const q = query(
+      this.facturasRef,
+      where('clienteId', '==', clienteId),
+      where('historialClinicoId', '==', historialClinicoId),
+      orderBy('fecha', 'desc')
+    );
+
+    return collectionData(q, { idField: 'id' }).pipe(
+      map(data => data as Factura[])
+    );
+  }
+
+  /**
    * Marca como PAGADA cualquier factura de cobro de deuda asociada a la original.
    * Útil para evitar múltiples cobros pendientes para la misma deuda.
    */
