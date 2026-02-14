@@ -18,13 +18,14 @@ import { obtenerPeriodo } from '../../../core/utils/fecha-helpers';
 
 import { ItemVenta } from '../../../core/models/item-venta.model';
 import { Factura } from '../../../core/models/factura.model';
+import { Cliente } from '../../../core/models/cliente.model';
 
 @Component({
   selector: 'app-crear-venta',
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './crear-venta.html',
-  styleUrls: ['./crear-venta.css', './crear-venta-compacto.css', './crear-venta-loading.css'],
+  styleUrls: ['./crear-venta.css', './crear-venta-compacto.css', './crear-venta-loading.css', './crear-venta-overrides.css'],
 })
 export class CrearVentaComponent implements OnInit, OnDestroy {
     sinHistorial = false;
@@ -38,6 +39,22 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   cliente: any = null;
   historial: any = null;
 
+  // 🔎 BUSCAR CLIENTE EN CREAR-VENTA
+  terminoBusquedaCliente = '';
+  clientesBusqueda: Cliente[] = [];
+  clientesFiltrados: Cliente[] = [];
+  mostrarResultadosCliente = false;
+  cargandoClientes = false;
+  readonly MAX_RESULTADOS_CLIENTES = 10;
+
+  // 🔎 BUSCAR HISTORIAL CLÍNICO EN CREAR-VENTA
+  terminoBusquedaHistorial = '';
+  historialesBusqueda: any[] = [];
+  historialesFiltrados: any[] = [];
+  mostrarResultadosHistorial = false;
+  cargandoHistoriales = false;
+  readonly MAX_RESULTADOS_HISTORIALES = 8;
+
   productos: any[] = [];
   filtro = '';
   productosFiltrados: any[] = [];
@@ -48,6 +65,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   // 🚀 OPTIMIZACIÓN: Lazy loading y búsqueda
   private searchSubject$ = new Subject<string>();
   private searchSubscription?: Subscription;
+  private clientesBusquedaSub?: Subscription;
   cargandoProductos = false;
   limitProductos = 10; // Límite inicial de productos
   hayMasProductos = true; // Indica si hay más productos por cargar
@@ -90,6 +108,9 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   fechaMinima = ''; // Fecha mínima permitida (inicio del periodo de caja banco)
   fechaMaxima = ''; // Fecha máxima permitida (fin del periodo de caja banco o hoy)
   periodoNombre = ''; // Nombre del periodo para mostrar (ej: "Diciembre 2025")
+  private fechaHoraIntervalId?: number;
+  private fechaManual = false;
+  private horaManual = false;
   
   // 🔒 CONTROL DE CAJA ABIERTA
   hayCajaAbierta = false; // Indica si existe una caja chica abierta (para habilitar/deshabilitar efectivo)
@@ -248,29 +269,46 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     }
 
     if (!this.clienteId) {
-      this.router.navigate(['/clientes/historial-clinico']);
-      return;
+      this.cliente = null;
+      this.historial = null;
     }
 
     // 🔒 Solo cargar cliente e historial si NO están ya cargados (en modo edición ya se cargaron)
-    if (!this.cliente) {
+    if (this.clienteId && !this.cliente) {
       this.cliente = await firstValueFrom(this.clientesSrv.getClienteById(this.clienteId));
     }
 
-    // Si es venta sin historial, forzar historial a null y saltar carga de historial
-    if (this.sinHistorial) {
-      this.historial = null;
-      this.historialId = '';
-    } else {
-      // ✅ NUEVO: Si hay historialId, cargar ese historial específico
-      if (this.historialId && !this.historial) {
-        const snap = await this.historialSrv.obtenerHistorialPorId(this.clienteId, this.historialId);
-        this.historial = snap.exists() ? { id: snap.id, ...snap.data() } : null;
-      } 
-      // ⚠️ FALLBACK (compatibilidad): Si NO hay historialId, intentar cargar documento 'main' (legacy)
-      else if (!this.historialId && !this.historial) {
-        const snap = await this.historialSrv.obtenerHistorial(this.clienteId);
-        this.historial = snap.exists() ? snap.data() : null;
+    if (this.cliente) {
+      this.terminoBusquedaCliente = `${this.cliente.nombres ?? ''} ${this.cliente.apellidos ?? ''}`.trim();
+      this.mostrarResultadosCliente = false;
+    }
+
+    if (this.clienteId) {
+      // Si es venta sin historial, forzar historial a null y saltar carga de historial
+      if (this.sinHistorial) {
+        this.historial = null;
+        this.historialId = '';
+        this.terminoBusquedaHistorial = 'Sin historial clínico';
+        this.mostrarResultadosHistorial = false;
+      } else {
+        // ✅ NUEVO: Si hay historialId, cargar ese historial específico
+        if (this.historialId && !this.historial) {
+          const snap = await this.historialSrv.obtenerHistorialPorId(this.clienteId, this.historialId);
+          this.historial = snap.exists() ? { id: snap.id, ...snap.data() } : null;
+          if (this.historial) {
+            this.terminoBusquedaHistorial = this.formatearFechaHistorial(this.historial.fechaHoraChequeo, this.historial.createdAt);
+          }
+        } 
+        // Si no hay historialId, no cargar automáticamente - dejar que el usuario elija
+        else if (!this.historialId && !this.historial) {
+          this.historial = null;
+          this.historialId = '';
+        }
+      }
+
+      // Cargar lista de historiales para búsqueda
+      if (!this.modoEdicion) {
+        await this.cargarHistorialesCliente();
       }
     }
 
@@ -399,6 +437,599 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
    */
   filtrarProductos() {
     this.searchSubject$.next(this.filtro);
+  }
+
+  /**
+   * 🔎 Buscar clientes dentro de crear-venta
+   */
+  async buscarClientesVenta(): Promise<void> {
+    const termino = this.terminoBusquedaCliente.trim().toLowerCase();
+
+    if (!termino) {
+      this.clientesFiltrados = [];
+      this.mostrarResultadosCliente = false;
+      return;
+    }
+
+    if (termino.length < 2) {
+      this.mostrarResultadosCliente = false;
+      return;
+    }
+
+    this.mostrarResultadosCliente = true;
+
+    if (!this.clientesBusquedaSub) {
+      this.asegurarClientesBusqueda();
+    }
+
+    if (this.clientesBusqueda.length > 0) {
+      this.aplicarFiltroClientesVenta(termino);
+      this.cargandoClientes = false;
+    } else {
+      this.cargandoClientes = true;
+    }
+  }
+
+  limpiarBusquedaCliente(): void {
+    this.terminoBusquedaCliente = '';
+    this.clientesFiltrados = [];
+    this.mostrarResultadosCliente = false;
+  }
+
+  cerrarResultadosCliente(): void {
+    this.mostrarResultadosCliente = false;
+  }
+
+  trackByClienteIdVenta(index: number, item: Cliente): string {
+    return item.id || `index-${index}`;
+  }
+
+  private aplicarFiltroClientesVenta(termino: string): void {
+    const terminoNormalizado = termino.trim().toLowerCase();
+
+    this.clientesFiltrados = this.clientesBusqueda
+      .filter(c => {
+        const nombreCompleto = `${c.nombres ?? ''} ${c.apellidos ?? ''}`.toLowerCase();
+        const cedula = (c.cedula ?? '').toLowerCase();
+        const telefono = (c.telefono ?? '').toLowerCase();
+
+        return nombreCompleto.includes(terminoNormalizado) ||
+               cedula.includes(terminoNormalizado) ||
+               telefono.includes(terminoNormalizado);
+      })
+      .slice(0, this.MAX_RESULTADOS_CLIENTES);
+  }
+
+  private asegurarClientesBusqueda(): void {
+    if (this.clientesBusquedaSub) return;
+
+    this.cargandoClientes = true;
+    this.clientesBusquedaSub = this.clientesSrv.getClientes().subscribe({
+      next: (data) => {
+        this.clientesBusqueda = data as Cliente[];
+
+        if (this.terminoBusquedaCliente.trim().length >= 2) {
+          this.aplicarFiltroClientesVenta(this.terminoBusquedaCliente);
+          this.mostrarResultadosCliente = true;
+        }
+
+        this.cargandoClientes = false;
+      },
+      error: (error) => {
+        console.error('Error al cargar clientes:', error);
+        this.clientesFiltrados = [];
+        this.cargandoClientes = false;
+      }
+    });
+  }
+
+  private async cargarHistorialReciente(clienteId: string): Promise<{ historial: any | null; historialId: string }> {
+    try {
+      const resultado = await this.historialSrv.getHistorialesPaginadosOnce(clienteId, 1);
+      const historial = resultado.items[0] || null;
+      return {
+        historial,
+        historialId: historial?.id || ''
+      };
+    } catch (error) {
+      console.error('Error al cargar historial reciente:', error);
+      return { historial: null, historialId: '' };
+    }
+  }
+
+  private resetVentaParaCambioCliente(): void {
+    this.items = [];
+    this.productoSeleccionado = null;
+    this.selectedIndex = -1;
+    this.subtotal = 0;
+    this.iva = 0;
+    this.total = 0;
+    this.descuentoPorcentaje = 0;
+    this.descuentoMonto = 0;
+    this._abono = 0;
+    this.saldoPendiente = 0;
+  }
+
+  async seleccionarClienteVenta(cliente: Cliente): Promise<void> {
+    if (!cliente.id) return;
+
+    if (this.items.length > 0) {
+      const result = await Swal.fire({
+        icon: 'warning',
+        title: 'Cambiar cliente',
+        text: 'Cambiar de cliente vaciara el carrito actual. Desea continuar?',
+        showCancelButton: true,
+        confirmButtonText: 'Si, cambiar',
+        cancelButtonText: 'Cancelar'
+      });
+
+      if (!result.isConfirmed) {
+        return;
+      }
+
+      this.resetVentaParaCambioCliente();
+    }
+
+    this.clienteId = cliente.id;
+    this.cliente = cliente;
+    this.historialId = '';
+    this.historial = null;
+    // ✅ Por defecto: vender sin historial hasta que el usuario elija uno
+    this.sinHistorial = true;
+
+    this.terminoBusquedaCliente = `${cliente.nombres ?? ''} ${cliente.apellidos ?? ''}`.trim();
+    this.mostrarResultadosCliente = false;
+
+    // Limpiar y recargar historiales del nuevo cliente
+    this.terminoBusquedaHistorial = 'Sin historial clínico';
+    this.historialesBusqueda = [];
+    this.historialesFiltrados = [];
+    this.mostrarResultadosHistorial = false;
+
+    // Cargar historiales del cliente seleccionado
+    await this.cargarHistorialesCliente();
+  }
+
+  /**
+   * 🔎 Buscar historiales clínicos del cliente actual
+   */
+  async buscarHistorialesVenta(): Promise<void> {
+    if (!this.clienteId) {
+      this.historialesFiltrados = [];
+      this.mostrarResultadosHistorial = false;
+      return;
+    }
+
+    const termino = this.terminoBusquedaHistorial.trim().toLowerCase();
+
+    if (!termino) {
+      this.historialesFiltrados = this.historialesBusqueda.slice(0, this.MAX_RESULTADOS_HISTORIALES);
+      this.mostrarResultadosHistorial = this.historialesBusqueda.length > 0;
+      return;
+    }
+
+    this.mostrarResultadosHistorial = true;
+
+    this.historialesFiltrados = this.historialesBusqueda
+      .filter(h => {
+        const fecha = this.formatearFechaHistorial(h.fechaHoraChequeo, h.createdAt);
+        return fecha.toLowerCase().includes(termino);
+      })
+      .slice(0, this.MAX_RESULTADOS_HISTORIALES);
+  }
+
+  /**
+   * Carga todos los historiales del cliente actual
+   */
+  async cargarHistorialesCliente(): Promise<void> {
+    if (!this.clienteId) return;
+
+    try {
+      this.cargandoHistoriales = true;
+      const resultado = await this.historialSrv.getHistorialesPaginadosOnce(this.clienteId, 20);
+      this.historialesBusqueda = resultado.items;
+      this.historialesFiltrados = this.historialesBusqueda.slice(0, this.MAX_RESULTADOS_HISTORIALES);
+      this.cargandoHistoriales = false;
+    } catch (error) {
+      console.error('Error al cargar historiales:', error);
+      this.historialesBusqueda = [];
+      this.historialesFiltrados = [];
+      this.cargandoHistoriales = false;
+    }
+  }
+
+  limpiarBusquedaHistorial(): void {
+    this.terminoBusquedaHistorial = '';
+    this.sinHistorial = false;
+    this.historialesFiltrados = this.historialesBusqueda.slice(0, this.MAX_RESULTADOS_HISTORIALES);
+  }
+
+  cerrarResultadosHistorial(): void {
+    this.mostrarResultadosHistorial = false;
+  }
+
+  async seleccionarHistorialVenta(historial: any): Promise<void> {
+    if (!historial || !historial.id) return;
+
+    this.historial = historial;
+    this.historialId = historial.id;
+    this.sinHistorial = false;
+    this.mostrarResultadosHistorial = false;
+    this.terminoBusquedaHistorial = this.formatearFechaHistorial(historial.fechaHoraChequeo, historial.createdAt);
+  }
+
+  /**
+   * Muestra el detalle completo del historial clínico en un modal
+   */
+  async verDetalleHistorial(historial: any): Promise<void> {
+    if (!historial) return;
+
+    const formatearValor = (valor: any): string => {
+      if (valor === null || valor === undefined || valor === '') return '-';
+      return valor.toString();
+    };
+
+    const htmlDetalle = `
+      <div class="modal-historial-detalle">
+        <!-- Cabecera con fecha y doctor -->
+        <div class="header-info-detalle">
+          <div class="header-item-detalle">
+            <span>📅</span>
+            <span class="header-label-detalle">Fecha del chequeo:</span>
+            <span class="header-value-detalle">${this.formatearFechaHistorial(historial.fechaHoraChequeo, historial.createdAt)}</span>
+          </div>
+          <div class="header-item-detalle">
+            <span>👨‍⚕️</span>
+            <span class="header-label-detalle">Doctor/Optometrista:</span>
+            <span class="header-value-detalle">${formatearValor(historial.doctor)}</span>
+          </div>
+        </div>
+
+        <!-- Datos Clínicos -->
+        <div class="form-section-detalle">
+          <h3 class="section-title-detalle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 17v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2"/>
+              <path d="M21 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2"/>
+              <circle cx="12" cy="12" r="1"/>
+              <path d="M18.944 12.33a1 1 0 0 0 0-.66 7.5 7.5 0 0 0-13.888 0 1 1 0 0 0 0 .66 7.5 7.5 0 0 0 13.888 0"/>
+            </svg>
+            Datos Clínicos
+          </h3>
+          
+          <div class="clinico-grid-detalle">
+            <!-- OD -->
+            <div class="ojo-card-detalle">
+              <h4>Ojo Derecho (OD)</h4>
+              <div class="ojo-inputs-detalle">
+                <div class="form-field-detalle">
+                  <label class="field-label-detalle">Esfera</label>
+                  <div class="field-value-detalle">${formatearValor(historial.odEsfera)}</div>
+                </div>
+                <div class="form-field-detalle">
+                  <label class="field-label-detalle">Cilindro</label>
+                  <div class="field-value-detalle">${formatearValor(historial.odCilindro)}</div>
+                </div>
+                <div class="form-field-detalle">
+                  <label class="field-label-detalle">Eje</label>
+                  <div class="field-value-detalle">${formatearValor(historial.odEje)}°</div>
+                </div>
+                <div class="form-field-detalle">
+                  <label class="field-label-detalle">AVSC</label>
+                  <div class="field-value-detalle">${formatearValor(historial.odAVSC)}</div>
+                </div>
+                <div class="form-field-detalle">
+                  <label class="field-label-detalle">AVCC</label>
+                  <div class="field-value-detalle">${formatearValor(historial.odAVCC)}</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- OI -->
+            <div class="ojo-card-detalle">
+              <h4>Ojo Izquierdo (OI)</h4>
+              <div class="ojo-inputs-detalle">
+                <div class="form-field-detalle">
+                  <label class="field-label-detalle">Esfera</label>
+                  <div class="field-value-detalle">${formatearValor(historial.oiEsfera)}</div>
+                </div>
+                <div class="form-field-detalle">
+                  <label class="field-label-detalle">Cilindro</label>
+                  <div class="field-value-detalle">${formatearValor(historial.oiCilindro)}</div>
+                </div>
+                <div class="form-field-detalle">
+                  <label class="field-label-detalle">Eje</label>
+                  <div class="field-value-detalle">${formatearValor(historial.oiEje)}°</div>
+                </div>
+                <div class="form-field-detalle">
+                  <label class="field-label-detalle">AVSC</label>
+                  <div class="field-value-detalle">${formatearValor(historial.oiAVSC)}</div>
+                </div>
+                <div class="form-field-detalle">
+                  <label class="field-label-detalle">AVCC</label>
+                  <div class="field-value-detalle">${formatearValor(historial.oiAVCC)}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Medidas (ADD, DP, Altura) al lado de OI -->
+            <div class="medidas-verticales-detalle">
+              <div class="form-field-detalle">
+                <label class="field-label-detalle">ADD</label>
+                <div class="field-value-detalle">${formatearValor(historial.add)}</div>
+              </div>
+              <div class="form-field-detalle">
+                <label class="field-label-detalle">DP</label>
+                <div class="field-value-detalle">${formatearValor(historial.dp)}</div>
+              </div>
+              <div class="form-field-detalle">
+                <label class="field-label-detalle">Altura</label>
+                <div class="field-value-detalle">${formatearValor(historial.altura)}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Medidas del Armazón -->
+        <div class="form-section-detalle">
+          <h3 class="section-title-detalle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="6" cy="15" r="4"/>
+              <circle cx="18" cy="15" r="4"/>
+              <path d="M14 15a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/>
+              <path d="M2.5 13 5 7c.7-1.3 1.4-2 3-2"/>
+              <path d="M21.5 13 19 7c-.7-1.3-1.5-2-3-2"/>
+            </svg>
+            Medidas del Armazón
+          </h3>
+          
+          <div class="armazon-grid-2-detalle">
+            <div class="armazon-medidas-detalle">
+              <div class="form-field-detalle">
+                <label class="field-label-detalle">H (Ancho del Aro)</label>
+                <div class="field-value-detalle">${formatearValor(historial.armazonH)}</div>
+              </div>
+              <div class="form-field-detalle">
+                <label class="field-label-detalle">V (Alto del Aro)</label>
+                <div class="field-value-detalle">${formatearValor(historial.armazonV)}</div>
+              </div>
+              <div class="form-field-detalle">
+                <label class="field-label-detalle">DM (Diagonal Mayor)</label>
+                <div class="field-value-detalle">${formatearValor(historial.armazonDM)}</div>
+              </div>
+              <div class="form-field-detalle">
+                <label class="field-label-detalle">P (Puente)</label>
+                <div class="field-value-detalle">${formatearValor(historial.armazonP)}</div>
+              </div>
+            </div>
+            <div class="armazon-extra-detalle">
+              <div class="form-field-detalle">
+                <label class="field-label-detalle">Tipo de Armazón</label>
+                <div class="field-value-detalle">${formatearValor(historial.armazonTipo)}</div>
+              </div>
+              <div class="form-field-detalle">
+                <label class="field-label-detalle">De</label>
+                <div class="field-value-detalle">${formatearValor(historial.de)}</div>
+              </div>
+              <div class="form-field-detalle">
+                <label class="field-label-detalle">Color</label>
+                <div class="field-value-detalle">${formatearValor(historial.color)}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Observaciones -->
+        <div class="observaciones-detalle">
+          <label class="obs-label-detalle">Observacion</label>
+          <div class="obs-value-detalle">${formatearValor(historial.observacion)}</div>
+        </div>
+      </div>
+
+      <style>
+        .modal-historial-detalle { text-align: left; padding: 1rem; }
+        
+        /* Header */
+        .header-info-detalle { 
+          display: grid; 
+          grid-template-columns: 1fr 1fr; 
+          gap: 1rem; 
+          margin-bottom: 1.5rem; 
+          padding: 1rem 1.25rem; 
+          background: var(--bg-secondary); 
+          border-radius: var(--radius-lg); 
+          border: 1px solid var(--border-color); 
+        }
+        .header-item-detalle { display: flex; align-items: center; gap: 0.5rem; }
+        .header-label-detalle { font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; }
+        .header-value-detalle { font-size: 0.95rem; color: var(--primary-color); font-weight: 600; }
+        
+        /* Secciones */
+        .form-section-detalle { margin-bottom: 2rem; }
+        .section-title-detalle { 
+          font-size: 1.1rem; 
+          font-weight: 600; 
+          color: var(--text-primary); 
+          margin-bottom: 1.25rem; 
+          display: flex; 
+          align-items: center; 
+          gap: 0.75rem; 
+        }
+        .section-title-detalle svg { color: var(--primary-color); width: 20px; height: 20px; }
+        
+        /* Grid de ojos */
+        .clinico-grid-detalle { 
+          display: grid; 
+          grid-template-columns: 1fr 1fr auto; 
+          gap: 1.5rem; 
+          margin-bottom: 1rem; 
+        }
+        
+        /* Cards de ojos */
+        .ojo-card-detalle { 
+          background: var(--bg-secondary); 
+          padding: 1rem 1.25rem; 
+          border-radius: var(--radius-lg); 
+          border: 1px solid var(--border-color); 
+        }
+        .ojo-card-detalle h4 { 
+          margin: 0 0 1rem 0; 
+          font-size: 1rem; 
+          font-weight: 600; 
+          color: var(--text-primary); 
+          padding-bottom: 0.5rem; 
+          border-bottom: 1px solid var(--border-color); 
+          text-align: center; 
+        }
+        .ojo-inputs-detalle { 
+          display: grid; 
+          grid-template-columns: repeat(3, 1fr); 
+          gap: 0.75rem; 
+        }
+        
+        /* Medidas verticales al lado de OI */
+        .medidas-verticales-detalle { 
+          display: flex; 
+          flex-direction: column; 
+          gap: 0.75rem; 
+          min-width: 180px; 
+        }
+        
+        /* Medidas inline (ya no se usa, pero se deja por compatibilidad) */
+        .clinico-medidas-inline-detalle { 
+          display: grid; 
+          grid-template-columns: repeat(3, 1fr); 
+          gap: 1rem; 
+          margin-bottom: 1rem; 
+        }
+        
+        /* Grid armazón */
+        .armazon-grid-2-detalle { 
+          display: grid; 
+          grid-template-columns: 2fr 1fr; 
+          gap: 1.5rem; 
+        }
+        .armazon-medidas-detalle { 
+          display: grid; 
+          grid-template-columns: 1fr 1fr; 
+          gap: 1rem; 
+        }
+        .armazon-extra-detalle { 
+          display: flex; 
+          flex-direction: column; 
+          gap: 1rem; 
+        }
+        
+        /* Form fields */
+        .form-field-detalle { 
+          display: flex; 
+          flex-direction: column; 
+          gap: 0.5rem; 
+        }
+        .field-label-detalle { 
+          font-size: 0.9rem; 
+          font-weight: 600; 
+          color: var(--text-primary); 
+        }
+        .field-value-detalle { 
+          padding: 0.75rem 1rem; 
+          border: 1px solid var(--border-color); 
+          border-radius: var(--radius-md); 
+          background: var(--bg-input); 
+          color: var(--text-primary); 
+          font-size: 0.95rem; 
+        }
+        
+        /* Observaciones */
+        .observaciones-detalle { 
+          margin-top: 1.5rem; 
+        }
+        .obs-label-detalle { 
+          font-size: 0.9rem; 
+          font-weight: 600; 
+          color: var(--text-primary); 
+          display: block; 
+          margin-bottom: 0.5rem; 
+        }
+        .obs-value-detalle { 
+          padding: 0.75rem 1rem; 
+          border: 1px solid var(--border-color); 
+          border-radius: var(--radius-md); 
+          background: var(--bg-input); 
+          color: var(--text-primary); 
+          font-size: 0.95rem; 
+          line-height: 1.6; 
+          white-space: pre-line; 
+          min-height: 80px; 
+        }
+        
+        /* Responsive */
+        @media (max-width: 920px) {
+          .header-info-detalle { grid-template-columns: 1fr; }
+          .clinico-grid-detalle { grid-template-columns: 1fr; }
+          .armazon-grid-2-detalle { grid-template-columns: 1fr; }
+          .armazon-medidas-detalle { grid-template-columns: 1fr; }
+          .ojo-inputs-detalle { grid-template-columns: 1fr; }
+          .medidas-verticales-detalle { min-width: auto; }
+        }
+      </style>
+    `;
+
+    const result = await Swal.fire({
+      title: 'Detalle del Historial Clínico',
+      html: htmlDetalle,
+      showCancelButton: true,
+      confirmButtonText: '<i class="bi bi-check-lg"></i> Usar este historial',
+      cancelButtonText: 'Cerrar',
+      confirmButtonColor: '#3498db',
+      cancelButtonColor: '#6c757d',
+      width: '950px',
+      customClass: {
+        popup: 'modern-swal-popup',
+        title: 'modern-swal-title',
+        confirmButton: 'modern-confirm-btn',
+        cancelButton: 'modern-cancel-btn'
+      }
+    });
+
+    if (result.isConfirmed) {
+      await this.seleccionarHistorialVenta(historial);
+    }
+  }
+
+  venderSinHistorial(): void {
+    this.historial = null;
+    this.historialId = '';
+    this.sinHistorial = true;
+    this.mostrarResultadosHistorial = false;
+    this.terminoBusquedaHistorial = 'Sin historial clínico';
+  }
+
+  trackByHistorialIdVenta(index: number, item: any): string {
+    return item.id || `index-${index}`;
+  }
+
+  formatearFechaHistorial(fechaChequeo: any, fechaCreacion?: any): string {
+    // Si no hay fechaHoraChequeo, usar createdAt
+    const fecha = fechaChequeo || fechaCreacion;
+    if (!fecha) return 'Sin fecha';
+    
+    let fechaObj: Date;
+    if (fecha.toDate) {
+      fechaObj = fecha.toDate();
+    } else if (fecha instanceof Date) {
+      fechaObj = fecha;
+    } else {
+      fechaObj = new Date(fecha);
+    }
+
+    const dia = fechaObj.getDate().toString().padStart(2, '0');
+    const mes = (fechaObj.getMonth() + 1).toString().padStart(2, '0');
+    const año = fechaObj.getFullYear();
+    const horas = fechaObj.getHours().toString().padStart(2, '0');
+    const minutos = fechaObj.getMinutes().toString().padStart(2, '0');
+
+    return `${dia}/${mes}/${año} ${horas}:${minutos}`;
   }
   
   /**
@@ -798,6 +1429,17 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     this.recalcularAbono(); // Recalcular saldo pendiente con el nuevo total
   }
 agregarProducto(p: any) {
+  // ✅ VALIDAR: No permitir agregar productos si no se ha seleccionado opción de historial
+  if (!this.modoEdicion && this.clienteId && !this.sinHistorial && !this.historialId) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Selecciona una opción de historial',
+      text: 'Debes elegir un historial clínico o seleccionar "Vender sin historial" antes de agregar productos.',
+      confirmButtonText: 'Entendido'
+    });
+    return;
+  }
+
   const id = p.id;
 
   // ✅ CALCULAR PRECIO CON Y SIN IVA
@@ -927,12 +1569,10 @@ private toNumber(v: any): number {
   inicializarFechaHora(): void {
     this.actualizarFechaHoraActual();
     
-    // Si es operador, actualizar fecha/hora cada segundo
-    if (!this.esAdmin) {
-      setInterval(() => {
-        this.actualizarFechaHoraActual();
-      }, 1000);
-    }
+    // Actualizar fecha/hora continuamente hasta que el usuario edite manualmente
+    this.fechaHoraIntervalId = window.setInterval(() => {
+      this.actualizarFechaHoraActual();
+    }, 1000);
     
     // Cargar restricciones de fecha según caja banco abierta (solo para admin)
     if (this.esAdmin) {
@@ -970,14 +1610,26 @@ private toNumber(v: any): number {
     const horas = ahora.getHours().toString().padStart(2, '0');
     const minutos = ahora.getMinutes().toString().padStart(2, '0');
     const segundos = ahora.getSeconds().toString().padStart(2, '0');
-    this.horaPago = `${horas}:${minutos}:${segundos}`;
+    if (!this.horaManual) {
+      this.horaPago = `${horas}:${minutos}:${segundos}`;
+    }
     
     // Formato YYYY-MM-DD para fecha
     const año = ahora.getFullYear();
     const mes = (ahora.getMonth() + 1).toString().padStart(2, '0');
     const dia = ahora.getDate().toString().padStart(2, '0');
-    this.fechaPago = `${año}-${mes}-${dia}`;
+    if (!this.fechaManual) {
+      this.fechaPago = `${año}-${mes}-${dia}`;
+    }
     this.fechaMaxima = `${año}-${mes}-${dia}`; // Límite máximo: hoy
+  }
+
+  marcarFechaManual(): void {
+    this.fechaManual = true;
+  }
+
+  marcarHoraManual(): void {
+    this.horaManual = true;
   }
   
   /**
@@ -1165,6 +1817,17 @@ private toNumber(v: any): number {
 
 async guardarEImprimir() {
   if (!this.items.length || this.guardando) return;
+
+  // ✅ VALIDACIÓN: Verificar que se haya seleccionado opción de historial
+  if (!this.modoEdicion && this.clienteId && !this.sinHistorial && !this.historialId) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Selecciona una opción de historial',
+      text: 'Debes elegir un historial clínico o seleccionar "Vender sin historial" antes de guardar la venta.',
+      confirmButtonText: 'Entendido'
+    });
+    return;
+  }
 
   // ✅ VALIDACIÓN: La venta es válida si tiene items (productos O servicios)
   // No requerimos que sean solo productos
@@ -1856,8 +2519,18 @@ private cleanUndefined(obj: any): any {
       if (this.clienteId) {
         console.log('🔄 Cargando datos del cliente:', this.clienteId);
         this.cliente = await firstValueFrom(this.clientesSrv.getClienteById(this.clienteId));
-        const snap = await this.historialSrv.obtenerHistorial(this.clienteId);
-        this.historial = snap.exists() ? snap.data() : null;
+        this.historialId = factura.historialClinicoId || '';
+
+        if (factura.historialSnapshot) {
+          this.historial = factura.historialSnapshot;
+        } else if (this.historialId) {
+          const snap = await this.historialSrv.obtenerHistorialPorId(this.clienteId, this.historialId);
+          this.historial = snap.exists() ? { id: snap.id, ...snap.data() } : null;
+        } else {
+          const historialReciente = await this.cargarHistorialReciente(this.clienteId);
+          this.historial = historialReciente.historial;
+          this.historialId = historialReciente.historialId;
+        }
         console.log('✅ Cliente e historial cargados');
       }
 
@@ -1963,6 +2636,12 @@ private cleanUndefined(obj: any): any {
     // 🚀 OPTIMIZADO: Limpiar suscripción de búsqueda
     if (this.searchSubscription) {
       this.searchSubscription.unsubscribe();
+    }
+    if (this.clientesBusquedaSub) {
+      this.clientesBusquedaSub.unsubscribe();
+    }
+    if (this.fechaHoraIntervalId) {
+      window.clearInterval(this.fechaHoraIntervalId);
     }
   }
 

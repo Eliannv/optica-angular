@@ -6,12 +6,15 @@
 :host {
   --ficha-spacing: 1.5rem;
   --ficha-radius: 12px;
+  display: block;
+  width: 100%;
 }
 
 /* === CONTENEDOR PRINCIPAL === */
 .form-cliente-container {
-  max-width: 1400px;
-  margin: 0 auto;
+  max-width: 100%;
+  width: 100%;
+  margin: 0;
   padding: var(--ficha-spacing);
   min-height: 100vh;
 }

@@ -236,9 +236,17 @@
 
 .credito-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: auto 1fr 1fr;
     gap: 0.75rem;
+    align-items: end;
     margin-bottom: 0.75rem;
+}
+
+.credito-grid .credito-checkbox {
+    padding: 0;
+    background: transparent;
+    border: 0;
+    margin: 0;
 }
 
 .credito-item {
@@ -316,6 +324,11 @@
 
     .subtotales-row {
         grid-template-columns: 1fr;
+    }
+
+    .credito-grid {
+        grid-template-columns: 1fr;
+        align-items: stretch;
     }
 
     .descuento-compacto {

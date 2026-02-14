@@ -1,0 +1,38 @@
+.periodo-after {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.cliente-search .periodo-after {
+  margin-left: 0.6rem;
+}
+
+.badge + .periodo-after {
+  margin-left: 0.6rem;
+}
+
+.periodo-label {
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.periodo-value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.venta-page,
+.venta-container {
+  min-height: 0;
+  height: auto;
+}
+
+.venta-card {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
