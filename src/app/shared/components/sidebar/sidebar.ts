@@ -172,14 +172,31 @@ export class SidebarComponent implements OnInit {
             icon: '',
             route: '/caja-banco',
             active: false,
-            roles: [RolUsuario.ADMINISTRADOR]
-          },
-          {
-            label: 'Cobros Tarjeta',
-            icon: '',
-            route: '/caja-banco/ventas-tarjeta',
-            active: false,
-            roles: [RolUsuario.ADMINISTRADOR]
+            roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR],
+            expanded: false,
+            children: [
+              {
+                label: 'Registrar Movimiento',
+                icon: '',
+                route: '/caja-banco/registrar-movimiento',
+                active: false,
+                roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
+              },
+              {
+                label: 'Ver Cajas',
+                icon: '',
+                route: '/caja-banco',
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              },
+              {
+                label: 'Cobros Tarjeta',
+                icon: '',
+                route: '/caja-banco/ventas-tarjeta',
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              }
+            ]
           },
           {
             label: 'Cuentas',
@@ -419,6 +436,8 @@ export class SidebarComponent implements OnInit {
    * Solo muestra los items del menú para los cuales el usuario tiene
    * permisos según su rol (ADMINISTRADOR u OPERADOR). Si no hay usuario
    * autenticado, el menú queda vacío.
+   * 
+   * Filtra recursivamente todos los niveles de children.
    */
   private filterMenuByRole(): void {
     const currentUser = this.authService.getCurrentUser();
@@ -428,10 +447,29 @@ export class SidebarComponent implements OnInit {
       return;
     }
     
-    // Filtrar items que incluyan el rol del usuario
-    this.menuItems = this.allMenuItems.filter(item => 
-      item.roles.includes(currentUser.rol)
-    );
+    // Filtrar items recursivamente
+    this.menuItems = this.filterItemsByRole(this.allMenuItems, currentUser.rol);
+  }
+
+  /**
+   * Filtra recursivamente los items del menú según el rol.
+   * 
+   * @param items - Array de items a filtrar
+   * @param rol - Rol del usuario actual
+   * @returns Array de items filtrados con sus children también filtrados
+   */
+  private filterItemsByRole(items: MenuItem[], rol: RolUsuario): MenuItem[] {
+    return items
+      .filter(item => item.roles.includes(rol))
+      .map(item => {
+        if (item.children && item.children.length > 0) {
+          return {
+            ...item,
+            children: this.filterItemsByRole(item.children, rol)
+          };
+        }
+        return item;
+      });
   }
 
   /**
