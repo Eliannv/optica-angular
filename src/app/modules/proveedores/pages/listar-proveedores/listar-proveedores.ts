@@ -233,18 +233,11 @@ export class ListarProveedores implements OnInit {
     this.mostrarModalFacturas = true;
 
     try {
-      this.ingresosService.getIngresosPorProveedorCodigo(proveedor.codigo).subscribe(
-        ingresos => {
-          this.ingresosPorProveedor = ingresos;
-          this.ingresosCargando = false;
-        },
-        error => {
-          console.error('Error al obtener ingresos:', error);
-          this.ingresosCargando = false;
-        }
-      );
+      // Usar consulta directa en lugar de Observable para garantizar datos frescos
+      this.ingresosPorProveedor = await this.ingresosService.getIngresosPorProveedorCodigoDirect(proveedor.codigo);
+      this.ingresosCargando = false;
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error al obtener ingresos:', error);
       this.ingresosCargando = false;
     }
   }

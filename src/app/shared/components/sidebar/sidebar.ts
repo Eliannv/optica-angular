@@ -59,46 +59,58 @@ export class SidebarComponent implements OnInit {
     @Inject(PLATFORM_ID) private readonly platformId: Object
   ) {
     this.allMenuItems = [
-      // ✅ NUEVA SECCIÓN: Gestión Administrativa de Clientes
+      // 👥 PERSONAS
       {
-        label: 'Clientes',
+        label: 'Personas',
         icon: this.sanitizer.bypassSecurityTrustHtml(`
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="lucide lucide-users-icon lucide-users">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                <path d="M16 3.128a4 4 0 0 1 0 7.744"/>
-                <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-                <circle cx="9" cy="7" r="4"/>
-              </svg>
+               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+               class="lucide lucide-users-icon lucide-users">
+               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+               <path d="M16 3.128a4 4 0 0 1 0 7.744"/>
+               <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+               <circle cx="9" cy="7" r="4"/>
+             </svg>
         `),
         route: '/clientes/lista',
-        active: true,
-        badge: 0,
-        roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
-      },
-      // ✅ REFACTORIZADO: Historial Clínico (Atención Clínica)
-      {
-        label: 'Fichas clinicas',
-        icon: this.sanitizer.bypassSecurityTrustHtml(`
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-stethoscope-icon lucide-stethoscope"><path d="M11 2v2"/><path d="M5 2v2"/><path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"/><path d="M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/></svg>
-        `),
-        route: '/clientes/historial-clinico',
         active: false,
-        badge: 0,
-        roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
+        roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR],
+        expanded: false,
+        children: [
+          {
+            label: 'Clientes',
+            icon: '',
+            route: '/clientes/lista',
+            active: false,
+            roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
+          },
+          {
+            label: 'Fichas clínicas',
+            icon: '',
+            route: '/clientes/historial-clinico',
+            active: false,
+            roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
+          },
+          {
+            label: 'Empleados',
+            icon: '',
+            route: '/empleados',
+            active: false,
+            roles: [RolUsuario.ADMINISTRADOR]
+          },
+          {
+            label: 'Proveedores',
+            icon: '',
+            route: '/proveedores',
+            active: false,
+            roles: [RolUsuario.ADMINISTRADOR]
+          }
+        ]
       },
+      
+      // 🛒 VENTAS
       {
-        label: 'Ventas (POS)',
-        icon: this.sanitizer.bypassSecurityTrustHtml(`
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shopping-cart-icon lucide-shopping-cart"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
-        `),
-        route: '/ventas/crear',
-        active: false,
-        roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
-      },
-      {
-        label: 'Facturas',
+        label: 'Ventas',
         icon: this.sanitizer.bypassSecurityTrustHtml(`
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -108,97 +120,99 @@ export class SidebarComponent implements OnInit {
             <path d="M8 17h8"/>
           </svg>
         `),
-        route: '/facturas',
+        route: '/ventas/crear',
         active: false,
-        roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
+        roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR],
+        expanded: false,
+        children: [
+          {
+            label: 'POS',
+            icon: '',
+            route: '/ventas/crear',
+            active: false,
+            roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
+          },
+          {
+            label: 'Facturas',
+            icon: '',
+            route: '/facturas',
+            active: false,
+            roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
+          },
+          {
+            label: 'Deudas',
+            icon: '',
+            route: '/ventas/deuda',
+            active: false,
+            roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
+          }
+        ]
       },
+
+      // 🏦 FINANZAS
       {
-        label: 'Caja Chica',
-        icon: this.sanitizer.bypassSecurityTrustHtml(`
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-vault-icon lucide-vault"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/><path d="m7.9 7.9 2.7 2.7"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/><path d="m13.4 10.6 2.7-2.7"/><circle cx="7.5" cy="16.5" r=".5" fill="currentColor"/><path d="m7.9 16.1 2.7-2.7"/><circle cx="16.5" cy="16.5" r=".5" fill="currentColor"/><path d="m13.4 13.4 2.7 2.7"/><circle cx="12" cy="12" r="2"/></svg>
-        `),
-        route: '/caja-chica',
-        active: false,
-        roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
-      },
-      {
-        label: 'Movimientos Banco',
-        icon: this.sanitizer.bypassSecurityTrustHtml(`
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-banknote"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
-        `),
-        route: '/caja-banco/registrar-movimiento',
-        active: false,
-        roles: [RolUsuario.OPERADOR]
-      },
-      {
-        label: 'Caja Banco',
+        label: 'Finanzas',
         icon: this.sanitizer.bypassSecurityTrustHtml(`
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-landmark-icon lucide-landmark"><path d="M10 18v-7"/><path d="M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/></svg>
         `),
-        route: '/caja-banco',
+        route: '/caja-chica',
         active: false,
-        roles: [RolUsuario.ADMINISTRADOR],
+        roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR],
         expanded: false,
         children: [
+          {
+            label: 'Caja Chica',
+            icon: '',
+            route: '/caja-chica',
+            active: false,
+            roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
+          },
+          {
+            label: 'Caja Banco',
+            icon: '',
+            route: '/caja-banco',
+            active: false,
+            roles: [RolUsuario.ADMINISTRADOR]
+          },
           {
             label: 'Cobros Tarjeta',
             icon: '',
             route: '/caja-banco/ventas-tarjeta',
             active: false,
             roles: [RolUsuario.ADMINISTRADOR]
-          }
-        ]
-      },
-      {
-        label: 'Cuentas',
-        icon: this.sanitizer.bypassSecurityTrustHtml(`
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
-        `),
-        route: '/cuentas',
-        active: false,
-        roles: [RolUsuario.ADMINISTRADOR],
-        expanded: false,
-        children: [
-          {
-            label: 'Cuentas por Pagar',
-            icon: '',
-            route: '/cuentas/pagar',
-            active: false,
-            roles: [RolUsuario.ADMINISTRADOR]
           },
           {
-            label: 'Cuentas por Cobrar',
+            label: 'Cuentas',
             icon: '',
-            route: '/cuentas/cobrar',
+            route: '/cuentas',
             active: false,
-            roles: [RolUsuario.ADMINISTRADOR]
+            roles: [RolUsuario.ADMINISTRADOR],
+            expanded: false,
+            children: [
+              {
+                label: 'Cuentas por Pagar',
+                icon: '',
+                route: '/cuentas/pagar',
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              },
+              {
+                label: 'Cuentas por Cobrar',
+                icon: '',
+                route: '/cuentas/cobrar',
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              }
+            ]
           }
         ]
       },
+
+      // 📦 INVENTARIO
       {
-        label: 'Informes',
+        label: 'Inventario',
         icon: this.sanitizer.bypassSecurityTrustHtml(`
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-bar-chart-icon lucide-file-bar-chart"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 18v-2"/><path d="M12 18v-4"/><path d="M16 18v-6"/></svg>
-        `),
-        route: '/informes',
-        active: false,
-        roles: [RolUsuario.ADMINISTRADOR],
-        expanded: false,
-        children: [
-          /*,
-          {
-            label: 'Cobros Cliente',
-            icon: '',
-            route: '/informes/cobros-cliente',
-            active: false,
-            roles: [RolUsuario.ADMINISTRADOR]
-          }*/
-        ]
-      },
-      {
-        label: 'Productos',
-        icon: this.sanitizer.bypassSecurityTrustHtml(`
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shopping-bag-icon lucide-shopping-bag"><path d="M16 10a4 4 0 0 1-8 0"/><path d="M3.103 6.034h17.794"/><path d="M3.4 5.467a2 2 0 0 0-.4 1.2V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.667a2 2 0 0 0-.4-1.2l-2-2.667A2 2 0 0 0 17 2H7a2 2 0 0 0-1.6.8z"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-box-icon lucide-box"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
         `),
         route: '/productos',
         active: false,
@@ -206,167 +220,180 @@ export class SidebarComponent implements OnInit {
         expanded: false,
         children: [
           {
-            label: 'ARMAZONES',
+            label: 'Productos',
             icon: '',
             route: '/productos',
-            queryParams: { grupo: 'ARMAZONES' },
             active: false,
-            roles: [RolUsuario.ADMINISTRADOR]
+            roles: [RolUsuario.ADMINISTRADOR],
+            expanded: false,
+            children: [
+              {
+                label: 'Todos los Productos',
+                icon: '',
+                route: '/productos',
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              },
+              {
+                label: 'ARMAZONES',
+                icon: '',
+                route: '/productos',
+                queryParams: { grupo: 'ARMAZONES' },
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              },
+              {
+                label: 'LENTES DE CONTACTO',
+                icon: '',
+                route: '/productos',
+                queryParams: { grupo: 'LENTES DE CONTACTO' },
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              },
+              {
+                label: 'LIQUIDO DE LENTES DE...',
+                icon: '',
+                route: '/productos',
+                queryParams: { grupo: 'LIQUIDO DE LENTES DE CONTACTO' },
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              },
+              {
+                label: 'LIQUIDO DESEMPAÑANTE',
+                icon: '',
+                route: '/productos',
+                queryParams: { grupo: 'LIQUIDO DESEMPAÑANTE' },
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              },
+              {
+                label: 'GAFAS',
+                icon: '',
+                route: '/productos',
+                queryParams: { grupo: 'GAFAS' },
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              },
+              {
+                label: 'LUNAS',
+                icon: '',
+                route: '/productos',
+                queryParams: { grupo: 'LUNAS' },
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              },
+              {
+                label: 'SERVICIOS',
+                icon: '',
+                route: '/productos',
+                queryParams: { grupo: 'SERVICIOS' },
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              },
+              {
+                label: 'VARIOS',
+                icon: '',
+                route: '/productos',
+                queryParams: { grupo: 'VARIOS' },
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              }
+            ]
           },
           {
-            label: 'LENTES DE CONTACTO',
-            icon: '',
-            route: '/productos',
-            queryParams: { grupo: 'LENTES DE CONTACTO' },
-            active: false,
-            roles: [RolUsuario.ADMINISTRADOR]
-          },
-          {
-            label: 'LIQUIDO DE LENTES DE CONTACTO',
-            icon: '',
-            route: '/productos',
-            queryParams: { grupo: 'LIQUIDO DE LENTES DE CONTACTO' },
-            active: false,
-            roles: [RolUsuario.ADMINISTRADOR]
-          },
-          {
-            label: 'LIQUIDO DESEMPAÑANTE',
-            icon: '',
-            route: '/productos',
-            queryParams: { grupo: 'LIQUIDO DESEMPAÑANTE' },
-            active: false,
-            roles: [RolUsuario.ADMINISTRADOR]
-          },
-          {
-            label: 'GAFAS',
-            icon: '',
-            route: '/productos',
-            queryParams: { grupo: 'GAFAS' },
-            active: false,
-            roles: [RolUsuario.ADMINISTRADOR]
-          },
-          {
-            label: 'LUNAS',
-            icon: '',
-            route: '/productos',
-            queryParams: { grupo: 'LUNAS' },
-            active: false,
-            roles: [RolUsuario.ADMINISTRADOR]
-          },
-          {
-            label: 'SERVICIOS',
-            icon: '',
-            route: '/productos',
-            queryParams: { grupo: 'SERVICIOS' },
-            active: false,
-            roles: [RolUsuario.ADMINISTRADOR]
-          },
-          {
-            label: 'VARIOS',
-            icon: '',
-            route: '/productos',
-            queryParams: { grupo: 'VARIOS' },
-            active: false,
-            roles: [RolUsuario.ADMINISTRADOR]
-          }
-        ]
-      },
-      {
-        label: 'Catálogo',
-        icon: this.sanitizer.bypassSecurityTrustHtml(`
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-book-open-icon lucide-book-open"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-        `),
-        route: '/catalogo',
-        active: false,
-        roles: [RolUsuario.ADMINISTRADOR],
-        expanded: false,
-        children: [
-          {
-            label: 'Tipos de Lunas',
-            icon: '',
-            route: '/catalogo',
-            queryParams: { categoria: 'LUNA' },
-            active: false,
-            roles: [RolUsuario.ADMINISTRADOR]
-          },
-          {
-            label: 'Lentes de Contacto',
-            icon: '',
-            route: '/catalogo',
-            queryParams: { categoria: 'LENTE_CONTACTO' },
-            active: false,
-            roles: [RolUsuario.ADMINISTRADOR]
-          },
-          {
-            label: 'Líquidos Limpia Lunas',
-            icon: '',
-            route: '/catalogo',
-            queryParams: { categoria: 'LIQUIDO' },
-            active: false,
-            roles: [RolUsuario.ADMINISTRADOR]
-          },
-          {
-            label: 'Servicios',
-            icon: '',
-            route: '/catalogo',
-            queryParams: { categoria: 'SERVICIO' },
-            active: false,
-            roles: [RolUsuario.ADMINISTRADOR]
-          }
-        ]
-      },
-      {
-        label: 'Proveedores',
-        icon: this.sanitizer.bypassSecurityTrustHtml(`
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-truck-icon lucide-truck"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>
-        `),
-        route: '/proveedores',
-        active: false,
-        roles: [RolUsuario.ADMINISTRADOR]
-      },
-      {
-        label: 'Mercadería',
-        icon: this.sanitizer.bypassSecurityTrustHtml(`
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
-        `),
-        route: '/ingresos',
-        active: false,
-        roles: [RolUsuario.ADMINISTRADOR],
-        expanded: false,
-        children: [
-          {
-            label: 'Ingresos',
+            label: 'Mercadería',
             icon: '',
             route: '/ingresos',
             active: false,
-            roles: [RolUsuario.ADMINISTRADOR]
+            roles: [RolUsuario.ADMINISTRADOR],
+            expanded: false,
+            children: [
+              {
+                label: 'Ingresos',
+                icon: '',
+                route: '/ingresos',
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              },
+              {
+                label: 'Egresos',
+                icon: '',
+                route: '/egresos-mercaderia',
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              }
+            ]
           },
           {
-            label: 'Egresos',
+            label: 'Catálogo',
             icon: '',
-            route: '/egresos-mercaderia',
+            route: '/catalogo',
             active: false,
-            roles: [RolUsuario.ADMINISTRADOR]
+            roles: [RolUsuario.ADMINISTRADOR],
+            expanded: false,
+            children: [
+              {                label: 'Todos los Items',
+                icon: '',
+                route: '/catalogo',
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              },
+              {                label: 'Tipos de Lunas',
+                icon: '',
+                route: '/catalogo',
+                queryParams: { categoria: 'LUNA' },
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              },
+              {
+                label: 'Lentes de Contacto',
+                icon: '',
+                route: '/catalogo',
+                queryParams: { categoria: 'LENTE_CONTACTO' },
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              },
+              {
+                label: 'Líquidos Limpia Lunas',
+                icon: '',
+                route: '/catalogo',
+                queryParams: { categoria: 'LIQUIDO' },
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              },
+              {
+                label: 'Servicios',
+                icon: '',
+                route: '/catalogo',
+                queryParams: { categoria: 'SERVICIO' },
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              }
+            ]
           }
         ]
       },
+
+      // 📊 INFORMES
       {
-        label: 'Empleados',
+        label: 'Informes',
         icon: this.sanitizer.bypassSecurityTrustHtml(`
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-id-card-lanyard-icon lucide-id-card-lanyard"><path d="M13.5 8h-3"/><path d="m15 2-1 2h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3"/><path d="M16.899 22A5 5 0 0 0 7.1 22"/><path d="m9 2 3 6"/><circle cx="12" cy="15" r="3"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-bar-chart-icon lucide-file-bar-chart"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 18v-2"/><path d="M12 18v-4"/><path d="M16 18v-6"/></svg>
         `),
-        route: '/empleados',
+        route: '/informes',
         active: false,
         roles: [RolUsuario.ADMINISTRADOR]
       },
+
+      // ⚙️ CONFIGURACIÓN
       {
-        label: 'Administración',
+        label: 'Configuración',
         icon: this.sanitizer.bypassSecurityTrustHtml(`
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-store-icon lucide-store"><path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/><path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/><path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cog-icon lucide-cog"><path d="M11 10.27 7 3.34"/><path d="m11 13.73-4 6.93"/><path d="M12 22v-2"/><path d="M12 2v2"/><path d="M14 12h8"/><path d="m17 20.66-1-1.73"/><path d="m17 3.34-1 1.73"/><path d="M2 12h2"/><path d="m20.66 17-1.73-1"/><path d="m20.66 7-1.73 1"/><path d="m3.34 17 1.73-1"/><path d="m3.34 7 1.73 1"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="12" r="8"/></svg>
         `),
         route: '/administracion',
         active: false,
-        roles: [RolUsuario.ADMINISTRADOR],
+        roles: [RolUsuario.ADMINISTRADOR]
       }
     ];
   }
@@ -436,6 +463,9 @@ export class SidebarComponent implements OnInit {
    *
    * En modo móvil (ancho < 1150px), cierra completamente el drawer lateral.
    * En modo escritorio, colapsa el sidebar para maximizar el espacio de trabajo.
+   * 
+   * Se agrega un pequeño delay antes de colapsar para permitir que el routerLink
+   * complete la navegación antes de que el DOM se modifique.
    */
   onMenuItemClick(): void {
     if (isPlatformBrowser(this.platformId)) {
@@ -445,8 +475,10 @@ export class SidebarComponent implements OnInit {
         // Móvil: cerrar drawer completamente
         this.closeSidebar.emit();
       } else {
-        // Escritorio: colapsar sidebar
-        this.collapsed = true;
+        // Escritorio: colapsar sidebar con delay para permitir navegación
+        setTimeout(() => {
+          this.collapsed = true;
+        }, 100);
       }
     }
   }

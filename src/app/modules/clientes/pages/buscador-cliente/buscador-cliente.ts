@@ -18,15 +18,15 @@
  */
 
 import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 
 import { ClientesService } from '../../../../core/services/clientes';
 import { Cliente } from '../../../../core/models/cliente.model';
 
 @Component({
-  imports: [FormsModule],
+  imports: [CommonModule, FormsModule],
   standalone: true,
   selector: 'app-buscador-cliente',
   templateUrl: './buscador-cliente.html',
@@ -43,13 +43,56 @@ export class BuscadorClienteComponent implements OnInit {
   // Límite de resultados mostrados
   readonly MAX_RESULTADOS = 10;
 
+  // ✅ Promesa compartida para evitar múltiples cargas simultáneas
+  private cargaClientesPromise: Promise<Cliente[]> | null = null;
+
   constructor(
     private readonly router: Router,
     private readonly clientesSrv: ClientesService
   ) {}
 
   async ngOnInit(): Promise<void> {
-    // No cargamos clientes automáticamente - solo al buscar
+    // 🚀 Pre-cargar clientes para que estén listos cuando el usuario busque
+    await this.cargarClientesSiEsNecesario();
+  }
+
+  /**
+   * Carga clientes desde Firestore solo si no están ya cargados.
+   * Usa una promesa compartida para evitar múltiples cargas simultáneas.
+   * ✅ ACTUALIZADO: Usa query directa para garantizar datos frescos.
+   */
+  private async cargarClientesSiEsNecesario(): Promise<Cliente[]> {
+    // Si ya tenemos clientes cargados, retornarlos
+    if (this.clientes.length > 0) {
+      return this.clientes;
+    }
+
+    // Si ya hay una carga en proceso, esperar a que termine
+    if (this.cargaClientesPromise) {
+      return this.cargaClientesPromise;
+    }
+
+    // Iniciar nueva carga
+    this.cargando = true;
+    
+    // ✅ Usar query directa en lugar de Observable para garantizar datos frescos
+    this.cargaClientesPromise = this.clientesSrv.getAllClientesDirect()
+      .then(data => {
+        this.clientes = data;
+        this.cargaClientesPromise = null; // Limpiar la promesa
+        return this.clientes;
+      })
+      .catch(error => {
+        console.error('❌ Error al cargar clientes:', error);
+        this.clientes = [];
+        this.cargaClientesPromise = null; // Limpiar la promesa
+        return [];
+      })
+      .finally(() => {
+        this.cargando = false;
+      });
+
+    return this.cargaClientesPromise;
   }
 
   /**
@@ -68,18 +111,15 @@ export class BuscadorClienteComponent implements OnInit {
 
     // Si el término es muy corto, no buscar aún
     if (termino.length < 2) {
+      this.mostrarResultados = false;
       return;
     }
 
-    this.cargando = true;
     this.mostrarResultados = true;
 
     try {
-      // Cargar clientes si no están en memoria
-      if (this.clientes.length === 0) {
-        const data = await firstValueFrom(this.clientesSrv.getClientes());
-        this.clientes = data as Cliente[];
-      }
+      // ✅ Asegurar que los clientes estén cargados (usa promesa compartida)
+      await this.cargarClientesSiEsNecesario();
 
       // Filtrar clientes
       this.clientesFiltrados = this.clientes
@@ -94,11 +134,11 @@ export class BuscadorClienteComponent implements OnInit {
         })
         .slice(0, this.MAX_RESULTADOS); // Limitar resultados
 
+      console.log('✅ Resultados encontrados:', this.clientesFiltrados.length);
+
     } catch (error) {
-      console.error('Error al buscar clientes:', error);
+      console.error('❌ Error al filtrar clientes:', error);
       this.clientesFiltrados = [];
-    } finally {
-      this.cargando = false;
     }
   }
 

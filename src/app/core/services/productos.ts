@@ -334,7 +334,7 @@ export class ProductosService {
 
   /**
    * 🔍 Buscar productos SIN paginación (trae todos y filtra en cliente)
-   * Se usa cuando hay un término de búsqueda activo
+   * Se usa cuando hay un término de búsqueda o un grupo seleccionado activo
    */
   private async buscarProductosSinPaginacion(
     terminoBusqueda: string,
@@ -378,23 +378,25 @@ export class ProductosService {
       );
     }
 
-    // Aplicar búsqueda en múltiples campos
-    const termino = terminoBusqueda.toLowerCase().trim();
-    productos = productos.filter(p => {
-      const nombre = p.nombre?.toLowerCase() || '';
-      const modelo = p.modelo?.toLowerCase() || '';
-      const color = p.color?.toLowerCase() || '';
-      const grupo = p.grupo?.toLowerCase() || '';
-      const proveedor = p.proveedor?.toLowerCase() || '';
-      const idInterno = p.idInterno?.toString() || '';
+    // Aplicar búsqueda en múltiples campos (solo si hay término de búsqueda)
+    if (terminoBusqueda.trim()) {
+      const termino = terminoBusqueda.toLowerCase().trim();
+      productos = productos.filter(p => {
+        const nombre = p.nombre?.toLowerCase() || '';
+        const modelo = p.modelo?.toLowerCase() || '';
+        const color = p.color?.toLowerCase() || '';
+        const grupo = p.grupo?.toLowerCase() || '';
+        const proveedor = p.proveedor?.toLowerCase() || '';
+        const idInterno = p.idInterno?.toString() || '';
 
-      return nombre.includes(termino) ||
-             modelo.includes(termino) ||
-             color.includes(termino) ||
-             grupo.includes(termino) ||
-             proveedor.includes(termino) ||
-             idInterno.includes(termino);
-    });
+        return nombre.includes(termino) ||
+               modelo.includes(termino) ||
+               color.includes(termino) ||
+               grupo.includes(termino) ||
+               proveedor.includes(termino) ||
+               idInterno.includes(termino);
+      });
+    }
 
     // Aplicar paginación manual (en memoria)
     const hasMore = productos.length > pageSize;
@@ -432,8 +434,8 @@ export class ProductosService {
       grupoSeleccionado = ''
     } = options;
 
-    // 🔍 SI HAY BÚSQUEDA ACTIVA, traer TODOS los productos y filtrar
-    if (terminoBusqueda.trim()) {
+    // 🔍 SI HAY BÚSQUEDA O GRUPO SELECCIONADO, traer TODOS los productos y filtrar
+    if (terminoBusqueda.trim() || grupoSeleccionado.trim()) {
       return this.buscarProductosSinPaginacion(terminoBusqueda, grupoSeleccionado, ordenamiento, pageSize);
     }
 

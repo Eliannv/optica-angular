@@ -134,6 +134,17 @@
     text-decoration: none;
     transition: background-color 0.2s ease, color 0.2s ease;
     position: relative;
+    width: calc(100% - 1.5rem);
+}
+
+/* Botón de grupo (parent con children) - hereda estilos de menu-link */
+.menu-link.menu-group {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+    text-align: left;
 }
 
 
@@ -292,9 +303,11 @@
     margin-left: auto;
     display: flex;
     align-items: center;
-    transition: transform 0.35s cubic-bezier(0.4, 0.0, 0.2, 1);
+    transition: all 0.35s cubic-bezier(0.4, 0.0, 0.2, 1);
     padding: 0.25rem;
     border-radius: 6px;
+    opacity: 1;
+    transform: rotate(0deg);
 }
 
 .submenu-arrow:hover {
@@ -408,6 +421,11 @@
     transition: all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
+/* Submenu group (botones con children) no necesitan el ::before */
+.submenu-link.submenu-group::before {
+    display: none;
+}
+
 .submenu-link:hover {
     background-color: var(--sidebar-hover);
     color: var(--sidebar-text-hover);
@@ -436,6 +454,113 @@
     height: 3px;
     box-shadow: 0 0 8px var(--sidebar-active-border);
 }
+
+/* SEGUNDO NIVEL - Submenu con children (botón de grupo) */
+.submenu-item.has-children .submenu-link {
+    cursor: pointer;
+}
+
+.submenu-link.submenu-group {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+    text-align: left;
+    width: calc(100% - 1rem);
+    justify-content: space-between;
+    color: var(--sidebar-text);
+    display: flex;
+    align-items: center;
+}
+
+.submenu-link.submenu-group .submenu-arrow {
+    margin-left: auto;
+    margin-right: 0.5rem;
+    display: flex;
+    align-items: center;
+    transition: all 0.35s cubic-bezier(0.4, 0.0, 0.2, 1);
+    padding: 0.25rem;
+    border-radius: 6px;
+    opacity: 0;
+    transform: rotate(180deg);
+}
+
+.submenu-link.submenu-group .submenu-arrow:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.submenu-link.submenu-group:hover {
+    background-color: var(--sidebar-hover);
+    color: var(--sidebar-text-hover);
+    transform: none;
+    padding-left: 3.5rem;
+}
+
+/* Flecha visible y rotada cuando el submenu-item está expandido */
+.submenu-item.expanded > .submenu-link.submenu-group .submenu-arrow {
+    opacity: 1 !important;
+    transform: rotate(180deg) !important;
+}
+
+/* TERCER NIVEL - Sub-submenu */
+.submenu-nested {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.4s cubic-bezier(0.4, 0.0, 0.2, 1), 
+                opacity 0.35s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.submenu-item.expanded .submenu-nested {
+    max-height: 600px;
+    opacity: 1;
+    margin-top: 0.2rem;
+}
+
+.submenu-nested .submenu-link {
+    padding-left: 5rem;
+    font-size: 0.85rem;
+}
+
+.submenu-nested .submenu-link::before {
+    left: 3.5rem;
+    width: 10px;
+}
+
+.submenu-nested .submenu-link:hover {
+    padding-left: 5.25rem;
+}
+
+.submenu-nested .submenu-link:hover::before {
+    width: 16px;
+}
+
+.submenu-nested .submenu-link.active {
+    padding-left: 5.25rem;
+}
+
+.submenu-nested .submenu-link.active::before {
+    width: 20px;
+}
+
+/* Animación cascada para tercer nivel */
+.submenu-item.expanded .submenu-nested .submenu-item {
+    animation: slideIn 0.25s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+    opacity: 0;
+}
+
+.submenu-item.expanded .submenu-nested .submenu-item:nth-child(1) { animation-delay: 0.03s; }
+.submenu-item.expanded .submenu-nested .submenu-item:nth-child(2) { animation-delay: 0.06s; }
+.submenu-item.expanded .submenu-nested .submenu-item:nth-child(3) { animation-delay: 0.09s; }
+.submenu-item.expanded .submenu-nested .submenu-item:nth-child(4) { animation-delay: 0.12s; }
+.submenu-item.expanded .submenu-nested .submenu-item:nth-child(5) { animation-delay: 0.15s; }
+.submenu-item.expanded .submenu-nested .submenu-item:nth-child(6) { animation-delay: 0.18s; }
+.submenu-item.expanded .submenu-nested .submenu-item:nth-child(7) { animation-delay: 0.21s; }
+.submenu-item.expanded .submenu-nested .submenu-item:nth-child(8) { animation-delay: 0.24s; }
 
 .submenu-label {
     white-space: nowrap;

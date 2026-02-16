@@ -40,8 +40,12 @@ import { FacturasService } from './facturas';
 })
 export class ClientesService {
   private readonly firestore = inject(Firestore);
-  private readonly clientesRef = collection(this.firestore, 'clientes');
   private readonly facturasSrv = inject(FacturasService);
+
+  // 🎯 Getter lazy para clientesRef
+  private get clientesRef() {
+    return collection(this.firestore, 'clientes');
+  }
 
   // 🎯 CACHÉ con shareReplay
   private cachedClientes$: Observable<Cliente[]> | null = null;
@@ -73,6 +77,18 @@ export class ClientesService {
   reloadClientes() {
     this.cachedClientes$ = null;
     return this.getClientes();
+  }
+
+  /**
+   * Obtiene TODOS los clientes activos directamente desde Firestore (sin caché Observable).
+   * Útil para búsquedas donde se necesitan datos frescos garantizados.
+   * 
+   * @returns Promise<Cliente[]> Array con todos los clientes activos.
+   */
+  async getAllClientesDirect(): Promise<Cliente[]> {
+    const q = query(this.clientesRef, where('activo', '!=', false));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Cliente));
   }
 
   /**

@@ -32,18 +32,18 @@
     <nav class="sidebar-nav">
         <ul class="menu-list">
             <li *ngFor="let item of menuItems" class="menu-item" [class.has-children]="hasChildren(item)" [class.expanded]="item.expanded">
-                <!-- Item con hijos (desplegable) -->
-                <a *ngIf="hasChildren(item)" [routerLink]="item.route" routerLinkActive="active" class="menu-link" (click)="onMenuItemClick()" [attr.title]="collapsed ? item.label : null">
+                <!-- Item con hijos (desplegable) - Solo expande, no navega -->
+                <button *ngIf="hasChildren(item)" type="button" class="menu-link menu-group" (click)="toggleSubmenu(item, $event)" [attr.title]="collapsed ? item.label : null">
                     <span class="menu-icon" [innerHTML]="item.icon"></span>
                     <span class="menu-label" *ngIf="!collapsed">{{ item.label }}</span>
-                    <span class="submenu-arrow" *ngIf="!collapsed" (click)="toggleSubmenu(item, $event)">
+                    <span class="submenu-arrow" *ngIf="!collapsed">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                     </span>
-                </a>
+                </button>
 
-                <!-- Item sin hijos (normal) -->
+                <!-- Item sin hijos (normal) - Navega directamente -->
                 <a *ngIf="!hasChildren(item)" [routerLink]="item.route" routerLinkActive="active" class="menu-link" (click)="onMenuItemClick()" [attr.title]="collapsed ? item.label : null">
                     <span class="menu-icon" [innerHTML]="item.icon"></span>
                     <span class="menu-label" *ngIf="!collapsed">{{ item.label }}</span>
@@ -54,10 +54,31 @@
 
                 <!-- Submenú -->
                 <ul *ngIf="hasChildren(item) && item.expanded && !collapsed" class="submenu-list">
-                    <li *ngFor="let child of item.children" class="submenu-item">
-                        <a [routerLink]="child.route" [queryParams]="child.queryParams" routerLinkActive="active" class="submenu-link" (click)="onMenuItemClick()">
+                    <li *ngFor="let child of item.children" class="submenu-item" [class.has-children]="hasChildren(child)" [class.expanded]="child.expanded">
+                        
+                        <!-- Child con hijos (segundo nivel) -->
+                        <button *ngIf="hasChildren(child)" type="button" class="submenu-link submenu-group" (click)="toggleSubmenu(child, $event)">
+                            <span class="submenu-label">{{ child.label }}</span>
+                            <span class="submenu-arrow">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </span>
+                        </button>
+
+                        <!-- Child sin hijos (normal) -->
+                        <a *ngIf="!hasChildren(child)" [routerLink]="child.route" [queryParams]="child.queryParams" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="submenu-link" (click)="onMenuItemClick()">
                             <span class="submenu-label">{{ child.label }}</span>
                         </a>
+
+                        <!-- Sub-submenú (tercer nivel) -->
+                        <ul *ngIf="hasChildren(child) && child.expanded" class="submenu-list submenu-nested">
+                            <li *ngFor="let subchild of child.children" class="submenu-item">
+                                <a [routerLink]="subchild.route" [queryParams]="subchild.queryParams" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="submenu-link" (click)="onMenuItemClick()">
+                                    <span class="submenu-label">{{ subchild.label }}</span>
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                 </ul>
             </li>

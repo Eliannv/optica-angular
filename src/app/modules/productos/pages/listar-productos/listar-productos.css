@@ -215,31 +215,31 @@
 
 .detalle-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
 }
 
 .detalle-section {
     border: 1px solid var(--border-color, #e5e7eb);
     border-radius: 6px;
-    padding: 1rem;
+    padding: 0.75rem;
     background-color: var(--bg-secondary, #f9fafb);
 }
 
 .detalle-section h3 {
-    margin: 0 0 1rem 0;
-    font-size: 1.1rem;
+    margin: 0 0 0.75rem 0;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary, #374151);
     border-bottom: 2px solid var(--primary-color, #3b82f6);
-    padding-bottom: 0.5rem;
+    padding-bottom: 0.25rem;
 }
 
 .detalle-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.5rem 0;
+    padding: 0.25rem 0;
     border-bottom: 1px solid var(--border-light, #e5e7eb);
 }
 
@@ -259,9 +259,37 @@
     text-align: right;
 }
 
-/* Estilos para observaciones */
+/* Información General: columna 1, ocupa 2 filas */
+.detalle-informacion {
+    grid-column: 1;
+    grid-row: 1 / 3;
+}
+
+/* Precios: columna 2, fila 1 */
+.detalle-precios {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+/* Observaciones: ocupan todo ancho (auto-placement) */
 .detalle-observaciones {
     grid-column: 1 / -1;
+}
+
+/* Proveedor: columna 2, fila 2 (debajo de Precios) */
+.detalle-proveedor {
+    grid-column: 2;
+    grid-row: 2;
+}
+
+/* Factura: columna 1, auto-placement (después de otros elementos) */
+.detalle-factura {
+    grid-column: 1;
+}
+
+/* Fechas: columna 2, auto-placement (después de otros elementos) */
+.detalle-fechas {
+    grid-column: 2;
 }
 
 .observacion-text {

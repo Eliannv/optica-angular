@@ -3,6 +3,8 @@ import { Producto } from '../../../../core/models/producto.model';
 import { ProductosService } from '../../../../core/services/productos';
 import { ExcelService } from '../../../../core/services/excel.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { IngresosService } from '../../../../core/services/ingresos.service';
+import { Ingreso } from '../../../../core/models/ingreso.model';
 import { Router, ActivatedRoute } from '@angular/router';
 import Swal from 'sweetalert2';
 import { UpperCasePipe } from '@angular/common';
@@ -48,6 +50,7 @@ export class ListarProductos implements OnInit {
   }> = [];
   
   productoSeleccionado: Producto | null = null;
+  ingresoSeleccionado: Ingreso | null = null;
   mostrarModal: boolean = false;
   terminoBusqueda: string = '';
   grupoSeleccionado: string = '';
@@ -65,6 +68,7 @@ export class ListarProductos implements OnInit {
 
   private excelService = inject(ExcelService);
   private authService = inject(AuthService);
+  private ingresosService = inject(IngresosService);
 
   /**
    * Inicializa el componente y carga los productos
@@ -409,9 +413,19 @@ export class ListarProductos implements OnInit {
    * 
    * @param producto - Producto a visualizar
    */
-  verDetalle(producto: Producto) {
+  async verDetalle(producto: Producto) {
     this.productoSeleccionado = producto;
+    this.ingresoSeleccionado = null;
     this.mostrarModal = true;
+
+    // Cargar información del ingreso si existe
+    if (producto.ingresoId) {
+      try {
+        this.ingresoSeleccionado = await this.ingresosService.getIngresoByIdDirect(producto.ingresoId);
+      } catch (error) {
+        console.error('Error al cargar ingreso:', error);
+      }
+    }
   }
 
   /**
@@ -420,6 +434,32 @@ export class ListarProductos implements OnInit {
   cerrarModal() {
     this.mostrarModal = false;
     this.productoSeleccionado = null;
+    this.ingresoSeleccionado = null;
+  }
+
+  /**
+   * Convierte una fecha de Firestore (Timestamp o Date) a Date nativo
+   * @param fecha - Timestamp de Firestore o Date
+   * @returns Date nativo o null si es inválido
+   */
+  private getFechaDate(fecha: any): Date | null {
+    if (!fecha) return null;
+    // Firestore Timestamp tiene método toDate()
+    if (typeof fecha?.toDate === 'function') return fecha.toDate();
+    // Si ya es Date, retornarlo
+    if (fecha instanceof Date) return fecha;
+    // Intentar parsear string/number
+    const d = new Date(fecha);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  /**
+   * Formatea una fecha para mostrar en el template
+   * @param fecha - Timestamp de Firestore o Date
+   * @returns Date nativo para usar con el pipe de Angular
+   */
+  formatearFechaIngreso(fecha: any): Date | null {
+    return this.getFechaDate(fecha);
   }
 
   /**

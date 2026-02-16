@@ -30,6 +30,14 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
   clienteTelefono = '';
   returnTo = '';
 
+  // 🔎 BUSCAR CLIENTE CON DEUDA
+  terminoBusquedaCliente = '';
+  clientesBusqueda: any[] = [];
+  clientesFiltrados: any[] = [];
+  mostrarResultadosCliente = false;
+  cargandoClientes = false;
+  readonly MAX_RESULTADOS_CLIENTES = 10;
+
   pendientes: any[] = [];
   deudaTotal = 0;
 
@@ -48,6 +56,8 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
   fechaMinima = ''; // Fecha mínima permitida (inicio del periodo de caja)
   fechaMaxima = ''; // Fecha máxima permitida (fin del periodo de caja o hoy)
   periodoNombre = ''; // Nombre del periodo para mostrar (ej: "Diciembre 2025")
+  fechaManual = false; // Indica si el admin modificó manualmente la fecha
+  horaManual = false; // Indica si el admin modificó manualmente la hora
 
   // 🔒 CONTROL DE CAJA ABIERTA
   hayCajaAbierta = false; // Indica si existe una caja chica abierta (para habilitar/deshabilitar efectivo)
@@ -145,9 +155,129 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     private facturasDeudaService: FacturasDeudaService
   ) {}
 
+  /**
+   * 🔎 Buscar clientes con deuda
+   */
+  async buscarClientesConDeuda(): Promise<void> {
+    const termino = this.terminoBusquedaCliente.trim().toLowerCase();
+
+    if (!termino) {
+      this.clientesFiltrados = [];
+      this.mostrarResultadosCliente = false;
+      return;
+    }
+
+    if (termino.length < 2) {
+      this.mostrarResultadosCliente = false;
+      return;
+    }
+
+    this.mostrarResultadosCliente = true;
+    this.cargandoClientes = true;
+
+    try {
+      // Cargar todos los clientes
+      const todosClientes = await firstValueFrom(this.clientesSrv.getClientes());
+      
+      // Filtrar solo los que tienen deuda
+      this.clientesBusqueda = todosClientes.filter(c => c.tieneDeuda === true);
+      
+      this.aplicarFiltroClientesDeuda(termino);
+      this.cargandoClientes = false;
+    } catch (error) {
+      console.error('Error al buscar clientes con deuda:', error);
+      this.clientesFiltrados = [];
+      this.cargandoClientes = false;
+    }
+  }
+
+  private aplicarFiltroClientesDeuda(termino: string): void {
+    const terminoNormalizado = termino.trim().toLowerCase();
+
+    this.clientesFiltrados = this.clientesBusqueda
+      .filter(c => {
+        const nombreCompleto = `${c.nombres ?? ''} ${c.apellidos ?? ''}`.toLowerCase();
+        const cedula = (c.cedula ?? '').toLowerCase();
+        const telefono = (c.telefono ?? '').toLowerCase();
+
+        return nombreCompleto.includes(terminoNormalizado) ||
+               cedula.includes(terminoNormalizado) ||
+               telefono.includes(terminoNormalizado);
+      })
+      .slice(0, this.MAX_RESULTADOS_CLIENTES);
+  }
+
+  limpiarBusquedaCliente(): void {
+    this.terminoBusquedaCliente = '';
+    this.clientesFiltrados = [];
+    this.mostrarResultadosCliente = false;
+    this.clienteId = '';
+    this.clienteNombre = '';
+    this.pendientes = [];
+    this.deudaTotal = 0;
+    this.facturaSeleccionada = null;
+    this.abono = 0;
+  }
+
+  cerrarResultadosCliente(): void {
+    this.mostrarResultadosCliente = false;
+  }
+
+  trackByClienteId(index: number, item: any): string {
+    return item.id || `index-${index}`;
+  }
+
+  async seleccionarCliente(cliente: any): Promise<void> {
+    if (!cliente.id) return;
+
+    this.clienteId = cliente.id;
+    this.clienteNombre = `${cliente.nombres ?? ''} ${cliente.apellidos ?? ''}`.trim();
+    this.clienteTelefono = cliente.telefono || '';
+    this.terminoBusquedaCliente = this.clienteNombre;
+    this.mostrarResultadosCliente = false;
+
+    // Cargar deudas del cliente
+    await this.cargarDeudasCliente();
+  }
+
   async ngOnInit() {
     // � Inicializar fecha y hora por defecto
     this.inicializarFechaHora();
+
+    // 🔒 VALIDACIÓN CRÍTICA: Verificar que exista alguna caja chica ABIERTA
+    try {
+      const validacion = await this.cajaChicaService.validarCajaAbierta();
+      
+      // ✅ Caja ABIERTA - Permitir entrada
+      if (validacion.valida) {
+        // Continuamos con la carga normal
+      } 
+      // ❌ NO existe caja ABIERTA
+      else {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Caja Chica Requerida',
+          text: 'Debe tener una caja chica ABIERTA para cobrar deudas.',
+          confirmButtonText: 'Ir a Caja Chica',
+          allowOutsideClick: false,
+          allowEscapeKey: false
+        }).then(() => {
+          this.router.navigate(['/caja-chica']);
+        });
+        return;
+      }
+    } catch (error) {
+      console.error('Error al validar caja chica:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al verificar la caja chica. Intente nuevamente.',
+        confirmButtonText: 'Volver'
+      }).then(() => {
+        this.router.navigate(['/caja-chica']);
+      });
+      return;
+    }
 
     // 🔒 Verificar si hay caja abierta (para controlar método de pago)
     await this.verificarCajaAbierta();    
@@ -155,19 +285,28 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     await this.verificarCajaBancoAbierta();
     this.returnTo = this.route.snapshot.queryParamMap.get('returnTo') || '';
     this.clienteId = this.route.snapshot.queryParamMap.get('clienteId') || '';
+    
     if (!this.clienteId) {
-      if (this.returnTo) {
-        this.router.navigateByUrl(this.returnTo);
-        return;
-      }
-
-      this.router.navigate(['/clientes/historial-clinico']);
+      // No hay cliente pre-seleccionado - modo búsqueda
+      this.loading = false;
       return;
     }
+
+    // Cliente viene pre-seleccionado desde otra página
+    await this.cargarDeudasCliente();
+  }
+
+  async cargarDeudasCliente(): Promise<void> {
+    if (!this.clienteId) {
+      return;
+    }
+
+    this.loading = true;
 
     try {
       const cli = await firstValueFrom(this.clientesSrv.getClienteById(this.clienteId));
       this.clienteNombre = `${cli?.nombres || ''} ${cli?.apellidos || ''}`.trim();
+      this.terminoBusquedaCliente = this.clienteNombre;
       this.clienteTelefono = cli?.telefono || '';
 
       this.sub = this.facturasSrv.getPendientesPorCliente(this.clienteId).subscribe(list => {
@@ -940,6 +1079,20 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     console.log(`🔧 combinarFechaHora resultado: ${fechaBase.toLocaleString()} (${fechaBase.toISOString()})`);
     
     return fechaBase;
+  }
+
+  /**
+   * Marca que el admin modificó manualmente la fecha
+   */
+  marcarFechaManual(): void {
+    this.fechaManual = true;
+  }
+
+  /**
+   * Marca que el admin modificó manualmente la hora
+   */
+  marcarHoraManual(): void {
+    this.horaManual = true;
   }
 
   volver() {

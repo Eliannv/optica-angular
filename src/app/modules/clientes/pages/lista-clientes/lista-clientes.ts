@@ -704,6 +704,8 @@ export class ListaClientesComponent implements OnInit, OnDestroy {
    * Inicia el proceso de cobro de deuda para un cliente.
    */
   async cobrarDeuda(clienteId: string): Promise<void> {
+    // ⚠️ VALIDACIÓN COMENTADA TEMPORALMENTE - Descomentar para reactivar
+    /*
     try {
       const validacion = await this.cajaChicaService.validarCajaAbierta();
       if (validacion.valida) {
@@ -735,6 +737,15 @@ export class ListaClientesComponent implements OnInit, OnDestroy {
         confirmButtonText: 'Volver'
       });
     }
+    */
+    
+    // Navegación directa sin validación (temporal)
+    this.router.navigate(['/ventas/deuda'], {
+      queryParams: { 
+        clienteId,
+        returnTo: this.router.url
+      }
+    });
   }
 
   /**

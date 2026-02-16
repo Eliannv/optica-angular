@@ -140,8 +140,21 @@ export class IngresosService {
     return docData(ingresoDoc, { idField: 'id' }) as Observable<Ingreso>;
   }
 
-  /**
-   * Recupera todos los detalles (items) de un ingreso específico.
+  /**   * Recupera un ingreso por su ID con consulta directa (sin caché Observable).
+   *
+   * @param id ID del ingreso.
+   * @returns Promise<Ingreso | null> Datos del ingreso o null si no existe.
+   */
+  async getIngresoByIdDirect(id: string): Promise<Ingreso | null> {
+    const ingresoDoc = doc(this.firestore, `ingresos/${id}`);
+    const snapshot = await getDoc(ingresoDoc);
+    if (snapshot.exists()) {
+      return { id: snapshot.id, ...snapshot.data() } as Ingreso;
+    }
+    return null;
+  }
+
+  /**   * Recupera todos los detalles (items) de un ingreso específico.
    *
    * @param ingresoId ID del ingreso.
    * @returns Observable<DetalleIngreso[]> Stream con los detalles del ingreso.
@@ -618,6 +631,17 @@ export class IngresosService {
       orderBy('createdAt', 'desc')
     );
     return collectionData(q, { idField: 'id' }) as Observable<Ingreso[]>;
+  }
+
+  // Obtener ingresos por código de proveedor con consulta directa (sin caché Observable)
+  async getIngresosPorProveedorCodigoDirect(proveedorCodigo: string): Promise<Ingreso[]> {
+    const q = query(
+      this.ingresosRef,
+      where('proveedorCodigo', '==', proveedorCodigo),
+      orderBy('createdAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ingreso));
   }
 
   // Eliminar ingreso borrador

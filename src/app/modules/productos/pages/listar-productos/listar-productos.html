@@ -169,7 +169,7 @@
         <div class="modal-body" *ngIf="productoSeleccionado">
             <div class="detalle-grid">
                 <!-- Información General -->
-                <div class="detalle-section">
+                <div class="detalle-section detalle-informacion">
                     <h3>Información General</h3>
                     <div class="detalle-item" *ngIf="productoSeleccionado.idInterno">
                         <span class="detalle-label">ID Interno:</span>
@@ -200,7 +200,7 @@
                 </div>
 
                 <!-- Precios -->
-                <div class="detalle-section">
+                <div class="detalle-section detalle-precios">
                     <h3>Precios</h3>
                     <div class="detalle-item">
                         <span class="detalle-label">Costo:</span>
@@ -218,8 +218,8 @@
                     <div class="observacion-text">{{ productoSeleccionado.observacion }}</div>
                 </div>
 
-                <!-- Proveedor -->
-                <div class="detalle-section">
+                <!-- Proveedor (ancho completo debajo de Precios) -->
+                <div class="detalle-section detalle-proveedor">
                     <h3>Proveedor</h3>
                     <div class="detalle-item">
                         <span class="detalle-label">Proveedor:</span>
@@ -227,8 +227,26 @@
                     </div>
                 </div>
 
+                <!-- Factura de Ingreso y Fechas lado a lado -->
+                <!-- Factura de Ingreso -->
+                <div class="detalle-section detalle-factura" *ngIf="ingresoSeleccionado">
+                    <h3>Factura de Ingreso</h3>
+                    <div class="detalle-item">
+                        <span class="detalle-label">N° Factura:</span>
+                        <span class="detalle-value">{{ ingresoSeleccionado.numeroFactura }}</span>
+                    </div>
+                    <div class="detalle-item" *ngIf="ingresoSeleccionado.idPersonalizado">
+                        <span class="detalle-label">ID Ingreso:</span>
+                        <span class="detalle-value">{{ ingresoSeleccionado.idPersonalizado }}</span>
+                    </div>
+                    <div class="detalle-item" *ngIf="ingresoSeleccionado.fecha">
+                        <span class="detalle-label">Fecha Ingreso:</span>
+                        <span class="detalle-value">{{ formatearFechaIngreso(ingresoSeleccionado.fecha) | date:'dd/MM/yyyy' }}</span>
+                    </div>
+                </div>
+
                 <!-- Fechas -->
-                <div class="detalle-section" *ngIf="productoSeleccionado.createdAt || productoSeleccionado.updatedAt">
+                <div class="detalle-section detalle-fechas" *ngIf="productoSeleccionado.createdAt || productoSeleccionado.updatedAt">
                     <h3>Fechas</h3>
                     <div class="detalle-item" *ngIf="productoSeleccionado.createdAt">
                         <span class="detalle-label">Fecha de Creación:</span>
