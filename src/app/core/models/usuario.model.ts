@@ -35,8 +35,11 @@ export interface Usuario {
   /** Estado del usuario (true = puede acceder, false = bloqueado) */
   activo: boolean;
 
-  /** Sucursal asignada (ej: PASAJE, CENTRO, etc.) */
+  /** Sucursal asignada — nombre o código legacy (ej: "PASAJE"). Usar sucursalId para nuevas asignaciones. */
   sucursal?: string;
+
+  /** ID del documento de sucursal en Firestore (campo preferido para nuevas asignaciones) */
+  sucursalId?: string;
 
   /** Identificador único de la máquina autorizada para este usuario */
   machineId?: string;

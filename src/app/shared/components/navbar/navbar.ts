@@ -20,6 +20,7 @@ import { FormsModule } from '@angular/forms';
 import { ThemeService } from '../../../core/services/theme.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { RolUsuario } from '../../../core/models/usuario.model';
+import { SelectorSucursalComponent } from '../selector-sucursal/selector-sucursal.component';
 
 interface SeccionMenu {
   nombre: string;
@@ -31,7 +32,7 @@ interface SeccionMenu {
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, SelectorSucursalComponent],
   templateUrl: './navbar.html',
   styleUrl: './navbar.css'
 })

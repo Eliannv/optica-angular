@@ -32,10 +32,12 @@ import {
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { FacturaDeuda } from '../models/factura-deuda.model';
+import { SucursalQueryHelperService } from './sucursal-query-helper.service';
 
 @Injectable({ providedIn: 'root' })
 export class FacturasDeudaService {
   private fs = inject(Firestore);
+  private sucursalHelper = inject(SucursalQueryHelperService);
   private facturasDeudaRef = collection(this.fs, 'facturas_deudas');
   private clientesRef = collection(this.fs, 'clientes');
 
@@ -281,14 +283,14 @@ export class FacturasDeudaService {
     let q;
     
     if (direction === 'prev' && firstVisible) {
-      q = query(
+      q = this.sucursalHelper.agregarFiltroSucursal(
         this.facturasDeudaRef,
         orderBy('fechaPago', 'desc'),
         endBefore(firstVisible),
         limitToLast(pageSize + 1)
       );
     } else if (direction === 'next' && lastVisible) {
-      q = query(
+      q = this.sucursalHelper.agregarFiltroSucursal(
         this.facturasDeudaRef,
         orderBy('fechaPago', 'desc'),
         startAfter(lastVisible),
@@ -296,7 +298,7 @@ export class FacturasDeudaService {
       );
     } else {
       // Primera carga
-      q = query(
+      q = this.sucursalHelper.agregarFiltroSucursal(
         this.facturasDeudaRef,
         orderBy('fechaPago', 'desc'),
         limit(pageSize + 1)
@@ -344,9 +346,10 @@ export class FacturasDeudaService {
     firstDoc: DocumentSnapshot | null;
     hasMore: boolean;
   }> {
-    // Traer TODOS los pagos ordenados por fecha
-    const q = query(
+    // Traer pagos filtrados por sucursal ordenados por fecha
+    const q = this.sucursalHelper.agregarFiltroConLimite(
       this.facturasDeudaRef,
+      500,
       orderBy('fechaPago', 'desc')
     );
 

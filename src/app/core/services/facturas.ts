@@ -36,9 +36,10 @@ import {
   endBefore,
   limitToLast
 } from '@angular/fire/firestore';
-import { Observable, BehaviorSubject, shareReplay, map, tap, combineLatest } from 'rxjs';
+import { Observable, BehaviorSubject, shareReplay, map, tap, combineLatest, switchMap } from 'rxjs';
 import { Factura } from '../models/factura.model';
 import { PaginationResult } from '../models/pagination.model';
+import { SucursalQueryHelperService } from './sucursal-query-helper.service';
 
 @Injectable({ providedIn: 'root' })
 export class FacturasService {
@@ -46,6 +47,7 @@ export class FacturasService {
   private readonly facturasRef;
   private readonly facturasDeudaRef;
   private readonly clientesRef;
+  private readonly sucursalHelper = inject(SucursalQueryHelperService);
 
   // 🎯 CACHÉ con shareReplay
   private facturasCache$ = new BehaviorSubject<Factura[]>([]);
@@ -106,6 +108,7 @@ export class FacturasService {
     const docRef = doc(this.facturasRef, idPersonalizado);
     await setDoc(docRef, {
       ...facturaParaGuardar,
+      ...this.sucursalHelper.getSucursalParaDocumento(),
       idPersonalizado
     });
 
@@ -113,20 +116,21 @@ export class FacturasService {
     return docRef;
   }
 
-  // EXISTENTE - ACTUALIZADO CON CACHÉ
+  // EXISTENTE - ACTUALIZADO CON CACHÉ Y FILTRO SUCURSAL
   getFacturas(): Observable<Factura[]> {
-    if (!this.cachedAllFacturas$) {
-      this.cachedAllFacturas$ = collectionData(this.facturasRef, { idField: 'id' }).pipe(
-        map(data => data as Factura[]),
-        tap(facturas => this.facturasCache$.next(facturas)),
-        shareReplay(1) // 🎯 Compartir resultado entre suscriptores
-      );
-    }
-    return this.cachedAllFacturas$;
+    // ✅ NO usar caché - crear query reactiva que responde a cambios de sucursal
+    const q = this.sucursalHelper.agregarFiltroConLimite(
+      this.facturasRef,
+      200,
+      orderBy('fecha', 'desc')
+    );
+    return collectionData(q, { idField: 'id' }).pipe(
+      map(data => data as Factura[])
+    );
   }
 
   /**
-   * 🆕 Obtener facturas con paginación
+   * 🆕 Obtener facturas con paginación y filtro sucursal
    * @param pageSize - Cantidad de documentos por página (default: 50)
    * @param startAfterDoc - Documento desde el cual continuar (para siguiente página)
    */
@@ -137,14 +141,14 @@ export class FacturasService {
     let q: any;
 
     if (startAfterDoc) {
-      q = query(
+      q = this.sucursalHelper.agregarFiltroSucursal(
         this.facturasRef,
         orderBy('fecha', 'desc'),
         startAfter(startAfterDoc),
-        limit(pageSize + 1) // +1 para detectar si hay más páginas
+        limit(pageSize + 1)
       );
     } else {
-      q = query(
+      q = this.sucursalHelper.agregarFiltroSucursal(
         this.facturasRef,
         orderBy('fecha', 'desc'),
         limit(pageSize + 1)
@@ -513,18 +517,18 @@ export class FacturasService {
       );
     }
 
-    // ✅ Construir query base ordenado por fecha descendente
+    // ✅ Construir query base ordenado por fecha descendente con filtro sucursal
     let q;
     
     if (direction === 'prev' && firstVisible) {
-      q = query(
+      q = this.sucursalHelper.agregarFiltroSucursal(
         this.facturasRef,
         orderBy('fecha', 'desc'),
         endBefore(firstVisible),
         limitToLast(pageSize + 1)
       );
     } else if (direction === 'next' && lastVisible) {
-      q = query(
+      q = this.sucursalHelper.agregarFiltroSucursal(
         this.facturasRef,
         orderBy('fecha', 'desc'),
         startAfter(lastVisible),
@@ -532,7 +536,7 @@ export class FacturasService {
       );
     } else {
       // Primera carga
-      q = query(
+      q = this.sucursalHelper.agregarFiltroSucursal(
         this.facturasRef,
         orderBy('fecha', 'desc'),
         limit(pageSize + 1)
@@ -587,9 +591,10 @@ export class FacturasService {
     firstDoc: DocumentSnapshot | null;
     hasMore: boolean;
   }> {
-    // Traer TODAS las facturas ordenadas por fecha
-    const q = query(
+    // Traer TODAS las facturas ordenadas por fecha con filtro sucursal
+    const q = this.sucursalHelper.agregarFiltroConLimite(
       this.facturasRef,
+      500,
       orderBy('fecha', 'desc')
     );
 

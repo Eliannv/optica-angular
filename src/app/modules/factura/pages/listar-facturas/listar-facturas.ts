@@ -8,7 +8,8 @@ import { ProductosService } from '../../../../core/services/productos';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { AuthService } from '../../../../core/services/auth.service';
-import { Subscription } from 'rxjs';
+import { SucursalQueryHelperService } from '../../../../core/services/sucursal-query-helper.service';
+import { Subscription, filter, distinctUntilChanged } from 'rxjs';
 import { RolUsuario } from '../../../../core/models/usuario.model';
 import { DocumentSnapshot } from '@angular/fire/firestore';
 import Swal from 'sweetalert2';
@@ -130,12 +131,32 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
     private router: Router,
     private productosSrv: ProductosService,
     private cajaChicaSrv: CajaChicaService,
-    private authService: AuthService
+    private authService: AuthService,
+    private sucursalHelper: SucursalQueryHelperService
   ) {}
 
   ngOnInit(): void {
-    this.cargarPeriodosDisponibles();
     this.verificarCajaAbierta();
+
+    let primeraVez = true;
+
+    // Esperar a que el contexto de sucursal esté inicializado (no null).
+    // Primera emisión: carga periodos + facturas.
+    // Cambios posteriores: solo recarga facturas con el periodo ya seleccionado.
+    const sucursalSub = this.sucursalHelper.getSucursalSeleccionada().pipe(
+      filter(s => s !== null),
+      distinctUntilChanged((a, b) => a?.id === b?.id)
+    ).subscribe(() => {
+      if (primeraVez) {
+        primeraVez = false;
+        console.log('🚀 Sucursal inicial — cargando periodos y facturas...');
+        this.cargarPeriodosDisponibles();
+      } else {
+        console.log('🔄 Sucursal cambiada — recargando facturas...');
+        this.filtrar();
+      }
+    });
+    this.subscriptions.add(sucursalSub);
   }
 
   ngOnDestroy(): void {

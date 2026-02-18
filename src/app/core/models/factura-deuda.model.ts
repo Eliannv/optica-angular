@@ -81,4 +81,10 @@ export interface FacturaDeuda {
 
   /** Última fecha de actualización */
   updatedAt?: Date;
+
+  /** ID de la sucursal donde se realizó el cobro */
+  sucursalId?: string;
+
+  /** Nombre de la sucursal donde se realizó el cobro */
+  sucursalNombre?: string;
 }

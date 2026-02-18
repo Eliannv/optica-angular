@@ -14,6 +14,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { FacturasDeudaService } from '../../../core/services/facturas-deuda.service';
 import { obtenerPeriodo } from '../../../core/utils/fecha-helpers';
 import { FacturaDeuda } from '../../../core/models/factura-deuda.model';
+import { SucursalQueryHelperService } from '../../../core/services/sucursal-query-helper.service';
 
 @Component({
   selector: 'app-cobrar-deuda',
@@ -152,7 +153,8 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     private cajaChicaService: CajaChicaService,
     private cajaBancoService: CajaBancoService,
     private authService: AuthService,
-    private facturasDeudaService: FacturasDeudaService
+    private facturasDeudaService: FacturasDeudaService,
+    private sucursalHelper: SucursalQueryHelperService
   ) {}
 
   /**
@@ -582,6 +584,7 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
       const origenCaja = this.metodoPago === 'Efectivo' ? 'CAJA_CHICA' : 'CAJA_BANCO';
       
       // Construir objeto deuda SIN campos undefined (Firestore no los permite)
+      const sucursalInfo = this.sucursalHelper.getSucursalParaDocumento();
       const deuda: FacturaDeuda = {
         facturaId: f.id,
         facturaIdPersonalizado: f.idPersonalizado || '',
@@ -600,6 +603,7 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
         cajaChicaId: cajaChicaAbierta?.id,
         usuarioId: usuario?.id,
         usuarioNombre: usuario?.nombre || 'Desconocido',
+        ...sucursalInfo,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
