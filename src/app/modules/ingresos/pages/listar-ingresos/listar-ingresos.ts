@@ -1,9 +1,11 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { Subscription, filter, distinctUntilChanged, take } from 'rxjs';
 import { Ingreso } from '../../../../core/models/ingreso.model';
 import { IngresosService } from '../../../../core/services/ingresos.service';
+import { SucursalContextService } from '../../../../core/services/sucursal-context.service';
 import Swal from 'sweetalert2';
 
 /**
@@ -80,7 +82,7 @@ type FiltroFecha = 'TODAS' | 'HOY' | 'SEMANA' | 'MES' | 'ANO' | 'ESPECIFICA';
   templateUrl: './listar-ingresos.html',
   styleUrls: ['./listar-ingresos.css'],
 })
-export class ListarIngresosComponent implements OnInit {
+export class ListarIngresosComponent implements OnInit, OnDestroy {
   /**
    * Referencia inyectada a Angular Router para navegación SPA.
    * @type {Router}
@@ -94,6 +96,8 @@ export class ListarIngresosComponent implements OnInit {
    * @private
    */
   private ingresosService = inject(IngresosService);
+  private sucursalContext = inject(SucursalContextService);
+  private subscriptions = new Subscription();
 
   /**
    * Referencia global a Number (para uso en template con ngFor).
@@ -235,7 +239,19 @@ export class ListarIngresosComponent implements OnInit {
    * - La suscripción persiste durante toda la vida del componente (sin unsubscribe)
    */
   ngOnInit() {
-    this.cargarIngresos();
+    const sub = this.sucursalContext.getSucursalSeleccionada().pipe(
+      filter(s => s !== null),
+      distinctUntilChanged((a, b) => a?.id === b?.id)
+    ).subscribe(() => {
+      this.ingresos = [];
+      this.filtrados = [];
+      this.cargarIngresos();
+    });
+    this.subscriptions.add(sub);
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
   }
 
   /**
@@ -269,7 +285,7 @@ export class ListarIngresosComponent implements OnInit {
    * this.cargarIngresos(); // Recarga desde Firestore
    */
   cargarIngresos() {
-    this.ingresosService.getIngresos().subscribe({
+    this.ingresosService.getIngresos().pipe(take(1)).subscribe({
       next: (ingresos) => {
         this.ingresos = ingresos.map(i => ({
           ...i,

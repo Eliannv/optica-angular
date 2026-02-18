@@ -12,15 +12,17 @@
  * @component VerCajaComponent
  */
 
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { puedeModificarCaja } from '../../../../core/utils/permisos-caja';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { CajaBancoConfigService } from '../../../../core/services/caja-banco-config.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { SucursalContextService } from '../../../../core/services/sucursal-context.service';
 import { CajaBanco, MovimientoCajaBanco } from '../../../../core/models/caja-banco.model';
 import { CajaChica } from '../../../../core/models/caja-chica.model';
+import { Subscription, filter, distinctUntilChanged } from 'rxjs';
 import Swal from 'sweetalert2';
 
 @Component({
@@ -29,7 +31,7 @@ import Swal from 'sweetalert2';
   templateUrl: './ver-caja.html',
   styleUrls: ['./ver-caja.css']
 })
-export class VerCajaComponent implements OnInit {
+export class VerCajaComponent implements OnInit, OnDestroy {
   /** Ruta activa para obtener parámetros */
   private route = inject(ActivatedRoute);
 
@@ -47,6 +49,12 @@ export class VerCajaComponent implements OnInit {
 
   /** Servicio de autenticación */
   private authService = inject(AuthService);
+
+  /** Servicio de contexto de sucursal */
+  private sucursalContext = inject(SucursalContextService);
+
+  /** Suscripciones activas */
+  private subscriptions = new Subscription();
 
   /** Caja banco actual siendo visualizada */
   caja: CajaBanco | null = null;
@@ -119,6 +127,22 @@ export class VerCajaComponent implements OnInit {
         this.cargarDatos();
       }
     });
+
+    // Si el usuario cambia de sucursal estando en esta vista, redirigir a listar
+    const sub = this.sucursalContext.getSucursalSeleccionada().pipe(
+      filter(s => s !== null),
+      distinctUntilChanged((a, b) => a?.id === b?.id)
+    ).subscribe(() => {
+      // Solo redirigir si ya estaba cargado (no en la carga inicial)
+      if (this.caja) {
+        this.router.navigate(['/caja-banco']);
+      }
+    });
+    this.subscriptions.add(sub);
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
   }
 
   /**

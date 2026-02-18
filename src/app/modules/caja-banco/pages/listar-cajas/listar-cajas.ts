@@ -14,15 +14,16 @@
  * 3. MovimientoCajaBanco: movimientos financieros globales
  */
 
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { CajaBancoConfigService } from '../../../../core/services/caja-banco-config.service';
+import { SucursalContextService } from '../../../../core/services/sucursal-context.service';
 import { Router } from '@angular/router';
 import { CajaBanco, MovimientoCajaBanco } from '../../../../core/models/caja-banco.model';
 import { CajaChica } from '../../../../core/models/caja-chica.model';
-import { combineLatest } from 'rxjs';
+import { combineLatest, Subscription, filter, distinctUntilChanged, take } from 'rxjs';
 import Swal from 'sweetalert2';
 import { normalizarFecha } from '../../../../core/utils/fecha-helpers';
 
@@ -32,7 +33,7 @@ import { normalizarFecha } from '../../../../core/utils/fecha-helpers';
   templateUrl: './listar-cajas.html',
   styleUrls: ['./listar-cajas.css']
 })
-export class ListarCajasComponent implements OnInit {
+export class ListarCajasComponent implements OnInit, OnDestroy {
   /** Servicio de cajas banco */
   private cajaBancoService = inject(CajaBancoService);
 
@@ -45,8 +46,14 @@ export class ListarCajasComponent implements OnInit {
   /** Servicio de configuración de cajas banco */
   private cajaBancoConfigService = inject(CajaBancoConfigService);
 
+  /** Servicio de contexto de sucursal */
+  private sucursalContext = inject(SucursalContextService);
+
   /** Router para navegación */
   private router = inject(Router);
+
+  /** Suscripciones activas para limpieza */
+  private subscriptions = new Subscription();
 
   /** Lista de todas las cajas banco del sistema */
   cajas: CajaBanco[] = [];
@@ -104,10 +111,26 @@ export class ListarCajasComponent implements OnInit {
   ngOnInit(): void {
     // Cargar modo actual de configuración
     this.modoAutomatico = this.cajaBancoConfigService.esAutomatico();
-    
-    this.cargarCajas();
-    this.cargarCajasChicas();
-    this.cargarMovimientosGlobales();
+
+    // Recargar datos al cambiar de sucursal (o en la carga inicial)
+    const sub = this.sucursalContext.getSucursalSeleccionada().pipe(
+      filter(s => s !== null),
+      distinctUntilChanged((a, b) => a?.id === b?.id)
+    ).subscribe(() => {
+      // Limpiar estado anterior antes de recargar
+      this.cajas = [];
+      this.cajasChicas = [];
+      this.movimientosGlobales = [];
+      this.calcularTotales();
+      this.cargarCajas();
+      this.cargarCajasChicas();
+      this.cargarMovimientosGlobales();
+    });
+    this.subscriptions.add(sub);
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
   }
 
   /**
@@ -310,7 +333,7 @@ export class ListarCajasComponent implements OnInit {
    */
   cargarCajas(): void {
     this.cargando = true;
-    this.cajaBancoService.getCajasBanco().subscribe({
+    this.cajaBancoService.getCajasBanco().pipe(take(1)).subscribe({
       next: (cajas) => {
         this.cajas = (cajas || []);
         this.calcularTotales();
@@ -333,7 +356,7 @@ export class ListarCajasComponent implements OnInit {
    * Las cajas chicas cerradas representan ingresos para la caja banco.
    */
   cargarCajasChicas(): void {
-    this.cajaChicaService.getCajasChicas().subscribe({
+    this.cajaChicaService.getCajasChicas().pipe(take(1)).subscribe({
       next: (cajas) => {
         this.cajasChicas = cajas || [];
         this.calcularTotales();
@@ -349,7 +372,7 @@ export class ListarCajasComponent implements OnInit {
    * Incluye ingresos por transferencias y egresos registrados.
    */
   cargarMovimientosGlobales(): void {
-    this.cajaBancoService.getMovimientosCajaBanco().subscribe({
+    this.cajaBancoService.getMovimientosCajaBanco().pipe(take(1)).subscribe({
       next: (movimientos) => {
         this.movimientosGlobales = movimientos || [];
         this.calcularTotales();

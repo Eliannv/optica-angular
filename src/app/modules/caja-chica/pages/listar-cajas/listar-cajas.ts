@@ -26,8 +26,9 @@
 import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { Subscription, filter, distinctUntilChanged, take } from 'rxjs';
 import Swal from 'sweetalert2';
+import { SucursalContextService } from '../../../../core/services/sucursal-context.service';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { CajaChica } from '../../../../core/models/caja-chica.model';
@@ -43,6 +44,7 @@ import { QueryDocumentSnapshot, DocumentData } from '@angular/fire/firestore';
 export class ListarCajasComponent implements OnInit, OnDestroy {
   private cajaChicaService = inject(CajaChicaService);
   private cajaBancoService = inject(CajaBancoService);
+  private sucursalContext = inject(SucursalContextService);
   private router = inject(Router);
   private subscriptions = new Subscription();
 
@@ -75,7 +77,14 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
   cargandoPeriodos = false;
 
   ngOnInit(): void {
-    this.cargarPeriodosDisponibles();
+    // Recargar periodos y datos al cambiar de sucursal (o en la carga inicial)
+    const sub = this.sucursalContext.getSucursalSeleccionada().pipe(
+      filter(s => s !== null),
+      distinctUntilChanged((a, b) => a?.id === b?.id)
+    ).subscribe(() => {
+      this.cargarPeriodosDisponibles();
+    });
+    this.subscriptions.add(sub);
   }
 
   ngOnDestroy(): void {
@@ -91,7 +100,11 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
    */
   cargarPeriodosDisponibles(): void {
     this.cargandoPeriodos = true;
-    const sub = this.cajaBancoService.getCajasBanco().subscribe({
+    // Limpiar estado previo al cambiar de sucursal
+    this.cajasVisibles = [];
+    this.cajasBancoDisponibles = [];
+    this.cajaBancoSeleccionada = null;
+    const sub = this.cajaBancoService.getCajasBanco().pipe(take(1)).subscribe({
       next: (cajasBanco) => {
         // Ordenar por fecha descendente (más recientes primero)
         this.cajasBancoDisponibles = cajasBanco.sort((a, b) => {

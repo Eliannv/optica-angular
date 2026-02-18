@@ -1,9 +1,12 @@
 /**
  * Gestiona ventas con tarjeta y sus ingresos diferidos del banco.
  */
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Subscription, filter, distinctUntilChanged, take } from 'rxjs';
 import Swal from 'sweetalert2';
+import { Router } from '@angular/router';
 import { VentasTarjetaService } from '../../../../core/services/ventas-tarjeta.service';
+import { SucursalContextService } from '../../../../core/services/sucursal-context.service';
 import { VentaTarjeta } from '../../../../core/models/venta-tarjeta.model';
 
 @Component({
@@ -12,7 +15,7 @@ import { VentaTarjeta } from '../../../../core/models/venta-tarjeta.model';
   templateUrl: './ventas-tarjeta.html',
   styleUrls: ['./ventas-tarjeta.css']
 })
-export class VentasTarjetaComponent implements OnInit {
+export class VentasTarjetaComponent implements OnInit, OnDestroy {
   ventas: VentaTarjeta[] = [];
   ventasFiltradas: VentaTarjeta[] = [];
   cargando = true;
@@ -30,13 +33,29 @@ export class VentasTarjetaComponent implements OnInit {
 
   constructor(private ventasTarjetaService: VentasTarjetaService) {}
 
+  private sucursalContext = inject(SucursalContextService);
+  private router = inject(Router);
+  private subscriptions = new Subscription();
+
   ngOnInit(): void {
-    this.cargarVentas();
+    const sub = this.sucursalContext.getSucursalSeleccionada().pipe(
+      filter(s => s !== null),
+      distinctUntilChanged((a, b) => a?.id === b?.id)
+    ).subscribe(() => {
+      this.ventas = [];
+      this.ventasFiltradas = [];
+      this.cargarVentas();
+    });
+    this.subscriptions.add(sub);
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
   }
 
   cargarVentas(): void {
     this.cargando = true;
-    this.ventasTarjetaService.getVentasTarjeta().subscribe({
+    this.ventasTarjetaService.getVentasTarjeta().pipe(take(1)).subscribe({
       next: (ventas) => {
         this.ventas = ventas || [];
         this.aplicarFiltros();

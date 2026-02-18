@@ -45,6 +45,7 @@ import { firstValueFrom } from 'rxjs';
 import { CajaChica, MovimientoCajaChica, ResumenCajaChica } from '../models/caja-chica.model';
 import { CajaBancoService } from './caja-banco.service';
 import { AuthService } from './auth.service';
+import { SucursalQueryHelperService } from './sucursal-query-helper.service';
 import { 
   normalizarFecha, 
   obtenerPeriodo, 
@@ -106,7 +107,9 @@ export interface ResultadoPaginadoMovimientos {
 })
 export class CajaChicaService {
   private firestore = inject(Firestore);
-  private cajaBancoService = inject(CajaBancoService);  private authService = inject(AuthService);
+  private cajaBancoService = inject(CajaBancoService);
+  private authService = inject(AuthService);
+  private sucursalHelper = inject(SucursalQueryHelperService);
   /**
    * Recupera todas las cajas chicas activas del sistema ordenadas por fecha descendente.
    * Filtra automáticamente las cajas desactivadas (soft delete) en memoria.
@@ -115,8 +118,9 @@ export class CajaChicaService {
    */
   getCajasChicas(): Observable<CajaChica[]> {
     const cajasRef = collection(this.firestore, 'cajas_chicas');
-    const q = query(
+    const q = this.sucursalHelper.agregarFiltroConLimite(
       cajasRef,
+      500,
       orderBy('createdAt', 'desc')
     );
     return collectionData(q, { idField: 'id' }).pipe(
@@ -132,8 +136,9 @@ export class CajaChicaService {
    */
   getCajasChicasTodas(): Observable<CajaChica[]> {
     const cajasRef = collection(this.firestore, 'cajas_chicas');
-    const q = query(
+    const q = this.sucursalHelper.agregarFiltroConLimite(
       cajasRef,
+      500,
       orderBy('createdAt', 'desc')
     );
     return collectionData(q, { idField: 'id' }) as Observable<CajaChica[]>;
@@ -178,6 +183,12 @@ export class CajaChicaService {
 
       // Construir query base
       const constraints: any[] = [];
+
+      // Filtro por sucursal
+      const sucursalId = this.sucursalHelper.getSucursalIdActual();
+      if (sucursalId) {
+        constraints.push(where('sucursalId', '==', sucursalId));
+      }
 
       // Filtro por cajaBancoId (para filtrar por periodo)
       if (opciones.cajaBancoId) {

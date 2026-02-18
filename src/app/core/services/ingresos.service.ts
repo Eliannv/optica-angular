@@ -44,6 +44,7 @@ import { MovimientoStock } from '../models/movimiento-stock.model';
 import { Producto } from '../models/producto.model';
 import { ProductosService } from './productos';
 import { ProveedoresService } from './proveedores';
+import { SucursalQueryHelperService } from './sucursal-query-helper.service';
 
 @Injectable({
   providedIn: 'root',
@@ -52,7 +53,8 @@ export class IngresosService {
   private firestore = inject(Firestore);
   private productosService = inject(ProductosService);
   private proveedoresService = inject(ProveedoresService);
-  
+  private sucursalHelper = inject(SucursalQueryHelperService);
+
   private ingresosRef = collection(this.firestore, 'ingresos');
   private movimientosRef = collection(this.firestore, 'movimientos_stock');
   private productosRef = collection(this.firestore, 'productos');
@@ -125,7 +127,7 @@ export class IngresosService {
    * @returns Observable<Ingreso[]> Stream reactivo con todos los ingresos.
    */
   getIngresos(): Observable<Ingreso[]> {
-    const q = query(this.ingresosRef, orderBy('createdAt', 'desc'));
+    const q = this.sucursalHelper.agregarFiltroConLimite(this.ingresosRef, 500, orderBy('createdAt', 'desc'));
     return collectionData(q, { idField: 'id' }) as Observable<Ingreso[]>;
   }
 

@@ -41,6 +41,7 @@ import { map, switchMap } from 'rxjs/operators';
 import { firstValueFrom } from 'rxjs';
 import { CajaBanco, MovimientoCajaBanco, ResumenCajaBanco } from '../models/caja-banco.model';
 import { AuthService } from './auth.service';
+import { SucursalQueryHelperService } from './sucursal-query-helper.service';
 import { 
   normalizarFecha, 
   obtenerPeriodo, 
@@ -56,6 +57,7 @@ import {
 export class CajaBancoService {
   private firestore = inject(Firestore);
   private authService = inject(AuthService);
+  private sucursalHelper = inject(SucursalQueryHelperService);
 
   /**
    * Recupera todas las cajas banco activas del sistema ordenadas por fecha descendente.
@@ -66,9 +68,9 @@ export class CajaBancoService {
    */
   getCajasBanco(): Observable<CajaBanco[]> {
     const cajasRef = collection(this.firestore, 'cajas_banco');
-    // Obtener todas las cajas sin filtros de desigualdad para evitar requerir índices
-    const q = query(
+    const q = this.sucursalHelper.agregarFiltroConLimite(
       cajasRef,
+      500,
       orderBy('fecha', 'desc')
     );
     return collectionData(q, { idField: 'id' }).pipe(
@@ -102,7 +104,12 @@ export class CajaBancoService {
       where('fecha', '<', inicioSiguienteMes),
       orderBy('fecha', 'desc')
     );
-    return collectionData(q, { idField: 'id' }) as Observable<CajaBanco[]>;
+    return collectionData(q, { idField: 'id' }).pipe(
+      map((cajas: any[]) => {
+        const sucursalId = this.sucursalHelper.getSucursalIdActual();
+        return sucursalId ? cajas.filter((c: any) => c.sucursalId === sucursalId) : cajas;
+      })
+    ) as Observable<CajaBanco[]>;
   }
 
   /**
@@ -136,8 +143,9 @@ export class CajaBancoService {
   // Obtener TODAS las cajas banco (incluyendo desactivadas) - para cálculos totales
   getCajasBancoTodas(): Observable<CajaBanco[]> {
     const cajasRef = collection(this.firestore, 'cajas_banco');
-    const q = query(
+    const q = this.sucursalHelper.agregarFiltroConLimite(
       cajasRef,
+      500,
       orderBy('createdAt', 'desc')
     );
     return collectionData(q, { idField: 'id' }) as Observable<CajaBanco[]>;
@@ -167,6 +175,7 @@ export class CajaBancoService {
       
       if (!snapshot.empty) {
         // Filtrar manualmente las cajas activas y ordenar por fecha
+        const sucursalId = this.sucursalHelper.getSucursalIdActual();
         const cajasActivas = snapshot.docs
           .map(doc => {
             const data = doc.data() as CajaBanco;
@@ -174,6 +183,7 @@ export class CajaBancoService {
             return data;
           })
           .filter(caja => caja.activo !== false)
+          .filter(caja => !sucursalId || (caja as any).sucursalId === sucursalId)
           .sort((a, b) => {
             const fechaA = a.fecha instanceof Date ? a.fecha : (a.fecha as any).toDate?.() || new Date(a.fecha);
             const fechaB = b.fecha instanceof Date ? b.fecha : (b.fecha as any).toDate?.() || new Date(b.fecha);
@@ -229,13 +239,15 @@ export class CajaBancoService {
         return null;
       }
 
-      // Filtrar en memoria: solo activas y ABIERTA
+      // Filtrar en memoria: solo activas, ABIERTA y de la sucursal actual
+      const sucursalId = this.sucursalHelper.getSucursalIdActual();
       const cajasValidas = snapshot.docs
         .map(doc => ({
           ...doc.data(),
           id: doc.id,
         } as CajaBanco))
-        .filter(c => c.activo !== false && c.estado === 'ABIERTA');
+        .filter(c => c.activo !== false && c.estado === 'ABIERTA')
+        .filter(c => !sucursalId || (c as any).sucursalId === sucursalId);
 
       if (cajasValidas.length === 0) {
         console.warn(`⚠️ No hay caja banco ABIERTA para el periodo ${year}-${monthIndex0 + 1}`);
@@ -664,8 +676,8 @@ export class CajaBancoService {
         })
       ) as Observable<MovimientoCajaBanco[]>;
     } else {
-      // Si no hay caja específica, obtener todos los movimientos
-      const q = query(movimientosRef);
+      // Si no hay caja específica, obtener movimientos globales filtrados por sucursal
+      const q = this.sucursalHelper.agregarFiltroConLimite(movimientosRef, 1000);
       return collectionData(q, { idField: 'id' }).pipe(
         map((movimientos: any[]) => {
           return (movimientos || []).sort((a, b) => {

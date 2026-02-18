@@ -21,6 +21,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { AuthService } from './auth.service';
 import { CajaBancoService } from './caja-banco.service';
+import { SucursalQueryHelperService } from './sucursal-query-helper.service';
 import { MovimientoCajaBanco } from '../models/caja-banco.model';
 import { AbonoVentaTarjeta, VentaTarjeta } from '../models/venta-tarjeta.model';
 
@@ -29,6 +30,7 @@ export class VentasTarjetaService {
   private fs = inject(Firestore);
   private authService = inject(AuthService);
   private cajaBancoService = inject(CajaBancoService);
+  private sucursalHelper = inject(SucursalQueryHelperService);
   private ventasTarjetaRef = collection(this.fs, 'ventas_tarjeta');
 
   /**
@@ -72,7 +74,7 @@ export class VentasTarjetaService {
    * Obtiene todas las ventas con tarjeta.
    */
   getVentasTarjeta(): Observable<VentaTarjeta[]> {
-    const q = query(this.ventasTarjetaRef, orderBy('fechaVenta', 'desc'));
+    const q = this.sucursalHelper.agregarFiltroConLimite(this.ventasTarjetaRef, 500, orderBy('fechaVenta', 'desc'));
 
     return collectionData(q, { idField: 'id' }).pipe(
       map((ventas: any[]) =>

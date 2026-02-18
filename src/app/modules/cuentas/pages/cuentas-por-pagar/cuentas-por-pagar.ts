@@ -12,12 +12,14 @@
  * - Al pagar: DESCUENTA el monto de caja/banco (devolvemos dinero)
  */
 
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { Subscription, filter, distinctUntilChanged, take } from 'rxjs';
 import Swal from 'sweetalert2';
 import { CuentasService } from '../../../../core/services/cuentas.service';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
+import { SucursalContextService } from '../../../../core/services/sucursal-context.service';
 import { Cuenta, TipoCuenta, EstadoCuenta } from '../../../../core/models/cuenta.model';
 import { CajaBanco } from '../../../../core/models/caja-banco.model';
 import { obtenerPeriodo } from '../../../../core/utils/fecha-helpers';
@@ -29,7 +31,7 @@ import { obtenerPeriodo } from '../../../../core/utils/fecha-helpers';
   templateUrl: './cuentas-por-pagar.html',
   styleUrls: ['./cuentas-por-pagar.css']
 })
-export class CuentasPorPagarComponent implements OnInit {
+export class CuentasPorPagarComponent implements OnInit, OnDestroy {
   cuentas: Cuenta[] = [];
   cuentasFiltradas: Cuenta[] = [];
   cargando = true;
@@ -60,9 +62,26 @@ export class CuentasPorPagarComponent implements OnInit {
     this.inicializarFormulario();
   }
 
+  private sucursalContext = inject(SucursalContextService);
+  private subscriptions = new Subscription();
+
   ngOnInit(): void {
-    this.cargarCajasBanco(); // Esto cargará las cuentas automáticamente después de seleccionar la caja abierta
-    this.cargarRestriccionesFechaCajaBanco();
+    const sub = this.sucursalContext.getSucursalSeleccionada().pipe(
+      filter(s => s !== null),
+      distinctUntilChanged((a, b) => a?.id === b?.id)
+    ).subscribe(() => {
+      this.cuentas = [];
+      this.cuentasFiltradas = [];
+      this.cajasBanco = [];
+      this.cuentaBancoSeleccionada = null;
+      this.cargarCajasBanco();
+      this.cargarRestriccionesFechaCajaBanco();
+    });
+    this.subscriptions.add(sub);
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
   }
 
   /**
@@ -70,7 +89,7 @@ export class CuentasPorPagarComponent implements OnInit {
    * Selecciona automáticamente la caja banco abierta.
    */
   async cargarCajasBanco(): Promise<void> {
-    this.cajaBancoService.getCajasBanco().subscribe({
+    this.cajaBancoService.getCajasBanco().pipe(take(1)).subscribe({
       next: async (cajas) => {
         // Ordenar por fecha descendente (más reciente primero)
         this.cajasBanco = cajas.sort((a, b) => {
@@ -213,7 +232,7 @@ export class CuentasPorPagarComponent implements OnInit {
     }
 
     this.cargando = true;
-    this.cuentasService.getCuentasPorTipoYCajaBanco(TipoCuenta.PAGAR, this.cuentaBancoSeleccionada).subscribe({
+    this.cuentasService.getCuentasPorTipoYCajaBanco(TipoCuenta.PAGAR, this.cuentaBancoSeleccionada).pipe(take(1)).subscribe({
       next: (cuentas) => {
         this.cuentas = cuentas;
         this.aplicarFiltros();

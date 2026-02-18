@@ -15,15 +15,16 @@ import { RolUsuario, Usuario } from '../../../../core/models/usuario.model';
  * @component RegistrarMovimientoComponent
  */
 
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription, filter, distinctUntilChanged } from 'rxjs';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { ClientesService } from '../../../../core/services/clientes';
 import { EmpleadosService } from '../../../../core/services/empleados.service';
 import { ProveedoresService } from '../../../../core/services/proveedores';
 import { AuthService } from '../../../../core/services/auth.service';
+import { SucursalContextService } from '../../../../core/services/sucursal-context.service';
 import { normalizarFecha, obtenerPeriodo } from '../../../../core/utils/fecha-helpers';
 import Swal from 'sweetalert2';
 
@@ -33,7 +34,7 @@ import Swal from 'sweetalert2';
   templateUrl: './registrar-movimiento.html',
   styleUrls: ['./registrar-movimiento.css']
 })
-export class RegistrarMovimientoComponent implements OnInit {
+export class RegistrarMovimientoComponent implements OnInit, OnDestroy {
   /** Caja banco actual (puede estar abierta o cerrada) */
   cajaBanco: any = null;
 
@@ -66,6 +67,12 @@ export class RegistrarMovimientoComponent implements OnInit {
 
   /** Servicio de autenticación */
   private authService = inject(AuthService);
+
+  /** Servicio de contexto de sucursal */
+  private sucursalContext = inject(SucursalContextService);
+
+  /** Suscripciones activas */
+  private subscriptions = new Subscription();
 
   /** Formulario reactivo para entrada de datos */
   formulario!: FormGroup;
@@ -122,6 +129,10 @@ export class RegistrarMovimientoComponent implements OnInit {
   cargandoCaja = true; // Estado de carga de caja banco
   cajaBancoAbierta: any = null; // Caja banco abierta disponible
   errorCaja = ''; // Mensaje de error si no hay caja abierta
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+  }
   /** Categorías disponibles para ingresos */
   categorias_ingresos = ['CIERRE_CAJA_CHICA', 'TRANSFERENCIA_CLIENTE', 'OTRO_INGRESO'];
 
@@ -169,6 +180,18 @@ export class RegistrarMovimientoComponent implements OnInit {
     // 🔐 Si no hay cajaId, obtener automáticamente la última caja abierta
     if (!this.cajaId) {
       await this.obtenerCajaAbiertalAutomaticamente();
+      // Si no se encontró caja abierta para esta sucursal, redirigir
+      if (this.errorCaja) {
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Sin caja banco abierta',
+          text: 'No hay una caja banco abierta en la sucursal seleccionada.',
+          confirmButtonText: 'Entendido',
+          confirmButtonColor: 'var(--btn-primary-bg)'
+        });
+        this.router.navigate(['/caja-banco']);
+        return;
+      }
       this.cajaBanco = this.cajaBancoAbierta;
       // Si la caja está abierta y el usuario es admin, limpiar loading y error
       if (this.cajaBanco && this.cajaBanco.estado === 'ABIERTA') {
@@ -181,6 +204,21 @@ export class RegistrarMovimientoComponent implements OnInit {
     } else {
       // Si ya tiene cajaId, obtener la caja (puede estar cerrada)
       this.cajaBanco = await firstValueFrom(this.cajaBancoService.getCajaBancoById(this.cajaId));
+
+      // Validar que la caja pertenece a la sucursal actual (evitar sessionStorage desactualizado)
+      const sucursalIdActual = this.sucursalContext.getSucursalIdActual();
+      if (sucursalIdActual && this.cajaBanco && (this.cajaBanco as any).sucursalId !== sucursalIdActual) {
+        sessionStorage.removeItem('cajaBancoIdActual');
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Sin caja banco abierta',
+          text: 'No hay una caja banco abierta en la sucursal seleccionada.',
+          confirmButtonText: 'Entendido',
+          confirmButtonColor: 'var(--btn-primary-bg)'
+        });
+        this.router.navigate(['/caja-banco']);
+        return;
+      }
       // Si la caja está cerrada pero el usuario es admin, permitir registrar
       if (this.cajaBanco && this.cajaBanco.estado === 'CERRADA') {
         const esAdmin = this.authService.isAdmin ? this.authService.isAdmin() : false;
@@ -209,6 +247,17 @@ export class RegistrarMovimientoComponent implements OnInit {
     this.cargarProveedores();
     // 🔒 Cargar restricciones de fecha según el periodo de la caja
     this.cargarRestriccionesFecha();
+
+    // Si el usuario cambia de sucursal estando en esta página, redirigir
+    const sub = this.sucursalContext.getSucursalSeleccionada().pipe(
+      filter(s => s !== null),
+      distinctUntilChanged((a, b) => a?.id === b?.id)
+    ).subscribe(() => {
+      if (this.cajaBanco) {
+        this.router.navigate(['/caja-banco']);
+      }
+    });
+    this.subscriptions.add(sub);
 
     // Bloquear formulario si no puede modificar la caja
     if (!this.puedeModificarCaja()) {
