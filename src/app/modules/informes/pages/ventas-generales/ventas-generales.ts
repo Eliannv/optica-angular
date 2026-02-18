@@ -271,16 +271,51 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     const desde = this.fechaDesde;
     const hasta = this.fechaHasta;
 
-    const facturasEnRango = this.facturas.filter(f => filtrarPorFecha(f.fecha, desde, hasta));
-    const pagosDeudaEnRango = this.pagosDeuda.filter(p => filtrarPorFecha(p.fechaPago, desde, hasta));
-    const egresosEnRango = this.egresos.filter(e => filtrarPorFecha(e.fecha, desde, hasta));
+    // ✅ CORREGIDO: Usar facturasFiltradas que ya respeta los filtros de tipo
+    // En lugar de volver a filtrar this.facturas solo por fecha
+    const facturasEnRango = this.facturasFiltradas;
+    
+    // ✅ CORREGIDO: Aplicar filtros de tipos seleccionados a pagos de deuda
+    let pagosDeudaEnRango = this.pagosDeuda.filter(p => filtrarPorFecha(p.fechaPago, desde, hasta));
+    
+    // Aplicar filtros de tipo a pagos de deuda si hay tipos seleccionados
+    if (this.tiposSeleccionados.length > 0) {
+      const mostrarFacturasDeuda = this.tiposSeleccionados.includes('FACTURAS_DEUDA');
+      const mostrarPagoDeudaEfectivo = this.tiposSeleccionados.includes('PAGO_DEUDA_EFECTIVO');
+      const mostrarPagoDeudaTarjeta = this.tiposSeleccionados.includes('PAGO_DEUDA_TARJETA');
+      const mostrarTransferenciaDeudas = this.tiposSeleccionados.includes('TRANSFERENCIA_DEUDAS');
+      
+      // Si no hay filtros de deuda seleccionados, no incluir pagos de deuda
+      if (!mostrarFacturasDeuda && !mostrarPagoDeudaEfectivo && !mostrarPagoDeudaTarjeta && !mostrarTransferenciaDeudas) {
+        pagosDeudaEnRango = [];
+      } else if (!mostrarFacturasDeuda) {
+        // Si hay filtros específicos (no "Todos"), filtrar por método
+        pagosDeudaEnRango = pagosDeudaEnRango.filter(p => {
+          if (mostrarPagoDeudaEfectivo && p.metodoPago === 'Efectivo') return true;
+          if (mostrarPagoDeudaTarjeta && p.metodoPago === 'Tarjeta') return true;
+          if (mostrarTransferenciaDeudas && p.metodoPago === 'Transferencia') return true;
+          return false;
+        });
+      }
+    }
+    
+    // ✅ CORREGIDO: Aplicar filtros de tipos seleccionados a egresos
+    let egresosEnRango = this.egresos.filter(e => filtrarPorFecha(e.fecha, desde, hasta));
+    
+    // Si hay tipos seleccionados y EGRESOS no está incluido, no mostrar egresos
+    if (this.tiposSeleccionados.length > 0 && !this.tiposSeleccionados.includes('EGRESOS')) {
+      egresosEnRango = [];
+    }
 
     this.totalVendido = facturasEnRango.reduce((sum, f) => sum + (f.total || 0), 0);
-    this.cantidadRegistros = facturasEnRango.length;
     this.totalPagosDeuda = pagosDeudaEnRango.reduce((sum, p) => sum + (p.montoPagado || 0), 0);
     this.totalEgresos = egresosEnRango.reduce((sum, e) => sum + (e.monto || 0), 0);
+    
+    // ✅ CORREGIDO: Total de registros = facturas + pagos deuda + egresos (según filtros)
+    this.cantidadRegistros = facturasEnRango.length + pagosDeudaEnRango.length + egresosEnRango.length;
 
     // ─── 🆕 Abonos de facturas normales por método de pago ────────────────────
+    // ✅ CORREGIDO: Ya usa facturasEnRango que viene de facturasFiltradas
     let abonosNormalesEfectivo = 0;
     let abonosNormalesTarjeta = 0;
     let abonosNormalesTransferencia = 0;
@@ -302,6 +337,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     };
 
     // ─── 🆕 Abonos de cobros/pagos de deuda por método de pago ───────────────
+    // ✅ CORREGIDO: Ya usa pagosDeudaEnRango que está filtrado
     let abonosDeudaEfectivo = 0;
     let abonosDeudaTarjeta = 0;
     let abonosDeudaTransferencia = 0;
@@ -327,7 +363,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
       total:         this.abonosFacturasNormales.total + this.abonosCobrosDeuda.total
     };
 
-    // Totales por método de pago
+    // ✅ CORREGIDO: Totales por método de pago usando datos filtrados
     this.totalesPorMetodo = {
       'Efectivo': facturasEnRango.filter(f => f.metodoPago === 'Efectivo').reduce((sum, f) => sum + (f.total || 0), 0),
       'Abonos (Efectivo)': abonosNormalesEfectivo + abonosDeudaEfectivo,
@@ -495,6 +531,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     ventana.document.close();
 
     ventana.addEventListener('load', async () => {
+      // ✅ Calcular Caja Chica para el resumen (todos los datos en rango de fechas)
       let totalCajaChicaImpresion = 0;
       try {
         const [añoDesde, mesDesde, diaDesde] = this.fechaDesde.split('-').map(Number);
@@ -512,6 +549,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
           fechaActual.setDate(fechaActual.getDate() + 1);
         }
       } catch (e) {
+        console.error('Error cargando caja chica para impresión:', e);
         totalCajaChicaImpresion = 0;
       }
       const spanCajaChica = ventana.document.getElementById('impresion-caja-chica');
@@ -546,7 +584,93 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
 
     const filtrosTexto = filtrosAplicados.length > 0 ? `<div class="filtros">${filtrosAplicados.join(' | ')}</div>` : '';
 
-    const filasVentas = this.facturasFiltradas.map(factura => {
+    // ✅ Función para filtrar por fecha
+    const filtrarPorFecha = (fecha: any) => {
+      let d: Date;
+      if (fecha instanceof Date) d = fecha;
+      else if (fecha && typeof fecha === 'object' && typeof (fecha as any).toDate === 'function') d = (fecha as any).toDate();
+      else d = new Date(fecha);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}` >= this.fechaDesde && `${yyyy}-${mm}-${dd}` <= this.fechaHasta;
+    };
+
+    // ✅ DATOS PARA LA TABLA - Respetan filtros de tipo
+    const facturasParaImprimir = this.facturasFiltradas;
+    const pagosDeudaParaImprimir = this.getPagosDeudaFiltrados();
+    let egresosParaImprimir = this.egresos.filter(e => filtrarPorFecha(e.fecha));
+    if (this.tiposSeleccionados.length > 0 && !this.tiposSeleccionados.includes('EGRESOS')) {
+      egresosParaImprimir = [];
+    }
+
+    // 🆕 DATOS PARA EL RESUMEN - SIEMPRE TODOS (solo filtro de fecha, NO de tipo)
+    const todasFacturasEnRango = this.facturas.filter(f => filtrarPorFecha(f.fecha));
+    const todosPagosDeudaEnRango = this.pagosDeuda.filter(p => filtrarPorFecha(p.fechaPago));
+    const todosEgresosEnRango = this.egresos.filter(e => filtrarPorFecha(e.fecha));
+
+    // 🆕 Calcular totales para el RESUMEN (independiente de filtros de tipo)
+    const totalVendidoResumen = todasFacturasEnRango.reduce((sum, f) => sum + (f.total || 0), 0);
+    const totalPagosDeudaResumen = todosPagosDeudaEnRango.reduce((sum, p) => sum + (p.montoPagado || 0), 0);
+    const totalEgresosResumen = todosEgresosEnRango.reduce((sum, e) => sum + (e.monto || 0), 0);
+
+    // 🆕 Calcular totales por método para el RESUMEN
+    const totalesPorMetodoResumen: { [key: string]: number } = {
+      'Efectivo': todasFacturasEnRango.filter(f => f.metodoPago === 'Efectivo').reduce((sum, f) => sum + (f.total || 0), 0),
+      'Tarjeta': todasFacturasEnRango.filter(f => f.metodoPago === 'Tarjeta').reduce((sum, f) => sum + (f.total || 0), 0),
+      'Transferencia (Ventas)': todasFacturasEnRango.filter(f => f.metodoPago === 'Transferencia').reduce((sum, f) => sum + (f.total || 0), 0),
+      'Efectivo pago de deudas': todosPagosDeudaEnRango.filter(p => p.metodoPago === 'Efectivo').reduce((sum, p) => sum + p.montoPagado, 0),
+      'Tarjeta pago de deudas': todosPagosDeudaEnRango.filter(p => p.metodoPago === 'Tarjeta').reduce((sum, p) => sum + p.montoPagado, 0),
+      'Transferencia (Cobro de Deudas)': todosPagosDeudaEnRango.filter(p => p.metodoPago === 'Transferencia').reduce((sum, p) => sum + p.montoPagado, 0),
+    };
+
+    // 🆕 Calcular abonos para el RESUMEN
+    let abonosNormalesEfectivoR = 0, abonosNormalesTarjetaR = 0, abonosNormalesTransferenciaR = 0;
+    todasFacturasEnRango.forEach(f => {
+      const abono = typeof f.abonado === 'number' ? f.abonado : 0;
+      if (abono > 0) {
+        if (f.metodoPago === 'Efectivo') abonosNormalesEfectivoR += abono;
+        else if (f.metodoPago === 'Tarjeta') abonosNormalesTarjetaR += abono;
+        else if (f.metodoPago === 'Transferencia') abonosNormalesTransferenciaR += abono;
+      }
+    });
+
+    let abonosDeudaEfectivoR = 0, abonosDeudaTarjetaR = 0, abonosDeudaTransferenciaR = 0;
+    todosPagosDeudaEnRango.forEach(p => {
+      if (p.metodoPago === 'Efectivo') abonosDeudaEfectivoR += p.montoPagado;
+      else if (p.metodoPago === 'Tarjeta') abonosDeudaTarjetaR += p.montoPagado;
+      else if (p.metodoPago === 'Transferencia') abonosDeudaTransferenciaR += p.montoPagado;
+    });
+
+    totalesPorMetodoResumen['Abonos (Efectivo)'] = abonosNormalesEfectivoR + abonosDeudaEfectivoR;
+
+    const abonosFacturasNormalesR = {
+      efectivo: abonosNormalesEfectivoR,
+      tarjeta: abonosNormalesTarjetaR,
+      transferencia: abonosNormalesTransferenciaR,
+      total: abonosNormalesEfectivoR + abonosNormalesTarjetaR + abonosNormalesTransferenciaR
+    };
+
+    const abonosCobrosDeudaR = {
+      efectivo: abonosDeudaEfectivoR,
+      tarjeta: abonosDeudaTarjetaR,
+      transferencia: abonosDeudaTransferenciaR,
+      total: abonosDeudaEfectivoR + abonosDeudaTarjetaR + abonosDeudaTransferenciaR
+    };
+
+    const totalAbonosCombinadosR = {
+      efectivo: abonosNormalesEfectivoR + abonosDeudaEfectivoR,
+      tarjeta: abonosNormalesTarjetaR + abonosDeudaTarjetaR,
+      transferencia: abonosNormalesTransferenciaR + abonosDeudaTransferenciaR,
+      total: abonosFacturasNormalesR.total + abonosCobrosDeudaR.total
+    };
+
+    // ✅ CORREGIDO: Usar solo ABONOS (dinero que realmente entró), no totales de factura
+    const totalCajaChicaResumen = totalAbonosCombinadosR.efectivo - totalEgresosResumen;
+    const totalCajaBancoResumen = totalAbonosCombinadosR.tarjeta + totalAbonosCombinadosR.transferencia;
+    const totalCajasResumen = totalCajaChicaResumen + totalCajaBancoResumen;
+
+    const filasVentas = facturasParaImprimir.map(factura => {
       let mp = factura.metodoPago === 'Transferencia' ? 'Transferencia (Ventas)' : factura.metodoPago;
       return `<tr>
           <td>${this.formatoFecha(factura.fecha)}</td><td>Venta</td>
@@ -558,10 +682,7 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
         </tr>`;
     }).join('');
 
-    const mostrarFacturasDeuda = this.tiposSeleccionados.includes('FACTURAS_DEUDA') ||
-                                  this.tiposSeleccionados.includes('TRANSFERENCIA_DEUDAS') ||
-                                  this.tiposSeleccionados.length === 0;
-    const filasDeuda = mostrarFacturasDeuda ? this.getPagosDeudaFiltrados().map(deuda => {
+    const filasDeuda = pagosDeudaParaImprimir.map(deuda => {
       let mp = deuda.metodoPago === 'Transferencia' ? 'Transferencia (Cobro de Deudas)' : deuda.metodoPago;
       return `<tr style="background-color:#fff3e0;">
           <td>${this.formatoFecha(deuda.fechaPago)}</td><td>Pago Deuda</td>
@@ -571,29 +692,46 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
           <td class="text-right">${this.formatoMoneda(deuda.montoPagado)}</td>
           <td class="text-right">${this.formatoMoneda(deuda.saldoRestante || 0)}</td>
         </tr>`;
-    }).join('') : '';
+    }).join('');
 
-    const mostrarEgresos = this.tiposSeleccionados.includes('EGRESOS') || this.tiposSeleccionados.length === 0;
-    const filasEgresos = mostrarEgresos ? this.egresos.map(egreso => `
+    const filasEgresos = egresosParaImprimir.map(egreso => `
         <tr style="background-color:#ffebee;">
           <td>${this.formatoFecha(egreso.fecha)}</td><td>Egreso</td>
           <td>${egreso.comprobante || '-'}</td>
           <td>${egreso.descripcion || 'Sin descripción'}</td><td>Efectivo</td>
           <td class="text-right">${this.formatoMoneda(egreso.monto)}</td>
           <td class="text-right">-</td><td class="text-right">-</td>
-        </tr>`).join('') : '';
+        </tr>`).join('');
 
-    const metodosMostrar = [
-      'Efectivo', 'Abonos (Efectivo)', 'Tarjeta', 'Transferencia (Ventas)',
-      'Efectivo pago de deudas', 'Tarjeta pago de deudas', 'Transferencia (Cobro de Deudas)'
-    ];
-    const totalesMetodo = metodosMostrar.map(m => `
+    // ✅ Orden mejorado y sin "Abonos (Efectivo)" duplicado
+    const desglosePago = `
       <div class="total-item">
-        <span>${m}:</span>
-        <span class="total-value">${this.formatoMoneda(this.totalesPorMetodo[m] || 0)}</span>
-      </div>`).join('');
+        <span>Efectivo (Ventas):</span>
+        <span class="total-value" style="color:#28a745;font-weight:bold;">${this.formatoMoneda(totalesPorMetodoResumen['Efectivo'] || 0)}</span>
+      </div>
+      <div class="total-item">
+        <span>Efectivo (Cobros de Deudas):</span>
+        <span class="total-value" style="color:#28a745;font-weight:bold;">${this.formatoMoneda(totalesPorMetodoResumen['Efectivo pago de deudas'] || 0)}</span>
+      </div>
+      <div class="total-item">
+        <span>Tarjeta (Ventas):</span>
+        <span class="total-value" style="color:#28a745;font-weight:bold;">${this.formatoMoneda(totalesPorMetodoResumen['Tarjeta'] || 0)}</span>
+      </div>
+      <div class="total-item">
+        <span>Tarjeta (Cobros de Deudas):</span>
+        <span class="total-value" style="color:#28a745;font-weight:bold;">${this.formatoMoneda(totalesPorMetodoResumen['Tarjeta pago de deudas'] || 0)}</span>
+      </div>
+      <div class="total-item">
+        <span>Transferencia (Ventas):</span>
+        <span class="total-value" style="color:#28a745;font-weight:bold;">${this.formatoMoneda(totalesPorMetodoResumen['Transferencia (Ventas)'] || 0)}</span>
+      </div>
+      <div class="total-item">
+        <span>Transferencia (Cobros de Deudas):</span>
+        <span class="total-value" style="color:#28a745;font-weight:bold;">${this.formatoMoneda(totalesPorMetodoResumen['Transferencia (Cobro de Deudas)'] || 0)}</span>
+      </div>
+    `;
 
-    // ─── 🆕 Sección DESGLOSE DE ABONOS ───────────────────────────────────────
+    // ─── 🆕 Sección DESGLOSE DE ABONOS (usando datos del resumen) ────────────
     const seccionAbonos = `
       <h4 class="seccion-titulo">DESGLOSE DE ABONOS POR TIPO DE PAGO</h4>
       <table class="abonos-inner">
@@ -609,24 +747,24 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
         <tbody>
           <tr>
             <td>Abonos Facturas Normales</td>
-            <td class="text-right">${this.formatoMoneda(this.abonosFacturasNormales.efectivo)}</td>
-            <td class="text-right">${this.formatoMoneda(this.abonosFacturasNormales.transferencia)}</td>
-            <td class="text-right">${this.formatoMoneda(this.abonosFacturasNormales.tarjeta)}</td>
-            <td class="text-right bold">${this.formatoMoneda(this.abonosFacturasNormales.total)}</td>
+            <td class="text-right">${this.formatoMoneda(abonosFacturasNormalesR.efectivo)}</td>
+            <td class="text-right">${this.formatoMoneda(abonosFacturasNormalesR.transferencia)}</td>
+            <td class="text-right">${this.formatoMoneda(abonosFacturasNormalesR.tarjeta)}</td>
+            <td class="text-right bold">${this.formatoMoneda(abonosFacturasNormalesR.total)}</td>
           </tr>
           <tr style="background-color:#fff3e0;">
             <td>Abonos Cobros / Pagos Deuda</td>
-            <td class="text-right">${this.formatoMoneda(this.abonosCobrosDeuda.efectivo)}</td>
-            <td class="text-right">${this.formatoMoneda(this.abonosCobrosDeuda.transferencia)}</td>
-            <td class="text-right">${this.formatoMoneda(this.abonosCobrosDeuda.tarjeta)}</td>
-            <td class="text-right bold">${this.formatoMoneda(this.abonosCobrosDeuda.total)}</td>
+            <td class="text-right">${this.formatoMoneda(abonosCobrosDeudaR.efectivo)}</td>
+            <td class="text-right">${this.formatoMoneda(abonosCobrosDeudaR.transferencia)}</td>
+            <td class="text-right">${this.formatoMoneda(abonosCobrosDeudaR.tarjeta)}</td>
+            <td class="text-right bold">${this.formatoMoneda(abonosCobrosDeudaR.total)}</td>
           </tr>
           <tr class="fila-total-abonos">
             <td><strong>TOTAL ABONOS</strong></td>
-            <td class="text-right"><strong>${this.formatoMoneda(this.totalAbonosCombinados.efectivo)}</strong></td>
-            <td class="text-right"><strong>${this.formatoMoneda(this.totalAbonosCombinados.transferencia)}</strong></td>
-            <td class="text-right"><strong>${this.formatoMoneda(this.totalAbonosCombinados.tarjeta)}</strong></td>
-            <td class="text-right"><strong>${this.formatoMoneda(this.totalAbonosCombinados.total)}</strong></td>
+            <td class="text-right"><strong>${this.formatoMoneda(totalAbonosCombinadosR.efectivo)}</strong></td>
+            <td class="text-right"><strong>${this.formatoMoneda(totalAbonosCombinadosR.transferencia)}</strong></td>
+            <td class="text-right"><strong>${this.formatoMoneda(totalAbonosCombinadosR.tarjeta)}</strong></td>
+            <td class="text-right"><strong>${this.formatoMoneda(totalAbonosCombinadosR.total)}</strong></td>
           </tr>
         </tbody>
       </table>`;
@@ -698,17 +836,18 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
   </table>
 
   <div class="resumen">
-    <h3>RESUMEN</h3>
-    <div class="resumen-item"><span>Total Ventas (Facturas):</span><span>${this.cantidadRegistros}</span></div>
-    ${mostrarFacturasDeuda ? `<div class="resumen-item"><span>Total Pagos de Deuda:</span><span>${this.getPagosDeudaFiltrados().length}</span></div>` : ''}
-    ${mostrarEgresos ? `<div class="resumen-item"><span>Total Egresos:</span><span>${this.egresos.length}</span></div>` : ''}
+    <h3>RESUMEN - TODOS LOS DATOS (Filtrado solo por Fecha)</h3>
+    <div class="resumen-item"><span>Total Registros Filtrados (en tabla):</span><span>${facturasParaImprimir.length + pagosDeudaParaImprimir.length + egresosParaImprimir.length}</span></div>
+    <div class="resumen-item"><span>Total Facturas de Venta (en rango fecha):</span><span>${todasFacturasEnRango.length}</span></div>
+    <div class="resumen-item"><span>Total Pagos de Deuda (en rango fecha):</span><span>${todosPagosDeudaEnRango.length}</span></div>
+    <div class="resumen-item"><span>Total Egresos (en rango fecha):</span><span>${todosEgresosEnRango.length}</span></div>
 
     <h4 style="font-size:10px;margin:6px 0 4px 0;font-weight:bold;">Desglose por Forma de Pago:</h4>
-    ${totalesMetodo}
+    ${desglosePago}
 
-    <div class="resumen-item total"><span>TOTAL VENDIDO:</span><span>${this.formatoMoneda(this.totalVendido)}</span></div>
-    ${mostrarFacturasDeuda ? `<div class="resumen-item"><span>Total Pagos Deuda:</span><span>${this.formatoMoneda(this.totalPagosDeuda)}</span></div>` : ''}
-    ${mostrarEgresos ? `<div class="resumen-item"><span>Total Egresos:</span><span>${this.formatoMoneda(this.totalEgresos)}</span></div>` : ''}
+    <div class="resumen-item total"><span>TOTAL VENDIDO:</span><span>${this.formatoMoneda(totalVendidoResumen)}</span></div>
+    <div class="resumen-item"><span>Total Pagos Deuda:</span><span>${this.formatoMoneda(totalPagosDeudaResumen)}</span></div>
+    <div class="resumen-item"><span>Total Egresos:</span><span>${this.formatoMoneda(totalEgresosResumen)}</span></div>
 
     ${seccionAbonos}
 
@@ -721,10 +860,10 @@ export class VentasGeneralesComponent implements OnInit, OnDestroy {
     </div>
     <div class="resumen-item">
       <span>Total Caja Banco:</span>
-      <span class="total-value">${this.formatoMoneda(this.totalCajaBanco)}</span>
+      <span class="total-value">${this.formatoMoneda(totalCajaBancoResumen)}</span>
     </div>
     <div class="resumen-item total">
-      <span>TOTAL CAJAS:</span><span>${this.formatoMoneda(this.totalCajas)}</span>
+      <span>TOTAL CAJAS:</span><span>${this.formatoMoneda(totalCajasResumen)}</span>
     </div>
   </div>
 </body>

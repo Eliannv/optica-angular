@@ -58,7 +58,7 @@
         </button>
             </div>
             <span class="filtros-resultado">
-        {{ facturasFiltradas.length }} factura(s) encontrada(s)
+        {{ cantidadRegistros }} registro(s) encontrado(s)
       </span>
         </div>
     </div>
@@ -101,27 +101,80 @@
             </div>
         </div>
 
-        <div class="stat-card stat-card-primary">
+        <!-- ✅ Efectivo (Ventas) - Solo si hay filtro de ventas o efectivo -->
+        <div class="stat-card stat-card-primary"
+             *ngIf="tiposSeleccionados.length === 0 || 
+                    tiposSeleccionados.includes('VENTAS') || 
+                    tiposSeleccionados.includes('PAGOS_EFECTIVO')">
             <div class="stat-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-hand-coins-icon lucide-hand-coins"><path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17"/><path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"/><path d="m2 16 6 6"/><circle cx="16" cy="9" r="2.9"/><circle cx="6" cy="5" r="3"/></svg>
             </div>
             <div class="stat-content">
-                <span class="stat-label">Efectivo</span>
+                <span class="stat-label">Efectivo (Ventas)</span>
                 <span class="stat-value">{{ formatoMoneda(totalesPorMetodo['Efectivo'] || 0) }}</span>
             </div>
         </div>
 
-        <div class="stat-card stat-card-primary">
+        <!-- ✅ Efectivo (Pagos Deuda) - Solo si hay filtro de deudas -->
+        <div class="stat-card stat-card-primary"
+             *ngIf="tiposSeleccionados.length === 0 || 
+                    tiposSeleccionados.includes('FACTURAS_DEUDA') || 
+                    tiposSeleccionados.includes('PAGO_DEUDA_EFECTIVO')">
+            <div class="stat-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17"/>
+                    <path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"/>
+                    <path d="m2 16 6 6"/>
+                    <circle cx="16" cy="9" r="2.9"/>
+                    <circle cx="6" cy="5" r="3"/>
+                    <path d="M16 12v4"/>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <span class="stat-label">Efectivo (Cobro Deudas)</span>
+                <span class="stat-value">{{ formatoMoneda(totalesPorMetodo['Efectivo pago de deudas'] || 0) }}</span>
+            </div>
+        </div>
+
+        <!-- ✅ Transferencia (Ventas) - Solo si hay filtro de ventas o sin filtros -->
+        <div class="stat-card stat-card-primary" 
+             *ngIf="tiposSeleccionados.length === 0 || 
+                    tiposSeleccionados.includes('VENTAS') || 
+                    tiposSeleccionados.includes('TRANSFERENCIA_VENTAS')">
             <div class="stat-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-landmark-icon lucide-landmark"><path d="M10 18v-7"/><path d="M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/></svg>
             </div>
             <div class="stat-content">
-                <span class="stat-label">Transferencia</span>
-                <span class="stat-value">{{ formatoMoneda(totalesPorMetodo['Transferencia'] || 0) }}</span>
+                <span class="stat-label">Transferencia (Ventas)</span>
+                <span class="stat-value">{{ formatoMoneda(totalesPorMetodo['Transferencia (Ventas)'] || 0) }}</span>
             </div>
         </div>
 
-        <div class="stat-card stat-card-primary">
+        <!-- ✅ Transferencia (Cobro de Deudas) - Solo si hay filtro de deudas o sin filtros -->
+        <div class="stat-card stat-card-primary" 
+             *ngIf="tiposSeleccionados.length === 0 || 
+                    tiposSeleccionados.includes('FACTURAS_DEUDA') || 
+                    tiposSeleccionados.includes('TRANSFERENCIA_DEUDAS')">
+            <div class="stat-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10 18v-7"/>
+                    <path d="M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z"/>
+                    <path d="M14 18v-7M18 18v-7M3 22h18M6 18v-7"/>
+                    <circle cx="18" cy="8" r="3"/>
+                    <path d="M18 5v6"/>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <span class="stat-label">Transferencia (Cobro Deudas)</span>
+                <span class="stat-value">{{ formatoMoneda(totalesPorMetodo['Transferencia (Cobro de Deudas)'] || 0) }}</span>
+            </div>
+        </div>
+
+        <!-- ✅ Tarjeta (Ventas) - Solo si hay filtro de ventas o tarjeta -->
+        <div class="stat-card stat-card-primary"
+             *ngIf="tiposSeleccionados.length === 0 || 
+                    tiposSeleccionados.includes('VENTAS') || 
+                    tiposSeleccionados.includes('VENTAS_TARJETA')">
             <div class="stat-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect width="20" height="14" x="2" y="5" rx="2"/>
@@ -129,8 +182,26 @@
         </svg>
             </div>
             <div class="stat-content">
-                <span class="stat-label">Tarjeta</span>
+                <span class="stat-label">Tarjeta (Ventas)</span>
                 <span class="stat-value">{{ formatoMoneda(totalesPorMetodo['Tarjeta'] || 0) }}</span>
+            </div>
+        </div>
+
+        <!-- ✅ Tarjeta (Cobro Deudas) - Solo si hay filtro de deudas -->
+        <div class="stat-card stat-card-primary"
+             *ngIf="tiposSeleccionados.length === 0 || 
+                    tiposSeleccionados.includes('FACTURAS_DEUDA') || 
+                    tiposSeleccionados.includes('PAGO_DEUDA_TARJETA')">
+            <div class="stat-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="20" height="14" x="2" y="5" rx="2"/>
+                    <path d="M2 10h20"/>
+                    <circle cx="16" cy="15" r="2"/>
+        </svg>
+            </div>
+            <div class="stat-content">
+                <span class="stat-label">Tarjeta (Cobro Deudas)</span>
+                <span class="stat-value">{{ formatoMoneda(totalesPorMetodo['Tarjeta pago de deudas'] || 0) }}</span>
             </div>
         </div>
 
@@ -142,7 +213,7 @@
         </svg>
             </div>
             <div class="stat-content">
-                <span class="stat-label">Total Registros</span>
+                <span class="stat-label">Total Registros Filtrados</span>
                 <span class="stat-value">{{ cantidadRegistros }}</span>
             </div>
         </div>
