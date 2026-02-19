@@ -57,6 +57,66 @@ export class VerCajaComponent implements OnInit {
   /** Movimientos asociados a esta caja banco */
   movimientos: MovimientoCajaBanco[] = [];
 
+  // ─── Filtros de movimientos ───────────────────────────────────────────
+  filtroBusqueda: string = '';
+  filtroTipoMov: string = 'TODOS';
+  filtroCategoriaMov: string = 'TODOS';
+  filtroUsuarioMov: string = '';
+  filtroFechaMovDesde: string = '';
+  filtroFechaMovHasta: string = '';
+  filtroMontoMin: number | null = null;
+  filtroMontoMax: number | null = null;
+  mostrarFiltrosMov: boolean = false;
+  // ─── Filtros de cajas chicas ──────────────────────────────────────────────
+  mostrarFiltrosCC: boolean = false;
+  filtroCCFechaDesde: string = '';
+  filtroCCFechaHasta: string = '';
+  filtroCCSaldoIniMin: number | null = null;
+  filtroCCSaldoIniMax: number | null = null;
+  filtroCCSaldoActMin: number | null = null;
+  filtroCCSaldoActMax: number | null = null;
+  filtroCCUsuario: string = '';
+
+  get cajasChicasFiltradas(): CajaChica[] {
+    return this.cajasChicas.filter(cc => {
+      if (this.filtroCCFechaDesde || this.filtroCCFechaHasta) {
+        const f: Date = (cc.fecha as any)?.toDate ? (cc.fecha as any).toDate() : new Date(cc.fecha);
+        if (this.filtroCCFechaDesde && f < new Date(this.filtroCCFechaDesde + 'T00:00:00')) return false;
+        if (this.filtroCCFechaHasta && f > new Date(this.filtroCCFechaHasta + 'T23:59:59')) return false;
+      }
+      if (this.filtroCCSaldoIniMin !== null && (cc.monto_inicial || 0) < this.filtroCCSaldoIniMin) return false;
+      if (this.filtroCCSaldoIniMax !== null && (cc.monto_inicial || 0) > this.filtroCCSaldoIniMax) return false;
+      if (this.filtroCCSaldoActMin !== null && (cc.monto_actual || 0) < this.filtroCCSaldoActMin) return false;
+      if (this.filtroCCSaldoActMax !== null && (cc.monto_actual || 0) > this.filtroCCSaldoActMax) return false;
+      if (this.filtroCCUsuario.trim()) {
+        const term = this.filtroCCUsuario.trim().toLowerCase();
+        const abrio = (cc.usuario_nombre || '').toLowerCase();
+        const cerro = (cc.cerrado_por_nombre || '').toLowerCase();
+        if (!abrio.includes(term) && !cerro.includes(term)) return false;
+      }
+      return true;
+    });
+  }
+
+  get hayFiltrosCC(): boolean {
+    return !!this.filtroCCFechaDesde || !!this.filtroCCFechaHasta
+      || this.filtroCCSaldoIniMin !== null || this.filtroCCSaldoIniMax !== null
+      || this.filtroCCSaldoActMin !== null || this.filtroCCSaldoActMax !== null
+      || !!this.filtroCCUsuario.trim();
+  }
+
+  limpiarFiltrosCC(): void {
+    this.filtroCCFechaDesde = '';
+    this.filtroCCFechaHasta = '';
+    this.filtroCCSaldoIniMin = null;
+    this.filtroCCSaldoIniMax = null;
+    this.filtroCCSaldoActMin = null;
+    this.filtroCCSaldoActMax = null;
+    this.filtroCCUsuario = '';
+  }
+  /** Controla la visibilidad del accordion de detalles de la caja */
+  mostrarDetallesCaja: boolean = false;
+
   /** Estado de carga de datos */
   cargando = false;
 
@@ -106,6 +166,134 @@ export class VerCajaComponent implements OnInit {
     }
     // Si está ABIERTA, solo la última caja abierta puede ser editada
     return this.caja.id === this.ultimaCajaAbiertaId && puedeModificarCaja(this.caja, usuario);
+  }
+
+  /** Movimientos filtrados según los criterios activos */
+  get movimientosFiltrados(): MovimientoCajaBanco[] {
+    let result = [...this.movimientos];
+
+    // Búsqueda rápida (descripción, referencia, monto, usuario, tipo)
+    if (this.filtroBusqueda.trim()) {
+      const q = this.filtroBusqueda.toLowerCase().trim();
+      result = result.filter(m =>
+        (m.descripcion || '').toLowerCase().includes(q) ||
+        (m.referencia || '').toLowerCase().includes(q) ||
+        String(m.monto ?? '').includes(q) ||
+        (m.usuario_nombre || '').toLowerCase().includes(q) ||
+        (m.tipo || '').toLowerCase().includes(q)
+      );
+    }
+
+    if (this.filtroTipoMov !== 'TODOS') {
+      result = result.filter(m => m.tipo === this.filtroTipoMov);
+    }
+
+    if (this.filtroCategoriaMov !== 'TODOS') {
+      result = result.filter(m => m.categoria === this.filtroCategoriaMov);
+    }
+
+    if (this.filtroUsuarioMov.trim()) {
+      const u = this.filtroUsuarioMov.toLowerCase().trim();
+      result = result.filter(m => (m.usuario_nombre || '').toLowerCase().includes(u));
+    }
+
+    if (this.filtroFechaMovDesde) {
+      const desde = new Date(this.filtroFechaMovDesde);
+      result = result.filter(m => {
+        const f: Date = (m.fecha as any)?.toDate?.() ?? (m.fecha instanceof Date ? m.fecha : new Date(m.fecha));
+        return f >= desde;
+      });
+    }
+
+    if (this.filtroFechaMovHasta) {
+      const hasta = new Date(this.filtroFechaMovHasta + 'T23:59:59');
+      result = result.filter(m => {
+        const f: Date = (m.fecha as any)?.toDate?.() ?? (m.fecha instanceof Date ? m.fecha : new Date(m.fecha));
+        return f <= hasta;
+      });
+    }
+
+    if (this.filtroMontoMin !== null) {
+      result = result.filter(m => (m.monto || 0) >= this.filtroMontoMin!);
+    }
+
+    if (this.filtroMontoMax !== null) {
+      result = result.filter(m => (m.monto || 0) <= this.filtroMontoMax!);
+    }
+
+    return result;
+  }
+
+  /** True si hay algún filtro activo en movimientos */
+  get hayFiltrosMov(): boolean {
+    return !!(
+      this.filtroBusqueda.trim() ||
+      this.filtroTipoMov !== 'TODOS' ||
+      this.filtroCategoriaMov !== 'TODOS' ||
+      this.filtroUsuarioMov.trim() ||
+      this.filtroFechaMovDesde ||
+      this.filtroFechaMovHasta ||
+      this.filtroMontoMin !== null ||
+      this.filtroMontoMax !== null
+    );
+  }
+
+  /** Chips de filtros activos para mostrar en la UI */
+  get chipsFiltrosMov(): { label: string; key: string }[] {
+    const chips: { label: string; key: string }[] = [];
+    if (this.filtroFechaMovDesde) chips.push({ label: 'Desde: ' + this.filtroFechaMovDesde, key: 'desde' });
+    if (this.filtroFechaMovHasta) chips.push({ label: 'Hasta: ' + this.filtroFechaMovHasta, key: 'hasta' });
+    if (this.filtroTipoMov !== 'TODOS') chips.push({ label: 'Tipo: ' + this.filtroTipoMov, key: 'tipo' });
+    if (this.filtroCategoriaMov !== 'TODOS') chips.push({ label: 'Categoría: ' + this.filtroCategoriaMov.replace(/_/g, ' '), key: 'categoria' });
+    if (this.filtroUsuarioMov.trim()) chips.push({ label: 'Usuario: ' + this.filtroUsuarioMov, key: 'usuario' });
+    if (this.filtroMontoMin !== null) chips.push({ label: 'Monto mín: $' + this.filtroMontoMin, key: 'minMonto' });
+    if (this.filtroMontoMax !== null) chips.push({ label: 'Monto máx: $' + this.filtroMontoMax, key: 'maxMonto' });
+    return chips;
+  }
+
+  /** Resumen de ingresos/egresos según los filtros activos */
+  get resumenFiltrado(): { ingresos: number; egresos: number; balance: number } {
+    const movs = this.movimientosFiltrados;
+    const ingresos = movs.filter(m => m.tipo === 'INGRESO').reduce((s, m) => s + (m.monto || 0), 0);
+    const egresos  = movs.filter(m => m.tipo === 'EGRESO').reduce((s, m) => s + (m.monto || 0), 0);
+    return { ingresos, egresos, balance: ingresos - egresos };
+  }
+
+  /** Quita un chip de filtro puntual */
+  quitarChip(key: string): void {
+    switch (key) {
+      case 'desde':    this.filtroFechaMovDesde = ''; break;
+      case 'hasta':    this.filtroFechaMovHasta = ''; break;
+      case 'tipo':     this.filtroTipoMov = 'TODOS'; break;
+      case 'categoria': this.filtroCategoriaMov = 'TODOS'; break;
+      case 'usuario':  this.filtroUsuarioMov = ''; break;
+      case 'minMonto': this.filtroMontoMin = null; break;
+      case 'maxMonto': this.filtroMontoMax = null; break;
+    }
+  }
+
+  /** Limpia todos los filtros de movimientos */
+  limpiarFiltrosMov(): void {
+    this.filtroBusqueda = '';
+    this.filtroTipoMov = 'TODOS';
+    this.filtroCategoriaMov = 'TODOS';
+    this.filtroUsuarioMov = '';
+    this.filtroFechaMovDesde = '';
+    this.filtroFechaMovHasta = '';
+    this.filtroMontoMin = null;
+    this.filtroMontoMax = null;
+  }
+
+  /** Etiqueta legible para una categoría de movimiento */
+  labelCategoria(cat: string): string {
+    const labels: Record<string, string> = {
+      'CIERRE_CAJA_CHICA': 'Cierre Caja Chica',
+      'TRANSFERENCIA_CLIENTE': 'Trans. Cliente',
+      'PAGO_TRABAJADOR': 'Pago Trabajador',
+      'OTRO_INGRESO': 'Otro Ingreso',
+      'OTRO_EGRESO': 'Otro Egreso'
+    };
+    return labels[cat] || cat || '-';
   }
 
   /**
@@ -486,6 +674,29 @@ export class VerCajaComponent implements OnInit {
    */
   formatoMoneda(monto: number): string {
     return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'USD' }).format(monto || 0);
+  }
+
+  /**
+   * Obtiene el nombre del mes de la caja actual.
+   *
+   * @returns {string} Nombre del mes en español
+   */
+  obtenerNombreMes(): string {
+    if (!this.caja) return '';
+    const fecha = (this.caja.fecha as any)?.toDate ? (this.caja.fecha as any).toDate() : new Date(this.caja.fecha);
+    const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    return meses[fecha.getMonth()];
+  }
+
+  /**
+   * Obtiene el año de la caja actual.
+   *
+   * @returns {number} Año de la caja
+   */
+  obtenerAnio(): number {
+    if (!this.caja) return new Date().getFullYear();
+    const fecha = (this.caja.fecha as any)?.toDate ? (this.caja.fecha as any).toDate() : new Date(this.caja.fecha);
+    return fecha.getFullYear();
   }
 
   /**

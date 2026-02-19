@@ -105,6 +105,7 @@ export class ListarCajasComponent implements OnInit {
   filtroSaldoInicialMax: number | null = null;
   filtroSaldoActualMin: number | null = null;
   filtroSaldoActualMax: number | null = null;
+  filtroUsuario: string = '';
 
   /** Retorna las cajas aplicando todos los filtros activos */
   get cajasFiltradas(): CajaBanco[] {
@@ -135,6 +136,14 @@ export class ListarCajasComponent implements OnInit {
       if (this.filtroSaldoActualMin !== null && (caja.saldo_actual || 0) < this.filtroSaldoActualMin) return false;
       if (this.filtroSaldoActualMax !== null && (caja.saldo_actual || 0) > this.filtroSaldoActualMax) return false;
 
+      // Usuario que abrió o cerró
+      if (this.filtroUsuario.trim()) {
+        const term = this.filtroUsuario.trim().toLowerCase();
+        const abrio = (caja.usuario_nombre || '').toLowerCase();
+        const cerro = (caja.cerrado_por_nombre || '').toLowerCase();
+        if (!abrio.includes(term) && !cerro.includes(term)) return false;
+      }
+
       return true;
     });
   }
@@ -147,7 +156,8 @@ export class ListarCajasComponent implements OnInit {
       || this.filtroSaldoInicialMin !== null
       || this.filtroSaldoInicialMax !== null
       || this.filtroSaldoActualMin !== null
-      || this.filtroSaldoActualMax !== null;
+      || this.filtroSaldoActualMax !== null
+      || !!this.filtroUsuario.trim();
   }
 
   /** Limpia todos los filtros de búsqueda */
@@ -159,6 +169,7 @@ export class ListarCajasComponent implements OnInit {
     this.filtroSaldoInicialMax = null;
     this.filtroSaldoActualMin = null;
     this.filtroSaldoActualMax = null;
+    this.filtroUsuario = '';
   }
 
   /**
