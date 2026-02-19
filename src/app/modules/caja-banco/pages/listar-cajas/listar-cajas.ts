@@ -76,6 +76,59 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
   /** Indica si está en modo automático */
   modoAutomatico = false;
 
+  // ── Filtros para el listado de cajas ───────────────────────────────────────
+  filtroEstado: 'TODOS' | 'ABIERTA' | 'CERRADA' = 'TODOS';
+  filtroFechaDesde: string = '';
+  filtroFechaHasta: string = '';
+  filtroSaldoInicialMin: number | null = null;
+  filtroSaldoInicialMax: number | null = null;
+  filtroSaldoActualMin: number | null = null;
+  filtroSaldoActualMax: number | null = null;
+  filtroUsuario: string = '';
+
+  /**
+   * Lista filtrada de cajas banco según los criterios activos.
+   */
+  get cajasFiltradas(): CajaBanco[] {
+    return (this.cajas || []).filter(caja => {
+      if (caja.activo === false) return false;
+      if (this.filtroEstado !== 'TODOS' && caja.estado !== this.filtroEstado) return false;
+      if (this.filtroFechaDesde) {
+        const d = caja.fecha ? (caja.fecha as any).toDate?.() ?? new Date(caja.fecha as any) : null;
+        if (d && d < new Date(this.filtroFechaDesde)) return false;
+      }
+      if (this.filtroFechaHasta) {
+        const d = caja.fecha ? (caja.fecha as any).toDate?.() ?? new Date(caja.fecha as any) : null;
+        if (d && d > new Date(this.filtroFechaHasta + 'T23:59:59')) return false;
+      }
+      if (this.filtroSaldoInicialMin !== null && (caja.saldo_inicial ?? 0) < this.filtroSaldoInicialMin) return false;
+      if (this.filtroSaldoInicialMax !== null && (caja.saldo_inicial ?? 0) > this.filtroSaldoInicialMax) return false;
+      if (this.filtroSaldoActualMin !== null && (caja.saldo_actual ?? 0) < this.filtroSaldoActualMin) return false;
+      if (this.filtroSaldoActualMax !== null && (caja.saldo_actual ?? 0) > this.filtroSaldoActualMax) return false;
+      if (this.filtroUsuario.trim()) {
+        const u = this.filtroUsuario.trim().toLowerCase();
+        const nombre = (caja.usuario_nombre || '').toLowerCase();
+        const cerradoPor = (caja.cerrado_por_nombre || '').toLowerCase();
+        if (!nombre.includes(u) && !cerradoPor.includes(u)) return false;
+      }
+      return true;
+    });
+  }
+
+  /** Indica si hay algún filtro activo */
+  get hayFiltrosActivos(): boolean {
+    return (
+      this.filtroEstado !== 'TODOS' ||
+      !!this.filtroFechaDesde ||
+      !!this.filtroFechaHasta ||
+      this.filtroSaldoInicialMin !== null ||
+      this.filtroSaldoInicialMax !== null ||
+      this.filtroSaldoActualMin !== null ||
+      this.filtroSaldoActualMax !== null ||
+      !!this.filtroUsuario.trim()
+    );
+  }
+
   /**
    * Verifica si existe alguna caja banco ABIERTA.
    * Usado para ocultar el botón de crear nueva caja.
@@ -100,6 +153,7 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
     total_cajas: 0,
     total_ganado_cajas_chicas: 0,
     total_transferencias: 0,
+    total_otros_ingresos: 0,
     total_ingresos: 0,
     total_egresos: 0
   };
@@ -394,26 +448,40 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
    * 5. Total de egresos
    */
   calcularTotales(): void {
+    // Acumular en centavos enteros para eliminar error de punto flotante
+    const sumCents = (items: any[], valueFn: (item: any) => number) =>
+      items.reduce((sum, item) => sum + Math.round(valueFn(item) * 100), 0) / 100;
+
     // 1. Total de cajas banco creadas
     this.totales.total_cajas = this.cajas.length;
 
     // 2. Total ganado de cajas chicas (sumar monto_actual de cajas chicas cerradas)
-    this.totales.total_ganado_cajas_chicas = (this.cajasChicas || [])
-      .filter(cc => cc.estado === 'CERRADA')
-      .reduce((sum, cc) => sum + (cc.monto_actual || 0), 0);
+    this.totales.total_ganado_cajas_chicas = sumCents(
+      (this.cajasChicas || []).filter(cc => cc.estado === 'CERRADA'),
+      cc => cc.monto_actual || 0
+    );
 
-    // 3. Total transferencias y otros ingresos (TODOS los movimientos de ingreso registrados)
-    this.totales.total_transferencias = (this.movimientosGlobales || [])
-      .filter(m => m.tipo === 'INGRESO')
-      .reduce((sum, m) => sum + (m.monto || 0), 0);
+    // 3. Total otros ingresos: movimientos INGRESO excluyendo CIERRE_CAJA_CHICA
+    this.totales.total_otros_ingresos = sumCents(
+      (this.movimientosGlobales || []).filter(m => m.tipo === 'INGRESO' && m.categoria !== 'CIERRE_CAJA_CHICA'),
+      m => m.monto || 0
+    );
 
-    // 4. Total ingresos (cajas chicas + movimientos de ingreso)
-    this.totales.total_ingresos = this.totales.total_ganado_cajas_chicas + this.totales.total_transferencias;
+    // 4. Total transferencias = todos los movimientos INGRESO
+    this.totales.total_transferencias = sumCents(
+      (this.movimientosGlobales || []).filter(m => m.tipo === 'INGRESO'),
+      m => m.monto || 0
+    );
 
-    // 5. Total egresos
-    this.totales.total_egresos = (this.movimientosGlobales || [])
-      .filter(m => m.tipo === 'EGRESO')
-      .reduce((sum, m) => sum + (m.monto || 0), 0);
+    // 5. Total ingresos = cajas chicas + otros ingresos (sin doble conteo de CIERRE_CAJA_CHICA)
+    this.totales.total_ingresos =
+      Math.round((this.totales.total_ganado_cajas_chicas + this.totales.total_otros_ingresos) * 100) / 100;
+
+    // 6. Total egresos
+    this.totales.total_egresos = sumCents(
+      (this.movimientosGlobales || []).filter(m => m.tipo === 'EGRESO'),
+      m => m.monto || 0
+    );
   }
 
   /**
@@ -616,10 +684,92 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Navega a la página de registro de movimiento.
+   * Limpia todos los filtros del listado.
+   */
+  limpiarFiltros(): void {
+    this.filtroEstado = 'TODOS';
+    this.filtroFechaDesde = '';
+    this.filtroFechaHasta = '';
+    this.filtroSaldoInicialMin = null;
+    this.filtroSaldoInicialMax = null;
+    this.filtroSaldoActualMin = null;
+    this.filtroSaldoActualMax = null;
+    this.filtroUsuario = '';
+  }
+
+  /**
+   * Navega a la página de registro de movimiento (genérico).
    */
   registrarMovimiento(): void {
     this.router.navigate(['/caja-banco/registrar-movimiento']);
+  }
+
+  /**
+   * Navega a registrar movimiento para una caja específica.
+   */
+  registrarMovimientoCaja(cajaId: string): void {
+    sessionStorage.setItem('cajaBancoIdActual', cajaId);
+    this.router.navigate(['/caja-banco/registrar-movimiento'], {
+      state: { cajaId },
+      queryParams: { returnTo: '/caja-banco' }
+    });
+  }
+
+  /**
+   * Cierra una caja banco directamente desde el listado (con confirmación).
+   */
+  async cerrarCajaDesdeListado(caja: CajaBanco): Promise<void> {
+    if (!caja?.id || caja.estado !== 'ABIERTA') return;
+
+    // Verificar que no haya caja chica abierta
+    try {
+      const cajaChicaAbierta = await this.cajaChicaService.getCajaAbierta();
+      if (cajaChicaAbierta) {
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Caja Chica Abierta',
+          text: 'Cierra primero la caja chica antes de cerrar la caja banco.',
+          confirmButtonColor: '#3085d6'
+        });
+        return;
+      }
+    } catch (e) {
+      console.error('Error verificando caja chica:', e);
+    }
+
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: '¿Cerrar Caja Banco?',
+      html: `<p>Fecha: <strong>${this.formatoFecha(caja.fecha)}</strong></p>
+             <p>Saldo actual: <strong>${this.formatoMoneda(caja.saldo_actual ?? 0)}</strong></p>`,
+      showCancelButton: true,
+      confirmButtonText: 'Sí, Cerrar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await this.cajaBancoService.cerrarCajaBanco(caja.id, caja.saldo_actual ?? 0);
+        await Swal.fire({ icon: 'success', title: 'Caja Cerrada', timer: 2000, showConfirmButton: false });
+        this.cargarCajas();
+      } catch (err: any) {
+        await Swal.fire({ icon: 'error', title: 'Error', text: err?.message || 'No se pudo cerrar la caja.' });
+      }
+    }
+  }
+
+  /**
+   * Formatea una fecha con hora para mostrar en la UI.
+   */
+  formatoFechaHora(fecha: any): string {
+    if (!fecha) return '-';
+    const date = fecha.toDate ? fecha.toDate() : new Date(fecha);
+    return date.toLocaleDateString('es-ES', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit'
+    });
   }
 
   /**
@@ -1249,7 +1399,9 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
    * @returns {number} Suma total de montos de cajas chicas cerradas
    */
   getTotalGanado(): number {
-    return this.totales.total_ganado_cajas_chicas;
+    return Math.round(
+      this.cajasFiltradas.reduce((sum, c) => sum + (c.saldo_actual || 0), 0) * 100
+    ) / 100;
   }
 
   /**
@@ -1257,7 +1409,14 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
    * @returns {number} Suma total de ingresos por transferencia
    */
   getTotalTransferencias(): number {
-    return this.totales.total_transferencias;
+    return this.totales.total_ganado_cajas_chicas;
+  }
+
+  /**
+   * Total de otros ingresos: movimientos INGRESO excluyendo CIERRE_CAJA_CHICA.
+   */
+  getTotalOtrosIngresos(): number {
+    return this.totales.total_otros_ingresos;
   }
 
   /**

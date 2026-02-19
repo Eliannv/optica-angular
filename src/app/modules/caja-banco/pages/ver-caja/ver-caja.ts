@@ -85,13 +85,37 @@ export class VerCajaComponent implements OnInit, OnDestroy {
     ingresos_otros: 0
   };
 
+  // ── Estado UI ───────────────────────────────────────────
+  /** Control accordion de detalles de caja */
+  mostrarDetallesCaja = false;
+
+  // ── Filtros de movimientos ────────────────────────────
+  mostrarFiltrosMov = false;
+  filtroBusqueda = '';
+  filtroTipoMov: 'TODOS' | 'INGRESO' | 'EGRESO' = 'TODOS';
+  filtroCategoriaMov = 'TODOS';
+  filtroFechaMovDesde = '';
+  filtroFechaMovHasta = '';
+  filtroMontoMin: number | null = null;
+  filtroMontoMax: number | null = null;
+
+  // ── Filtros de cajas chicas ──────────────────────────
+  mostrarFiltrosCC = false;
+  filtroCCUsuario = '';
+  filtroCCFechaDesde = '';
+  filtroCCFechaHasta = '';
+  filtroCCSaldoIniMin: number | null = null;
+  filtroCCSaldoIniMax: number | null = null;
+  filtroCCSaldoActMin: number | null = null;
+  filtroCCSaldoActMax: number | null = null;
+
   /**
    * Calcula el saldo actual de la caja banco.
    * Fórmula: saldo_inicial + total_ingresos - total_egresos
    */
   get saldoActualCalculado(): number {
     if (!this.caja) return 0;
-    return (this.caja.saldo_inicial || 0) + this.resumen.total_ingresos - this.resumen.total_egresos;
+    return Math.round(((this.caja.saldo_inicial || 0) + this.resumen.total_ingresos - this.resumen.total_egresos) * 100) / 100;
   }
 
   /**
@@ -443,33 +467,30 @@ export class VerCajaComponent implements OnInit, OnDestroy {
    * - Total egresos: suma de movimientos de tipo EGRESO
    */
   calcularResumen(): void {
-    let ingresosCajasChicas = 0;
-    let ingresosOtros = 0;
-    let egresos = 0;
+    // Acumular en centavos enteros para eliminar error de punto flotante
+    const sumCents = (items: any[], valueFn: (i: any) => number) =>
+      items.reduce((sum, i) => sum + Math.round(valueFn(i) * 100), 0) / 100;
 
-    // 1. Sumar ingresos de cajas chicas (ya están filtradas por estado CERRADA y mismo día en cargarCajasChicas)
-    (this.cajasChicas || []).forEach(cc => {
-      ingresosCajasChicas += cc.monto_actual || 0;
-    });
+    // 1. Ingresos de cajas chicas: desde monto_actual de la sub-colección
+    this.resumen.ingresos_cajas_chicas = sumCents(
+      this.cajasChicas || [],
+      cc => cc.monto_actual || 0
+    );
 
-    // 2. Sumar movimientos de ingresos/egresos
-    (this.movimientos || []).forEach(m => {
-      if (m.tipo === 'INGRESO') {
-        // Todos los ingresos registrados como movimientos van a "Otros Ingresos"
-        // (incluyendo CIERRE_CAJA_CHICA, TRANSFERENCIA_CLIENTE, etc)
-        ingresosOtros += m.monto || 0;
-      } else if (m.tipo === 'EGRESO') {
-        egresos += m.monto || 0;
-      }
-    });
+    // 2. Otros ingresos: TODOS los movimientos INGRESO
+    this.resumen.ingresos_otros = sumCents(
+      (this.movimientos || []).filter(m => m.tipo === 'INGRESO'),
+      m => m.monto || 0
+    );
 
-    this.resumen.ingresos_cajas_chicas = ingresosCajasChicas;
-    this.resumen.ingresos_otros = ingresosOtros;
-    this.resumen.total_ingresos = ingresosCajasChicas + ingresosOtros;
-    this.resumen.total_egresos = egresos;
+    // 3. Total ingresos y egresos
+    this.resumen.total_ingresos =
+      Math.round((this.resumen.ingresos_cajas_chicas + this.resumen.ingresos_otros) * 100) / 100;
 
-    // El saldo actual se calcula dinámicamente mediante el getter saldoActualCalculado
-    // Fórmula: saldo_inicial + total_ingresos - total_egresos
+    this.resumen.total_egresos = sumCents(
+      (this.movimientos || []).filter(m => m.tipo === 'EGRESO'),
+      m => m.monto || 0
+    );
   }
 
   /**
@@ -605,7 +626,8 @@ export class VerCajaComponent implements OnInit, OnDestroy {
 
     if (result.isConfirmed) {
       try {
-        await this.cajaBancoService.cerrarCajaBanco(this.cajaId);
+        // Pasar el saldo calculado para que Firestore quede actualizado correctamente
+        await this.cajaBancoService.cerrarCajaBanco(this.cajaId, this.saldoActualCalculado);
         
         await Swal.fire({
           icon: 'success',
@@ -678,6 +700,166 @@ export class VerCajaComponent implements OnInit, OnDestroy {
     }
   }
 
+  // ── Getters de filtros ─────────────────────────────────────────────
+
+  /** Movimientos filtrados por los criterios activos */
+  get movimientosFiltrados(): MovimientoCajaBanco[] {
+    return (this.movimientos || []).filter(mov => {
+      if (this.filtroTipoMov !== 'TODOS' && mov.tipo !== this.filtroTipoMov) return false;
+      if (this.filtroCategoriaMov !== 'TODOS' && (mov as any).categoria !== this.filtroCategoriaMov) return false;
+      if (this.filtroFechaMovDesde) {
+        const d = mov.fecha ? (mov.fecha as any).toDate?.() ?? new Date(mov.fecha as any) : null;
+        if (d && d < new Date(this.filtroFechaMovDesde)) return false;
+      }
+      if (this.filtroFechaMovHasta) {
+        const d = mov.fecha ? (mov.fecha as any).toDate?.() ?? new Date(mov.fecha as any) : null;
+        if (d && d > new Date(this.filtroFechaMovHasta + 'T23:59:59')) return false;
+      }
+      if (this.filtroMontoMin !== null && (mov.monto || 0) < this.filtroMontoMin) return false;
+      if (this.filtroMontoMax !== null && (mov.monto || 0) > this.filtroMontoMax) return false;
+      if (this.filtroBusqueda.trim()) {
+        const q = this.filtroBusqueda.trim().toLowerCase();
+        const desc = (mov.descripcion || '').toLowerCase();
+        const ref = ((mov as any).referencia || '').toLowerCase();
+        const usr = (mov.usuario_nombre || '').toLowerCase();
+        const monto = String(mov.monto || '');
+        if (!desc.includes(q) && !ref.includes(q) && !usr.includes(q) && !monto.includes(q)) return false;
+      }
+      return true;
+    });
+  }
+
+  /** Indica si hay filtros de movimientos activos */
+  get hayFiltrosMov(): boolean {
+    return (
+      !!this.filtroBusqueda.trim() ||
+      this.filtroTipoMov !== 'TODOS' ||
+      this.filtroCategoriaMov !== 'TODOS' ||
+      !!this.filtroFechaMovDesde ||
+      !!this.filtroFechaMovHasta ||
+      this.filtroMontoMin !== null ||
+      this.filtroMontoMax !== null
+    );
+  }
+
+  /** Resumen dinámico de los movimientos filtrados */
+  get resumenFiltrado(): { ingresos: number; egresos: number; balance: number } {
+    const filt = this.movimientosFiltrados;
+    const ingresos = filt.filter(m => m.tipo === 'INGRESO').reduce((s, m) => s + (m.monto || 0), 0);
+    const egresos = filt.filter(m => m.tipo === 'EGRESO').reduce((s, m) => s + (m.monto || 0), 0);
+    return { ingresos, egresos, balance: ingresos - egresos };
+  }
+
+  /** Chips de filtros activos de movimientos */
+  get chipsFiltrosMov(): { label: string; key: string }[] {
+    const chips: { label: string; key: string }[] = [];
+    if (this.filtroBusqueda.trim()) chips.push({ label: `Buscar: "${this.filtroBusqueda.trim()}"`, key: 'busqueda' });
+    if (this.filtroTipoMov !== 'TODOS') chips.push({ label: `Tipo: ${this.filtroTipoMov}`, key: 'tipo' });
+    if (this.filtroCategoriaMov !== 'TODOS') chips.push({ label: `Cat: ${this.filtroCategoriaMov}`, key: 'categoria' });
+    if (this.filtroFechaMovDesde) chips.push({ label: `Desde: ${this.filtroFechaMovDesde}`, key: 'fechaDesde' });
+    if (this.filtroFechaMovHasta) chips.push({ label: `Hasta: ${this.filtroFechaMovHasta}`, key: 'fechaHasta' });
+    if (this.filtroMontoMin !== null) chips.push({ label: `Mín: $${this.filtroMontoMin}`, key: 'montoMin' });
+    if (this.filtroMontoMax !== null) chips.push({ label: `Máx: $${this.filtroMontoMax}`, key: 'montoMax' });
+    return chips;
+  }
+
+  /** Cajas chicas filtradas */
+  get cajasChicasFiltradas(): CajaChica[] {
+    return (this.cajasChicas || []).filter(cc => {
+      if (this.filtroCCUsuario.trim()) {
+        const q = this.filtroCCUsuario.trim().toLowerCase();
+        if (!(cc.usuario_nombre || '').toLowerCase().includes(q)) return false;
+      }
+      if (this.filtroCCFechaDesde) {
+        const d = cc.fecha ? (cc.fecha as any).toDate?.() ?? new Date(cc.fecha as any) : null;
+        if (d && d < new Date(this.filtroCCFechaDesde)) return false;
+      }
+      if (this.filtroCCFechaHasta) {
+        const d = cc.fecha ? (cc.fecha as any).toDate?.() ?? new Date(cc.fecha as any) : null;
+        if (d && d > new Date(this.filtroCCFechaHasta + 'T23:59:59')) return false;
+      }
+      if (this.filtroCCSaldoIniMin !== null && (cc.monto_inicial || 0) < this.filtroCCSaldoIniMin) return false;
+      if (this.filtroCCSaldoIniMax !== null && (cc.monto_inicial || 0) > this.filtroCCSaldoIniMax) return false;
+      if (this.filtroCCSaldoActMin !== null && (cc.monto_actual || 0) < this.filtroCCSaldoActMin) return false;
+      if (this.filtroCCSaldoActMax !== null && (cc.monto_actual || 0) > this.filtroCCSaldoActMax) return false;
+      return true;
+    });
+  }
+
+  /** Indica si hay filtros de cajas chicas activos */
+  get hayFiltrosCC(): boolean {
+    return (
+      !!this.filtroCCUsuario.trim() ||
+      !!this.filtroCCFechaDesde ||
+      !!this.filtroCCFechaHasta ||
+      this.filtroCCSaldoIniMin !== null ||
+      this.filtroCCSaldoIniMax !== null ||
+      this.filtroCCSaldoActMin !== null ||
+      this.filtroCCSaldoActMax !== null
+    );
+  }
+
+  /** Limpia filtros de movimientos */
+  limpiarFiltrosMov(): void {
+    this.filtroBusqueda = '';
+    this.filtroTipoMov = 'TODOS';
+    this.filtroCategoriaMov = 'TODOS';
+    this.filtroFechaMovDesde = '';
+    this.filtroFechaMovHasta = '';
+    this.filtroMontoMin = null;
+    this.filtroMontoMax = null;
+  }
+
+  /** Limpia filtros de cajas chicas */
+  limpiarFiltrosCC(): void {
+    this.filtroCCUsuario = '';
+    this.filtroCCFechaDesde = '';
+    this.filtroCCFechaHasta = '';
+    this.filtroCCSaldoIniMin = null;
+    this.filtroCCSaldoIniMax = null;
+    this.filtroCCSaldoActMin = null;
+    this.filtroCCSaldoActMax = null;
+  }
+
+  /** Quita un chip de filtro por su key */
+  quitarChip(key: string): void {
+    switch (key) {
+      case 'busqueda': this.filtroBusqueda = ''; break;
+      case 'tipo': this.filtroTipoMov = 'TODOS'; break;
+      case 'categoria': this.filtroCategoriaMov = 'TODOS'; break;
+      case 'fechaDesde': this.filtroFechaMovDesde = ''; break;
+      case 'fechaHasta': this.filtroFechaMovHasta = ''; break;
+      case 'montoMin': this.filtroMontoMin = null; break;
+      case 'montoMax': this.filtroMontoMax = null; break;
+    }
+  }
+
+  /** Retorna la etiqueta legible de una categoría de movimiento */
+  labelCategoria(cat: string): string {
+    const map: Record<string, string> = {
+      CIERRE_CAJA_CHICA: 'Cierre Caja Chica',
+      TRANSFERENCIA_CLIENTE: 'Trans. Cliente',
+      PAGO_TRABAJADOR: 'Pago Trabajador',
+      OTRO_INGRESO: 'Otro Ingreso',
+      OTRO_EGRESO: 'Otro Egreso'
+    };
+    return map[cat] || cat;
+  }
+
+  /** Retorna el nombre del mes de la caja */
+  obtenerNombreMes(): string {
+    if (!this.caja?.fecha) return '';
+    const d = (this.caja.fecha as any).toDate?.() ?? new Date(this.caja.fecha as any);
+    return d.toLocaleDateString('es-ES', { month: 'long' });
+  }
+
+  /** Retorna el año de la caja */
+  obtenerAnio(): number {
+    if (!this.caja?.fecha) return new Date().getFullYear();
+    const d = (this.caja.fecha as any).toDate?.() ?? new Date(this.caja.fecha as any);
+    return d.getFullYear();
+  }
+
   /**
    * Genera el HTML para un reporte individual de caja.
    *
@@ -693,15 +875,18 @@ export class VerCajaComponent implements OnInit, OnDestroy {
     const mesIndex = fechaCaja.getMonth();
     const year = fechaCaja.getFullYear();
 
-    // Calcular ingresos de cajas chicas
-    const ingresosCajasChicas = cajasChicas.reduce((sum, cc) => sum + (cc.monto_actual || 0), 0);
-    // Calcular otros ingresos (movimientos de tipo INGRESO)
-    const ingresosOtros = movimientos.filter(m => m.tipo === 'INGRESO').reduce((sum, m) => sum + (m.monto || 0), 0);
+    const sumCentsRpt = (items: any[], valueFn: (i: any) => number) =>
+      items.reduce((sum, i) => sum + Math.round(valueFn(i) * 100), 0) / 100;
+
+    // Ingresos de cajas chicas: suma de monto_actual de la sub-colección
+    const ingresosCajasChicas = sumCentsRpt(cajasChicas, cc => cc.monto_actual || 0);
+    // Otros ingresos: TODOS los movimientos INGRESO
+    const ingresosOtros = sumCentsRpt(movimientos.filter(m => m.tipo === 'INGRESO'), m => m.monto || 0);
     // Total de ingresos
-    const totalIngresos = ingresosCajasChicas + ingresosOtros;
-    const totalEgresos = movimientos.filter(m => m.tipo === 'EGRESO').reduce((sum, m) => sum + (m.monto || 0), 0);
+    const totalIngresos = Math.round((ingresosCajasChicas + ingresosOtros) * 100) / 100;
+    const totalEgresos = sumCentsRpt(movimientos.filter(m => m.tipo === 'EGRESO'), m => m.monto || 0);
     // Saldo Final = Saldo Inicial + Total Ingresos - Total Egresos
-    const saldoFinal = (caja.saldo_inicial || 0) + totalIngresos - totalEgresos;
+    const saldoFinal = Math.round(((caja.saldo_inicial || 0) + totalIngresos - totalEgresos) * 100) / 100;
 
     const filasMovimientos = movimientos.map((mov: any) => `
       <tr>
