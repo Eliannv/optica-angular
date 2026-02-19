@@ -159,10 +159,7 @@
                   <option value="OTRO_EGRESO">Otro Egreso</option>
                 </select>
               </div>
-              <div class="filtro-group">
-                <label>Creado por</label>
-                <input type="text" [(ngModel)]="filtroUsuarioMov" placeholder="Usuario…" />
-              </div>
+              
               <div class="filtro-group">
                 <label>Fecha desde</label>
                 <input type="date" [(ngModel)]="filtroFechaMovDesde" />
@@ -331,19 +328,19 @@
                 <input type="date" [(ngModel)]="filtroCCFechaHasta" />
               </div>
               <div class="filtro-group">
-                <label>S. Ini. mín.</label>
+                <label>Saldo inicial mín.</label>
                 <input type="number" [(ngModel)]="filtroCCSaldoIniMin" placeholder="0.00" min="0" step="0.01" />
               </div>
               <div class="filtro-group">
-                <label>S. Ini. máx.</label>
+                <label>Saldo inicial máx.</label>
                 <input type="number" [(ngModel)]="filtroCCSaldoIniMax" placeholder="9999.00" min="0" step="0.01" />
               </div>
               <div class="filtro-group">
-                <label>S. Act. mín.</label>
+                <label>Saldo Actual mín.</label>
                 <input type="number" [(ngModel)]="filtroCCSaldoActMin" placeholder="0.00" min="0" step="0.01" />
               </div>
               <div class="filtro-group">
-                <label>S. Act. máx.</label>
+                <label>Saldo Actual máx.</label>
                 <input type="number" [(ngModel)]="filtroCCSaldoActMax" placeholder="9999.00" min="0" step="0.01" />
               </div>
             </div>
@@ -359,8 +356,8 @@
                 <thead>
                   <tr>
                     <th>Fecha</th>
-                    <th>S. Ini.</th>
-                    <th>S. Act.</th>
+                    <th>Saldo Inicial</th>
+                    <th>Saldo Actual</th>
                     <th>Estado</th>
                     <th>Usuario</th>
                     <th class="text-center">Ver</th>
