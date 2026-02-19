@@ -33,7 +33,7 @@ import {
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { Cuenta, TipoCuenta, EstadoCuenta, AbonoCuenta } from '../models/cuenta.model';
+import { Cuenta, TipoCuenta, EstadoCuenta, TipoCuentaPorPagar, AbonoCuenta } from '../models/cuenta.model';
 import { CajaBancoService } from './caja-banco.service';
 import { AuthService } from './auth.service';
 import { MovimientoCajaBanco } from '../models/caja-banco.model';
@@ -193,7 +193,10 @@ export class CuentasService {
   /**
    * Registra una nueva cuenta por pagar o cobrar.
    * 
-   * CUENTAS POR PAGAR: Suma el monto a caja/banco (recibimos dinero prestado).
+   * CUENTAS POR PAGAR:
+   * - Tipo "Deuda": Solo registra la cuenta, NO genera movimiento en caja/banco
+   * - Tipo "Préstamo": Suma el monto a caja/banco (recibimos dinero prestado)
+   * 
    * CUENTAS POR COBRAR: Descuenta el monto de caja/banco (prestamos dinero).
    * 
    * @param cuenta Datos de la cuenta a registrar.
@@ -206,51 +209,79 @@ export class CuentasService {
       const nombreUsuario = usuarioActual?.nombre || 'desconocido';
       const idUsuario = usuarioActual?.id || '';
 
-      // Determinar el tipo de movimiento en caja/banco
-      let tipoMovimiento: 'INGRESO' | 'EGRESO';
-      let categoriaMovimiento: 'CIERRE_CAJA_CHICA' | 'TRANSFERENCIA_CLIENTE' | 'PAGO_TRABAJADOR' | 'OTRO_INGRESO' | 'OTRO_EGRESO';
-      let descripcion: string;
+      // ✅ NUEVO: Variable para controlar si se debe registrar movimiento
+      let debeRegistrarMovimiento = false;
+      let tipoMovimiento: 'INGRESO' | 'EGRESO' = 'INGRESO';
+      let categoriaMovimiento: 'CIERRE_CAJA_CHICA' | 'TRANSFERENCIA_CLIENTE' | 'PAGO_TRABAJADOR' | 'OTRO_INGRESO' | 'OTRO_EGRESO' = 'OTRO_INGRESO';
+      let descripcion: string = '';
 
       if (cuenta.tipo === TipoCuenta.PAGAR) {
-        // Al registrar cuenta por PAGAR: INGRESO a caja (recibimos dinero prestado)
-        tipoMovimiento = 'INGRESO';
-        categoriaMovimiento = 'OTRO_INGRESO';
-        descripcion = 'Cuenta por pagar registrada';
+        // ✅ Diferenciar entre Deuda y Préstamo
+        if (cuenta.tipoCuentaPorPagar === TipoCuentaPorPagar.DEUDA) {
+          // Deuda normal: NO registrar movimiento en caja banco
+          debeRegistrarMovimiento = false;
+          descripcion = 'Deuda registrada';
+        } else if (cuenta.tipoCuentaPorPagar === TipoCuentaPorPagar.PRESTAMO) {
+          // Préstamo: Registrar INGRESO a caja (recibimos dinero prestado)
+          debeRegistrarMovimiento = true;
+          tipoMovimiento = 'INGRESO';
+          categoriaMovimiento = 'OTRO_INGRESO';
+          descripcion = 'Ingreso por Préstamo';
+        } else {
+          // Default (por compatibilidad con datos anteriores): Registrar como préstamo
+          debeRegistrarMovimiento = true;
+          tipoMovimiento = 'INGRESO';
+          categoriaMovimiento = 'OTRO_INGRESO';
+          descripcion = 'Ingreso por Préstamo';
+        }
       } else {
         // Al registrar cuenta por COBRAR: EGRESO de caja (prestamos dinero)
+        debeRegistrarMovimiento = true;
         tipoMovimiento = 'EGRESO';
         categoriaMovimiento = 'OTRO_EGRESO';
         descripcion = 'Cuenta por cobrar registrada';
       }
 
-      // Registrar movimiento en caja/banco del periodo de la cuenta
-      const year = cuenta.fecha.getFullYear();
-      const monthIndex0 = cuenta.fecha.getMonth();
-      
-      const caja = await this.cajaBancoService.getCajaBancoPorPeriodo(year, monthIndex0);
-      if (!caja) {
-        const nombreMes = new Date(year, monthIndex0).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-        throw new Error(`No hay una caja banco abierta para el periodo ${nombreMes}. Debe abrir una caja para ese mes primero.`);
+      // ✅ NUEVO: Solo registrar movimiento si es necesario
+      if (debeRegistrarMovimiento) {
+        // Registrar movimiento en caja/banco del periodo de la cuenta
+        const year = cuenta.fecha.getFullYear();
+        const monthIndex0 = cuenta.fecha.getMonth();
+        
+        const caja = await this.cajaBancoService.getCajaBancoPorPeriodo(year, monthIndex0);
+        if (!caja) {
+          const nombreMes = new Date(year, monthIndex0).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+          throw new Error(`No hay una caja banco abierta para el periodo ${nombreMes}. Debe abrir una caja para ese mes primero.`);
+        }
+
+        const movimiento: MovimientoCajaBanco = {
+          caja_banco_id: caja.id!,
+          tipo: tipoMovimiento,
+          categoria: categoriaMovimiento,
+          monto: cuenta.montoTotal,
+          descripcion: descripcion,
+          referencia: cuenta.observacion,
+          usuario_nombre: nombreUsuario,
+          usuario_id: idUsuario,
+          fecha: cuenta.fecha
+        };
+
+        await this.cajaBancoService.registrarMovimiento(movimiento);
       }
 
-      const movimiento: MovimientoCajaBanco = {
-        caja_banco_id: caja.id!,
-        tipo: tipoMovimiento,
-        categoria: categoriaMovimiento,
-        monto: cuenta.montoTotal,
-        descripcion: descripcion,
-        referencia: cuenta.observacion,
-        usuario_nombre: nombreUsuario,
-        usuario_id: idUsuario,
-        fecha: cuenta.fecha
-      };
+      // Preparar la cuenta con valores iniciales, cuentaBancoId (si aplica) y datos del usuario
+      let cuentaBancoId: string | undefined;
+      
+      if (debeRegistrarMovimiento) {
+        const year = cuenta.fecha.getFullYear();
+        const monthIndex0 = cuenta.fecha.getMonth();
+        const caja = await this.cajaBancoService.getCajaBancoPorPeriodo(year, monthIndex0);
+        cuentaBancoId = caja?.id;
+      }
 
-      await this.cajaBancoService.registrarMovimiento(movimiento);
-
-      // Preparar la cuenta con valores iniciales, cuentaBancoId y datos del usuario
       const nuevaCuenta: Omit<Cuenta, 'id'> = {
         ...cuenta,
-        cuentaBancoId: caja.id!,
+        cuentaBancoId: cuentaBancoId,
         usuario_nombre: nombreUsuario,
         usuario_id: idUsuario,
         createdAt: new Date(),

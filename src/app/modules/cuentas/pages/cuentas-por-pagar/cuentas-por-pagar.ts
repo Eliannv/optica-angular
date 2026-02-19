@@ -18,7 +18,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import Swal from 'sweetalert2';
 import { CuentasService } from '../../../../core/services/cuentas.service';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
-import { Cuenta, TipoCuenta, EstadoCuenta } from '../../../../core/models/cuenta.model';
+import { Cuenta, TipoCuenta, EstadoCuenta, TipoCuentaPorPagar } from '../../../../core/models/cuenta.model';
 import { CajaBanco } from '../../../../core/models/caja-banco.model';
 import { obtenerPeriodo } from '../../../../core/utils/fecha-helpers';
 
@@ -51,6 +51,7 @@ export class CuentasPorPagarComponent implements OnInit {
   
   // Estados
   EstadoCuenta = EstadoCuenta;
+  TipoCuentaPorPagar = TipoCuentaPorPagar;
 
   constructor(
     private readonly cuentasService: CuentasService,
@@ -138,6 +139,7 @@ export class CuentasPorPagarComponent implements OnInit {
     this.formularioCuenta = this.fb.group({
       fecha: [new Date().toISOString().split('T')[0], Validators.required],
       hora: [horaActual, Validators.required],
+      tipoCuentaPorPagar: [TipoCuentaPorPagar.DEUDA, Validators.required],
       montoTotal: [0, [Validators.required, Validators.min(0.01)]],
       observacion: ['', Validators.required]
     });
@@ -266,6 +268,7 @@ export class CuentasPorPagarComponent implements OnInit {
       this.formularioCuenta.reset({
         fecha: new Date().toISOString().split('T')[0],
         hora: horaActual,
+        tipoCuentaPorPagar: TipoCuentaPorPagar.DEUDA,
         montoTotal: 0,
         observacion: ''
       });
@@ -281,11 +284,15 @@ export class CuentasPorPagarComponent implements OnInit {
       return;
     }
 
+    const formValue = this.formularioCuenta.value;
+    const es_prestamo = formValue.tipoCuentaPorPagar === TipoCuentaPorPagar.PRESTAMO;
     const confirmacion = await Swal.fire({
       title: '¿Confirmar registro?',
       html: `
-        <p>Se registrará una cuenta por pagar de <strong>$${this.formularioCuenta.value.montoTotal}</strong></p>
-        <p class="text-muted">Este monto se <strong>SUMARÁ</strong> a caja/banco</p>
+        <p>Se registrará una cuenta por pagar de <strong>$${formValue.montoTotal}</strong></p>
+        <p class="text-muted">${es_prestamo 
+          ? 'Este monto se <strong>SUMARÁ</strong> a caja/banco (ingreso por préstamo)' 
+          : 'Este monto <strong>NO</strong> afectará caja/banco (deuda normal)'}</p>
       `,
       icon: 'question',
       showCancelButton: true,
@@ -296,8 +303,6 @@ export class CuentasPorPagarComponent implements OnInit {
     if (!confirmacion.isConfirmed) return;
 
     try {
-      const formValue = this.formularioCuenta.value;
-      
       // Combinar fecha y hora en un solo Date
       const [hours, minutes, seconds] = formValue.hora.split(':').map(Number);
       const fechaCompleta = new Date(formValue.fecha + 'T00:00:00');
@@ -306,6 +311,7 @@ export class CuentasPorPagarComponent implements OnInit {
       const nuevaCuenta: Omit<Cuenta, 'id' | 'montoAbonado' | 'saldo' | 'estado' | 'abonos'> = {
         fecha: fechaCompleta,
         tipo: TipoCuenta.PAGAR,
+        tipoCuentaPorPagar: formValue.tipoCuentaPorPagar,
         montoTotal: formValue.montoTotal,
         observacion: formValue.observacion
       };
