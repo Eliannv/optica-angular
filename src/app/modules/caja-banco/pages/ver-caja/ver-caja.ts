@@ -143,7 +143,7 @@ export class VerCajaComponent implements OnInit {
    */
   get saldoActualCalculado(): number {
     if (!this.caja) return 0;
-    return (this.caja.saldo_inicial || 0) + this.resumen.total_ingresos - this.resumen.total_egresos;
+    return Math.round(((this.caja.saldo_inicial || 0) + this.resumen.total_ingresos - this.resumen.total_egresos) * 100) / 100;
   }
 
   /**
@@ -607,33 +607,30 @@ export class VerCajaComponent implements OnInit {
    * - Total egresos: suma de movimientos de tipo EGRESO
    */
   calcularResumen(): void {
-    let ingresosCajasChicas = 0;
-    let ingresosOtros = 0;
-    let egresos = 0;
+    // Acumular en centavos enteros para eliminar error de punto flotante
+    const sumCents = (items: any[], valueFn: (i: any) => number) =>
+      items.reduce((sum, i) => sum + Math.round(valueFn(i) * 100), 0) / 100;
 
-    // 1. Sumar ingresos de cajas chicas (ya están filtradas por estado CERRADA y mismo día en cargarCajasChicas)
-    (this.cajasChicas || []).forEach(cc => {
-      ingresosCajasChicas += cc.monto_actual || 0;
-    });
+    // 1. Ingresos de cajas chicas: desde monto_actual de la sub-colección
+    this.resumen.ingresos_cajas_chicas = sumCents(
+      this.cajasChicas || [],
+      cc => cc.monto_actual || 0
+    );
 
-    // 2. Sumar movimientos de ingresos/egresos
-    (this.movimientos || []).forEach(m => {
-      if (m.tipo === 'INGRESO') {
-        // Todos los ingresos registrados como movimientos van a "Otros Ingresos"
-        // (incluyendo CIERRE_CAJA_CHICA, TRANSFERENCIA_CLIENTE, etc)
-        ingresosOtros += m.monto || 0;
-      } else if (m.tipo === 'EGRESO') {
-        egresos += m.monto || 0;
-      }
-    });
+    // 2. Otros ingresos: TODOS los movimientos INGRESO
+    this.resumen.ingresos_otros = sumCents(
+      (this.movimientos || []).filter(m => m.tipo === 'INGRESO'),
+      m => m.monto || 0
+    );
 
-    this.resumen.ingresos_cajas_chicas = ingresosCajasChicas;
-    this.resumen.ingresos_otros = ingresosOtros;
-    this.resumen.total_ingresos = ingresosCajasChicas + ingresosOtros;
-    this.resumen.total_egresos = egresos;
+    // 3. Total ingresos y egresos
+    this.resumen.total_ingresos =
+      Math.round((this.resumen.ingresos_cajas_chicas + this.resumen.ingresos_otros) * 100) / 100;
 
-    // El saldo actual se calcula dinámicamente mediante el getter saldoActualCalculado
-    // Fórmula: saldo_inicial + total_ingresos - total_egresos
+    this.resumen.total_egresos = sumCents(
+      (this.movimientos || []).filter(m => m.tipo === 'EGRESO'),
+      m => m.monto || 0
+    );
   }
 
   /**
@@ -792,7 +789,8 @@ export class VerCajaComponent implements OnInit {
 
     if (result.isConfirmed) {
       try {
-        await this.cajaBancoService.cerrarCajaBanco(this.cajaId);
+        // Pasar el saldo calculado para que Firestore quede actualizado correctamente
+        await this.cajaBancoService.cerrarCajaBanco(this.cajaId, this.saldoActualCalculado);
         
         await Swal.fire({
           icon: 'success',
@@ -880,15 +878,18 @@ export class VerCajaComponent implements OnInit {
     const mesIndex = fechaCaja.getMonth();
     const year = fechaCaja.getFullYear();
 
-    // Calcular ingresos de cajas chicas
-    const ingresosCajasChicas = cajasChicas.reduce((sum, cc) => sum + (cc.monto_actual || 0), 0);
-    // Calcular otros ingresos (movimientos de tipo INGRESO)
-    const ingresosOtros = movimientos.filter(m => m.tipo === 'INGRESO').reduce((sum, m) => sum + (m.monto || 0), 0);
+    const sumCentsRpt = (items: any[], valueFn: (i: any) => number) =>
+      items.reduce((sum, i) => sum + Math.round(valueFn(i) * 100), 0) / 100;
+
+    // Ingresos de cajas chicas: suma de monto_actual de la sub-colección
+    const ingresosCajasChicas = sumCentsRpt(cajasChicas, cc => cc.monto_actual || 0);
+    // Otros ingresos: TODOS los movimientos INGRESO
+    const ingresosOtros = sumCentsRpt(movimientos.filter(m => m.tipo === 'INGRESO'), m => m.monto || 0);
     // Total de ingresos
-    const totalIngresos = ingresosCajasChicas + ingresosOtros;
-    const totalEgresos = movimientos.filter(m => m.tipo === 'EGRESO').reduce((sum, m) => sum + (m.monto || 0), 0);
+    const totalIngresos = Math.round((ingresosCajasChicas + ingresosOtros) * 100) / 100;
+    const totalEgresos = sumCentsRpt(movimientos.filter(m => m.tipo === 'EGRESO'), m => m.monto || 0);
     // Saldo Final = Saldo Inicial + Total Ingresos - Total Egresos
-    const saldoFinal = (caja.saldo_inicial || 0) + totalIngresos - totalEgresos;
+    const saldoFinal = Math.round(((caja.saldo_inicial || 0) + totalIngresos - totalEgresos) * 100) / 100;
 
     const filasMovimientos = movimientos.map((mov: any) => `
       <tr>

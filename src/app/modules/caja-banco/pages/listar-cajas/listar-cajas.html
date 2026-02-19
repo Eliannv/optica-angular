@@ -121,14 +121,25 @@
                 </div>
             </div>
 
-            <!-- Total Transferencias -->
+            <!-- Total Cajas Chicas -->
             <div class="stat-item stat-primary">
                 <div class="stat-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
                 </div>
                 <div class="stat-info">
-                    <span class="stat-label">Total Transferencias</span>
+                    <span class="stat-label">Total Cajas Chicas</span>
                     <span class="stat-value">{{ formatoMoneda(getTotalTransferencias()) }}</span>
+                </div>
+            </div>
+
+            <!-- Total Otros Ingresos -->
+            <div class="stat-item stat-primary">
+                <div class="stat-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="M19 22v-6"/><path d="m22 19-3-3-3 3"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Otros Ingresos</span>
+                    <span class="stat-value">{{ formatoMoneda(getTotalOtrosIngresos()) }}</span>
                 </div>
             </div>
 
@@ -143,17 +154,6 @@
                 </div>
             </div>
 
-            <!-- Total Cajas -->
-            <div class="stat-item stat-primary">
-                <div class="stat-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 18v-7"/><path d="M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/></svg>
-                </div>
-                <div class="stat-info">
-                    <span class="stat-label">Total Cajas</span>
-                    <span class="stat-value">{{ cajas.length }}</span>
-                </div>
-            </div>
-
             <!-- Total Egresos -->
             <div class="stat-item stat-danger">
                 <div class="stat-icon">
@@ -165,14 +165,14 @@
                 </div>
             </div>
 
-            <!-- Cajas Filtradas -->
+            <!-- Total Cajas -->
             <div class="stat-item stat-primary">
                 <div class="stat-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 18v-7"/><path d="M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/></svg>
                 </div>
                 <div class="stat-info">
-                    <span class="stat-label">Cajas Filtradas</span>
-                    <span class="stat-value">{{ cajasFiltradas.length }}</span>
+                    <span class="stat-label">Total Cajas</span>
+                    <span class="stat-value">{{ cajas.length }}</span>
                 </div>
             </div>
         </div>

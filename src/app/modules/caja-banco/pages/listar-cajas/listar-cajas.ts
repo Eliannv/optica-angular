@@ -93,6 +93,7 @@ export class ListarCajasComponent implements OnInit {
     total_cajas: 0,
     total_ganado_cajas_chicas: 0,
     total_transferencias: 0,
+    total_otros_ingresos: 0,
     total_ingresos: 0,
     total_egresos: 0
   };
@@ -446,26 +447,40 @@ export class ListarCajasComponent implements OnInit {
    * 5. Total de egresos
    */
   calcularTotales(): void {
+    // Acumular en centavos enteros para eliminar error de punto flotante
+    const sumCents = (items: any[], valueFn: (item: any) => number) =>
+      items.reduce((sum, item) => sum + Math.round(valueFn(item) * 100), 0) / 100;
+
     // 1. Total de cajas banco creadas
     this.totales.total_cajas = this.cajas.length;
 
     // 2. Total ganado de cajas chicas (sumar monto_actual de cajas chicas cerradas)
-    this.totales.total_ganado_cajas_chicas = (this.cajasChicas || [])
-      .filter(cc => cc.estado === 'CERRADA')
-      .reduce((sum, cc) => sum + (cc.monto_actual || 0), 0);
+    this.totales.total_ganado_cajas_chicas = sumCents(
+      (this.cajasChicas || []).filter(cc => cc.estado === 'CERRADA'),
+      cc => cc.monto_actual || 0
+    );
 
-    // 3. Total transferencias y otros ingresos (TODOS los movimientos de ingreso registrados)
-    this.totales.total_transferencias = (this.movimientosGlobales || [])
-      .filter(m => m.tipo === 'INGRESO')
-      .reduce((sum, m) => sum + (m.monto || 0), 0);
+    // 3. Total otros ingresos: movimientos INGRESO excluyendo CIERRE_CAJA_CHICA
+    this.totales.total_otros_ingresos = sumCents(
+      (this.movimientosGlobales || []).filter(m => m.tipo === 'INGRESO' && m.categoria !== 'CIERRE_CAJA_CHICA'),
+      m => m.monto || 0
+    );
 
-    // 4. Total ingresos (cajas chicas + movimientos de ingreso)
-    this.totales.total_ingresos = this.totales.total_ganado_cajas_chicas + this.totales.total_transferencias;
+    // 4. Total transferencias = todos los movimientos INGRESO
+    this.totales.total_transferencias = sumCents(
+      (this.movimientosGlobales || []).filter(m => m.tipo === 'INGRESO'),
+      m => m.monto || 0
+    );
 
-    // 5. Total egresos
-    this.totales.total_egresos = (this.movimientosGlobales || [])
-      .filter(m => m.tipo === 'EGRESO')
-      .reduce((sum, m) => sum + (m.monto || 0), 0);
+    // 5. Total ingresos = cajas chicas + otros ingresos (sin doble conteo de CIERRE_CAJA_CHICA)
+    this.totales.total_ingresos =
+      Math.round((this.totales.total_ganado_cajas_chicas + this.totales.total_otros_ingresos) * 100) / 100;
+
+    // 6. Total egresos
+    this.totales.total_egresos = sumCents(
+      (this.movimientosGlobales || []).filter(m => m.tipo === 'EGRESO'),
+      m => m.monto || 0
+    );
   }
 
   /**
@@ -1377,7 +1392,9 @@ export class ListarCajasComponent implements OnInit {
    * @returns {number} Suma total de montos de cajas chicas cerradas
    */
   getTotalGanado(): number {
-    return this.totales.total_ganado_cajas_chicas;
+    return Math.round(
+      this.cajasFiltradas.reduce((sum, c) => sum + (c.saldo_actual || 0), 0) * 100
+    ) / 100;
   }
 
   /**
@@ -1385,7 +1402,14 @@ export class ListarCajasComponent implements OnInit {
    * @returns {number} Suma total de ingresos por transferencia
    */
   getTotalTransferencias(): number {
-    return this.totales.total_transferencias;
+    return this.totales.total_ganado_cajas_chicas;
+  }
+
+  /**
+   * Total de otros ingresos: movimientos INGRESO excluyendo CIERRE_CAJA_CHICA.
+   */
+  getTotalOtrosIngresos(): number {
+    return this.totales.total_otros_ingresos;
   }
 
   /**
