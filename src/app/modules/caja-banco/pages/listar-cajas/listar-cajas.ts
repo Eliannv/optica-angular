@@ -97,6 +97,70 @@ export class ListarCajasComponent implements OnInit {
     total_egresos: 0
   };
 
+  // ─── Filtros de búsqueda ───────────────────────────────────────────────────
+  filtroEstado: string = 'TODOS';
+  filtroFechaDesde: string = '';
+  filtroFechaHasta: string = '';
+  filtroSaldoInicialMin: number | null = null;
+  filtroSaldoInicialMax: number | null = null;
+  filtroSaldoActualMin: number | null = null;
+  filtroSaldoActualMax: number | null = null;
+
+  /** Retorna las cajas aplicando todos los filtros activos */
+  get cajasFiltradas(): CajaBanco[] {
+    return this.cajas.filter(caja => {
+      // Estado
+      if (this.filtroEstado !== 'TODOS' && caja.estado !== this.filtroEstado) return false;
+
+      // Rango de fecha de apertura
+      if (this.filtroFechaDesde || this.filtroFechaHasta) {
+        const fechaCaja: Date = (caja.fecha as any)?.toDate
+          ? (caja.fecha as any).toDate()
+          : new Date(caja.fecha);
+        if (this.filtroFechaDesde) {
+          const desde = new Date(this.filtroFechaDesde + 'T00:00:00');
+          if (fechaCaja < desde) return false;
+        }
+        if (this.filtroFechaHasta) {
+          const hasta = new Date(this.filtroFechaHasta + 'T23:59:59');
+          if (fechaCaja > hasta) return false;
+        }
+      }
+
+      // Saldo inicial
+      if (this.filtroSaldoInicialMin !== null && (caja.saldo_inicial || 0) < this.filtroSaldoInicialMin) return false;
+      if (this.filtroSaldoInicialMax !== null && (caja.saldo_inicial || 0) > this.filtroSaldoInicialMax) return false;
+
+      // Saldo actual
+      if (this.filtroSaldoActualMin !== null && (caja.saldo_actual || 0) < this.filtroSaldoActualMin) return false;
+      if (this.filtroSaldoActualMax !== null && (caja.saldo_actual || 0) > this.filtroSaldoActualMax) return false;
+
+      return true;
+    });
+  }
+
+  /** Indica si hay algún filtro activo */
+  get hayFiltrosActivos(): boolean {
+    return this.filtroEstado !== 'TODOS'
+      || !!this.filtroFechaDesde
+      || !!this.filtroFechaHasta
+      || this.filtroSaldoInicialMin !== null
+      || this.filtroSaldoInicialMax !== null
+      || this.filtroSaldoActualMin !== null
+      || this.filtroSaldoActualMax !== null;
+  }
+
+  /** Limpia todos los filtros de búsqueda */
+  limpiarFiltros(): void {
+    this.filtroEstado = 'TODOS';
+    this.filtroFechaDesde = '';
+    this.filtroFechaHasta = '';
+    this.filtroSaldoInicialMin = null;
+    this.filtroSaldoInicialMax = null;
+    this.filtroSaldoActualMin = null;
+    this.filtroSaldoActualMax = null;
+  }
+
   /**
    * Hook de inicialización de Angular.
    * Dispara la carga de datos de cajas, cajas chicas y movimientos globales.
@@ -597,6 +661,82 @@ export class ListarCajasComponent implements OnInit {
    */
   registrarMovimiento(): void {
     this.router.navigate(['/caja-banco/registrar-movimiento']);
+  }
+
+  /**
+   * Navega a registrar movimiento para una caja específica desde el listado.
+   */
+  registrarMovimientoCaja(cajaId: string): void {
+    sessionStorage.setItem('cajaBancoIdActual', cajaId);
+    this.router.navigate(['/caja-banco/registrar-movimiento'], {
+      state: { cajaId },
+      queryParams: { returnTo: '/caja-banco' }
+    });
+  }
+
+  /**
+   * Navega a la vista de detalles para reimprimir la caja.
+   */
+  reimprimirCaja(cajaId: string): void {
+    this.router.navigate(['/caja-banco', cajaId, 'ver']);
+  }
+
+  /**
+   * Cierra una caja banco directamente desde el listado.
+   */
+  async cerrarCajaDesdeListado(caja: CajaBanco): Promise<void> {
+    if (!caja.id || caja.estado !== 'ABIERTA') return;
+
+    // Verificar si hay caja chica abierta
+    try {
+      const cajaChicaAbierta = await this.cajaChicaService.getCajaAbierta();
+      if (cajaChicaAbierta) {
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Caja Chica Abierta',
+          html: `<p>No se puede cerrar la caja banco porque hay una <strong>caja chica abierta</strong>.</p>
+                 <p style="margin-top:0.75rem; font-size:0.9rem; color:#666;">Cierra primero la caja chica antes de continuar.</p>`,
+          confirmButtonText: 'Entendido',
+          confirmButtonColor: '#3085d6'
+        });
+        return;
+      }
+    } catch (e) {
+      console.error('Error al verificar caja chica:', e);
+    }
+
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: '¿Cerrar Caja Banco?',
+      html: `<p>Periodo: <strong>${this.formatoFecha(caja.fecha)}</strong></p>
+             <p>Saldo actual: <strong>${this.formatoMoneda(caja.saldo_actual || 0)}</strong></p>
+             <p style="font-size:0.9rem; color:#999; margin-top:0.5rem;">Una vez cerrada, no podrás registrar más movimientos.</p>`,
+      showCancelButton: true,
+      confirmButtonText: 'Sí, Cerrar Caja',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await this.cajaBancoService.cerrarCajaBanco(caja.id);
+        await Swal.fire({
+          icon: 'success',
+          title: 'Caja Cerrada',
+          text: 'La caja banco se cerró correctamente.',
+          timer: 2000,
+          showConfirmButton: false
+        });
+        this.cargarCajas();
+      } catch (error: any) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Error al Cerrar',
+          text: error?.message || 'No se pudo cerrar la caja banco.'
+        });
+      }
+    }
   }
 
   /**
@@ -1275,6 +1415,18 @@ export class ListarCajasComponent implements OnInit {
     if (!fecha) return '-';
     const date = fecha.toDate ? fecha.toDate() : new Date(fecha);
     return date.toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  }
+
+  /**
+   * Formatea una fecha con hora para mostrar en la UI.
+   */
+  formatoFechaHora(fecha: any): string {
+    if (!fecha) return '-';
+    const date = fecha?.toDate ? fecha.toDate() : new Date(fecha);
+    return date.toLocaleDateString('es-ES', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit'
+    });
   }
 
   /**
