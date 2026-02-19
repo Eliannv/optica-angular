@@ -765,17 +765,20 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
             confirmButtonText: 'Aceptar'
           });
         }
-      } else if (this.metodoPago === 'Transferencia' && this.codigoTransferencia.trim() && abonoReal > 0) {
+      } else if (this.metodoPago === 'Transferencia' && abonoReal > 0) {
         // 🏦 Pago por TRANSFERENCIA → Registrar en Caja Banco
+        // ✅ IMPORTANTE: Permitir registrar INCLUSO si el código de transferencia está vacío
+        // (igual a como funciona en facturas normales)
         try {
           const usuario = this.authService.getCurrentUser();
           await this.cajaBancoService.registrarTransferenciaCliente(
             abonoReal,
-            this.codigoTransferencia,
+            this.codigoTransferencia || '', // Permitir código vacío
             f.id,
             usuario?.id || '',
             usuario?.nombre || 'Usuario',
-            fechaFinal  // Pasar la fecha seleccionada por el usuario
+            fechaFinal,  // Pasar la fecha seleccionada por el usuario
+            'Cobro de deuda'  // Especificar que es cobro de deuda, no venta
           );
           console.log('✅ Pago de deuda registrado en Caja Banco con fecha', fechaFinal);
         } catch (err) {
@@ -788,17 +791,20 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
             confirmButtonText: 'Aceptar'
           });
         }
-      } else if (this.metodoPago === 'Tarjeta' && this.ultimosCuatroTarjeta.trim() && abonoReal > 0) {
+      } else if (this.metodoPago === 'Tarjeta' && abonoReal > 0) {
         // 💳 Pago por TARJETA → Registrar en Caja Banco
+        // ✅ IMPORTANTE: Permitir registrar INCLUSO si los últimos 4 dígitos están vacíos
+        // (igual a como funciona en facturas normales)
         try {
           const usuario = this.authService.getCurrentUser();
           await this.cajaBancoService.registrarPagoTarjeta(
             abonoReal,
-            this.ultimosCuatroTarjeta,
+            this.ultimosCuatroTarjeta || '', // Permitir dígitos vacíos
             f.id,
             usuario?.id || '',
             usuario?.nombre || 'Usuario',
-            fechaFinal  // Pasar la fecha seleccionada por el usuario
+            fechaFinal,  // Pasar la fecha seleccionada por el usuario
+            'Cobro de deuda'  // Especificar que es cobro de deuda, no venta
           );
           console.log('✅ Pago por tarjeta registrado en Caja Banco con fecha', fechaFinal);
         } catch (err) {

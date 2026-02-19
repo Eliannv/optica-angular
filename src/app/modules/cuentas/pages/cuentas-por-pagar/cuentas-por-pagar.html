@@ -26,7 +26,10 @@
                             <line x1="12" y1="16" x2="12" y2="12"/>
                             <line x1="12" y1="8" x2="12.01" y2="8"/>
                         </svg>
-                        <span>Al registrar, el monto se <strong>SUMARÁ</strong> a caja/banco</span>
+                        <span>
+                            <strong>Deuda</strong>: Obligación normal, no afecta caja/banco. 
+                            <strong>Préstamo</strong>: SUMA el monto a caja/banco (dinero recibido)
+                        </span>
                     </p>
 
                     <form [formGroup]="formularioCuenta">
@@ -34,14 +37,7 @@
                             <div class="col-6 col-md-3">
                                 <div class="form-group">
                                     <label class="form-label">Fecha</label>
-                                    <input 
-                                        type="date" 
-                                        id="fecha" 
-                                        formControlName="fecha" 
-                                        class="form-control"
-                                        [min]="fechaMinima"
-                                        [max]="fechaMaximaPermitida"
-                                    >
+                                    <input type="date" id="fecha" formControlName="fecha" class="form-control" [min]="fechaMinima" [max]="fechaMaximaPermitida">
                                     <small class="form-text text-muted" *ngIf="periodoNombre">Periodo: <strong>{{ periodoNombre }}</strong></small>
                                     <small class="form-text text-muted" *ngIf="!periodoNombre && !fechaMinima" style="color: #dc3545;">⚠️ Sin caja banco abierta</small>
                                 </div>
@@ -50,41 +46,31 @@
                             <div class="col-6 col-md-3">
                                 <div class="form-group">
                                     <label class="form-label">Hora</label>
-                                    <input 
-                                        type="time" 
-                                        id="hora" 
-                                        formControlName="hora" 
-                                        class="form-control"
-                                        step="1"
-                                    >
+                                    <input type="time" id="hora" formControlName="hora" class="form-control" step="1">
+                                </div>
+                            </div>
+
+                            <div class="col-6 col-md-3">
+                                <div class="form-group">
+                                    <label class="form-label">Tipo de Cuenta</label>
+                                    <select id="tipoCuentaPorPagar" formControlName="tipoCuentaPorPagar" class="form-control">
+                                        <option [value]="TipoCuentaPorPagar.DEUDA">Deuda</option>
+                                        <option [value]="TipoCuentaPorPagar.PRESTAMO">Préstamo</option>
+                                    </select>
                                 </div>
                             </div>
 
                             <div class="col-6 col-md-3">
                                 <div class="form-group">
                                     <label class="form-label">Monto Total</label>
-                                    <input 
-                                        type="number" 
-                                        id="montoTotal" 
-                                        formControlName="montoTotal" 
-                                        class="form-control" 
-                                        placeholder="0" 
-                                        step="0.01" 
-                                        min="0.01"
-                                    >
+                                    <input type="number" id="montoTotal" formControlName="montoTotal" class="form-control" placeholder="0" step="0.01" min="0.01">
                                 </div>
                             </div>
 
-                            <div class="col-6 col-md-3">
+                            <div class="col-12">
                                 <div class="form-group">
                                     <label class="form-label">Observación</label>
-                                    <input 
-                                        type="text" 
-                                        id="observacion" 
-                                        formControlName="observacion" 
-                                        class="form-control" 
-                                        placeholder="Descripción de la cuenta por pagar"
-                                    >
+                                    <input type="text" id="observacion" formControlName="observacion" class="form-control" placeholder="Descripción de la cuenta por pagar">
                                 </div>
                             </div>
                         </div>
@@ -176,8 +162,7 @@
 
                 <div class="stat-card stat-card-primary">
                     <div class="stat-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/>
             <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
             <path d="M12 18V6"/>
@@ -289,9 +274,7 @@
                                     <span class="precio" style="font-weight: 700;">${{ cuenta.saldo.toFixed(2) }}</span>
                                 </td>
                                 <td class="col-estado">
-                                    <span class="badge-tipo" 
-                                          [class.badge-success]="cuenta.estado === EstadoCuenta.CANCELADA" 
-                                          [class.badge-warning]="cuenta.estado === EstadoCuenta.ACTIVA">
+                                    <span class="badge-tipo" [class.badge-success]="cuenta.estado === EstadoCuenta.CANCELADA" [class.badge-warning]="cuenta.estado === EstadoCuenta.ACTIVA">
                                         {{ cuenta.estado }}
                                     </span>
                                 </td>
@@ -303,10 +286,7 @@
                                                 <circle cx="12" cy="12" r="3"/>
                                             </svg>
                                         </button>
-                                        <button *ngIf="cuenta.estado === EstadoCuenta.ACTIVA" 
-                                            class="btn-action btn-action-payment" 
-                                            (click)="realizarAbono(cuenta)" 
-                                            title="Realizar pago">
+                                        <button *ngIf="cuenta.estado === EstadoCuenta.ACTIVA" class="btn-action btn-action-payment" (click)="realizarAbono(cuenta)" title="Realizar pago">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                 <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
                                                 <path d="M16 11h-4"></path>

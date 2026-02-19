@@ -997,10 +997,17 @@ export class CajaBancoService {
    * Busca automáticamente la caja banco ABIERTA más reciente (puede ser histórica).
    *
    * @param monto Monto transferido.
+  /**
+   * Registra una transferencia de un cliente (ingreso).
+   * Busca la caja banco abierta y crea un movimiento de INGRESO.
+   *
+   * @param monto Monto de la transferencia.
    * @param codigoTransferencia Número de referencia de la transferencia.
    * @param ventaId ID de la venta asociada.
    * @param usuarioId ID del usuario que registra.
    * @param usuarioNombre Nombre del usuario.
+   * @param fecha Fecha del movimiento (opcional).
+   * @param tipoMovimiento Tipo de movimiento: 'Venta' o 'Cobro de deuda' (default: 'Venta').
    * @returns Promise<string> ID del movimiento creado.
    * @throws Error si no hay ninguna caja banco abierta.
    */
@@ -1010,7 +1017,8 @@ export class CajaBancoService {
     ventaId: string,
     usuarioId?: string,
     usuarioNombre?: string,
-    fecha?: Date
+    fecha?: Date,
+    tipoMovimiento: 'Venta' | 'Cobro de deuda' = 'Venta'
   ): Promise<string> {
     // Obtener CUALQUIER caja banco ABIERTA (histórica o actual)
     const cajaBancoActiva = await this.getCajaBancoAbierta();
@@ -1024,7 +1032,7 @@ export class CajaBancoService {
       fecha: fecha || new Date(),  // Usar fecha proporcionada o actual
       tipo: 'INGRESO',
       categoria: 'TRANSFERENCIA_CLIENTE',
-      descripcion: `Transferencia de cliente - Venta #${ventaId}`,
+      descripcion: `Transferencia de cliente - ${tipoMovimiento} #${ventaId}`,
       monto,
       referencia: codigoTransferencia,
       venta_id: ventaId,
@@ -1035,14 +1043,28 @@ export class CajaBancoService {
     return this.registrarMovimiento(movimiento);
   }
 
-  // Registrar un pago por tarjeta de cliente
+  /**
+   * Registra un pago por tarjeta de cliente (ingreso).
+   * Busca la caja banco abierta y crea un movimiento de INGRESO.
+   *
+   * @param monto Monto del pago.
+   * @param ultimos4Digitos Últimos 4 dígitos de la tarjeta.
+   * @param ventaId ID de la venta o cobro asociado.
+   * @param usuarioId ID del usuario que registra.
+   * @param usuarioNombre Nombre del usuario.
+   * @param fecha Fecha del movimiento (opcional).
+   * @param tipoMovimiento Tipo de movimiento: 'Venta' o 'Cobro de deuda' (default: 'Venta').
+   * @returns Promise<string> ID del movimiento creado.
+   * @throws Error si no hay ninguna caja banco abierta.
+   */
   async registrarPagoTarjeta(
     monto: number,
     ultimos4Digitos: string,
     ventaId: string,
     usuarioId?: string,
     usuarioNombre?: string,
-    fecha?: Date
+    fecha?: Date,
+    tipoMovimiento: 'Venta' | 'Cobro de deuda' = 'Venta'
   ): Promise<string> {
     // Obtener CUALQUIER caja banco ABIERTA (histórica o actual)
     const cajaBancoActiva = await this.getCajaBancoAbierta();
@@ -1056,7 +1078,7 @@ export class CajaBancoService {
       fecha: fecha || new Date(),  // Usar fecha proporcionada o actual
       tipo: 'INGRESO',
       categoria: 'TRANSFERENCIA_CLIENTE', // Se usa la misma categoría que transferencias
-      descripcion: `Pago por tarjeta - Venta #${ventaId} (Últimos 4 dígitos: ${ultimos4Digitos})`,
+      descripcion: `Pago por tarjeta - ${tipoMovimiento} #${ventaId} (Últimos 4 dígitos: ${ultimos4Digitos})`,
       monto,
       referencia: `TARJETA_${ultimos4Digitos}`,
       venta_id: ventaId,

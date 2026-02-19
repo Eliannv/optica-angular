@@ -27,6 +27,14 @@ export interface Cuenta {
   tipo: TipoCuenta;
 
   /**
+   * ✅ NUEVO: Tipo específico para cuentas por pagar (Deuda o Préstamo).
+   * Solo aplica si tipo === PAGAR.
+   * - "Deuda": No genera movimiento en caja banco
+   * - "Prestamo": Genera ingreso automático en caja banco
+   */
+  tipoCuentaPorPagar?: TipoCuentaPorPagar;
+
+  /**
    * Monto total inicial de la cuenta.
    */
   montoTotal: number;
@@ -88,6 +96,16 @@ export interface Cuenta {
 export enum TipoCuenta {
   PAGAR = 'PAGAR',
   COBRAR = 'COBRAR'
+}
+
+/**
+ * ✅ Tipos de cuentas por pagar (subtipificación).
+ * - Deuda: Obligación normal, sin generación de movimiento en caja banco
+ * - Prestamo: Préstamo recibido, genera ingreso automático en caja banco
+ */
+export enum TipoCuentaPorPagar {
+  DEUDA = 'Deuda',
+  PRESTAMO = 'Prestamo'
 }
 
 /**
