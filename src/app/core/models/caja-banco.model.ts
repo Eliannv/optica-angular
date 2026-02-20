@@ -76,7 +76,7 @@ export interface MovimientoCajaBanco {
   tipo: 'INGRESO' | 'EGRESO';
 
   /** Categoría específica del movimiento para clasificación y reportes */
-  categoria: 'CIERRE_CAJA_CHICA' | 'TRANSFERENCIA_CLIENTE' | 'PAGO_TRABAJADOR' | 'OTRO_INGRESO' | 'OTRO_EGRESO';
+  categoria: 'CIERRE_CAJA_CHICA' | 'TRANSFERENCIA_CLIENTE' | 'PAGO_TRABAJADOR' | 'PAGO_PROVEEDORES' | 'OTRO_INGRESO' | 'OTRO_EGRESO';
 
   /** Descripción detallada del movimiento */
   descripcion: string;

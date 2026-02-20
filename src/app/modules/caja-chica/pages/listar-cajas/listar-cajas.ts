@@ -46,23 +46,13 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private subscriptions = new Subscription();
 
-  // 📋 Datos visibles
-  cajasVisibles: CajaChica[] = [];
-  
-  // 📄 Control de paginación (navegación anterior/siguiente)
-  paginaActual = 1;
-  pageSize = 10;
-  lastVisible: QueryDocumentSnapshot<DocumentData> | null = null;
-  firstVisible: QueryDocumentSnapshot<DocumentData> | null = null;
-  hasMore = false;
-  cargando = false;
+  // 📋 Datos del periodo (fuente principal para KPIs, filtros y tabla)
+  todasLasCajasDelPeriodo: CajaChica[] = [];
 
-  // 🔍 Historial de páginas para navegación hacia atrás
-  paginasHistorial: Array<{
-    firstDoc: QueryDocumentSnapshot<DocumentData> | null;
-    lastDoc: QueryDocumentSnapshot<DocumentData> | null;
-    pageNumber: number;
-  }> = [];
+  // 📄 Paginación cliente
+  paginaClienteActual = 1;
+  pageSize = 10;
+  cargando = false;
 
   // 🎯 Filtro de periodo (siempre activo)
   cajaBancoSeleccionada: string | null = null; // ID de caja banco para filtrar por periodo
@@ -74,16 +64,192 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
   cajasBancoDisponibles: CajaBanco[] = [];
   cargandoPeriodos = false;
 
+  // 🔍 Filtros
+  filtroEstado: string = 'TODOS'; // TODOS, ABIERTA, CERRADA
+  filtroSaldoInicialMin: number | null = null;
+  filtroSaldoInicialMax: number | null = null;
+  filtroSaldoActualMin: number | null = null;
+  filtroSaldoActualMax: number | null = null;
+  filtroUsuario: string = '';
+
+  // ⏱ Filtro de duración
+  filtroDuracionTipo: string = 'TODOS'; // 'TODOS' | 'MENOS_DE' | 'ENTRE' | 'MAS_DE'
+  filtroDuracionHorasA: number | null = null; // valor principal (límite en todos los modos)
+  filtroDuracionHorasB: number | null = null; // límite superior (solo para ENTRE)
+
+  // 📊 Filtro de movimientos
+  filtroMovimientos: string = 'TODOS'; // 'TODOS' | 'CON' | 'SIN'
+
+  // 📊 KPIs calculados (SOBRE TODAS LAS CAJAS DEL PERIODO, NO SOBRE FILTROS NI PAGINACIÓN)
+  get totalCajasChicas(): number {
+    return this.todasLasCajasDelPeriodo.length;
+  }
+
+  get cajasConMovimientos(): number {
+    return this.todasLasCajasDelPeriodo.filter(
+      c => Math.abs((c.monto_actual || 0) - (c.monto_inicial || 0)) > 0.001
+    ).length;
+  }
+
+  get cajasSinMovimientos(): number {
+    return this.todasLasCajasDelPeriodo.filter(
+      c => Math.abs((c.monto_actual || 0) - (c.monto_inicial || 0)) <= 0.001
+    ).length;
+  }
+
+  get saldoTotalActual(): number {
+    return Math.round(
+      this.todasLasCajasDelPeriodo.reduce((sum, c) => sum + (c.monto_actual || 0), 0) * 100
+    ) / 100;
+  }
+
+  get gastoPromedioPorCaja(): number {
+    if (this.totalCajasChicas === 0) return 0;
+    const totalGastos = this.todasLasCajasDelPeriodo.reduce((sum, c) => {
+      const gasto = (c.monto_inicial || 0) - (c.monto_actual || 0);
+      return sum + gasto;
+    }, 0);
+    return Math.round((totalGastos / this.totalCajasChicas) * 100) / 100;
+  }
+
+  get duracionPromedioCaja(): number {
+    const cajasCerradas = this.todasLasCajasDelPeriodo.filter(c => c.estado === 'CERRADA' && c.cerrado_en && c.fecha);
+    if (cajasCerradas.length === 0) return 0;
+    
+    const totalHoras = cajasCerradas.reduce((sum, c) => {
+      const apertura = (c.fecha as any).toDate ? (c.fecha as any).toDate() : new Date(c.fecha);
+      const cierre = (c.cerrado_en as any)?.toDate ? (c.cerrado_en as any).toDate() : new Date(c.cerrado_en!);
+      const diffMs = cierre.getTime() - apertura.getTime();
+      const diffHoras = diffMs / (1000 * 60 * 60);
+      return sum + diffHoras;
+    }, 0);
+    
+    return totalHoras / cajasCerradas.length;
+  }
+
+  // Verifica si hay filtros activos
+  get hayFiltrosActivos(): boolean {
+    return this.filtroEstado !== 'TODOS' ||
+           this.filtroSaldoInicialMin !== null ||
+           this.filtroSaldoInicialMax !== null ||
+           this.filtroSaldoActualMin !== null ||
+           this.filtroSaldoActualMax !== null ||
+           this.filtroUsuario.trim() !== '' ||
+           this.fechaSeleccionada !== '' ||
+           this.filtroDuracionTipo !== 'TODOS' ||
+           this.filtroMovimientos !== 'TODOS';
+  }
+
+  // Cajas filtradas (sobre TODO el periodo, no solo la página)
+  get cajasFiltradas(): CajaChica[] {
+    return this.todasLasCajasDelPeriodo.filter(caja => {
+      // Filtro por fecha específica
+      if (this.fechaSeleccionada) {
+        const fechaCaja = (caja.fecha as any).toDate ? (caja.fecha as any).toDate() : new Date(caja.fecha);
+        const fechaStr = this.formatoFechaInput(fechaCaja);
+        if (fechaStr !== this.fechaSeleccionada) return false;
+      }
+      // Filtro por estado
+      if (this.filtroEstado !== 'TODOS' && caja.estado !== this.filtroEstado) {
+        return false;
+      }
+
+      // Filtro por saldo inicial
+      if (this.filtroSaldoInicialMin !== null && (caja.monto_inicial || 0) < this.filtroSaldoInicialMin) {
+        return false;
+      }
+      if (this.filtroSaldoInicialMax !== null && (caja.monto_inicial || 0) > this.filtroSaldoInicialMax) {
+        return false;
+      }
+
+      // Filtro por saldo actual
+      if (this.filtroSaldoActualMin !== null && (caja.monto_actual || 0) < this.filtroSaldoActualMin) {
+        return false;
+      }
+      if (this.filtroSaldoActualMax !== null && (caja.monto_actual || 0) > this.filtroSaldoActualMax) {
+        return false;
+      }
+
+      // Filtro por usuario
+      if (this.filtroUsuario.trim()) {
+        const term = this.filtroUsuario.trim().toLowerCase();
+        const abrio = (caja.usuario_nombre || '').toLowerCase();
+        const cerro = (caja.cerrado_por_nombre || '').toLowerCase();
+        if (!abrio.includes(term) && !cerro.includes(term)) {
+          return false;
+        }
+      }
+
+      // Filtro por duración
+      if (this.filtroDuracionTipo !== 'TODOS') {
+        const horas = this.calcularDuracionHoras(caja);
+        if (horas === null) return false; // sin duración calculable se excluye
+        if (this.filtroDuracionTipo === 'MENOS_DE') {
+          if (this.filtroDuracionHorasA === null || horas >= this.filtroDuracionHorasA) return false;
+        } else if (this.filtroDuracionTipo === 'ENTRE') {
+          if (this.filtroDuracionHorasA !== null && horas < this.filtroDuracionHorasA) return false;
+          if (this.filtroDuracionHorasB !== null && horas > this.filtroDuracionHorasB) return false;
+        } else if (this.filtroDuracionTipo === 'MAS_DE') {
+          if (this.filtroDuracionHorasA === null || horas <= this.filtroDuracionHorasA) return false;
+        }
+      }
+
+      // Filtro por movimientos (detectado si el saldo cambió respecto al inicial)
+      if (this.filtroMovimientos !== 'TODOS') {
+        const tieneMovimientos = Math.abs((caja.monto_actual || 0) - (caja.monto_inicial || 0)) > 0.001;
+        if (this.filtroMovimientos === 'CON' && !tieneMovimientos) return false;
+        if (this.filtroMovimientos === 'SIN' && tieneMovimientos) return false;
+      }
+
+      return true;
+    });
+  }
+
+  /**
+   * Calcula la duración en horas decimales entre apertura y cierre de una caja.
+   * Devuelve null si la caja no tiene ambas fechas.
+   */
+  private calcularDuracionHoras(caja: CajaChica): number | null {
+    if (!caja.fecha || !caja.cerrado_en) return null;
+    const apertura = (caja.fecha as any).toDate ? (caja.fecha as any).toDate() : new Date(caja.fecha);
+    const cierre = (caja.cerrado_en as any).toDate ? (caja.cerrado_en as any).toDate() : new Date(caja.cerrado_en);
+    return (cierre.getTime() - apertura.getTime()) / (1000 * 60 * 60);
+  }
+
+  // Página actual de la tabla (slice de cajasFiltradas)
+  get cajasEnPagina(): CajaChica[] {
+    const inicio = (this.paginaClienteActual - 1) * this.pageSize;
+    return this.cajasFiltradas.slice(inicio, inicio + this.pageSize);
+  }
+
+  get totalPaginasCliente(): number {
+    return Math.max(1, Math.ceil(this.cajasFiltradas.length / this.pageSize));
+  }
+
+  irPaginaSiguiente(): void {
+    if (this.paginaClienteActual < this.totalPaginasCliente) this.paginaClienteActual++;
+  }
+
+  irPaginaAnterior(): void {
+    if (this.paginaClienteActual > 1) this.paginaClienteActual--;
+  }
+
+  irPrimeraPaginaCliente(): void {
+    this.paginaClienteActual = 1;
+  }
+
+  irUltimaPaginaCliente(): void {
+    this.paginaClienteActual = this.totalPaginasCliente;
+  }
+
   ngOnInit(): void {
     this.cargarPeriodosDisponibles();
   }
 
   ngOnDestroy(): void {
     this.subscriptions.unsubscribe();
-    // Liberar memoria
-    this.cajasVisibles = [];
+    this.todasLasCajasDelPeriodo = [];
     this.cajasBancoDisponibles = [];
-    this.lastVisible = null;
   }
 
   /**   * 📆 Carga las cajas banco disponibles para el selector de periodo.
@@ -103,10 +269,8 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
         // Seleccionar automáticamente el periodo más reciente
         if (this.cajasBancoDisponibles.length > 0) {
           this.cajaBancoSeleccionada = this.cajasBancoDisponibles[0].id || null;
-          // Calcular rango de fechas del periodo
           this.calcularRangoFechasPeriodo();
-          // Cargar cajas del periodo actual
-          this.cargarCajasPaginadas();
+          this.cargarTodasLasCajasDelPeriodo();
         }
         
         this.cargandoPeriodos = false;
@@ -119,174 +283,35 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
     this.subscriptions.add(sub);
   }
 
-  /**   *  Carga la primera página de cajas chicas.
-   * Reinicia el estado y carga la página inicial.
+  /**
+   * 🔥 Carga TODAS las cajas del periodo seleccionado (sin paginación) para calcular KPIs.
+   * Los KPIs deben reflejar TODO el periodo, no solo la página actual.
    */
-  async cargarCajasPaginadas(resetear: boolean = true): Promise<void> {
-    if (resetear) {
-      // 🧹 Limpiar estado anterior
-      this.cajasVisibles = [];
-      this.paginaActual = 1;
-      this.paginasHistorial = [];
-      this.lastVisible = null;
-      this.firstVisible = null;
-      this.hasMore = false;
+  async cargarTodasLasCajasDelPeriodo(): Promise<void> {
+    if (!this.cajaBancoSeleccionada) {
+      this.todasLasCajasDelPeriodo = [];
+      return;
     }
-
-    this.cargando = true;
 
     try {
-      const opciones: any = {
-        pageSize: this.pageSize
-      };
-
-      // Aplicar filtro por periodo (siempre activo)
-      if (this.cajaBancoSeleccionada) {
-        opciones.cajaBancoId = this.cajaBancoSeleccionada;
-      }
-
-      // Aplicar filtro por fecha específica si está seleccionada
-      if (this.fechaSeleccionada) {
-        opciones.fecha = this.fechaSeleccionada;
-      }
-
-      const resultado = await this.cajaChicaService.getCajasChicasPaginadas(opciones);
-
-      this.cajasVisibles = resultado.cajas;
-      this.lastVisible = resultado.lastVisible;
-      this.firstVisible = resultado.cajas.length > 0 ? resultado.lastVisible : null;
-      this.hasMore = resultado.hasMore;
-
-      // Guardar primera página en historial
-      if (this.cajasVisibles.length > 0) {
-        this.paginasHistorial.push({
-          firstDoc: null,
-          lastDoc: this.lastVisible,
-          pageNumber: 1
-        });
-      }
-
-    } catch (error) {
-      console.error('❌ Error al cargar cajas:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'No se pudieron cargar las cajas chicas',
-        timer: 3000
+      // Obtener todas las cajas del periodo a través de una suscripción temporal
+      const sub = this.cajaChicaService.getCajasChicas().subscribe({
+        next: (todasLasCajas) => {
+          // Filtrar solo las cajas del periodo seleccionado
+          this.todasLasCajasDelPeriodo = todasLasCajas.filter(caja => 
+            caja.caja_banco_id === this.cajaBancoSeleccionada
+          );
+        },
+        error: (error) => {
+          console.error('❌ Error al cargar todas las cajas del periodo:', error);
+          this.todasLasCajasDelPeriodo = [];
+        }
       });
-    } finally {
-      this.cargando = false;
-    }
-  }
-
-  /**
-   * 📄 Navega a la página siguiente.
-   */
-  async paginaSiguiente(): Promise<void> {
-    if (!this.hasMore || this.cargando) return;
-
-    this.cargando = true;
-
-    try {
-      const opciones: any = {
-        pageSize: this.pageSize,
-        lastVisible: this.lastVisible
-      };
-
-      // Aplicar filtro por periodo activo
-      if (this.cajaBancoSeleccionada) {
-        opciones.cajaBancoId = this.cajaBancoSeleccionada;
-      }
-
-      const resultado = await this.cajaChicaService.getCajasChicasPaginadas(opciones);
-
-      this.cajasVisibles = resultado.cajas;
-      this.lastVisible = resultado.lastVisible;
-      this.firstVisible = resultado.cajas.length > 0 ? resultado.lastVisible : null;
-      this.hasMore = resultado.hasMore;
-      this.paginaActual++;
-
-      // Guardar en historial
-      if (this.cajasVisibles.length > 0) {
-        this.paginasHistorial.push({
-          firstDoc: this.firstVisible,
-          lastDoc: this.lastVisible,
-          pageNumber: this.paginaActual
-        });
-      }
-
+      this.subscriptions.add(sub);
     } catch (error) {
-      console.error('❌ Error al cargar siguiente página:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'No se pudo cargar la página siguiente',
-        timer: 3000
-      });
-    } finally {
-      this.cargando = false;
+      console.error('❌ Error al cargar todas las cajas del periodo:', error);
+      this.todasLasCajasDelPeriodo = [];
     }
-  }
-
-  /**
-   * 📄 Navega a la página anterior.
-   */
-  async paginaAnterior(): Promise<void> {
-    if (this.paginaActual <= 1 || this.cargando) return;
-
-    this.cargando = true;
-
-    try {
-      // Eliminar la página actual del historial
-      this.paginasHistorial.pop();
-      this.paginaActual--;
-
-      // Obtener la página anterior (ahora la última en el historial)
-      const paginaAnterior = this.paginasHistorial[this.paginasHistorial.length - 1];
-
-      if (!paginaAnterior || paginaAnterior.pageNumber === 1) {
-        // Si no hay historial o es la primera página, recargarla
-        await this.cargarCajasPaginadas(true);
-        return;
-      }
-
-      // Cargar desde el snapshot del historial
-      const opciones: any = {
-        pageSize: this.pageSize,
-        lastVisible: this.paginasHistorial[this.paginasHistorial.length - 2]?.lastDoc || undefined
-      };
-
-      // Aplicar filtro por periodo activo
-      if (this.cajaBancoSeleccionada) {
-        opciones.cajaBancoId = this.cajaBancoSeleccionada;
-      }
-
-      const resultado = await this.cajaChicaService.getCajasChicasPaginadas(opciones);
-
-      this.cajasVisibles = resultado.cajas;
-      this.lastVisible = paginaAnterior.lastDoc;
-      this.firstVisible = paginaAnterior.firstDoc;
-      this.hasMore = true; // Sabemos que hay más porque veníamos de una página posterior
-
-    } catch (error) {
-      console.error('❌ Error al cargar página anterior:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'No se pudo cargar la página anterior',
-        timer: 3000
-      });
-    } finally {
-      this.cargando = false;
-    }
-  }
-
-  /**
-   * 📄 Navega a la primera página.
-   */
-  async irPrimeraPagina(): Promise<void> {
-    if (this.paginaActual === 1 || this.cargando) return;
-    await this.cargarCajasPaginadas(true);
   }
 
   /**
@@ -335,9 +360,10 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
    */
   cambiarFiltroPeriodo(cajaBancoId: string | null): void {
     this.cajaBancoSeleccionada = cajaBancoId;
-    this.fechaSeleccionada = ''; // Resetear fecha al cambiar periodo
+    this.fechaSeleccionada = '';
+    this.paginaClienteActual = 1;
     this.calcularRangoFechasPeriodo();
-    this.cargarCajasPaginadas(true);
+    this.cargarTodasLasCajasDelPeriodo();
   }
 
   /**
@@ -345,7 +371,7 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
    */
   cambiarFiltroFecha(fecha: string): void {
     this.fechaSeleccionada = fecha;
-    this.cargarCajasPaginadas(true);
+    this.paginaClienteActual = 1;
   }
 
   /**
@@ -353,7 +379,7 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
    */
   limpiarFiltroFecha(): void {
     this.fechaSeleccionada = '';
-    this.cargarCajasPaginadas(true);
+    this.paginaClienteActual = 1;
   }
 
   /**
@@ -404,7 +430,7 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
         timer: 2000,
         showConfirmButton: false
       });
-      this.cargarCajasPaginadas(true);
+      this.cargarTodasLasCajasDelPeriodo();
     } catch (error: any) {
       console.error('Error al cerrar caja:', error);
       Swal.fire({
@@ -449,5 +475,70 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
     const año = fecha.getFullYear();
     
     return `${mes.charAt(0).toUpperCase() + mes.slice(1)} ${año}`;
+  }
+
+  /**
+   * 🧹 Limpia todos los filtros y recarga.
+   */
+  limpiarFiltros(): void {
+    this.filtroEstado = 'TODOS';
+    this.filtroSaldoInicialMin = null;
+    this.filtroSaldoInicialMax = null;
+    this.filtroSaldoActualMin = null;
+    this.filtroSaldoActualMax = null;
+    this.filtroUsuario = '';
+    this.fechaSeleccionada = '';
+    this.filtroDuracionTipo = 'TODOS';
+    this.filtroDuracionHorasA = null;
+    this.filtroDuracionHorasB = null;
+    this.filtroMovimientos = 'TODOS';
+    this.paginaClienteActual = 1;
+  }
+
+  /**
+   * Formatea una fecha con hora para mostrar en la tabla.
+   */
+  formatoFechaHora(fecha: any): string {
+    if (!fecha) return '-';
+    const date = fecha.toDate ? fecha.toDate() : new Date(fecha);
+    return date.toLocaleDateString('es-ES', { 
+      year: 'numeric', 
+      month: '2-digit', 
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  /**
+   * Formatea una fecha para mostrar solo la hora (HH:MM).
+   */
+  formatoSoloHora(fecha: any): string {
+    if (!fecha) return '-';
+    const date = fecha.toDate ? fecha.toDate() : new Date(fecha);
+    return date.toLocaleTimeString('es-ES', { 
+      hour: '2-digit', 
+      minute: '2-digit'
+    });
+  }
+
+  /**
+   * Calcula la duración entre apertura y cierre de caja (en horas y minutos).
+   */
+  calcularDuracion(fechaApertura: any, fechaCierre: any): string {
+    if (!fechaApertura || !fechaCierre) return '-';
+    
+    const apertura = (fechaApertura as any).toDate ? (fechaApertura as any).toDate() : new Date(fechaApertura);
+    const cierre = (fechaCierre as any).toDate ? (fechaCierre as any).toDate() : new Date(fechaCierre);
+    
+    const diffMs = cierre.getTime() - apertura.getTime();
+    const diffHoras = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutos = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (diffHoras > 0) {
+      return `${diffHoras}h ${diffMinutos}m`;
+    } else {
+      return `${diffMinutos}m`;
+    }
   }
 }

@@ -561,6 +561,149 @@
   color: #2563eb;
 }
 
+/* ══════════════════════════════════════════════════
+   📊 ESTADÍSTICAS POR CATEGORÍA (FIJAS - SIN FILTROS)
+══════════════════════════════════════════════════ */
+.estadisticas-categorias {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+
+.estadisticas-titulo {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary, #1e293b);
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.estadisticas-titulo::before {
+  font-size: 1.2rem;
+}
+
+.categoria-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.categoria-row:last-child {
+  margin-bottom: 0;
+}
+
+.cat-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.cat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-color: var(--border-hover, #cbd5e1);
+}
+
+.cat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+/* Iconos para categorías de INGRESOS */
+.categoria-ingresos .cat-icon {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.categoria-ingresos .cat-card:hover .cat-icon {
+  background: rgba(34, 197, 94, 0.2);
+}
+
+/* Iconos para categorías de EGRESOS */
+.categoria-egresos .cat-icon {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.categoria-egresos .cat-card:hover .cat-icon {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.cat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.cat-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.cat-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.cat-value-ingreso {
+  color: #16a34a;
+}
+
+.cat-value-egreso {
+  color: #dc2626;
+}
+
+/* Responsive: tarjetas en 1 columna en pantallas pequeñas */
+@media (max-width: 768px) {
+  .categoria-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .cat-card {
+    padding: 0.875rem;
+  }
+  
+  .cat-icon {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .cat-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .cat-label {
+    font-size: 0.75rem;
+  }
+  
+  .cat-value {
+    font-size: 1rem;
+  }
+}
+
 /* 6️⃣ Tabla principal de movimientos */
 .tabla-movimientos-wrap {
   overflow-x: auto;

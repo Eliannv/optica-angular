@@ -251,12 +251,58 @@ export class VerCajaComponent implements OnInit {
     return chips;
   }
 
-  /** Resumen de ingresos/egresos según los filtros activos */
+  /** Resumen de ingresos/egresos FIJOS (sin aplicar filtros - calculado sobre todos los movimientos) */
   get resumenFiltrado(): { ingresos: number; egresos: number; balance: number } {
-    const movs = this.movimientosFiltrados;
+    const movs = this.movimientos; // Cambiado de movimientosFiltrados a movimientos para que sea fijo
     const ingresos = movs.filter(m => m.tipo === 'INGRESO').reduce((s, m) => s + (m.monto || 0), 0);
     const egresos  = movs.filter(m => m.tipo === 'EGRESO').reduce((s, m) => s + (m.monto || 0), 0);
     return { ingresos, egresos, balance: ingresos - egresos };
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 📊 ESTADÍSTICAS POR CATEGORÍA (FIJAS - SIN FILTROS)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /** Total de ingresos por categoría: Cierre Caja Chica */
+  get totalCierreCajaChica(): number {
+    return this.movimientos
+      .filter(m => m.tipo === 'INGRESO' && m.categoria === 'CIERRE_CAJA_CHICA')
+      .reduce((sum, m) => sum + (m.monto || 0), 0);
+  }
+
+  /** Total de ingresos por categoría: Transferencia Cliente */
+  get totalTransferenciaCliente(): number {
+    return this.movimientos
+      .filter(m => m.tipo === 'INGRESO' && m.categoria === 'TRANSFERENCIA_CLIENTE')
+      .reduce((sum, m) => sum + (m.monto || 0), 0);
+  }
+
+  /** Total de ingresos por categoría: Otro Ingreso */
+  get totalOtroIngreso(): number {
+    return this.movimientos
+      .filter(m => m.tipo === 'INGRESO' && m.categoria === 'OTRO_INGRESO')
+      .reduce((sum, m) => sum + (m.monto || 0), 0);
+  }
+
+  /** Total de egresos por categoría: Pago Trabajador */
+  get totalPagoTrabajador(): number {
+    return this.movimientos
+      .filter(m => m.tipo === 'EGRESO' && m.categoria === 'PAGO_TRABAJADOR')
+      .reduce((sum, m) => sum + (m.monto || 0), 0);
+  }
+
+  /** Total de egresos por categoría: Pago Proveedores */
+  get totalPagoProveedores(): number {
+    return this.movimientos
+      .filter(m => m.tipo === 'EGRESO' && m.categoria === 'PAGO_PROVEEDORES')
+      .reduce((sum, m) => sum + (m.monto || 0), 0);
+  }
+
+  /** Total de egresos por categoría: Otro Egreso */
+  get totalOtroEgreso(): number {
+    return this.movimientos
+      .filter(m => m.tipo === 'EGRESO' && m.categoria === 'OTRO_EGRESO')
+      .reduce((sum, m) => sum + (m.monto || 0), 0);
   }
 
   /** Quita un chip de filtro puntual */
@@ -290,6 +336,7 @@ export class VerCajaComponent implements OnInit {
       'CIERRE_CAJA_CHICA': 'Cierre Caja Chica',
       'TRANSFERENCIA_CLIENTE': 'Trans. Cliente',
       'PAGO_TRABAJADOR': 'Pago Trabajador',
+      'PAGO_PROVEEDORES': 'Pago Proveedor',
       'OTRO_INGRESO': 'Otro Ingreso',
       'OTRO_EGRESO': 'Otro Egreso'
     };
