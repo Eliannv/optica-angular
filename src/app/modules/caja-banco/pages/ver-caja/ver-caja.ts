@@ -630,7 +630,11 @@ export class VerCajaComponent implements OnInit {
     const year = fecha.getFullYear();
     const mes = fecha.getMonth();
 
+    console.log('📦 Cargando cajas chicas para:', { year, mes, fecha });
+
     this.cajaChicaService.getCajasChicasPorMes(year, mes).subscribe(todas => {
+      console.log('📦 Cajas chicas obtenidas del servicio:', todas?.length || 0);
+      
       // Filtrar solo las cajas chicas CERRADAS del MISMO MES Y AÑO de la caja banco
       // (NO solo del mismo día, sino de todo el período de mes)
       this.cajasChicas = (todas || []).filter(cc => {
@@ -639,6 +643,10 @@ export class VerCajaComponent implements OnInit {
         // Comparar año y mes, pero NO el día
         return cajaDia.getFullYear() === year && cajaDia.getMonth() === mes;
       });
+
+      console.log('📦 Cajas chicas filtradas (CERRADAS del mismo mes):', this.cajasChicas.length);
+      console.log('📦 Datos:', this.cajasChicas);
+      
       // Recalcular resumen cuando se cargan las cajas chicas
       this.calcularResumen();
     });
@@ -658,11 +666,15 @@ export class VerCajaComponent implements OnInit {
     const sumCents = (items: any[], valueFn: (i: any) => number) =>
       items.reduce((sum, i) => sum + Math.round(valueFn(i) * 100), 0) / 100;
 
+    console.log('💵 CALCULAR RESUMEN:');
+    console.log('Cajas chicas disponibles:', this.cajasChicas?.length || 0);
+
     // 1. Ingresos de cajas chicas: desde monto_actual de la sub-colección
     this.resumen.ingresos_cajas_chicas = sumCents(
       this.cajasChicas || [],
       cc => cc.monto_actual || 0
     );
+    console.log('Ingresos cajas chicas:', this.resumen.ingresos_cajas_chicas);
 
     // 2. Otros ingresos: TODOS los movimientos INGRESO
     this.resumen.ingresos_otros = sumCents(
@@ -888,6 +900,12 @@ export class VerCajaComponent implements OnInit {
       return;
     }
 
+    // DEBUG: Verificar qué cajas chicas se están pasando al reporte
+    console.log('🔍 DEBUG IMPRESIÓN:');
+    console.log('Total cajas chicas en memoria:', this.cajasChicas.length);
+    console.log('Cajas chicas:', this.cajasChicas);
+    console.log('Movimientos:', this.movimientos.length);
+
     // Imprimir solo la caja actual con sus movimientos
     const htmlReporte = this.generarReporteCajaActual(this.caja, this.movimientos, this.cajasChicas);
     const w = window.open('', 'PRINT_CAJA_ACTUAL', 'height=800,width=900');
@@ -920,42 +938,188 @@ export class VerCajaComponent implements OnInit {
    * @private
    */
   private generarReporteCajaActual(caja: CajaBanco, movimientos: MovimientoCajaBanco[], cajasChicas: CajaChica[]): string {
+    // DEBUG: Verificar datos recibidos
+    console.log('🖨️ GENERAR REPORTE:');
+    console.log('Cajas chicas recibidas:', cajasChicas.length);
+    console.log('Datos cajas chicas:', cajasChicas);
+
     const nombreMes = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     const fechaCaja = caja.fecha instanceof Date ? caja.fecha : (caja.fecha as any).toDate?.() || new Date(caja.fecha);
     const mesIndex = fechaCaja.getMonth();
     const year = fechaCaja.getFullYear();
 
+    console.log('Fecha de caja:', fechaCaja);
+    console.log('Mes/Año:', nombreMes[mesIndex], year);
+
+    // Helper para sumar centavos correctamente
     const sumCentsRpt = (items: any[], valueFn: (i: any) => number) =>
       items.reduce((sum, i) => sum + Math.round(valueFn(i) * 100), 0) / 100;
 
-    // Ingresos de cajas chicas: suma de monto_actual de la sub-colección
+    // ══════════════════════════════════════════════════════════════════════════
+    // 📊 CÁLCULOS FINANCIEROS
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // 1️⃣ Ingresos por Cajas Chicas (de cajas chicas cerradas - cierres normales)
     const ingresosCajasChicas = sumCentsRpt(cajasChicas, cc => cc.monto_actual || 0);
-    // Otros ingresos: TODOS los movimientos INGRESO
-    const ingresosOtros = sumCentsRpt(movimientos.filter(m => m.tipo === 'INGRESO'), m => m.monto || 0);
-    // Total de ingresos
-    const totalIngresos = Math.round((ingresosCajasChicas + ingresosOtros) * 100) / 100;
+    console.log('💰 Ingresos Cajas Chicas calculados:', ingresosCajasChicas);
+    cajasChicas.forEach(cc => {
+      console.log(`  - CC Fecha: ${cc.fecha}, Monto Actual: ${cc.monto_actual}, Estado: ${cc.estado}`);
+    });
+
+    // 2️⃣ Ingresos Directos a Caja Banco (movimientos manuales)
+    const ingresosTransferencias = sumCentsRpt(
+      movimientos.filter(m => m.tipo === 'INGRESO' && m.categoria === 'TRANSFERENCIA_CLIENTE'),
+      m => m.monto || 0
+    );
+    const ajustesCierreCajaChica = sumCentsRpt(
+      movimientos.filter(m => m.tipo === 'INGRESO' && m.categoria === 'CIERRE_CAJA_CHICA'),
+      m => m.monto || 0
+    );
+    const ingresosOtros = sumCentsRpt(
+      movimientos.filter(m => m.tipo === 'INGRESO' && m.categoria === 'OTRO_INGRESO'),
+      m => m.monto || 0
+    );
+
+    const totalIngresosDirectos = Math.round((ingresosTransferencias + ajustesCierreCajaChica + ingresosOtros) * 100) / 100;
+    const totalIngresos = Math.round((ingresosCajasChicas + totalIngresosDirectos) * 100) / 100;
+
+    // 3️⃣ Egresos por categoría
+    const egresosTrabajadores = sumCentsRpt(
+      movimientos.filter(m => m.tipo === 'EGRESO' && m.categoria === 'PAGO_TRABAJADOR'),
+      m => m.monto || 0
+    );
+    const egresosProveedores = sumCentsRpt(
+      movimientos.filter(m => m.tipo === 'EGRESO' && m.categoria === 'PAGO_PROVEEDORES'),
+      m => m.monto || 0
+    );
+    const egresosOtros = sumCentsRpt(
+      movimientos.filter(m => m.tipo === 'EGRESO' && m.categoria === 'OTRO_EGRESO'),
+      m => m.monto || 0
+    );
+
     const totalEgresos = sumCentsRpt(movimientos.filter(m => m.tipo === 'EGRESO'), m => m.monto || 0);
-    // Saldo Final = Saldo Inicial + Total Ingresos - Total Egresos
     const saldoFinal = Math.round(((caja.saldo_inicial || 0) + totalIngresos - totalEgresos) * 100) / 100;
 
-    const filasMovimientos = movimientos.map((mov: any) => `
+    // ══════════════════════════════════════════════════════════════════════════
+    // 📅 FORMATEO DE FECHAS
+    // ══════════════════════════════════════════════════════════════════════════
+
+    const formatoFechaSoloFecha = (fecha: any): string => {
+      if (!fecha) return '-';
+      const d = fecha.toDate ? fecha.toDate() : new Date(fecha);
+      return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+
+    const formatoHora = (fecha: any): string => {
+      if (!fecha) return '-';
+      const d = fecha.toDate ? fecha.toDate() : new Date(fecha);
+      return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    };
+
+    const formatoFechaCompleta = (fecha: any): string => {
+      if (!fecha) return '-';
+      const d = fecha.toDate ? fecha.toDate() : new Date(fecha);
+      return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    };
+
+    const fechaApertura = formatoFechaSoloFecha(caja.fecha);
+    const horaApertura = formatoHora(caja.fecha);
+    const fechaCierre = caja.cerrado_en ? formatoFechaSoloFecha(caja.cerrado_en) : '-';
+    const horaCierre = caja.cerrado_en ? formatoHora(caja.cerrado_en) : '-';
+    const fechaGenerado = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 🗂️ TABLAS HTML POR TIPO DE MOVIMIENTO
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // Movimientos de Transferencias Cliente
+    const movimientosTransferencias = movimientos.filter(m => m.tipo === 'INGRESO' && m.categoria === 'TRANSFERENCIA_CLIENTE');
+    const filasTransferencias = movimientosTransferencias.map((mov: any) => `
       <tr>
-        <td>${this.formatoFecha(mov.fecha)}</td>
-        <td class="text-center ${mov.tipo === 'INGRESO' ? 'tipo-ingreso' : 'tipo-egreso'}">${mov.tipo}</td>
-        <td>${mov.categoria || '-'}</td>
-        <td>${mov.descripcion}</td>
-        <td class="text-right ${mov.tipo === 'INGRESO' ? 'tipo-ingreso' : 'tipo-egreso'}">${mov.tipo === 'INGRESO' ? '+' : '-'}${this.formatoMoneda(mov.monto)}</td>
+        <td>${formatoFechaCompleta(mov.fecha)}</td>
+        <td>${mov.descripcion || '-'}</td>
+        <td>${mov.referencia || '-'}</td>
+        <td class="text-right">+${this.formatoMoneda(mov.monto)}</td>
+        <td>${mov.usuario_nombre || '-'}</td>
       </tr>
     `).join('');
 
+    // Movimientos de Ajustes/Cierre Caja Chica fuera de caja
+    const movimientosCierreCC = movimientos.filter(m => m.tipo === 'INGRESO' && m.categoria === 'CIERRE_CAJA_CHICA');
+    const filasCierreCC = movimientosCierreCC.map((mov: any) => `
+      <tr>
+        <td>${formatoFechaCompleta(mov.fecha)}</td>
+        <td>${mov.descripcion || '-'}</td>
+        <td>${mov.referencia || '-'}</td>
+        <td class="text-right">+${this.formatoMoneda(mov.monto)}</td>
+        <td>${mov.usuario_nombre || '-'}</td>
+      </tr>
+    `).join('');
+
+    // Movimientos de Otros Ingresos
+    const movimientosOtrosIngresos = movimientos.filter(m => m.tipo === 'INGRESO' && m.categoria === 'OTRO_INGRESO');
+    const filasOtrosIngresos = movimientosOtrosIngresos.map((mov: any) => `
+      <tr>
+        <td>${formatoFechaCompleta(mov.fecha)}</td>
+        <td>${mov.descripcion || '-'}</td>
+        <td>${mov.referencia || '-'}</td>
+        <td class="text-right">+${this.formatoMoneda(mov.monto)}</td>
+        <td>${mov.usuario_nombre || '-'}</td>
+      </tr>
+    `).join('');
+
+    // Movimientos de Pago a Trabajadores
+    const movimientosPagoTrabajadores = movimientos.filter(m => m.tipo === 'EGRESO' && m.categoria === 'PAGO_TRABAJADOR');
+    const filasPagoTrabajadores = movimientosPagoTrabajadores.map((mov: any) => `
+      <tr>
+        <td>${formatoFechaCompleta(mov.fecha)}</td>
+        <td>${mov.descripcion || '-'}</td>
+        <td>${mov.referencia || '-'}</td>
+        <td class="text-right">-${this.formatoMoneda(mov.monto)}</td>
+        <td>${mov.usuario_nombre || '-'}</td>
+      </tr>
+    `).join('');
+
+    // Movimientos de Pago a Proveedores
+    const movimientosPagoProveedores = movimientos.filter(m => m.tipo === 'EGRESO' && m.categoria === 'PAGO_PROVEEDORES');
+    const filasPagoProveedores = movimientosPagoProveedores.map((mov: any) => `
+      <tr>
+        <td>${formatoFechaCompleta(mov.fecha)}</td>
+        <td>${mov.descripcion || '-'}</td>
+        <td>${mov.referencia || '-'}</td>
+        <td class="text-right">-${this.formatoMoneda(mov.monto)}</td>
+        <td>${mov.usuario_nombre || '-'}</td>
+      </tr>
+    `).join('');
+
+    // Movimientos de Otros Egresos
+    const movimientosOtrosEgresos = movimientos.filter(m => m.tipo === 'EGRESO' && m.categoria === 'OTRO_EGRESO');
+    const filasOtrosEgresos = movimientosOtrosEgresos.map((mov: any) => `
+      <tr>
+        <td>${formatoFechaCompleta(mov.fecha)}</td>
+        <td>${mov.descripcion || '-'}</td>
+        <td>${mov.referencia || '-'}</td>
+        <td class="text-right">-${this.formatoMoneda(mov.monto)}</td>
+        <td>${mov.usuario_nombre || '-'}</td>
+      </tr>
+    `).join('');
+
+    // Tabla de Cajas Chicas
     const filasCajasChicas = cajasChicas.map((cc: any) => `
       <tr>
-        <td>${this.formatoFecha(cc.fecha)}</td>
+        <td>${formatoFechaSoloFecha(cc.fecha)}</td>
         <td>${cc.usuario_nombre || '-'}</td>
+        <td>${cc.cerrado_por_nombre || '-'}</td>
+        <td>${formatoHora(cc.fecha)}</td>
+        <td>${cc.cerrado_en ? formatoHora(cc.cerrado_en) : '-'}</td>
         <td class="text-right">${this.formatoMoneda(cc.monto_inicial || 0)}</td>
         <td class="text-right">${this.formatoMoneda(cc.monto_actual || 0)}</td>
       </tr>
     `).join('');
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 📄 GENERACIÓN HTML
+    // ══════════════════════════════════════════════════════════════════════════
 
     return `
       <!DOCTYPE html>
@@ -966,126 +1130,402 @@ export class VerCajaComponent implements OnInit {
         <title>Reporte Caja Banco - ${nombreMes[mesIndex]} ${year}</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; background: #fff; padding: 20px; }
-          .reporte-container { max-width: 900px; margin: 0 auto; background: white; }
-          .reporte-header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 20px; }
-          .reporte-header h1 { font-size: 18px; margin-bottom: 5px; font-weight: bold; }
-          .reporte-header h2 { font-size: 14px; margin-bottom: 8px; font-weight: normal; }
-          .fecha-reporte { font-size: 10px; color: #666; }
-          .reporte-resumen { background: #f0f0f0; padding: 12px; margin-bottom: 20px; border-left: 4px solid #007bff; border-radius: 3px; }
-          .reporte-resumen h3 { font-size: 12px; margin-bottom: 10px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
-          .reporte-resumen-item { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 11px; }
-          .reporte-resumen-item span:first-child { font-weight: 500; }
-          .reporte-resumen-item.total-final { background: white; padding: 8px; margin-top: 8px; border-top: 2px solid #333; font-weight: bold; font-size: 12px; }
-          .tipo-ingreso { color: #28a745; font-weight: bold; }
-          .tipo-egreso { color: #dc3545; font-weight: bold; }
-          .reporte-section { margin-bottom: 20px; }
-          .reporte-section h3 { font-size: 12px; margin-bottom: 10px; font-weight: bold; text-transform: uppercase; border-bottom: 2px solid #333; padding-bottom: 8px; }
-          .reporte-table { width: 100%; border-collapse: collapse; font-size: 10px; }
-          .reporte-table thead { background: #e0e0e0; font-weight: bold; }
-          .reporte-table th { padding: 8px 5px; text-align: left; border: 1px solid #999; font-size: 9px; }
-          .reporte-table td { padding: 7px 5px; border: 1px solid #ddd; }
-          .reporte-table tbody tr:nth-child(even) { background: #f9f9f9; }
-          .text-center { text-align: center; }
+          body { 
+            font-family: 'Courier New', monospace; 
+            padding: 10px; 
+            font-size: 10px; 
+            color: #000; 
+            background: #fff; 
+          }
+
+          /* ENCABEZADO */
+          .header { 
+            text-align: center; 
+            margin-bottom: 15px; 
+            border-bottom: 2px solid #000; 
+            padding-bottom: 10px; 
+          }
+          .header .empresa { 
+            font-size: 12px; 
+            font-weight: bold; 
+            margin-bottom: 2px; 
+          }
+          .header h1 { 
+            font-size: 16px; 
+            margin-bottom: 3px; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+          }
+
+          /* INFORMACIÓN DE CONTEXTO */
+          .info-caja { 
+            background: #f5f5f5; 
+            padding: 8px; 
+            margin-bottom: 12px; 
+            font-size: 9px; 
+            border: 1px solid #000; 
+          }
+          .info-caja .info-row { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 3px; 
+          }
+          .info-caja .info-label { 
+            font-weight: bold; 
+          }
+
+          .fecha-generado { 
+            text-align: right; 
+            font-size: 8px; 
+            margin-bottom: 10px; 
+          }
+
+          /* TABLAS */
+          table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 15px; 
+          }
+          th { 
+            background: #000; 
+            color: #fff; 
+            padding: 6px 4px; 
+            text-align: left; 
+            font-size: 9px; 
+            border: 1px solid #000; 
+          }
+          td { 
+            padding: 5px 4px; 
+            border: 1px solid #000; 
+            font-size: 9px; 
+          }
           .text-right { text-align: right; }
-          .reporte-firma { display: flex; justify-content: space-between; margin-top: 30px; margin-bottom: 20px; }
-          .reporte-firma-item { flex: 1; text-align: center; font-size: 10px; }
-          .reporte-firma-item .linea { width: 80%; height: 1px; background: #000; margin: 30px auto 5px; }
-          .reporte-footer { text-align: center; border-top: 1px solid #ddd; padding-top: 10px; margin-top: 20px; font-size: 9px; color: #999; }
+          .text-center { text-align: center; }
+
+          /* TÍTULOS DE SECCIONES */
+          .seccion-titulo { 
+            font-size: 10px; 
+            font-weight: bold; 
+            margin: 15px 0 8px 0; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px; 
+          }
+          .seccion-cajas-chicas { 
+            margin-top: 20px; 
+            padding-top: 15px; 
+            border-top: 2px solid #000; 
+          }
+
+          /* RESÚMENES */
+          .resumen { 
+            border: 2px solid #000; 
+            padding: 10px; 
+            margin-top: 20px; 
+          }
+          .resumen h3 { 
+            font-size: 11px; 
+            margin-bottom: 8px; 
+            border-bottom: 1px solid #000; 
+            padding-bottom: 4px; 
+            text-transform: uppercase; 
+          }
+          .resumen-item { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 3px 0; 
+            font-size: 9px; 
+          }
+          .resumen-item.total { 
+            font-weight: bold; 
+            font-size: 11px; 
+            border-top: 2px solid #000; 
+            padding-top: 6px; 
+            margin-top: 4px; 
+          }
+          .resumen-item.subtotal { 
+            font-weight: bold; 
+            font-size: 10px; 
+            border-top: 1px solid #000; 
+            padding-top: 4px; 
+            margin-top: 2px; 
+          }
+          .resumen-item-indent { 
+            padding-left: 15px; 
+          }
+
+          .observaciones { 
+            margin-top: 15px; 
+            padding: 10px; 
+            border: 1px solid #000; 
+            background: #f9f9f9; 
+          }
+          .observaciones h4 { 
+            font-size: 10px; 
+            margin-bottom: 5px; 
+            font-weight: bold; 
+          }
+
           @media print {
-            body { padding: 0; margin: 0; }
-            .reporte-container { box-shadow: none; }
-            .reporte-table tbody tr { page-break-inside: avoid; }
-            .reporte-section { page-break-inside: avoid; }
+            @page { margin: 0.5cm; size: auto; }
+            body { padding: 0; }
+            tr { page-break-inside: avoid; }
           }
         </style>
       </head>
       <body>
-        <div class="reporte-container">
-          <div class="reporte-header">
-            <h1>ÓPTICA MACÍAS PASAJE</h1>
-            <h2>REPORTE CAJA BANCO</h2>
-            <div class="fecha-reporte">PERIODO ${nombreMes[mesIndex].toUpperCase()} ${year}</div>
-          </div>
+        
+        <!-- ENCABEZADO -->
+        <div class="header">
+          <div class="empresa">ÓPTICA MACÍAS PASAJE</div>
+          <h1>REPORTE DE CAJA BANCO</h1>
+        </div>
 
-          <div class="reporte-resumen">
-            <h3>RESUMEN FINANCIERO</h3>
-            <div class="reporte-resumen-item">
-              <span>Saldo Inicial:</span>
-              <span>${this.formatoMoneda(caja.saldo_inicial || 0)}</span>
-            </div>
-            <div class="reporte-resumen-item">
-              <span>Ingresos Cajas Chicas:</span>
-              <span class="tipo-ingreso">+${this.formatoMoneda(ingresosCajasChicas)}</span>
-            </div>
-            <div class="reporte-resumen-item">
-              <span>Otros Ingresos:</span>
-              <span class="tipo-ingreso">+${this.formatoMoneda(ingresosOtros)}</span>
-            </div>
-            <div class="reporte-resumen-item">
-              <span>Total Ingresos:</span>
-              <span class="tipo-ingreso">+${this.formatoMoneda(totalIngresos)}</span>
-            </div>
-            <div class="reporte-resumen-item">
-              <span>Total Egresos:</span>
-              <span class="tipo-egreso">-${this.formatoMoneda(totalEgresos)}</span>
-            </div>
-            <div class="reporte-resumen-item total-final">
-              <span>SALDO FINAL:</span>
-              <span>${this.formatoMoneda(saldoFinal)}</span>
-            </div>
-          </div>
+        <div class="fecha-generado">Generado: ${fechaGenerado}</div>
 
-          ${cajasChicas.length > 0 ? `
-          <div class="reporte-section">
-            <h3>CAJAS CHICAS DEL DÍA</h3>
-            <table class="reporte-table">
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Usuario</th>
-                  <th class="text-right">Saldo Inicial</th>
-                  <th class="text-right">Saldo Actual</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${filasCajasChicas}
-              </tbody>
-            </table>
+        <!-- INFORMACIÓN DE LA CAJA -->
+        <div class="info-caja">
+          <div class="info-row">
+            <span class="info-label">Periodo:</span>
+            <span>${nombreMes[mesIndex]} ${year}</span>
           </div>
-          ` : ''}
-
-          ${movimientos.length > 0 ? `
-          <div class="reporte-section">
-            <h3>MOVIMIENTOS</h3>
-            <table class="reporte-table">
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th class="text-center">Tipo</th>
-                  <th>Categoría</th>
-                  <th>Descripción</th>
-                  <th class="text-right">Monto</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${filasMovimientos}
-              </tbody>
-            </table>
+          <div class="info-row">
+            <span class="info-label">Estado de Caja:</span>
+            <span>${caja.estado}</span>
           </div>
-          ` : ''}
-
-          <div class="reporte-firma">
-            <div class="reporte-firma-item">
-              <div class="linea"></div>
-              <div>Responsable de Caja</div>
-            </div>
-            <div class="reporte-firma-item">
-              <div class="linea"></div>
-              <div>Administrador</div>
-            </div>
+          <div class="info-row">
+            <span class="info-label">Apertura:</span>
+            <span>${fechaApertura} ${horaApertura}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Cierre:</span>
+            <span>${fechaCierre} ${horaCierre}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Abierta por:</span>
+            <span>${caja.usuario_nombre || '-'}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Cerrada por:</span>
+            <span>${caja.cerrado_por_nombre || '-'}</span>
           </div>
         </div>
+
+        <!-- TABLAS DE MOVIMIENTOS POR TIPO -->
+
+        ${movimientosTransferencias.length > 0 ? `
+        <div class="seccion-titulo">INGRESOS - TRANSFERENCIAS CLIENTE</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Descripción</th>
+              <th>Ref / Comp.</th>
+              <th class="text-right">Monto</th>
+              <th>Creado por</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filasTransferencias}
+          </tbody>
+        </table>
+        ` : ''}
+
+        ${movimientosCierreCC.length > 0 ? `
+        <div class="seccion-titulo">INGRESOS - AJUSTES / CIERRE CAJA CHICA FUERA DE CAJA</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Descripción</th>
+              <th>Ref / Comp.</th>
+              <th class="text-right">Monto</th>
+              <th>Creado por</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filasCierreCC}
+          </tbody>
+        </table>
+        ` : ''}
+
+        ${movimientosOtrosIngresos.length > 0 ? `
+        <div class="seccion-titulo">INGRESOS - OTROS INGRESOS</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Descripción</th>
+              <th>Ref / Comp.</th>
+              <th class="text-right">Monto</th>
+              <th>Creado por</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filasOtrosIngresos}
+          </tbody>
+        </table>
+        ` : ''}
+
+        ${movimientosPagoTrabajadores.length > 0 ? `
+        <div class="seccion-titulo">EGRESOS - PAGO A TRABAJADORES</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Descripción</th>
+              <th>Ref / Comp.</th>
+              <th class="text-right">Monto</th>
+              <th>Creado por</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filasPagoTrabajadores}
+          </tbody>
+        </table>
+        ` : ''}
+
+        ${movimientosPagoProveedores.length > 0 ? `
+        <div class="seccion-titulo">EGRESOS - PAGO A PROVEEDORES</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Descripción</th>
+              <th>Ref / Comp.</th>
+              <th class="text-right">Monto</th>
+              <th>Creado por</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filasPagoProveedores}
+          </tbody>
+        </table>
+        ` : ''}
+
+        ${movimientosOtrosEgresos.length > 0 ? `
+        <div class="seccion-titulo">EGRESOS - OTROS EGRESOS</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Descripción</th>
+              <th>Ref / Comp.</th>
+              <th class="text-right">Monto</th>
+              <th>Creado por</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filasOtrosEgresos}
+          </tbody>
+        </table>
+        ` : ''}
+
+        <!-- CAJAS CHICAS CERRADAS EN ESTE PERÍODO -->
+        ${cajasChicas.length > 0 ? `
+        <div class="seccion-titulo seccion-cajas-chicas">CAJAS CHICAS CERRADAS EN ESTE PERÍODO</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Creado por</th>
+              <th>Cerrado por</th>
+              <th>Hora Apertura</th>
+              <th>Hora Cierre</th>
+              <th class="text-right">Saldo Inicial</th>
+              <th class="text-right">Saldo Final</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filasCajasChicas}
+          </tbody>
+        </table>
+        ` : `<div class="seccion-titulo seccion-cajas-chicas">CAJAS CHICAS CERRADAS EN ESTE PERÍODO</div><p style="font-size: 9px; color: #666; margin-bottom: 15px;">No hay cajas chicas cerradas en este período</p>`}
+
+        <div class="resumen">
+          <h3>ORIGEN DE INGRESOS</h3>
+          <div class="resumen-item">
+            <span>Ingresos desde Caja Chica (cierres normales):</span>
+            <span>${this.formatoMoneda(ingresosCajasChicas)}</span>
+          </div>
+          <div class="resumen-item" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #000;">
+            <span><strong>Ingresos Directos a Caja Banco:</strong></span>
+            <span></span>
+          </div>
+          <div class="resumen-item resumen-item-indent">
+            <span>- Transferencias Cliente:</span>
+            <span>${this.formatoMoneda(ingresosTransferencias)}</span>
+          </div>
+          <div class="resumen-item resumen-item-indent">
+            <span>- Ajustes / Cierre Caja Chica fuera de caja:</span>
+            <span>${this.formatoMoneda(ajustesCierreCajaChica)}</span>
+          </div>
+          <div class="resumen-item resumen-item-indent">
+            <span>- Otros Ingresos:</span>
+            <span>${this.formatoMoneda(ingresosOtros)}</span>
+          </div>
+          <div class="resumen-item total">
+            <span>TOTAL INGRESOS DIRECTOS:</span>
+            <span>${this.formatoMoneda(totalIngresosDirectos)}</span>
+          </div>
+        </div>
+
+        <div class="resumen">
+          <h3>DESTINO DE EGRESOS</h3>
+          <div class="resumen-item">
+            <span>Pago a Trabajadores:</span>
+            <span>-${this.formatoMoneda(egresosTrabajadores)}</span>
+          </div>
+          <div class="resumen-item">
+            <span>Pago a Proveedores:</span>
+            <span>-${this.formatoMoneda(egresosProveedores)}</span>
+          </div>
+          <div class="resumen-item">
+            <span>Otros Egresos Operativos:</span>
+            <span>-${this.formatoMoneda(egresosOtros)}</span>
+          </div>
+          <div class="resumen-item total">
+            <span>TOTAL EGRESOS:</span>
+            <span>-${this.formatoMoneda(totalEgresos)}</span>
+          </div>
+        </div>
+
+        <!-- RESÚMENES AL FINAL -->
+        <div class="resumen">
+          <h3>RESUMEN FINANCIERO GENERAL</h3>
+          <div class="resumen-item">
+            <span>Saldo Inicial:</span>
+            <span>${this.formatoMoneda(caja.saldo_inicial || 0)}</span>
+          </div>
+          <div class="resumen-item">
+            <span>Ingresos por Cajas Chicas:</span>
+            <span>+${this.formatoMoneda(ingresosCajasChicas)}</span>
+          </div>
+          <div class="resumen-item">
+            <span>Otros Ingresos Directos:</span>
+            <span>+${this.formatoMoneda(totalIngresosDirectos)}</span>
+          </div>
+          <div class="resumen-item subtotal">
+            <span>TOTAL INGRESOS:</span>
+            <span>+${this.formatoMoneda(totalIngresos)}</span>
+          </div>
+          <div class="resumen-item">
+            <span>Total Egresos:</span>
+            <span>-${this.formatoMoneda(totalEgresos)}</span>
+          </div>
+          <div class="resumen-item total">
+            <span>SALDO FINAL DE CAJA BANCO:</span>
+            <span>${this.formatoMoneda(saldoFinal)}</span>
+          </div>
+        </div>
+
+        <!-- OBSERVACIONES -->
+        ${caja.observacion ? `
+        <div class="observaciones">
+          <h4>OBSERVACIONES</h4>
+          <p>${caja.observacion}</p>
+        </div>
+        ` : ''}
+
       </body>
       </html>
     `;
