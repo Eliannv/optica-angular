@@ -1,265 +1,295 @@
 ﻿<div class="caja-container">
-    <div class="caja-card">
 
-        <!-- ═══ HEADER ════════════════════════════════════════════════════ -->
-        <div class="caja-header">
-            <div class="header-content">
-                <div class="header-titles">
-                    <h1 class="caja-title">Caja Banco</h1>
-                    <p class="caja-subtitle">Gestión de cajas banco · registro de movimientos financieros</p>
-                </div>
-
-                <div class="header-actions">
-                    <!-- Toggle Modo (SOLO ADMIN) -->
-                    <button *ngIf="esAdministrador" class="btn-toggle-modo"
-                        [class.btn-automatico]="modoAutomatico"
-                        (click)="toggleModoAutomatico()"
-                        title="Cambiar modo de gestión">
-                        <svg *ngIf="!modoAutomatico" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.67 8H18a2 2 0 0 1 2 2v4.33"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M22 22 2 2"/><path d="M8 8H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 1.414-.586"/><path d="M9 13v2"/><path d="M9.67 4H12v2.33"/></svg>
-                        <svg *ngIf="modoAutomatico" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
-                        {{ modoAutomatico ? 'Modo Automático' : 'Modo Manual' }}
-                    </button>
-
-                    <!-- Crear caja (modo manual, sin caja abierta, SOLO ADMIN) -->
-                    <button *ngIf="esAdministrador && !modoAutomatico && !tieneCajaAbierta"
-                        class="btn-primary" (click)="crearCajaBanco()">
-                        + Crear Caja Banco
-                    </button>
-
-                    <!-- Mensaje info cuando hay caja abierta -->
-                    <div *ngIf="esAdministrador && !modoAutomatico && tieneCajaAbierta" class="info-message">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
-                        Cierra la caja abierta para crear una nueva
-                    </div>
+    <!-- ═══ HEADER ═══════════════════════════════════════════════════ -->
+    <div class="ventas-header">
+        <div class="header-content">
+            <h2 class="titulo">Caja Banco</h2>
+            <div class="header-actions">
+                <!-- Toggle Modo (SOLO ADMIN) -->
+                <button *ngIf="esAdministrador" class="btn-toggle-modo" [class.btn-automatico]="modoAutomatico"
+                    (click)="toggleModoAutomatico()" title="Cambiar modo de gestión">
+                    <svg *ngIf="!modoAutomatico" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.67 8H18a2 2 0 0 1 2 2v4.33"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M22 22 2 2"/><path d="M8 8H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 1.414-.586"/><path d="M9 13v2"/><path d="M9.67 4H12v2.33"/></svg>
+                    <svg *ngIf="modoAutomatico" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                    {{ modoAutomatico ? 'Modo Automático' : 'Modo Manual' }}
+                </button>
+                <!-- Crear caja (modo manual, sin caja abierta, SOLO ADMIN) -->
+                <button *ngIf="esAdministrador && !modoAutomatico && !tieneCajaAbierta" class="btn-mostrar"
+                    (click)="crearCajaBanco()">
+                    + Crear Caja Banco
+                </button>
+                <!-- Mensaje info cuando hay caja abierta -->
+                <div *ngIf="esAdministrador && !modoAutomatico && tieneCajaAbierta" class="info-message">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+                    Cierra la caja abierta para crear una nueva
                 </div>
             </div>
         </div>
+        <p class="subtitulo">Gestión de cajas banco · registro de movimientos financieros</p>
+    </div>
 
-        <div class="caja-body">
+    <!-- ═══ FILTROS ═══════════════════════════════════════════════════ -->
+    <div class="filtros-card">
+        <h3 class="filtros-titulo">Filtros de Búsqueda</h3>
 
-            <!-- ═══ FILTROS ════════════════════════════════════════════════ -->
-            <div class="filtros-card">
-                <h3 class="filtros-titulo">Filtros de Búsqueda</h3>
-                <div class="filtros-grid">
-                    <div class="filtro-grupo">
-                        <label>Estado</label>
-                        <select class="input-filtro" [(ngModel)]="filtroEstado">
-                            <option value="TODOS">Todos los estados</option>
-                            <option value="ABIERTA">Solo abiertas</option>
-                            <option value="CERRADA">Solo cerradas</option>
-                        </select>
-                    </div>
-                    <div class="filtro-grupo">
-                        <label>Fecha Apertura Desde</label>
-                        <input type="date" class="input-filtro" [(ngModel)]="filtroFechaDesde" />
-                    </div>
-                    <div class="filtro-grupo">
-                        <label>Fecha Apertura Hasta</label>
-                        <input type="date" class="input-filtro" [(ngModel)]="filtroFechaHasta" />
-                    </div>
-                    <div class="filtro-grupo">
-                        <label>Saldo Inicial Mínimo ($)</label>
-                        <input type="number" class="input-filtro" [(ngModel)]="filtroSaldoInicialMin" placeholder="Ej: 0" min="0" step="0.01" />
-                    </div>
-                    <div class="filtro-grupo">
-                        <label>Saldo Inicial Máximo ($)</label>
-                        <input type="number" class="input-filtro" [(ngModel)]="filtroSaldoInicialMax" placeholder="Ej: 5 000" min="0" step="0.01" />
-                    </div>
-                    <div class="filtro-grupo">
-                        <label>Saldo Actual Mínimo ($)</label>
-                        <input type="number" class="input-filtro" [(ngModel)]="filtroSaldoActualMin" placeholder="Ej: 0" min="0" step="0.01" />
-                    </div>
-                    <div class="filtro-grupo">
-                        <label>Saldo Actual Máximo ($)</label>
-                        <input type="number" class="input-filtro" [(ngModel)]="filtroSaldoActualMax" placeholder="Ej: 10 000" min="0" step="0.01" />
-                    </div>
-                    <div class="filtro-grupo">
-                        <label>Usuario (abrió / cerró)</label>
-                        <input type="text" class="input-filtro" [(ngModel)]="filtroUsuario" placeholder="Nombre del usuario..." />
-                    </div>
-                </div>
-                <div class="filtros-acciones">
-                    <div class="filtros-botones">
-                        <button class="btn-limpiar" (click)="limpiarFiltros()" type="button" [disabled]="!hayFiltrosActivos">
-                            Limpiar Filtros
-                        </button>
-                    </div>
-                    <span class="filtros-resultado" *ngIf="!cargando">
-                        {{ cajasFiltradas.length }} registro(s) encontrado(s)
-                    </span>
-                </div>
+        <div class="filtros-grid">
+            <!-- Estado -->
+            <div class="filtro-grupo">
+                <label>Estado</label>
+                <select class="input-filtro" [(ngModel)]="filtroEstado">
+                    <option value="TODOS">Todos los estados</option>
+                    <option value="ABIERTA">Solo abiertas</option>
+                    <option value="CERRADA">Solo cerradas</option>
+                </select>
             </div>
 
-            <!-- ═══ ESTADÍSTICAS ════════════════════════════════════════════ -->
-            <div class="estadisticas-card" *ngIf="!cargando">
-                <div class="estadisticas-grid">
+            <!-- Fecha desde -->
+            <div class="filtro-grupo">
+                <label>Fecha Apertura Desde</label>
+                <input type="date" class="input-filtro" [(ngModel)]="filtroFechaDesde" />
+            </div>
 
-                    <div class="stat-item stat-success">
-                        <div class="stat-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                        </div>
-                        <div class="stat-info">
-                            <span class="stat-label">Total Ganado Cajas</span>
-                            <span class="stat-value">{{ formatoMoneda(getTotalGanado()) }}</span>
-                        </div>
-                    </div>
+            <!-- Fecha hasta -->
+            <div class="filtro-grupo">
+                <label>Fecha Apertura Hasta</label>
+                <input type="date" class="input-filtro" [(ngModel)]="filtroFechaHasta" />
+            </div>
 
-                    <div class="stat-item stat-primary">
-                        <div class="stat-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
-                        </div>
-                        <div class="stat-info">
-                            <span class="stat-label">Total Cajas Chicas</span>
-                            <span class="stat-value">{{ formatoMoneda(getTotalTransferencias()) }}</span>
-                        </div>
-                    </div>
+            <!-- Separador visual en grid -->
+            <div class="filtros-separador"></div>
 
-                    <div class="stat-item stat-primary">
-                        <div class="stat-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="M19 22v-6"/><path d="m22 19-3-3-3 3"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>
-                        </div>
-                        <div class="stat-info">
-                            <span class="stat-label">Total Otros Ingresos</span>
-                            <span class="stat-value">{{ formatoMoneda(getTotalOtrosIngresos()) }}</span>
-                        </div>
-                    </div>
+            <!-- Saldo inicial mín -->
+            <div class="filtro-grupo">
+                <label>Saldo Inicial Mínimo ($)</label>
+                <input type="number" class="input-filtro" [(ngModel)]="filtroSaldoInicialMin"
+                    placeholder="Ej: 0" min="0" step="0.01" />
+            </div>
 
-                    <div class="stat-item stat-primary">
-                        <div class="stat-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="M18 12h.01"/><path d="M19 22v-6"/><path d="m22 19-3-3-3 3"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>
-                        </div>
-                        <div class="stat-info">
-                            <span class="stat-label">Total Ingresos</span>
-                            <span class="stat-value">{{ formatoMoneda(getTotalIngresos()) }}</span>
-                        </div>
-                    </div>
+            <!-- Saldo inicial máx -->
+            <div class="filtro-grupo">
+                <label>Saldo Inicial Máximo ($)</label>
+                <input type="number" class="input-filtro" [(ngModel)]="filtroSaldoInicialMax"
+                    placeholder="Ej: 5 000" min="0" step="0.01" />
+            </div>
 
-                    <div class="stat-item stat-danger">
-                        <div class="stat-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="m16 19 3 3 3-3"/><path d="M18 16v6"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>
-                        </div>
-                        <div class="stat-info">
-                            <span class="stat-label">Total Egresos</span>
-                            <span class="stat-value">{{ formatoMoneda(getTotalEgresos()) }}</span>
-                        </div>
-                    </div>
+            <!-- Saldo actual mín -->
+            <div class="filtro-grupo">
+                <label>Saldo Actual Mínimo ($)</label>
+                <input type="number" class="input-filtro" [(ngModel)]="filtroSaldoActualMin"
+                    placeholder="Ej: 0" min="0" step="0.01" />
+            </div>
 
-                    <div class="stat-item stat-primary">
-                        <div class="stat-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 18v-7"/><path d="M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/></svg>
-                        </div>
-                        <div class="stat-info">
-                            <span class="stat-label">Total Cajas</span>
-                            <span class="stat-value">{{ cajas.length }}</span>
-                        </div>
-                    </div>
+            <!-- Saldo actual máx -->
+            <div class="filtro-grupo">
+                <label>Saldo Actual Máximo ($)</label>
+                <input type="number" class="input-filtro" [(ngModel)]="filtroSaldoActualMax"
+                    placeholder="Ej: 10 000" min="0" step="0.01" />
+            </div>
 
+            <!-- Usuario (abrió o cerró) -->
+            <div class="filtro-grupo">
+                <label>Usuario (abrió / cerró)</label>
+                <input type="text" class="input-filtro" [(ngModel)]="filtroUsuario"
+                    placeholder="Nombre del usuario..." />
+            </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="filtros-acciones">
+            <div class="filtros-botones">
+                <button class="btn-limpiar" (click)="limpiarFiltros()" type="button"
+                    [disabled]="!hayFiltrosActivos">
+                    Limpiar Filtros
+                </button>
+            </div>
+            <span class="filtros-resultado" *ngIf="!cargando">
+                {{ cajasFiltradas.length }} registro(s) encontrado(s)
+            </span>
+        </div>
+    </div>
+
+    <!-- ═══ ESTADÍSTICAS (RECUADRO UNIFICADO) ═══════════════════════════ -->
+    <div class="estadisticas-card" *ngIf="!cargando">
+        <div class="estadisticas-grid">
+            <!-- Total Ganado Cajas -->
+            <div class="stat-item stat-success">
+                <div class="stat-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Ganado Cajas</span>
+                    <span class="stat-value">{{ formatoMoneda(getTotalGanado()) }}</span>
                 </div>
             </div>
 
-            <!-- ═══ LOADING ════════════════════════════════════════════════ -->
-            <div *ngIf="cargando" class="loading-container">
-                <div class="spinner"></div>
-                <p>Cargando cajas banco...</p>
+            <!-- Total Cajas Chicas -->
+            <div class="stat-item stat-primary">
+                <div class="stat-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Cajas Chicas</span>
+                    <span class="stat-value">{{ formatoMoneda(getTotalTransferencias()) }}</span>
+                </div>
             </div>
 
-            <!-- ═══ TABLA ══════════════════════════════════════════════════ -->
-            <div *ngIf="!cargando" class="table-wrapper">
-                <table class="ventas-table">
-                    <thead>
-                        <tr>
-                            <th class="cell-fecha-sm">Fecha Creación</th>
-                            <th class="cell-fecha-sm">Fecha Apertura</th>
-                            <th class="cell-fecha-sm">Fecha Cierre</th>
-                            <th class="text-right">Saldo Inicial</th>
-                            <th class="text-right">Saldo Actual</th>
-                            <th>Estado</th>
-                            <th>Abierta por</th>
-                            <th>Cerrada por</th>
-                            <th>Observaciones</th>
-                            <th class="text-right">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr *ngFor="let caja of cajasFiltradas" class="registro-row">
-                            <td class="cell-fecha-sm">{{ formatoFechaHora(caja.createdAt) }}</td>
-                            <td class="cell-fecha-sm">{{ formatoFechaHora(caja.fecha) }}</td>
-                            <td class="cell-fecha-sm">
-                                <span *ngIf="caja.estado === 'CERRADA' && caja.cerrado_en">{{ formatoFechaHora(caja.cerrado_en) }}</span>
-                                <span *ngIf="caja.estado !== 'CERRADA' || !caja.cerrado_en" style="color:#bbb">—</span>
-                            </td>
-                            <td class="text-right">{{ formatoMoneda(caja.saldo_inicial || 0) }}</td>
-                            <td class="text-right font-bold">{{ formatoMoneda(caja.saldo_actual || 0) }}</td>
-                            <td>
-                                <span class="badge"
-                                    [class.badge-success]="caja.estado === 'ABIERTA'"
-                                    [class.badge-secondary]="caja.estado !== 'ABIERTA'">
-                                    {{ caja.estado }}
-                                </span>
-                            </td>
-                            <td>{{ caja.usuario_nombre || '—' }}</td>
-                            <td>
-                                <span *ngIf="caja.cerrado_por_nombre">{{ caja.cerrado_por_nombre }}</span>
-                                <span *ngIf="!caja.cerrado_por_nombre" style="color:#bbb">—</span>
-                            </td>
-                            <td>
-                                <span class="cell-obs" [title]="caja.observacion || ''">{{ caja.observacion || '—' }}</span>
-                            </td>
-                            <td>
-                                <div class="action-buttons">
-                                    <button *ngIf="caja.id" class="btn-action btn-action-view"
-                                        (click)="verDetalles(caja.id)" title="Ver detalle">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                    </button>
-                                    <button *ngIf="caja.id && caja.estado === 'ABIERTA'"
-                                        class="btn-action btn-action-move"
-                                        (click)="registrarMovimientoCaja(caja.id)" title="Registrar movimiento">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="16"/><line x1="8" x2="16" y1="12" y2="12"/></svg>
-                                    </button>
-                                    <button *ngIf="esAdministrador && caja.id && caja.estado === 'ABIERTA' && !modoAutomatico"
-                                        class="btn-action btn-action-lock"
-                                        (click)="cerrarCajaDesdeListado(caja)" title="Cerrar caja">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="16" r="1"/><rect x="3" y="10" width="18" height="12" rx="2"/><path d="M7 10V7a5 5 0 0 1 10 0v3"/></svg>
-                                    </button>
-                                    <button *ngIf="esAdministrador && caja.id && (caja.saldo_inicial === caja.saldo_actual)"
-                                        class="btn-action btn-action-danger"
-                                        (click)="eliminarCajaBanco(caja)" title="Eliminar caja (solo si saldos coinciden)">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-
-                        <!-- Sin resultados con filtros -->
-                        <tr *ngIf="cajasFiltradas.length === 0 && cajas.length > 0">
-                            <td colspan="10">
-                                <div class="sin-datos">
-                                    <div class="mensaje-vacio">
-                                        <p>No se encontraron registros con los filtros aplicados</p>
-                                        <button class="btn-limpiar" (click)="limpiarFiltros()" type="button">
-                                            Limpiar Filtros
-                                        </button>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-
-                        <!-- Sin cajas registradas -->
-                        <tr *ngIf="cajas.length === 0">
-                            <td colspan="10">
-                                <div class="sin-datos">
-                                    <div class="mensaje-vacio">
-                                        <div class="empty-icon">🏦</div>
-                                        <p>No hay cajas banco registradas</p>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-
-                    </tbody>
-                </table>
+            <!-- Total Otros Ingresos -->
+            <div class="stat-item stat-primary">
+                <div class="stat-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="M19 22v-6"/><path d="m22 19-3-3-3 3"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Otros Ingresos</span>
+                    <span class="stat-value">{{ formatoMoneda(getTotalOtrosIngresos()) }}</span>
+                </div>
             </div>
 
-        </div><!-- /caja-body -->
-    </div><!-- /caja-card -->
-</div><!-- /caja-container -->
+            <!-- Total Ingresos -->
+            <div class="stat-item stat-primary">
+                <div class="stat-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="M19 22v-6"/><path d="m22 19-3-3-3 3"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Ingresos</span>
+                    <span class="stat-value">{{ formatoMoneda(getTotalIngresos()) }}</span>
+                </div>
+            </div>
+
+            <!-- Total Egresos -->
+            <div class="stat-item stat-danger">
+                <div class="stat-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="m16 19 3 3 3-3"/><path d="M18 16v6"/><path d="M6 12h.01"/><circle cx="12" cy="12" r="2"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Egresos</span>
+                    <span class="stat-value">{{ formatoMoneda(getTotalEgresos()) }}</span>
+                </div>
+            </div>
+
+            <!-- Total Cajas -->
+            <div class="stat-item stat-primary">
+                <div class="stat-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 18v-7"/><path d="M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Cajas</span>
+                    <span class="stat-value">{{ cajas.length }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ LOADING ════════════════════════════════════════════════════ -->
+    <div *ngIf="cargando" class="loading-container">
+        <div class="spinner"></div>
+        <p>Cargando cajas banco...</p>
+    </div>
+
+    <!-- ═══ TABLA ══════════════════════════════════════════════════════ -->
+    <div *ngIf="!cargando" class="table-wrapper">
+        <table class="ventas-table">
+            <thead>
+                <tr>
+                    <th class="cell-fecha-sm">Fecha Creación</th>
+                    <th class="cell-fecha-sm">Fecha Apertura</th>
+                    <th class="cell-fecha-sm">Fecha Cierre</th>
+                    <th class="text-right">Saldo Inicial</th>
+                    <th class="text-right">Saldo Actual</th>
+                    <th>Estado</th>
+                    <th>Abierta por</th>
+                    <th>Cerrada por</th>
+                    <th>Observaciones</th>
+                    <th class="text-right">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let caja of cajasFiltradas" class="registro-row">
+                    <!-- Fecha creación -->
+                    <td class="cell-fecha-sm">{{ formatoFechaHora(caja.createdAt) }}</td>
+                    <!-- Fecha apertura -->
+                    <td class="cell-fecha-sm">{{ formatoFechaHora(caja.fecha) }}</td>
+                    <!-- Fecha cierre -->
+                    <td class="cell-fecha-sm">
+                        <span *ngIf="caja.estado === 'CERRADA' && caja.cerrado_en">{{ formatoFechaHora(caja.cerrado_en) }}</span>
+                        <span *ngIf="caja.estado !== 'CERRADA' || !caja.cerrado_en" style="color:#bbb">—</span>
+                    </td>
+                    <!-- Saldo inicial -->
+                    <td class="text-right">{{ formatoMoneda(caja.saldo_inicial || 0) }}</td>
+                    <!-- Saldo actual -->
+                    <td class="text-right font-bold">{{ formatoMoneda(caja.saldo_actual || 0) }}</td>
+                    <!-- Estado -->
+                    <td>
+                        <span class="badge"
+                            [class.badge-success]="caja.estado === 'ABIERTA'"
+                            [class.badge-secondary]="caja.estado !== 'ABIERTA'">
+                            {{ caja.estado }}
+                        </span>
+                    </td>
+                    <!-- Abierta por -->
+                    <td>{{ caja.usuario_nombre || '—' }}</td>
+                    <!-- Cerrada por -->
+                    <td>
+                        <span *ngIf="caja.cerrado_por_nombre">{{ caja.cerrado_por_nombre }}</span>
+                        <span *ngIf="!caja.cerrado_por_nombre" style="color:#bbb">—</span>
+                    </td>
+                    <!-- Observaciones -->
+                    <td>
+                        <span class="cell-obs" [title]="caja.observacion || ''">{{ caja.observacion || '—' }}</span>
+                    </td>
+                    <!-- Acciones -->
+                    <td>
+                        <div class="action-buttons">
+                            <!-- Ver detalles -->
+                            <button *ngIf="caja.id" class="btn-action btn-action-view"
+                                (click)="verDetalles(caja.id)" title="Ver detalle">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
+                            <!-- Registrar movimiento: solo cajas ABIERTAS -->
+                            <button *ngIf="caja.id && caja.estado === 'ABIERTA'" class="btn-action btn-action-move"
+                                (click)="registrarMovimientoCaja(caja.id)" title="Registrar movimiento">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="16"/><line x1="8" x2="16" y1="12" y2="12"/></svg>
+                            </button>
+                            <!-- Cerrar caja: SOLO ADMIN + ABIERTA + modo manual -->
+                            <button *ngIf="esAdministrador && caja.id && caja.estado === 'ABIERTA' && !modoAutomatico"
+                                class="btn-action btn-action-lock"
+                                (click)="cerrarCajaDesdeListado(caja)" title="Cerrar caja">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="16" r="1"/><rect x="3" y="10" width="18" height="12" rx="2"/><path d="M7 10V7a5 5 0 0 1 10 0v3"/></svg>
+                            </button>
+                            <!-- Eliminar: SOLO ADMIN, saldos iguales -->
+                            <button *ngIf="esAdministrador && caja.id && (caja.saldo_inicial === caja.saldo_actual)"
+                                class="btn-action btn-action-danger"
+                                (click)="eliminarCajaBanco(caja)" title="Eliminar caja (solo si saldos coinciden)">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+
+                <!-- Sin resultados con filtros -->
+                <tr *ngIf="cajasFiltradas.length === 0 && cajas.length > 0">
+                    <td colspan="10">
+                        <div class="sin-datos">
+                            <div class="mensaje-vacio">
+                                <p>No se encontraron registros con los filtros aplicados</p>
+                                <button class="btn-limpiar" (click)="limpiarFiltros()" type="button">
+                                    Limpiar Filtros
+                                </button>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+
+                <!-- Sin cajas registradas -->
+                <tr *ngIf="cajas.length === 0">
+                    <td colspan="10">
+                        <div class="sin-datos">
+                            <div class="mensaje-vacio">
+                                <p>No hay cajas banco registradas</p>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
