@@ -844,6 +844,7 @@ export class EmpleadosComponent implements OnInit {
 
       this.cargandoDetalle = false;
     } catch (error: any) {
+      console.error('❌ Error cargando detalle:', error);
       this.cargandoDetalle = false;
       Swal.fire({
         icon: 'error',
@@ -928,9 +929,9 @@ export class EmpleadosComponent implements OnInit {
    */
   getMedalla(posicion: number): string {
     switch (posicion) {
-      case 1: return '🥇';
-      case 2: return '🥈';
-      case 3: return '🥉';
+      case 1: return '1';
+      case 2: return '2';
+      case 3: return '3';
       default: return `${posicion}°`;
     }
   }

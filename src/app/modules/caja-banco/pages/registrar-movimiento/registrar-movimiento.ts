@@ -730,7 +730,20 @@ export class RegistrarMovimientoComponent implements OnInit {
         movimientoBase.proveedor_nombre = this.proveedorSeleccionado.nombre;
         movimientoBase.deuda_anterior = this.deudaActual;
         movimientoBase.deuda_nueva = this.deudaRestante;
-      } else if ((categoria === 'TRANSFERENCIA_CLIENTE' || categoria === 'PAGO_TRABAJADOR') && this.clienteSeleccionado) {
+      } else if (categoria === 'PAGO_TRABAJADOR' && this.clienteSeleccionado) {
+        // ✅ PAGO A TRABAJADOR: Guardar ID del usuario (empleado) para métricas
+        const nombre = (this.clienteSeleccionado.nombres || this.clienteSeleccionado.nombre || '').trim();
+        const apellido = (this.clienteSeleccionado.apellidos || this.clienteSeleccionado.apellido || '').trim();
+        const cedula = this.clienteSeleccionado.cedula || '';
+        const empleadoId = this.clienteSeleccionado.id || '';
+        
+        movimientoBase.persona_nombre = `${nombre}${apellido ? ' ' + apellido : ''}`;
+        movimientoBase.persona_cedula = cedula || null;
+        // ⚠️ CRÍTICO: Este campo lo usa empleado-metricas.service.ts para calcular pagos
+        // IMPORTANTE: NO confundir con usuario_id (quien registra) vs empleado_usuario_id (a quien se paga)
+        movimientoBase.empleado_usuario_id = empleadoId || null;
+      } else if (categoria === 'TRANSFERENCIA_CLIENTE' && this.clienteSeleccionado) {
+        // Transferencia a cliente regular
         const nombre = (this.clienteSeleccionado.nombres || this.clienteSeleccionado.nombre || '').trim();
         const apellido = (this.clienteSeleccionado.apellidos || this.clienteSeleccionado.apellido || '').trim();
         const cedula = this.clienteSeleccionado.cedula || '';

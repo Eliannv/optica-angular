@@ -122,6 +122,9 @@ export class EmpleadoMetricasService {
   /**
    * Calcula pagos recibidos por el empleado.
    * Fuente ÚNICA: movimientos_cajas_banco (categoria = PAGO_TRABAJADOR)
+   * 
+   * ⚠️ IMPORTANTE: Busca por empleado_usuario_id (quien RECIBE el pago)
+   * NO confundir con usuario_id (quien REGISTRA el movimiento)
    */
   async calcularMetricasPagos(
     usuarioId: string,
@@ -132,7 +135,7 @@ export class EmpleadoMetricasService {
       const movimientosRef = collection(this.firestore, 'movimientos_cajas_banco');
       const q = query(
         movimientosRef,
-        where('usuario_id', '==', usuarioId),
+        where('empleado_usuario_id', '==', usuarioId),
         where('categoria', '==', 'PAGO_TRABAJADOR'),
         where('fecha', '>=', Timestamp.fromDate(fechaInicio)),
         where('fecha', '<=', Timestamp.fromDate(fechaFin))
@@ -142,6 +145,7 @@ export class EmpleadoMetricasService {
       let totalPagado = 0;
 
       const movimientos = await getDocs(q);
+      
       movimientos.docs.forEach(doc => {
         const data = doc.data();
         const fecha = data['fecha']?.toDate ? data['fecha'].toDate() : new Date(data['fecha']);
@@ -165,6 +169,7 @@ export class EmpleadoMetricasService {
         historialPagos: pagos
       };
     } catch (error: any) {
+      console.error('❌ Error al calcular pagos de empleado:', error);
       return {
         totalPagado: 0,
         cantidadPagos: 0,
@@ -274,7 +279,9 @@ export class EmpleadoMetricasService {
       {
         titulo: 'Total Pagado a Empleados',
         valor: `$${totalPagadoEmpleados.toFixed(2)}`,
-        subtitulo: 'Nómina del mes',
+        subtitulo: totalPagadoEmpleados > 0 
+          ? `Nómina de ${this.obtenerNombreMes(month, year).split(' ')[0]}` 
+          : `Sin pagos en ${this.obtenerNombreMes(month, year).split(' ')[0]}`,
         tipo: 'info',
         icono: 'money'
       },

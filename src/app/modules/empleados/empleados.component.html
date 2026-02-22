@@ -77,7 +77,7 @@
                 <div class="col-md-6 mb-3">
                     <div class="card shadow-sm">
                         <div class="card-header">
-                            <h6 class="mb-0">🏆 Top 5 por Ventas</h6>
+                            <h6 class="mb-0">Top 3 por Ventas</h6>
                         </div>
                         <div class="card-body">
                             <div *ngIf="rankingVentas.length === 0" class="text-center text-muted py-3">
@@ -98,7 +98,7 @@
                 <div class="col-md-6 mb-3">
                     <div class="card shadow-sm">
                         <div class="card-header">
-                            <h6 class="mb-0">💰 Top 5 por Monto Vendido</h6>
+                            <h6 class="mb-0">Top 3 por Monto Vendido</h6>
                         </div>
                         <div class="card-body">
                             <div *ngIf="rankingMontos.length === 0" class="text-center text-muted py-3">
@@ -314,14 +314,14 @@
             <h5 class="modal-title">Detalle de Empleado</h5>
             <button type="button" class="btn-close" aria-label="Cerrar" (click)="cerrarModalDetalle()"></button>
         </div>
-        <div class="modal-body" *ngIf="empleadoDetalle">
+        <div class="modal-body modal-body-compact" *ngIf="empleadoDetalle">
             <!-- Información del empleado -->
-            <div class="empleado-header mb-4">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="avatar-large">{{ empleadoDetalle.nombre.charAt(0) }}</div>
+            <div class="empleado-header-compact mb-2">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="avatar-medium">{{ empleadoDetalle.nombre.charAt(0) }}</div>
                     <div>
-                        <h4 class="mb-1">{{ empleadoDetalle.nombre }}</h4>
-                        <p class="text-muted mb-0">{{ getRolTexto(empleadoDetalle.rol) }} | {{ empleadoDetalle.sucursal || 'Sin sucursal' }}</p>
+                        <h5 class="mb-0 fw-bold">{{ empleadoDetalle.nombre }}</h5>
+                        <p class="text-muted mb-0 small">{{ getRolTexto(empleadoDetalle.rol) }} | {{ empleadoDetalle.sucursal || 'Sin sucursal' }}</p>
                         <small class="text-muted">{{ empleadoDetalle.email }}</small>
                     </div>
                 </div>
@@ -338,84 +338,68 @@
             <!-- Métricas del empleado -->
             <div *ngIf="!cargandoDetalle && resumenMensualDetalle">
                 <!-- RESUMEN COMERCIAL (FACTURAS) -->
-                <div class="seccion-detalle mb-4">
-                    <h6 class="seccion-titulo">Resumen Comercial</h6>
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <div class="card bg-light">
-                                <div class="card-body text-center">
-                                    <h5 class="mb-0">{{ resumenMensualDetalle.ventas.totalVentas }}</h5>
-                                    <small class="text-muted">Ventas realizadas</small>
-                                </div>
-                            </div>
+                <div class="seccion-detalle-compact mb-3">
+                    <h6 class="seccion-titulo-compact">Resumen Comercial</h6>
+                    <div class="metrics-container-centered">
+                        <div class="metric-card-compact" style="min-width: 140px;">
+                            <div class="metric-value">{{ resumenMensualDetalle.ventas.totalVentas }}</div>
+                            <div class="metric-label">Ventas</div>
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <div class="card bg-light">
-                                <div class="card-body text-center">
-                                    <h5 class="mb-0">{{ formatearMoneda(resumenMensualDetalle.ventas.montoTotalVendido) }}</h5>
-                                    <small class="text-muted">Monto total vendido</small>
-                                </div>
-                            </div>
+                        <div class="metric-card-compact" style="min-width: 140px;">
+                            <div class="metric-value">{{ formatearMoneda(resumenMensualDetalle.ventas.montoTotalVendido) }}</div>
+                            <div class="metric-label">Monto vendido</div>
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <div class="card bg-light">
-                                <div class="card-body text-center">
-                                    <h5 class="mb-0">{{ formatearMoneda(resumenMensualDetalle.ventas.promedioPorVenta) }}</h5>
-                                    <small class="text-muted">Promedio por venta</small>
-                                </div>
-                            </div>
+                        <div class="metric-card-compact" style="min-width: 140px;">
+                            <div class="metric-value">{{ formatearMoneda(resumenMensualDetalle.ventas.promedioPorVenta) }}</div>
+                            <div class="metric-label">Promedio</div>
                         </div>
                     </div>
                 </div>
 
                 <!-- COBROS REALIZADOS (DEUDAS) -->
-                <div class="seccion-detalle mb-4">
-                    <h6 class="seccion-titulo">Cobros de Deuda</h6>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <div class="card bg-light">
-                                <div class="card-body text-center">
-                                    <h5 class="mb-0">{{ resumenMensualDetalle.cobros.cantidadCobros }}</h5>
-                                    <small class="text-muted">Cobros realizados</small>
-                                </div>
-                            </div>
+                <div class="seccion-detalle-compact mb-3">
+                    <h6 class="seccion-titulo-compact">Cobros de Deuda</h6>
+                    <div class="metrics-container-centered">
+                        <div class="metric-card-compact" style="min-width: 140px;">
+                            <div class="metric-value">{{ resumenMensualDetalle.cobros.cantidadCobros }}</div>
+                            <div class="metric-label">Cobros realizados</div>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <div class="card bg-light">
-                                <div class="card-body text-center">
-                                    <h5 class="mb-0">{{ formatearMoneda(resumenMensualDetalle.cobros.montoCobrado) }}</h5>
-                                    <small class="text-muted">Total cobrado</small>
-                                </div>
-                            </div>
+                        <div class="metric-card-compact" style="min-width: 140px;">
+                            <div class="metric-value">{{ formatearMoneda(resumenMensualDetalle.cobros.montoCobrado) }}</div>
+                            <div class="metric-label">Total cobrado</div>
                         </div>
                     </div>
                 </div>
 
                 <!-- PAGOS RECIBIDOS (NÓMINA) -->
-                <div class="seccion-detalle mb-4">
-                    <h6 class="seccion-titulo">Pagos Recibidos (Nómina)</h6>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <div class="card bg-light">
-                                <div class="card-body text-center">
-                                    <h5 class="mb-0">{{ formatearMoneda(resumenMensualDetalle.pagos.totalPagado) }}</h5>
-                                    <small class="text-muted">Total pagado</small>
-                                </div>
-                            </div>
+                <div class="seccion-detalle-compact mb-3">
+                    <h6 class="seccion-titulo-compact">Pagos Recibidos - {{ mesActualNombre }}</h6>
+                    
+                    <!-- Mensaje si no hay pagos en el período -->
+                    <div *ngIf="resumenMensualDetalle.pagos.cantidadPagos === 0" class="alert alert-info alert-compact mb-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        <strong>No hay pagos registrados en {{ mesActualNombre }}</strong>
+                        <br><small>Revisa el historial mensual más abajo o cambia el período de análisis.</small>
+                    </div>
+                    
+                    <div class="metrics-container-centered">
+                        <div class="metric-card-compact" style="min-width: 140px;">
+                            <div class="metric-value">{{ formatearMoneda(resumenMensualDetalle.pagos.totalPagado) }}</div>
+                            <div class="metric-label">Total pagado</div>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <div class="card bg-light">
-                                <div class="card-body text-center">
-                                    <h5 class="mb-0">{{ resumenMensualDetalle.pagos.cantidadPagos }}</h5>
-                                    <small class="text-muted">Pagos recibidos</small>
-                                </div>
-                            </div>
+                        <div class="metric-card-compact" style="min-width: 140px;">
+                            <div class="metric-value">{{ resumenMensualDetalle.pagos.cantidadPagos }}</div>
+                            <div class="metric-label">Pagos recibidos</div>
                         </div>
                     </div>
 
                     <!-- Historial de pagos -->
-                    <div *ngIf="resumenMensualDetalle.pagos.historialPagos.length > 0" class="mt-3">
-                        <h6 class="text-muted mb-2">Historial de Pagos:</h6>
+                    <div *ngIf="resumenMensualDetalle.pagos.historialPagos.length > 0" class="mt-2">
+                        <div class="text-muted mb-1 small fw-bold">Historial de Pagos:</div>
                         <div class="table-responsive">
                             <table class="table table-sm table-bordered">
                                 <thead>
@@ -441,7 +425,7 @@
 
                 <!-- ✅ HISTORIAL MENSUAL -->
                 <div class="seccion-detalle">
-                    <h6 class="seccion-titulo">📅 Historial Mensual (Últimos 6 meses)</h6>
+                    <h6 class="seccion-titulo">Historial Mensual (Últimos 6 meses)</h6>
                     <div class="table-responsive">
                         <table class="table table-striped">
                             <thead>
