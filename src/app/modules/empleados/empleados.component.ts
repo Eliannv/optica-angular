@@ -18,11 +18,21 @@ import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators, AbstractControl, AsyncValidatorFn, ValidationErrors, FormGroup } from '@angular/forms';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { Auth } from '@angular/fire/auth';
 import { EmpleadosService } from '../../core/services/empleados.service';
 import { MaquinasAutorizadasService } from '../../core/services/maquinas-autorizadas.service';
 import { MaquinaAutorizada } from '../../core/models/maquina-autorizada.model';
+import { CajaBancoService } from '../../core/services/caja-banco.service';
 import { EnterNextDirective } from '../../shared/directives/enter-next.directive';
-import { Usuario } from '../../core/models/usuario.model';
+import { Usuario, RolUsuario } from '../../core/models/usuario.model';
+import { EmpleadoMetricasService } from '../../core/services/empleado-metricas.service';
+import {
+  EmpleadoConMetricas,
+  MetricaGlobal,
+  RankingItem,
+  ResumenMensual,
+  FiltrosMetricas
+} from '../../core/models/empleado-metricas.model';
 import Swal from 'sweetalert2';
 
 @Component({
@@ -35,8 +45,11 @@ import Swal from 'sweetalert2';
 export class EmpleadosComponent implements OnInit {
   private empleadosService = inject(EmpleadosService);
   private maquinasService = inject(MaquinasAutorizadasService);
+  private cajaBancoSrv = inject(CajaBancoService);
+  public metricasService = inject(EmpleadoMetricasService); // Público para acceso en template
   private fb = inject(FormBuilder);
   private cdr = inject(ChangeDetectorRef);
+  private auth = inject(Auth);
 
   empleados: Usuario[] = [];
   empleadosFiltrados: Usuario[] = [];
@@ -61,14 +74,36 @@ export class EmpleadosComponent implements OnInit {
   machineIdActual: string | null = null;
   sucursalActual: string = 'PASAJE';
 
+  // ✅ NUEVAS PROPIEDADES PARA MÉTRICAS
+  metricasGlobales: MetricaGlobal[] = [];
+  rankingVentas: RankingItem[] = [];
+  rankingMontos: RankingItem[] = [];
+  empleadosConMetricas: EmpleadoConMetricas[] = [];
+  cargandoMetricas = false; // ✅ Loading para cálculo de métricas
+  
+  // Filtros para métricas - basados en periodos reales
+  periodoSeleccionado: string | null = null; // Formato: 'MM/YYYY'
+  periodosDisponibles: Array<{mes: number, anio: number, label: string}> = [];
+  cargandoPeriodos = false;
+  sucursalFiltro: string = 'todas';
+  sucursalesDisponibles: string[] = [];
+  
+  // Modal de detalle
+  modalDetalleAbierto = false;
+  empleadoDetalle: any = null;
+  resumenMensualDetalle: ResumenMensual | null = null;
+  historialMensual: ResumenMensual[] = [];
+  cargandoDetalle = false;
+
   /**
    * Hook de inicialización del componente.
-   * Carga los empleados, Machine ID y sucursal actual.
+   * ✅ ACTUALIZADO: Carga empleados, periodos y métricas automáticamente
    */
   ngOnInit(): void {
     this.cargarEmpleados();
     this.machineIdActual = this.empleadosService.getMachineIdActual();
     this.sucursalActual = this.empleadosService.getSucursalActual();
+    this.cargarPeriodosDisponibles();
   }
 
   /**
@@ -575,5 +610,342 @@ export class EmpleadosComponent implements OnInit {
     if (!empleado.activo) return 'Bloqueado';
     if (!empleado.machineId) return 'Sin Acceso';
     return 'Activo';
+  }
+
+  // =====================================================
+  // ✅ NUEVOS MÉTODOS PARA MÉTRICAS Y REPORTES
+  // =====================================================
+
+  /**
+   * 📆 Carga los periodos disponibles basados en cajas banco.
+   * Selecciona automáticamente el periodo más reciente.
+   */
+  cargarPeriodosDisponibles(): void {
+    this.cargandoPeriodos = true;
+    this.cajaBancoSrv.getCajasBanco().subscribe({
+      next: (cajasBanco) => {
+        // Obtener periodos únicos ordenados por fecha descendente
+        const periodosMap = new Map<string, {mes: number, anio: number, label: string}>();
+        
+        cajasBanco.forEach(caja => {
+          let fecha: Date;
+          if (caja.fecha instanceof Date) {
+            fecha = caja.fecha;
+          } else if (caja.fecha && typeof caja.fecha === 'object' && 'toDate' in caja.fecha) {
+            fecha = (caja.fecha as any).toDate();
+          } else {
+            fecha = new Date(caja.fecha);
+          }
+          
+          const mes = fecha.getMonth() + 1; // 1-12
+          const anio = fecha.getFullYear();
+          const key = `${mes.toString().padStart(2, '0')}/${anio}`;
+          
+          if (!periodosMap.has(key)) {
+            const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                           'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            periodosMap.set(key, {
+              mes,
+              anio,
+              label: `${meses[mes - 1]} ${anio}`
+            });
+          }
+        });
+
+        // Convertir a array y ordenar por fecha descendente
+        this.periodosDisponibles = Array.from(periodosMap.values())
+          .sort((a, b) => {
+            if (a.anio !== b.anio) return b.anio - a.anio;
+            return b.mes - a.mes;
+          });
+
+        // Seleccionar automáticamente el periodo más reciente
+        if (this.periodosDisponibles.length > 0) {
+          const periodo = this.periodosDisponibles[0];
+          this.periodoSeleccionado = `${periodo.mes.toString().padStart(2, '0')}/${periodo.anio}`;
+          this.cargarMetricas();
+        }
+
+        this.cargandoPeriodos = false;
+      },
+      error: (error) => {
+        this.cargandoPeriodos = false;
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'No se pudieron cargar los periodos disponibles'
+        });
+      }
+    });
+  }
+
+  /**
+   * Carga todas las métricas del sistema.
+   */
+  /**
+   * Carga todas las métricas del sistema.
+   */
+  async cargarMetricas(): Promise<void> {
+    if (!this.periodoSeleccionado) {
+      return;
+    }
+
+    this.cargandoMetricas = true;
+    
+    // Mostrar loading de SweetAlert2
+    Swal.fire({
+      title: 'Calculando métricas...',
+      html: 'Por favor espera mientras procesamos los datos',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+    
+    try {
+      const currentUser = this.auth.currentUser;
+      
+      if (!currentUser) {
+        Swal.close();
+        this.cargandoMetricas = false;
+        return;
+      }
+
+      // Obtener year y month desde periodoSeleccionado
+      const [mesStr, anioStr] = this.periodoSeleccionado.split('/');
+      const year = parseInt(anioStr, 10);
+      const month = parseInt(mesStr, 10);
+
+      // Cargar métricas globales
+      this.metricasGlobales = await this.metricasService.calcularMetricasGlobales(
+        year,
+        month,
+        this.empleados
+      );
+
+      // Cargar rankings
+      const fechaInicio = new Date(year, month - 1, 1);
+      const fechaFin = new Date(year, month, 0, 23, 59, 59);
+
+      [this.rankingVentas, this.rankingMontos] = await Promise.all([
+        this.metricasService.generarRankingVentas(this.empleados, fechaInicio, fechaFin, 5),
+        this.metricasService.generarRankingMontoVendido(this.empleados, fechaInicio, fechaFin, 5)
+      ]);
+
+      // Cargar métricas individuales para cada empleado
+      await this.cargarMetricasEmpleados();
+
+      // Extraer sucursales disponibles
+      this.extractSucursales();
+      
+      // Cerrar loading
+      Swal.close();
+    } catch (error: any) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudieron cargar las métricas. Por favor intenta nuevamente.'
+      });
+    } finally {
+      this.cargandoMetricas = false;
+    }
+  }
+
+  /**
+   * Carga métricas individuales para cada empleado.
+   */
+  async cargarMetricasEmpleados(): Promise<void> {
+    if (!this.periodoSeleccionado) return;
+
+    const [mesStr, anioStr] = this.periodoSeleccionado.split('/');
+    const year = parseInt(anioStr, 10);
+    const month = parseInt(mesStr, 10);
+
+    const promesas = this.empleados.map(async (emp) => {
+      if (!emp.id) return null;
+
+      const resumen = await this.metricasService.calcularResumenMensual(emp.id, year, month);
+      const antiguedad = this.metricasService.calcularAntiguedad(emp.createdAt);
+
+      const empleadoConMetricas: EmpleadoConMetricas = {
+        id: emp.id,
+        nombre: emp.nombre,
+        email: emp.email,
+        rol: emp.rol,
+        sucursal: emp.sucursal,
+        activo: emp.activo,
+        createdAt: emp.createdAt?.toDate ? emp.createdAt.toDate() : new Date(emp.createdAt),
+        antiguedadMeses: antiguedad.meses,
+        antiguedadTexto: antiguedad.texto,
+        metricasActuales: resumen
+      };
+
+      return empleadoConMetricas;
+    });
+
+    const resultados = await Promise.all(promesas);
+    this.empleadosConMetricas = resultados.filter(e => e !== null) as EmpleadoConMetricas[];
+  }
+
+  /**
+   * Extrae las sucursales disponibles de los empleados.
+   */
+  extractSucursales(): void {
+    const sucursales = new Set<string>();
+    this.empleados.forEach(emp => {
+      if (emp.sucursal) {
+        sucursales.add(emp.sucursal);
+      }
+    });
+    this.sucursalesDisponibles = Array.from(sucursales).sort();
+  }
+
+  /**
+   * Abre modal de detalle de un empleado.
+   */
+  async abrirModalDetalle(empleado: Usuario): Promise<void> {
+    if (!empleado.id) return;
+
+    const currentUser = this.auth.currentUser;
+    
+    if (!currentUser) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Debes estar autenticado para ver los detalles'
+      });
+      return;
+    }
+
+    this.modalDetalleAbierto = true;
+    this.empleadoDetalle = empleado;
+    this.cargandoDetalle = true;
+
+    try {
+      if (!this.periodoSeleccionado) {
+        this.cargandoDetalle = false;
+        return;
+      }
+
+      const [mesStr, anioStr] = this.periodoSeleccionado.split('/');
+      const year = parseInt(anioStr, 10);
+      const month = parseInt(mesStr, 10);
+
+      // Cargar resumen del mes actual
+      this.resumenMensualDetalle = await this.metricasService.calcularResumenMensual(
+        empleado.id,
+        year,
+        month
+      );
+
+      // Cargar historial de últimos 6 meses
+      this.historialMensual = await this.metricasService.calcularHistorialMensual(empleado.id, 6);
+
+      this.cargandoDetalle = false;
+    } catch (error: any) {
+      this.cargandoDetalle = false;
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo cargar el detalle del empleado'
+      });
+    }
+  }
+
+  /**
+   * Cierra el modal de detalle.
+   */
+  cerrarModalDetalle(): void {
+    this.modalDetalleAbierto = false;
+    this.empleadoDetalle = null;
+    this.resumenMensualDetalle = null;
+    this.historialMensual = [];
+  }
+
+  /**
+   * Cambia el periodo de análisis y recarga métricas.
+   */
+  async cambiarMes(direccion: 'anterior' | 'siguiente'): Promise<void> {
+    if (!this.periodoSeleccionado || this.periodosDisponibles.length === 0) return;
+
+    // Encontrar el índice del periodo actual
+    const indiceActual = this.periodosDisponibles.findIndex(
+      p => `${p.mes.toString().padStart(2, '0')}/${p.anio}` === this.periodoSeleccionado
+    );
+
+    if (indiceActual === -1) return;
+
+    // Calcular nuevo índice
+    let nuevoIndice: number;
+    if (direccion === 'siguiente') {
+      // Siguiente = más reciente (indice menor)
+      nuevoIndice = indiceActual - 1;
+    } else {
+      // Anterior = más antiguo (indice mayor)
+      nuevoIndice = indiceActual + 1;
+    }
+
+    // Validar que el nuevo índice esté dentro del rango
+    if (nuevoIndice < 0 || nuevoIndice >= this.periodosDisponibles.length) return;
+
+    // Actualizar periodo seleccionado
+    const nuevoPeriodo = this.periodosDisponibles[nuevoIndice];
+    this.periodoSeleccionado = `${nuevoPeriodo.mes.toString().padStart(2, '0')}/${nuevoPeriodo.anio}`;
+    
+    await this.cargarMetricas();
+  }
+
+  /**
+   * Obtiene el nombre del periodo actual seleccionado.
+   */
+  get mesActualNombre(): string {
+    if (!this.periodoSeleccionado) return '-';
+
+    const periodo = this.periodosDisponibles.find(
+      p => `${p.mes.toString().padStart(2, '0')}/${p.anio}` === this.periodoSeleccionado
+    );
+
+    return periodo ? periodo.label : this.periodoSeleccionado;
+  }
+
+  /**
+   * Mapea rol numérico a texto.
+   */
+  getRolTexto(rol: number): string {
+    return this.metricasService.mapearRolTexto(rol);
+  }
+
+  /**
+   * Formatea un monto como moneda.
+   */
+  formatearMoneda(monto: number): string {
+    return `$${monto.toFixed(2)}`;
+  }
+
+  /**
+   * Obtiene el emoji de medalla según la posición.
+   */
+  getMedalla(posicion: number): string {
+    switch (posicion) {
+      case 1: return '🥇';
+      case 2: return '🥈';
+      case 3: return '🥉';
+      default: return `${posicion}°`;
+    }
+  }
+
+  /**
+   * Filtra empleados según criterios de métricas.
+   */
+  get empleadosFiltradosMetricas(): EmpleadoConMetricas[] {
+    let filtrados = [...this.empleadosConMetricas];
+
+    // Filtro por sucursal
+    if (this.sucursalFiltro !== 'todas') {
+      filtrados = filtrados.filter(e => e.sucursal === this.sucursalFiltro);
+    }
+
+    return filtrados;
   }
 }

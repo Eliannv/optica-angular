@@ -1,156 +1,246 @@
-<div class="container-fluid py-4">
-    <!-- Header / Toolbar -->
-    <div class="row mb-3">
-        <div class="col-12">
-            <div class="toolbar card shadow-sm">
-                <div class="toolbar-left">
-                    <div class="title-wrap">
-                        <h2 class="title">Administrar Empleados</h2>
-                    </div>
-                    <p class="subtitle">Gestiona el acceso, permisos y datos de tus empleados</p>
+<div class="caja-container">
+    <div class="caja-card">
+        <!-- HEADER -->
+        <div class="caja-header">
+            <div class="header-content">
+                <h1 class="caja-title">Gestión de Empleados</h1>
+                <p class="subtitle">Rendimiento, métricas y administración de personal</p>
+            </div>
+            <div class="header-actions">
+                <div class="env-chip">
+                    <span class="chip-label">Sucursal</span>
+                    <span class="chip-value">{{ sucursalActual }}</span>
                 </div>
-                <div class="toolbar-right">
-                    <div class="env-chip">
-                        <span class="chip-label">Sucursal</span>
-                        <span class="chip-value">{{ sucursalActual }}</span>
-                    </div>
-                    <div class="env-chip">
-                        <span class="chip-label">Machine ID</span>
-                        <code class="chip-code">{{ machineIdActual || 'N/A' }}</code>
-                    </div>
+                <div class="env-chip">
+                    <span class="chip-label">Machine ID</span>
+                    <code class="chip-code">{{ machineIdActual || 'N/A' }}</code>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Filtros -->
-    <div class="row mb-3">
-        <div class="col-12">
-            <div class="filters-container">
-                <div class="search-wrapper">
-                    <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <path d="m21 21-4.35-4.35"></path>
+        <div class="caja-body">
+            <!-- SELECTOR DE PERÍODO -->
+            <div class="filtro-periodo">
+                <label>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+                        <line x1="16" x2="16" y1="2" y2="6"/>
+                        <line x1="8" x2="8" y1="2" y2="6"/>
+                        <line x1="3" x2="21" y1="10" y2="10"/>
                     </svg>
-                    <input type="text" class="search-input" placeholder="Buscar por nombre o email" [(ngModel)]="filtroNombre" (input)="aplicarFiltros()" />
-                    <button *ngIf="filtroNombre" class="clear-btn" (click)="filtroNombre=''; aplicarFiltros()" title="Limpiar búsqueda">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-                </div>
+                    Período de análisis:
+                </label>
+                <select class="form-control periodo-select" [(ngModel)]="periodoSeleccionado" (change)="cargarMetricas()">
+                    <option *ngFor="let periodo of periodosDisponibles" [value]="periodo.mes.toString().padStart(2, '0') + '/' + periodo.anio">
+                        {{ periodo.label }}
+                    </option>
+                </select>
+            </div>
 
-                <div class="filter-pills">
-                    <input type="radio" class="btn-check" name="filterEstado" id="fAll" [(ngModel)]="filtroEstado" [value]="'todos'" (change)="aplicarFiltros()">
-                    <label class="filter-pill" for="fAll">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="14" width="7" height="7"></rect>
-                            <rect x="3" y="14" width="7" height="7"></rect>
+            <!-- MÉTRICAS GLOBALES -->
+            <div class="resumen-stats" *ngIf="!cargando">
+                <div *ngFor="let metrica of metricasGlobales" 
+                     class="stat-card stat-card-primary">
+                    <div class="stat-icon">
+                        <svg *ngIf="metrica.icono === 'money'" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" x2="12" y1="2" y2="22"/>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
                         </svg>
-                        Todos
-                    </label>
-
-                    <input type="radio" class="btn-check" name="filterEstado" id="fAct" [(ngModel)]="filtroEstado" [value]="'activos'" (change)="aplicarFiltros()">
-                    <label class="filter-pill filter-pill-success" for="fAct">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        <svg *ngIf="metrica.icono === 'trophy'" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+                            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+                            <path d="M4 22h16"/>
+                            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+                            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+                            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
                         </svg>
-                        Activos
-                    </label>
-
-                    <input type="radio" class="btn-check" name="filterEstado" id="fInact" [(ngModel)]="filtroEstado" [value]="'inactivos'" (change)="aplicarFiltros()">
-                    <label class="filter-pill filter-pill-danger" for="fInact">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+                        <svg *ngIf="metrica.icono === 'alert'" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                            <path d="M12 9v4"/>
+                            <path d="M12 17h.01"/>
                         </svg>
-                        Bloqueados
-                    </label>
+                        <svg *ngIf="!metrica.icono || metrica.icono === 'chart'" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 3v18h18"/>
+                            <path d="m19 9-5 5-4-4-3 3"/>
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-label">{{ metrica.titulo }}</span>
+                        <span class="stat-value">{{ metrica.valor }}</span>
+                        <span class="stat-sublabel" *ngIf="metrica.subtitulo">{{ metrica.subtitulo }}</span>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Loading -->
-    <div *ngIf="cargando" class="text-center py-5">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Cargando...</span>
-        </div>
-        <p class="mt-2 text-muted">Cargando empleados...</p>
-    </div>
+            <!-- RANKINGS -->
+            <div class="row mb-4">
+                <div class="col-md-6 mb-3">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h6 class="mb-0">🏆 Top 5 por Ventas</h6>
+                        </div>
+                        <div class="card-body">
+                            <div *ngIf="rankingVentas.length === 0" class="text-center text-muted py-3">
+                                Sin datos disponibles
+                            </div>
+                            <div *ngFor="let item of rankingVentas" class="ranking-item">
+                                <span class="ranking-posicion">{{ getMedalla(item.posicion) }}</span>
+                                <div class="ranking-info">
+                                    <strong>{{ item.empleadoNombre }}</strong>
+                                    <small class="text-muted">{{ item.sucursal }}</small>
+                                </div>
+                                <span class="ranking-valor">{{ item.textoValor }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-    <!-- Error -->
-    <div *ngIf="error" class="alert alert-danger">
-        <strong>❌ Error:</strong> {{ error }}
-    </div>
-
-    <!-- Lista de Empleados -->
-    <div *ngIf="!cargando && !error" class="row">
-        <!-- Sin resultados -->
-        <div *ngIf="empleadosFiltrados.length === 0" class="col-12">
-            <div class="alert alert-info text-center">
-                <p class="mb-0">No se encontraron empleados con los filtros seleccionados.</p>
+                <div class="col-md-6 mb-3">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h6 class="mb-0">💰 Top 5 por Monto Vendido</h6>
+                        </div>
+                        <div class="card-body">
+                            <div *ngIf="rankingMontos.length === 0" class="text-center text-muted py-3">
+                                Sin datos disponibles
+                            </div>
+                            <div *ngFor="let item of rankingMontos" class="ranking-item">
+                                <span class="ranking-posicion">{{ getMedalla(item.posicion) }}</span>
+                                <div class="ranking-info">
+                                    <strong>{{ item.empleadoNombre }}</strong>
+                                    <small class="text-muted">{{ item.sucursal }}</small>
+                                </div>
+                                <span class="ranking-valor">{{ item.textoValor }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <!-- Tarjetas de Empleados -->
-        <div *ngFor="let empleado of empleadosFiltrados" class="col-xl-4 col-lg-6 mb-4">
-            <div class="card h-100 employee-card">
-                <div class="card-body">
-                    <!-- Header con avatar y estado -->
-                    <div class="card-head d-flex align-items-start justify-content-between mb-2">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="avatar" [attr.title]="empleado.nombre">
-                                {{ empleado.nombre.charAt(0) || '?' }}
-                            </div>
-                            <div>
-                                <h5 class="card-title mb-0">{{ empleado.nombre }}</h5>
-                                <small class="text-muted">{{ empleado.email }}</small>
-                            </div>
-                        </div>
-                        <!-- Estado discreto para 'Sin acceso' -->
-                        <small class="text-muted" *ngIf="getEstadoTexto(empleado) === 'Sin Acceso'">Sin Acceso</small>
-                    </div>
-
-                    <!-- Info -->
-                    <div class="info-grid mb-3">
-                        <div class="info-item">
-                            <span class="info-label">Sucursal</span>
-                            <span class="info-value">{{ empleado.sucursal || 'No asignada' }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Machine ID</span>
-                            <span class="info-value">
-                                <code *ngIf="empleado.machineId">{{ empleado.machineId }}</code>
-                                <span *ngIf="!empleado.machineId" class="text-warning">No configurado</span>
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- Acciones -->
-                    <div class="action-pills">
-                        <button class="action-pill action-pill-primary" (click)="abrirModalEditar(empleado)" title="Editar datos">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
-                            </svg>
-                            Editar
+            <!-- FILTROS -->
+            <div class="filtros-container">
+                <div class="filtro-group">
+                    <label>Filtrar por estado:</label>
+                    <div class="filtro-buttons">
+                        <button class="filtro-btn" [class.active]="filtroEstado === 'todos'" (click)="filtroEstado = 'todos'; aplicarFiltros()">
+                            Todos
                         </button>
-
-                        <button [ngClass]="empleado.activo ? 'action-pill-danger' : 'action-pill-success'" [class.active]="!empleado.activo" class="action-pill" (click)="toggleEstado(empleado)" [title]="empleado.activo ? 'Bloquear' : 'Desbloquear'">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                            </svg>
-                            {{ empleado.activo ? 'Bloquear' : 'Desbloquear' }}
+                        <button class="filtro-btn" [class.active]="filtroEstado === 'activos'" (click)="filtroEstado = 'activos'; aplicarFiltros()">
+                            Activos
+                        </button>
+                        <button class="filtro-btn" [class.active]="filtroEstado === 'inactivos'" (click)="filtroEstado = 'inactivos'; aplicarFiltros()">
+                            Bloqueados
                         </button>
                     </div>
                 </div>
-                <div class="card-footer bg-transparent">
-                    <small class="text-muted">Creado: {{ empleado.createdAt?.toDate?.() ? (empleado.createdAt.toDate() | date:'short') : 'N/A' }}</small>
+                
+                <div class="filtro-group">
+                    <label>Buscar empleado:</label>
+                    <div class="search-wrapper">
+                        <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.35-4.35"></path>
+                        </svg>
+                        <input type="text" class="search-input" placeholder="Nombre o email..." [(ngModel)]="filtroNombre" (input)="aplicarFiltros()" />
+                        <button *ngIf="filtroNombre" class="clear-btn" (click)="filtroNombre=''; aplicarFiltros()" title="Limpiar búsqueda">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LISTADO DE EMPLEADOS -->
+            <div class="caja-section">
+                <h2 class="section-title">Personal registrado</h2>
+
+                <!-- Loading -->
+                <div *ngIf="cargando" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Cargando empleados...</p>
+                </div>
+
+                <!-- Error -->
+                <div *ngIf="error" class="alert alert-danger">
+                    <strong>❌ Error:</strong> {{ error }}
+                </div>
+
+                <!-- Sin resultados -->
+                <div *ngIf="!cargando && !error && empleadosFiltrados.length === 0" class="alert alert-info text-center">
+                    <p class="mb-0">No se encontraron empleados con los filtros seleccionados.</p>
+                </div>
+
+                <!-- Tabla de Empleados -->
+                <div *ngIf="!cargando && !error && empleadosFiltrados.length > 0" class="table-responsive">
+                    <table class="table table-empleados">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Cédula</th>
+                                <th>Email</th>
+                                <th>Rol</th>
+                                <th>Sucursal</th>
+                                <th>Estado</th>
+                                <th class="acciones-col">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let empleado of empleadosFiltrados">
+                                <td>
+                                    <div class="empleado-nombre">
+                                        <div class="avatar-table">
+                                            {{ empleado.nombre.charAt(0) || '?' }}
+                                        </div>
+                                        <div class="nombre-info">
+                                            <strong>{{ empleado.nombre }} {{ empleado.apellido }}</strong>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ empleado.cedula || 'N/A' }}</td>
+                                <td>
+                                    <span class="email-text">{{ empleado.email }}</span>
+                                </td>
+                                <td>
+                                    <span class="rol-badge">{{ getRolTexto(empleado.rol) }}</span>
+                                </td>
+                                <td>{{ empleado.sucursal || 'No asignada' }}</td>
+                                <td>
+                                    <span class="estado-badge" [ngClass]="empleado.activo ? 'estado-activo' : 'estado-bloqueado'">
+                                        {{ empleado.activo ? 'Activo' : 'Bloqueado' }}
+                                    </span>
+                                </td>
+                                <td class="acciones-cell">
+                                    <div class="acciones-group">
+                                        <button class="btn-accion btn-accion-info" (click)="abrirModalDetalle(empleado)" title="Ver detalle">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <circle cx="12" cy="12" r="10"></circle>
+                                                <line x1="12" y1="16" x2="12" y2="12"></line>
+                                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                            </svg>
+                                        </button>
+                                        <button class="btn-accion btn-accion-editar" (click)="abrirModalEditar(empleado)" title="Editar">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                                            </svg>
+                                        </button>
+                                        <button class="btn-accion" 
+                                                [ngClass]="empleado.activo ? 'btn-accion-bloquear' : 'btn-accion-desbloquear'" 
+                                                (click)="toggleEstado(empleado)" 
+                                                [title]="empleado.activo ? 'Bloquear' : 'Desbloquear'">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -213,6 +303,170 @@
                 <span>Guardar cambios</span>
                 }
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Detalle del Empleado -->
+<div class="modal-layer" *ngIf="modalDetalleAbierto" (click)="cerrarModalDetalle()">
+    <div class="modal-card modal-card-large" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <h5 class="modal-title">Detalle de Empleado</h5>
+            <button type="button" class="btn-close" aria-label="Cerrar" (click)="cerrarModalDetalle()"></button>
+        </div>
+        <div class="modal-body" *ngIf="empleadoDetalle">
+            <!-- Información del empleado -->
+            <div class="empleado-header mb-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="avatar-large">{{ empleadoDetalle.nombre.charAt(0) }}</div>
+                    <div>
+                        <h4 class="mb-1">{{ empleadoDetalle.nombre }}</h4>
+                        <p class="text-muted mb-0">{{ getRolTexto(empleadoDetalle.rol) }} | {{ empleadoDetalle.sucursal || 'Sin sucursal' }}</p>
+                        <small class="text-muted">{{ empleadoDetalle.email }}</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading -->
+            <div *ngIf="cargandoDetalle" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando métricas...</span>
+                </div>
+                <p class="mt-2 text-muted">Calculando métricas...</p>
+            </div>
+
+            <!-- Métricas del empleado -->
+            <div *ngIf="!cargandoDetalle && resumenMensualDetalle">
+                <!-- RESUMEN COMERCIAL (FACTURAS) -->
+                <div class="seccion-detalle mb-4">
+                    <h6 class="seccion-titulo">Resumen Comercial</h6>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5 class="mb-0">{{ resumenMensualDetalle.ventas.totalVentas }}</h5>
+                                    <small class="text-muted">Ventas realizadas</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5 class="mb-0">{{ formatearMoneda(resumenMensualDetalle.ventas.montoTotalVendido) }}</h5>
+                                    <small class="text-muted">Monto total vendido</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5 class="mb-0">{{ formatearMoneda(resumenMensualDetalle.ventas.promedioPorVenta) }}</h5>
+                                    <small class="text-muted">Promedio por venta</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- COBROS REALIZADOS (DEUDAS) -->
+                <div class="seccion-detalle mb-4">
+                    <h6 class="seccion-titulo">Cobros de Deuda</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5 class="mb-0">{{ resumenMensualDetalle.cobros.cantidadCobros }}</h5>
+                                    <small class="text-muted">Cobros realizados</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5 class="mb-0">{{ formatearMoneda(resumenMensualDetalle.cobros.montoCobrado) }}</h5>
+                                    <small class="text-muted">Total cobrado</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PAGOS RECIBIDOS (NÓMINA) -->
+                <div class="seccion-detalle mb-4">
+                    <h6 class="seccion-titulo">Pagos Recibidos (Nómina)</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5 class="mb-0">{{ formatearMoneda(resumenMensualDetalle.pagos.totalPagado) }}</h5>
+                                    <small class="text-muted">Total pagado</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5 class="mb-0">{{ resumenMensualDetalle.pagos.cantidadPagos }}</h5>
+                                    <small class="text-muted">Pagos recibidos</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Historial de pagos -->
+                    <div *ngIf="resumenMensualDetalle.pagos.historialPagos.length > 0" class="mt-3">
+                        <h6 class="text-muted mb-2">Historial de Pagos:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Monto</th>
+                                        <th>Referencia</th>
+                                        <th>Observación</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr *ngFor="let pago of resumenMensualDetalle.pagos.historialPagos">
+                                        <td>{{ pago.fecha | date:'short' }}</td>
+                                        <td>{{ formatearMoneda(pago.monto) }}</td>
+                                        <td>{{ pago.referencia || '-' }}</td>
+                                        <td>{{ pago.observacion || '-' }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ✅ HISTORIAL MENSUAL -->
+                <div class="seccion-detalle">
+                    <h6 class="seccion-titulo">📅 Historial Mensual (Últimos 6 meses)</h6>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Mes</th>
+                                    <th>Ventas</th>
+                                    <th>Monto Vendido</th>
+                                    <th>Pagos Recibidos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr *ngFor="let mes of historialMensual">
+                                    <td><strong>{{ mes.mesNombre }}</strong></td>
+                                    <td>{{ mes.ventas.totalVentas }}</td>
+                                    <td>{{ formatearMoneda(mes.ventas.montoTotalVendido) }}</td>
+                                    <td>{{ formatearMoneda(mes.pagos.totalPagado) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="cerrarModalDetalle()">Cerrar</button>
         </div>
     </div>
 </div>

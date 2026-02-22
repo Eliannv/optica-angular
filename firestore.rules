@@ -36,6 +36,11 @@ service cloud.firestore {
       return isSignedIn() && userDoc().data.sucursal == sucursal;
     }
 
+    // Usuario puede leer métricas: cualquier usuario autenticado
+    function canReadMetrics() {
+      return isSignedIn();
+    }
+
     // ===== USUARIOS =====
     match /usuarios/{uid} {
       // Leer: el propio documento, usuarios de sucursales válidas, admin, o durante registro
@@ -51,14 +56,6 @@ service cloud.firestore {
     // ===== MÁQUINAS AUTORIZADAS =====
     match /maquinas_autorizadas/{maquinaId} {
       // Leer: cualquier usuario autenticado (para verificación de acceso en Electron)
-      allow read: if isSignedIn();
-      
-      // Crear/Actualizar/Eliminar: solo administradores
-      allow create, update, delete: if isAdmin();
-    }
-    // ===== SUCURSALES =====
-    match /sucursales/{sucursalId} {
-      // Leer: cualquier usuario autenticado (para selección de sucursales)
       allow read: if isSignedIn();
       
       // Crear/Actualizar/Eliminar: solo administradores
@@ -105,12 +102,18 @@ service cloud.firestore {
 
     // ===== FACTURAS =====
     match /facturas/{facturaId} {
-      allow read, write: if isAdmin() || isAuthorizedOperator();
+      // Leer: cualquier usuario autenticado (para métricas y reportes)
+      allow read: if isSignedIn();
+      // Escribir: admin o operador autorizado
+      allow write: if isAdmin() || isAuthorizedOperator();
     }
 
     // ===== FACTURAS_DEUDAS =====
     match /facturas_deudas/{deudaId} {
-      allow read, write: if isAdmin() || isAuthorizedOperator();
+      // Leer: cualquier usuario autenticado (para métricas y reportes)
+      allow read: if isSignedIn();
+      // Escribir: admin o operador autorizado
+      allow write: if isAdmin() || isAuthorizedOperator();
     }
 
     // ===== VENTAS TARJETA =====
@@ -130,7 +133,10 @@ service cloud.firestore {
 
     // ===== MOVIMIENTOS CAJAS BANCO =====
     match /movimientos_cajas_banco/{movId} {
-      allow read, write: if isAdmin() || isAuthorizedOperator();
+      // Leer: cualquier usuario autenticado (para métricas de pagos)
+      allow read: if isSignedIn();
+      // Escribir: admin o operador autorizado
+      allow write: if isAdmin() || isAuthorizedOperator();
     }
 
     // ===== CAJAS CHICAS =====
