@@ -2139,8 +2139,16 @@ async guardarEImprimir() {
           montoTotal: +this.total.toFixed(2),
           ultimosCuatroTarjeta: this.ultimosCuatroTarjeta || undefined
         });
+        console.log('✅ Venta con tarjeta registrada en módulo ventas_tarjeta');
       } catch (err) {
-        console.warn('No se pudo registrar venta con tarjeta como cuenta por cobrar:', err);
+        console.error('❌ Error registrando venta con tarjeta:', err);
+        // Mostrar advertencia al usuario para que sepa que debe revisar
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Advertencia',
+          text: `La venta se guardó correctamente pero no se registró en el módulo de Cobros con Tarjeta. Error: ${err instanceof Error ? err.message : 'Error desconocido'}`,
+          confirmButtonText: 'Entendido'
+        });
       }
     }
 

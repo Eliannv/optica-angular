@@ -33,13 +33,22 @@ export class VentasTarjetaService {
 
   /**
    * Registra la venta con tarjeta como cuenta por cobrar al banco.
-   * Si ya existe el documento para la factura, no se modifica.
+   * Si ya existe el documento para la factura, actualiza el saldo pendiente sumando el nuevo monto.
+   * Útil para cobros parciales de deuda con tarjeta.
+   * 
+   * @param venta - Datos de la venta con tarjeta
+   * @param esCobroDeuda - Si es true, suma al saldo existente en lugar de solo retornar
    */
-  async crearVentaTarjeta(venta: Omit<VentaTarjeta, 'id' | 'montoRecibido' | 'saldoPendiente' | 'estado' | 'abonos' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  async crearVentaTarjeta(
+    venta: Omit<VentaTarjeta, 'id' | 'montoRecibido' | 'saldoPendiente' | 'estado' | 'abonos' | 'createdAt' | 'updatedAt'>,
+    esCobroDeuda: boolean = false
+  ): Promise<string> {
     const docRef = doc(this.fs, `ventas_tarjeta/${venta.facturaId}`);
     const existente = await getDoc(docRef);
 
-    if (existente.exists()) {
+    // Si ya existe y NO es cobro de deuda, solo retornar el ID (evitar duplicados)
+    if (existente.exists() && !esCobroDeuda) {
+      console.log('📌 Registro de venta con tarjeta ya existe:', docRef.id);
       return docRef.id;
     }
 
@@ -49,6 +58,24 @@ export class VentasTarjetaService {
 
     const cuentaBancoId = await this.obtenerCajaBancoIdPorFecha(fechaVenta);
 
+    // Si existe y es cobro de deuda, actualizar sumando al saldo pendiente
+    if (existente.exists() && esCobroDeuda) {
+      const data: any = existente.data();
+      const nuevoSaldoPendiente = Number(data.saldoPendiente || 0) + Number(venta.montoTotal || 0);
+      const nuevoMontoTotal = Number(data.montoTotal || 0) + Number(venta.montoTotal || 0);
+      
+      await updateDoc(docRef, {
+        montoTotal: nuevoMontoTotal,
+        saldoPendiente: nuevoSaldoPendiente,
+        estado: 'PENDIENTE', // Volver a pendiente si se agregó más deuda
+        updatedAt: serverTimestamp()
+      } as any);
+
+      console.log('✅ Registro de venta con tarjeta actualizado. Nuevo saldo pendiente:', nuevoSaldoPendiente);
+      return docRef.id;
+    }
+
+    // Si no existe, crear nuevo registro
     const ventaParaGuardar: any = {
       ...venta,
       fechaVenta: Timestamp.fromDate(fechaVenta),
@@ -65,6 +92,7 @@ export class VentasTarjetaService {
     }
 
     await setDoc(docRef, ventaParaGuardar);
+    console.log('✅ Nuevo registro de venta con tarjeta creado:', docRef.id);
     return docRef.id;
   }
 
