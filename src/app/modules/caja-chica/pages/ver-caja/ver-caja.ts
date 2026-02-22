@@ -63,7 +63,8 @@ export class VerCajaComponent implements OnInit, OnDestroy {
   // 📄 Movimientos con paginación (navegación anterior/siguiente)
   movimientos: MovimientoCajaChica[] = [];
   movimientosCargados = false; // Flag para lazy loading
-  mostrarMovimientos = false; // Flag para expandir/contraer sección
+  mostrarMovimientos = true; // Flag para expandir/contraer sección (por defecto visible)
+  mostrarDetallesCaja = false; // Flag para expandir/contraer detalles de la caja
   
   // Control de paginación
   paginaActualMovimientos = 1;
@@ -80,10 +81,294 @@ export class VerCajaComponent implements OnInit, OnDestroy {
     pageNumber: number;
   }> = [];
   
+  // ─── Filtros de movimientos ───────────────────────────────────────────
+  filtroBusqueda: string = '';
+  filtroTipoMov: string = 'TODOS';
+  filtroUsuarioMov: string = '';
+  filtroFechaMovDesde: string = '';
+  filtroFechaMovHasta: string = '';
+  filtroMontoMin: number | null = null;
+  filtroMontoMax: number | null = null;
+  mostrarFiltrosMov: boolean = false;
+  
   resumen: ResumenCajaChica | null = null;
   cargando = false;
   error = '';
   esAdmin = false;
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 🎯 MÉTRICAS CALCULADAS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /** Métricas globales para mostrar en la parte superior */
+  get metricasGlobales(): Array<{titulo: string; valor: string; subtitulo?: string; icono?: string}> {
+    if (!this.movimientos || this.movimientos.length === 0) {
+      return [
+        { titulo: 'Total Ingresos', valor: this.formatoMoneda(0), subtitulo: '0 movimientos', icono: 'money' },
+        { titulo: 'Total Egresos', valor: this.formatoMoneda(0), subtitulo: '0 movimientos', icono: 'money' },
+        { titulo: 'Balance Neto', valor: this.formatoMoneda(0), icono: 'chart' },
+        { titulo: 'Movimientos', valor: '0', subtitulo: 'Sin movimientos', icono: 'alert' }
+      ];
+    }
+
+    const ingresos = this.movimientos.filter(m => m.tipo === 'INGRESO');
+    const egresos = this.movimientos.filter(m => m.tipo === 'EGRESO');
+    const totalIngresos = ingresos.reduce((sum, m) => sum + (m.monto || 0), 0);
+    const totalEgresos = egresos.reduce((sum, m) => sum + (m.monto || 0), 0);
+    const balance = totalIngresos - totalEgresos;
+    const promedio = this.movimientos.length > 0 ? (totalIngresos + totalEgresos) / this.movimientos.length : 0;
+
+    return [
+      { 
+        titulo: 'Total Ingresos', 
+        valor: this.formatoMoneda(totalIngresos), 
+        subtitulo: `${ingresos.length} ingreso${ingresos.length !== 1 ? 's' : ''}`,
+        icono: 'money'
+      },
+      { 
+        titulo: 'Total Egresos', 
+        valor: this.formatoMoneda(totalEgresos), 
+        subtitulo: `${egresos.length} egreso${egresos.length !== 1 ? 's' : ''}`,
+        icono: 'money'
+      },
+      { 
+        titulo: 'Balance Neto', 
+        valor: this.formatoMoneda(balance),
+        subtitulo: balance >= 0 ? 'Positivo' : 'Negativo',
+        icono: 'chart'
+      },
+      { 
+        titulo: 'Promedio por Movimiento', 
+        valor: this.formatoMoneda(promedio),
+        subtitulo: `de ${this.movimientos.length} movimiento${this.movimientos.length !== 1 ? 's' : ''}`,
+        icono: 'trophy'
+      }
+    ];
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 🔍 FILTROS Y ANÁLISIS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /** Movimientos filtrados según los criterios activos */
+  get movimientosFiltrados(): MovimientoCajaChica[] {
+    let result = [...this.movimientos];
+
+    // Búsqueda rápida (descripción, comprobante, monto, usuario)
+    if (this.filtroBusqueda.trim()) {
+      const q = this.filtroBusqueda.toLowerCase().trim();
+      result = result.filter(m =>
+        (m.descripcion || '').toLowerCase().includes(q) ||
+        (m.comprobante || '').toLowerCase().includes(q) ||
+        String(m.monto ?? '').includes(q) ||
+        (m.usuario_nombre || '').toLowerCase().includes(q)
+      );
+    }
+
+    if (this.filtroTipoMov !== 'TODOS') {
+      result = result.filter(m => m.tipo === this.filtroTipoMov);
+    }
+
+    if (this.filtroUsuarioMov.trim()) {
+      const u = this.filtroUsuarioMov.toLowerCase().trim();
+      result = result.filter(m => (m.usuario_nombre || '').toLowerCase().includes(u));
+    }
+
+    if (this.filtroFechaMovDesde) {
+      const desde = new Date(this.filtroFechaMovDesde);
+      result = result.filter(m => {
+        const f: Date = (m.fecha as any)?.toDate?.() ?? (m.fecha instanceof Date ? m.fecha : new Date(m.fecha));
+        return f >= desde;
+      });
+    }
+
+    if (this.filtroFechaMovHasta) {
+      const hasta = new Date(this.filtroFechaMovHasta + 'T23:59:59');
+      result = result.filter(m => {
+        const f: Date = (m.fecha as any)?.toDate?.() ?? (m.fecha instanceof Date ? m.fecha : new Date(m.fecha));
+        return f <= hasta;
+      });
+    }
+
+    if (this.filtroMontoMin !== null) {
+      result = result.filter(m => (m.monto || 0) >= this.filtroMontoMin!);
+    }
+
+    if (this.filtroMontoMax !== null) {
+      result = result.filter(m => (m.monto || 0) <= this.filtroMontoMax!);
+    }
+
+    return result;
+  }
+
+  /** True si hay algún filtro activo en movimientos */
+  get hayFiltrosMov(): boolean {
+    return !!(
+      this.filtroBusqueda.trim() ||
+      this.filtroTipoMov !== 'TODOS' ||
+      this.filtroUsuarioMov.trim() ||
+      this.filtroFechaMovDesde ||
+      this.filtroFechaMovHasta ||
+      this.filtroMontoMin !== null ||
+      this.filtroMontoMax !== null
+    );
+  }
+
+  /** Chips de filtros activos para mostrar en la UI */
+  get chipsFiltrosMov(): { label: string; key: string }[] {
+    const chips: { label: string; key: string }[] = [];
+    if (this.filtroFechaMovDesde) chips.push({ label: 'Desde: ' + this.filtroFechaMovDesde, key: 'desde' });
+    if (this.filtroFechaMovHasta) chips.push({ label: 'Hasta: ' + this.filtroFechaMovHasta, key: 'hasta' });
+    if (this.filtroTipoMov !== 'TODOS') chips.push({ label: 'Tipo: ' + this.filtroTipoMov, key: 'tipo' });
+    if (this.filtroUsuarioMov.trim()) chips.push({ label: 'Usuario: ' + this.filtroUsuarioMov, key: 'usuario' });
+    if (this.filtroMontoMin !== null) chips.push({ label: 'Monto mín: $' + this.filtroMontoMin, key: 'minMonto' });
+    if (this.filtroMontoMax !== null) chips.push({ label: 'Monto máx: $' + this.filtroMontoMax, key: 'maxMonto' });
+    return chips;
+  }
+
+  /** Resumen filtrado (ingresos, egresos, balance) */
+  get resumenFiltrado(): { ingresos: number; egresos: number; balance: number } {
+    const movs = this.movimientos; // Usar todos para resumen fijo
+    const ingresos = movs.filter(m => m.tipo === 'INGRESO').reduce((s, m) => s + (m.monto || 0), 0);
+    const egresos = movs.filter(m => m.tipo === 'EGRESO').reduce((s, m) => s + (m.monto || 0), 0);
+    return { ingresos, egresos, balance: ingresos - egresos };
+  }
+
+  /** Quita un chip de filtro puntual */
+  quitarChip(key: string): void {
+    switch (key) {
+      case 'desde':    this.filtroFechaMovDesde = ''; break;
+      case 'hasta':    this.filtroFechaMovHasta = ''; break;
+      case 'tipo':     this.filtroTipoMov = 'TODOS'; break;
+      case 'usuario':  this.filtroUsuarioMov = ''; break;
+      case 'minMonto': this.filtroMontoMin = null; break;
+      case 'maxMonto': this.filtroMontoMax = null; break;
+    }
+  }
+
+  /** Limpia todos los filtros de movimientos */
+  limpiarFiltrosMov(): void {
+    this.filtroBusqueda = '';
+    this.filtroTipoMov = 'TODOS';
+    this.filtroUsuarioMov = '';
+    this.filtroFechaMovDesde = '';
+    this.filtroFechaMovHasta = '';
+    this.filtroMontoMin = null;
+    this.filtroMontoMax = null;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 📊 ANÁLISIS POR CATEGORÍAS INFERIDAS (SIN MODIFICAR BD)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /** Clasifica un movimiento según palabras clave en su descripción */
+  clasificarMovimiento(movimiento: MovimientoCajaChica): 'VENTA' | 'PAGO_DEUDA' | 'GASTO' | 'OTRO' {
+    const desc = (movimiento.descripcion || '').toLowerCase();
+    
+    if (desc.includes('venta') || desc.includes('factura')) {
+      return 'VENTA';
+    }
+    
+    if (desc.includes('deuda') || desc.includes('cobro') || desc.includes('abono')) {
+      return 'PAGO_DEUDA';
+    }
+    
+    if (movimiento.tipo === 'EGRESO') {
+      return 'GASTO';
+    }
+    
+    return 'OTRO';
+  }
+
+  /** Distribución de movimientos por categoría inferida */
+  get distribucionCategorias(): Array<{categoria: string; cantidad: number; monto: number; porcentaje: number}> {
+    const total = this.movimientos.length;
+    if (total === 0) return [];
+
+    const categorias = new Map<string, {cantidad: number; monto: number}>();
+    
+    this.movimientos.forEach(m => {
+      const cat = this.clasificarMovimiento(m);
+      const actual = categorias.get(cat) || { cantidad: 0, monto: 0 };
+      categorias.set(cat, {
+        cantidad: actual.cantidad + 1,
+        monto: actual.monto + (m.monto || 0)
+      });
+    });
+
+    const result = Array.from(categorias.entries()).map(([cat, data]) => ({
+      categoria: cat,
+      cantidad: data.cantidad,
+      monto: data.monto,
+      porcentaje: Math.round((data.cantidad / total) * 100)
+    }));
+
+    // Ordenar por cantidad (mayor a menor)
+    return result.sort((a, b) => b.cantidad - a.cantidad);
+  }
+
+  /** Etiqueta legible para categoría inferida */
+  labelCategoriaInferida(cat: string): string {
+    const labels: Record<string, string> = {
+      'VENTA': '💰 Ventas',
+      'PAGO_DEUDA': '💳 Cobros de Deuda',
+      'GASTO': '💸 Gastos',
+      'OTRO': '📋 Otros'
+    };
+    return labels[cat] || cat;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ⚠️ INDICADORES DE CONTROL (NO BLOQUEAN, SOLO INFORMAN)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /** Movimientos sin descripción/observación */
+  get movimientosSinDescripcion(): MovimientoCajaChica[] {
+    return this.movimientos.filter(m => !m.descripcion || m.descripcion.trim() === '');
+  }
+
+  /** Comprobantes duplicados (mismo comprobante en múltiples movimientos) */
+  get comprobantesDuplicados(): Array<{comprobante: string; cantidad: number}> {
+    const comprobantes = new Map<string, number>();
+    
+    this.movimientos.forEach(m => {
+      if (m.comprobante && m.comprobante.trim()) {
+        const count = comprobantes.get(m.comprobante) || 0;
+        comprobantes.set(m.comprobante, count + 1);
+      }
+    });
+
+    return Array.from(comprobantes.entries())
+      .filter(([_, count]) => count > 1)
+      .map(([comprobante, cantidad]) => ({ comprobante, cantidad }));
+  }
+
+  /** Saltos inconsistentes de saldo (diferencia > monto movimiento - tolerancia de error) */
+  get saltosInconsistentes(): MovimientoCajaChica[] {
+    const inconsistentes: MovimientoCajaChica[] = [];
+    
+    for (let i = 1; i < this.movimientos.length; i++) {
+      const anterior = this.movimientos[i - 1];
+      const actual = this.movimientos[i];
+      
+      const saldoEsperado = anterior.saldo_nuevo;
+      const saldoReal = actual.saldo_anterior;
+      
+      // Tolerancia de 0.01 para errores de redondeo
+      if (saldoEsperado !== undefined && saldoReal !== undefined && Math.abs(saldoEsperado - saldoReal) > 0.01) {
+        inconsistentes.push(actual);
+      }
+    }
+    
+    return inconsistentes;
+  }
+
+  /** True si hay al menos un indicador de control activo */
+  get hayAlertasControl(): boolean {
+    return this.movimientosSinDescripcion.length > 0 ||
+           this.comprobantesDuplicados.length > 0 ||
+           this.saltosInconsistentes.length > 0;
+  }
 
   ngOnInit(): void {
     this.cajaId = this.route.snapshot.paramMap.get('id') || '';
@@ -105,7 +390,7 @@ export class VerCajaComponent implements OnInit, OnDestroy {
 
   /**
    * 🚀 OPTIMIZADO: Carga SOLO la información básica de la caja.
-   * NO carga movimientos automáticamente.
+   * 📌 ACTUALIZADO: Ahora carga movimientos automáticamente para mostrar métricas.
    */
   cargarDetallesCaja(): void {
     if (!this.cajaId) return;
@@ -115,9 +400,15 @@ export class VerCajaComponent implements OnInit, OnDestroy {
 
     // Solo cargar información de la caja
     const sub = this.cajaChicaService.getCajaChicaById(this.cajaId).subscribe({
-      next: (caja) => {
+      next: async (caja) => {
         this.caja = caja;
         this.cargando = false;
+        
+        // Cargar movimientos automáticamente
+        if (!this.movimientosCargados) {
+          await this.cargarMovimientosPaginados();
+          this.movimientosCargados = true;
+        }
       },
       error: (error) => {
         console.error('Error al cargar caja:', error);
@@ -144,17 +435,10 @@ export class VerCajaComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * 📄 LAZY LOADING: Carga movimientos SOLO cuando el usuario expande la sección.
-   * Primera vez que se hace click.
+   * 📄 Toggle para expandir/contraer la sección de movimientos.
    */
   async toggleMovimientos(): Promise<void> {
     this.mostrarMovimientos = !this.mostrarMovimientos;
-
-    // Si se está expandiendo Y no se han cargado movimientos aún
-    if (this.mostrarMovimientos && !this.movimientosCargados) {
-      await this.cargarMovimientosPaginados();
-      this.movimientosCargados = true;
-    }
   }
 
   /**

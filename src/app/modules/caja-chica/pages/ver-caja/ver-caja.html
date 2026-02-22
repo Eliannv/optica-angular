@@ -1,214 +1,307 @@
-<div class="caja-container no-print">
-    <!-- HEADER CON BOTONES -->
-    <div class="caja-card">
-        <div class="caja-header">
-            <div class="header-content">
-                <h1 class="caja-title">Detalles de Caja Chica</h1>
-                <div class="header-actions">
-                    <button class="btn-volver" (click)="volver()">← Volver</button>
-                    <button class="btn-reimprimir" *ngIf="caja?.estado === 'CERRADA'" (click)="imprimirReporteCierre()" title="Imprimir reporte de cierre">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-            Imprimir
-          </button>
-                    <button class="btn btn-action-move" *ngIf="caja?.estado === 'ABIERTA'" (click)="registrarMovimiento()">
-            + Registrar Movimiento
-          </button>
-                    <button class="btn btn-danger" *ngIf="caja?.estado === 'ABIERTA'" (click)="cerrarCaja()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-lock-keyhole-icon lucide-lock-keyhole"><circle cx="12" cy="16" r="1"/><rect x="3" y="10" width="18" height="12" rx="2"/><path d="M7 10V7a5 5 0 0 1 10 0v3"/></svg>
-          </button>
-                </div>
-            </div>
+<div class="caja-container">
+  <div class="caja-card">
+
+    <!-- ══ 1️⃣ HEADER DE CONTEXTO (STICKY – SIEMPRE VISIBLE) ══ -->
+    <div class="caja-header">
+      <div class="header-info">
+        <h1 class="caja-title" *ngIf="caja">
+          Caja Chica — {{ formatoFecha(caja.fecha) }}
+        </h1>
+        <p class="caja-subtitle" *ngIf="caja">
+          <span class="estado-badge" [class.estado-abierta]="caja.estado === 'ABIERTA'" [class.estado-cerrada]="caja.estado === 'CERRADA'">
+            {{ caja.estado }}
+          </span>
+          <span class="separador">·</span>
+          <span>{{ formatoFechaHora(caja.createdAt) }}</span>
+          <span class="separador">·</span>
+          <span>{{ caja.usuario_nombre || 'Usuario desconocido' }}</span>
+        </p>
+      </div>
+      <div class="header-actions">
+        <button *ngIf="caja?.estado === 'ABIERTA'" class="btn btn-action-move" (click)="registrarMovimiento()">
+          + Registrar Movimiento
+        </button>
+        <button *ngIf="caja?.estado === 'ABIERTA'" class="btn btn-danger" (click)="cerrarCaja()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-lock-keyhole-icon lucide-lock-keyhole"><circle cx="12" cy="16" r="1"/><rect x="3" y="10" width="18" height="12" rx="2"/><path d="M7 10V7a5 5 0 0 1 10 0v3"/></svg>
+          Cerrar Caja
+        </button>
+        <button class="btn-reimprimir" *ngIf="caja?.estado === 'CERRADA'" (click)="imprimirReporteCierre()" title="Imprimir reporte">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+          Imprimir
+        </button>
+        <button class="btn-volver" (click)="volver()">← Volver</button>
+      </div>
+    </div>
+
+    <!-- ══ CUERPO ══ -->
+    <div class="caja-body">
+
+      <ng-container *ngIf="cargando">
+        <div class="loading">Cargando...</div>
+      </ng-container>
+
+      <ng-container *ngIf="!cargando && caja">
+
+        <!-- ══ 2️⃣ RESUMEN FINANCIERO (KPIs – MÉTRICAS GLOBALES) ══ -->
+        <div class="kpis-section">
+          <div *ngFor="let metrica of metricasGlobales" 
+               class="kpi-card" 
+               [ngClass]="{
+                 'kpi-ingresos': metrica.titulo.includes('Ingresos'),
+                 'kpi-egresos': metrica.titulo.includes('Egresos'),
+                 'kpi-saldo-actual': metrica.titulo.includes('Balance'),
+                 'kpi-saldo-inicial': metrica.titulo.includes('Promedio')
+               }">
+            <div class="kpi-label">{{ metrica.titulo }}</div>
+            <div class="kpi-value" [ngClass]="{
+              'kpi-positivo': metrica.titulo.includes('Ingresos'),
+              'kpi-negativo': metrica.titulo.includes('Egresos'),
+              'kpi-destacado': metrica.titulo.includes('Balance')
+            }">{{ metrica.valor }}</div>
+            <div class="kpi-sublabel" *ngIf="metrica.subtitulo">{{ metrica.subtitulo }}</div>
+          </div>
         </div>
 
-        <!-- INFORMACIÓN PRINCIPAL -->
-        <ng-container *ngIf="caja">
-            <div class="info-section">
-                <div class="info-card">
-                    <h3>Información General</h3>
-                    <div class="info-row">
-                        <span class="label">Fecha de Creación:</span>
-                        <span class="value">{{ formatoFechaHora(caja.createdAt) }}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="label">Fecha de Apertura:</span>
-                        <span class="value">{{ formatoFechaHora(caja.fecha) }}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="label">Abierta por:</span>
-                        <span class="value">{{ caja.usuario_nombre || '-' }}</span>
-                    </div>
-                    <div class="info-row" *ngIf="caja.estado === 'CERRADA' && caja.cerrado_en">
-                        <span class="label">Fecha de Cierre:</span>
-                        <span class="value">{{ formatoFechaHora(caja.cerrado_en) }}</span>
-                    </div>
-                    <div class="info-row" *ngIf="caja.estado === 'CERRADA' && caja.cerrado_por_nombre">
-                        <span class="label">Cerrada por:</span>
-                        <span class="value">{{ caja.cerrado_por_nombre }}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="label">Estado:</span>
-                        <span class="badge" [ngClass]="caja.estado === 'ABIERTA' ? 'badge-success' : 'badge-danger'">
-              {{ caja.estado }}
-            </span>
-                    </div>
-                    <div class="info-row" *ngIf="caja.observacion">
-                        <span class="label">Observación:</span>
-                        <span class="value">{{ caja.observacion }}</span>
-                    </div>
-                </div>
-
-                <div class="montos-card">
-                    <h3>Movimientos Financieros</h3>
-                    <ng-container *ngIf="resumen">
-                        <div class="monto-item">
-                            <span class="label">Movimientos:</span>
-                            <span class="value">{{ resumen.cantidad_movimientos }}</span>
-                        </div>
-                    </ng-container>
-                    <div class="monto-item">
-                        <span class="label">Monto Inicial:</span>
-                        <span class="value monto-inicial">{{ formatoMoneda(caja.monto_inicial) }}</span>
-                    </div>
-                    <ng-container *ngIf="resumen">
-                        <div class="monto-item">
-                            <span class="label">Total Ingresos:</span>
-                            <span class="value ingreso">{{ formatoMoneda(resumen.total_ingresos) }}</span>
-                        </div>
-                        <div class="monto-item">
-                            <span class="label">Total Egresos:</span>
-                            <span class="value egreso">{{ formatoMoneda(resumen.total_egresos) }}</span>
-                        </div>
-                    </ng-container>
-                    <div class="monto-item">
-                        <span class="label">Saldo Total:</span>
-                        <span class="value monto-actual">{{ formatoMoneda(caja.monto_actual) }}</span>
-                    </div>
-                </div>
+        <!-- ══ 3️⃣ INFORMACIÓN GENERAL (ACCORDION COLAPSABLE) ══ -->
+        <div class="info-accordion">
+          <div class="accordion-header" (click)="mostrarDetallesCaja = !mostrarDetallesCaja">
+            <span class="accordion-title">Detalles de la Caja</span>
+            <span class="accordion-toggle">{{ mostrarDetallesCaja ? '▼' : '▶' }}</span>
+          </div>
+          <div class="accordion-content" *ngIf="mostrarDetallesCaja">
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="info-label">Fecha de Creación:</span>
+                <span class="info-value">{{ formatoFechaHora(caja.createdAt) }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Fecha de Apertura:</span>
+                <span class="info-value">{{ formatoFechaHora(caja.fecha) }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Abierta por:</span>
+                <span class="info-value">{{ caja.usuario_nombre || '-' }}</span>
+              </div>
+              <div class="info-item" *ngIf="caja.estado === 'CERRADA' && caja.cerrado_en">
+                <span class="info-label">Fecha de Cierre:</span>
+                <span class="info-value">{{ formatoFechaHora(caja.cerrado_en) }}</span>
+              </div>
+              <div class="info-item" *ngIf="caja.estado === 'CERRADA' && caja.cerrado_por_nombre">
+                <span class="info-label">Cerrada por:</span>
+                <span class="info-value">{{ caja.cerrado_por_nombre }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Monto Inicial:</span>
+                <span class="info-value">{{ formatoMoneda(caja.monto_inicial) }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Monto Actual:</span>
+                <span class="info-value">{{ formatoMoneda(caja.monto_actual) }}</span>
+              </div>
+              <div class="info-item" *ngIf="caja.observacion">
+                <span class="info-label">Observación:</span>
+                <span class="info-value">{{ caja.observacion }}</span>
+              </div>
             </div>
-        </ng-container>
+          </div>
+        </div>
 
-        <!-- 📄 SECCIÓN DE MOVIMIENTOS CON LAZY LOADING -->
+        <!-- ══ 5️⃣ MOVIMIENTOS FINANCIEROS (SECCIÓN PRINCIPAL) ══ -->
         <div class="movimientos-section">
-            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h3 class="section-title">Movimientos</h3>
-                <button class="btn-ver" (click)="toggleMovimientos()" [title]="mostrarMovimientos ? 'Ocultar movimientos' : 'Mostrar movimientos'">
-                    <svg *ngIf="!mostrarMovimientos" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
-                        <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                    <svg *ngIf="mostrarMovimientos" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/>
-                        <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/>
-                        <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/>
-                        <path d="m2 2 20 20"/>
-                    </svg>
-                    <span *ngIf="!mostrarMovimientos">Mostrar</span>
-                    <span *ngIf="mostrarMovimientos">Ocultar</span>
-                </button>
-            </div>
+          <h2 class="section-title">
+            Movimientos Financieros
+            <span *ngIf="movimientos.length > 0" class="badge badge-info">{{ movimientos.length }}</span>
+          </h2>
 
-            <!-- LOADING AL EXPANDIR POR PRIMERA VEZ -->
-            <div *ngIf="mostrarMovimientos && cargandoMovimientos" class="loading">
-                <p>Cargando movimientos...</p>
+          <!-- 🔍 BUSCADOR RÁPIDO (SIEMPRE VISIBLE) -->
+          <div class="form-field">
+            <div class="search-input-wrapper">
+              <input
+                id="busquedaMovimientos"
+                type="text"
+                class="field-input"
+                placeholder="Buscar por descripción, comprobante, monto o usuario..."
+                [(ngModel)]="filtroBusqueda"
+              />
+              <button
+                *ngIf="filtroBusqueda"
+                class="clear-search-btn"
+                type="button"
+                (click)="filtroBusqueda = ''"
+                title="Limpiar búsqueda"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="m15 9-6 6"/>
+                  <path d="m9 9 6 6"/>
+                </svg>
+              </button>
             </div>
+          </div>
 
-            <!-- TABLA DE MOVIMIENTOS CUANDO ESTÁ EXPANDIDO -->
-            <ng-container *ngIf="mostrarMovimientos && !cargandoMovimientos">
-                <ng-container *ngIf="movimientos.length > 0">
-                    <div class="tabla-responsive">
-                        <table class="tabla">
-                            <thead>
-                                <tr>
-                                    <th>Fecha/Hora</th>
-                                    <th>Tipo</th>
-                                    <th>Descripción</th>
-                                    <th class="text-right">Monto</th>
-                                    <th class="text-right">Saldo</th>
-                                    <th>Comprobante</th>
-                                    <th>Creado por</th>
-                                    <th class="text-right" *ngIf="esAdmin">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr *ngFor="let mov of movimientos" class="tabla-row">
-                                    <td>
-                                        <div class="fecha-hora">
-                                            <div>{{ formatoFecha(mov.fecha) }}</div>
-                                            <div class="hora">{{ formatoHora(mov.fecha) }}</div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span class="badge" [ngClass]="getTipoBadgeClass(mov.tipo)">
+          <!-- 🎛️ FILTROS AVANZADOS (TOGGLE) -->
+          <div class="filtros-container">
+            <button class="btn-toggle-filtros" [class.activo]="mostrarFiltrosMov"
+              (click)="mostrarFiltrosMov = !mostrarFiltrosMov">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              Filtros
+            </button>
+
+            <div class="filtros-avanzados" *ngIf="mostrarFiltrosMov">
+              <div class="filtro-group">
+                <label>Tipo</label>
+                <select [(ngModel)]="filtroTipoMov">
+                  <option value="TODOS">Todos</option>
+                  <option value="INGRESO">Ingresos</option>
+                  <option value="EGRESO">Egresos</option>
+                </select>
+              </div>
+              <div class="filtro-group">
+                <label>Usuario</label>
+                <input type="text" [(ngModel)]="filtroUsuarioMov" placeholder="Nombre de usuario..." />
+              </div>
+              <div class="filtro-group">
+                <label>Fecha desde</label>
+                <input type="date" [(ngModel)]="filtroFechaMovDesde" />
+              </div>
+              <div class="filtro-group">
+                <label>Fecha hasta</label>
+                <input type="date" [(ngModel)]="filtroFechaMovHasta" />
+              </div>
+              <div class="filtro-group">
+                <label>Monto mín.</label>
+                <input type="number" [(ngModel)]="filtroMontoMin" placeholder="0.00" step="0.01" min="0" />
+              </div>
+              <div class="filtro-group">
+                <label>Monto máx.</label>
+                <input type="number" [(ngModel)]="filtroMontoMax" placeholder="9999.00" step="0.01" min="0" />
+              </div>
+            </div>
+          </div>
+
+          <!-- 🧠 CHIPS DE FILTROS ACTIVOS -->
+          <div class="chips-row" *ngIf="chipsFiltrosMov.length > 0">
+            <span class="chip" *ngFor="let chip of chipsFiltrosMov">
+              {{ chip.label }}
+              <button class="chip-remove" (click)="quitarChip(chip.key)">✕</button>
+            </span>
+          </div>
+
+          <!-- Limpiar + contador -->
+          <div class="filtros-acciones-row" *ngIf="hayFiltrosMov">
+            <button class="btn-limpiar-filtros" (click)="limpiarFiltrosMov()">✕ Limpiar</button>
+            <span class="filtros-count">
+              <strong>{{ movimientosFiltrados.length }}</strong> de {{ movimientos.length }} movimiento(s)
+            </span>
+          </div>
+
+          <!-- 6️⃣ TABLA PRINCIPAL DE MOVIMIENTOS -->
+          <ng-container *ngIf="!cargandoMovimientos && movimientos.length > 0">
+            <div class="tabla-movimientos-wrap">
+              <table class="tabla-movimientos">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Descripción</th>
+                    <th>Comprobante</th>
+                    <th class="text-right">Monto</th>
+                    <th class="text-right">Saldo</th>
+                    <th>Tipo</th>
+                    <th>Creado por</th>
+                    <th class="text-center" *ngIf="esAdmin && caja.estado === 'ABIERTA'">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let mov of movimientosFiltrados"
+                    [class.tabla-row-ingreso]="mov.tipo === 'INGRESO'"
+                    [class.tabla-row-egreso]="mov.tipo !== 'INGRESO'">
+                    <td style="white-space:nowrap">
+                      <div class="fecha-hora">
+                        <div>{{ formatoFecha(mov.fecha) }}</div>
+                        <div class="hora">{{ formatoHora(mov.fecha) }}</div>
+                      </div>
+                    </td>
+                    <td>{{ mov.descripcion }}</td>
+                    <td>{{ mov.comprobante || '—' }}</td>
+                    <td class="text-right"
+                      [class.text-success]="mov.tipo === 'INGRESO'"
+                      [class.text-danger]="mov.tipo !== 'INGRESO'">
+                      {{ mov.tipo === 'INGRESO' ? '+' : '−' }}{{ formatoMoneda(mov.monto || 0) }}
+                    </td>
+                    <td class="text-right font-bold">{{ formatoMoneda(mov.saldo_nuevo) }}</td>
+                    <td>
+                      <span class="badge"
+                        [class.badge-success]="mov.tipo === 'INGRESO'"
+                        [class.badge-danger]="mov.tipo !== 'INGRESO'">
                         {{ mov.tipo }}
                       </span>
-                                    </td>
-                                    <td>{{ mov.descripcion }}</td>
-                                    <td class="text-right font-bold" [ngClass]="mov.tipo === 'INGRESO' ? 'ingreso' : 'egreso'">
-                                        {{ mov.tipo === 'INGRESO' ? '+' : '-' }} {{ formatoMoneda(mov.monto) }}
-                                    </td>
-                                    <td class="text-right font-bold">{{ formatoMoneda(mov.saldo_nuevo) }}</td>
-                                    <td>{{ mov.comprobante || '-' }}</td>
-                                    <td>{{ mov.usuario_nombre || '-' }}</td>
-                                    <td class="text-right" *ngIf="esAdmin">
-                                        <div class="table-actions">
-                                            <button class="btn-action btn-action-danger" title="Eliminar movimiento" (click)="eliminarMovimiento(mov.id!)" *ngIf="caja?.estado === 'ABIERTA'">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- 📄 CONTROLES DE PAGINACIÓN -->
-                    <div class="pagination-controls">
-                        <div class="pagination-info">
-                            <span class="text-muted">
-                                Página {{ paginaActualMovimientos }} - Mostrando {{ movimientos.length }} movimiento{{ movimientos.length !== 1 ? 's' : '' }}
-                                <span class="badge bg-info ms-2" *ngIf="hasMoreMovimientos">Hay más resultados</span>
-                            </span>
-                        </div>
-                        <div class="pagination-buttons">
-                            <button class="btn btn-secondary" 
-                                    [disabled]="paginaActualMovimientos === 1 || cargandoMovimientos" 
-                                    (click)="irPrimeraPaginaMovimientos()"
-                                    title="Ir a la primera página">
-                                «« Primera
-                            </button>
-                            <button class="btn btn-secondary" 
-                                    [disabled]="paginaActualMovimientos <= 1 || cargandoMovimientos" 
-                                    (click)="paginaAnteriorMovimientos()"
-                                    title="Página anterior">
-                                ← Anterior
-                            </button>
-                            <button class="btn btn-secondary" 
-                                    [disabled]="!hasMoreMovimientos || cargandoMovimientos" 
-                                    (click)="paginaSiguienteMovimientos()"
-                                    title="Página siguiente">
-                                Siguiente →
-                            </button>
-                        </div>
-                    </div>
-                </ng-container>
-
-                <ng-container *ngIf="movimientos.length === 0">
-                    <div class="empty-state">
-                        <div class="empty-icon">📭</div>
-                        <p>No hay movimientos registrados</p>
-                    </div>
-                </ng-container>
-            </ng-container>
-
-            <!-- MENSAJE CUANDO ESTÁ CONTRAÍDO -->
-            <div *ngIf="!mostrarMovimientos" style="text-align: center; padding: 2rem; background: var(--bg-secondary); border-radius: 8px; color: var(--text-secondary);">
-                <p>Haz click en "Mostrar Movimientos" para cargar los detalles</p>
+                    </td>
+                    <td>{{ mov.usuario_nombre || '-' }}</td>
+                    <td class="text-center" *ngIf="esAdmin && caja.estado === 'ABIERTA'">
+                      <div class="table-actions">
+                        <button class="btn-action btn-action-danger" (click)="eliminarMovimiento(mov.id!)" title="Eliminar">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+                            <path d="M10 11v6"/><path d="M14 11v6"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr *ngIf="movimientosFiltrados.length === 0">
+                    <td [attr.colspan]="esAdmin && caja.estado === 'ABIERTA' ? 8 : 7" class="empty-state">
+                      No hay movimientos que coincidan con los filtros
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-        </div>
-    </div>
 
-    <!-- ERROR -->
-    <div *ngIf="error" class="error-message">
-        {{ error }}
-    </div>
-</div>
+            <!-- 📄 CONTROLES DE PAGINACIÓN -->
+            <div class="pagination-controls">
+              <div class="pagination-info">
+                <span class="text-muted">
+                  Página {{ paginaActualMovimientos }} - Mostrando {{ movimientos.length }} movimiento{{ movimientos.length !== 1 ? 's' : '' }}
+                  <span class="badge bg-info ms-2" *ngIf="hasMoreMovimientos">Hay más resultados</span>
+                </span>
+              </div>
+              <div class="pagination-buttons">
+                <button class="btn btn-secondary" 
+                        [disabled]="paginaActualMovimientos === 1 || cargandoMovimientos" 
+                        (click)="irPrimeraPaginaMovimientos()"
+                        title="Ir a la primera página">
+                  «« Primera
+                </button>
+                <button class="btn btn-secondary" 
+                        [disabled]="paginaActualMovimientos <= 1 || cargandoMovimientos" 
+                        (click)="paginaAnteriorMovimientos()"
+                        title="Página anterior">
+                  ← Anterior
+                </button>
+                <button class="btn btn-secondary" 
+                        [disabled]="!hasMoreMovimientos || cargandoMovimientos" 
+                        (click)="paginaSiguienteMovimientos()"
+                        title="Página siguiente">
+                  Siguiente →
+                </button>
+              </div>
+            </div>
+          </ng-container>
+
+          <!-- LOADING -->
+          <ng-container *ngIf="cargandoMovimientos">
+            <div class="loading">Cargando movimientos...</div>
+          </ng-container>
+
+          <!-- SIN MOVIMIENTOS -->
+          <ng-container *ngIf="!cargandoMovimientos && movimientos.length === 0">
+            <div class="empty-state">No hay movimientos registrados</div>
+          </ng-container>
+        </div>
+
+      </ng-container>
+    </div><!-- /caja-body -->
+  </div><!-- /caja-card -->
+</div><!-- /caja-container -->
