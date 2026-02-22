@@ -12,6 +12,7 @@ import { CajaChicaService } from '../../../core/services/caja-chica.service';
 import { CajaBancoService } from '../../../core/services/caja-banco.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { FacturasDeudaService } from '../../../core/services/facturas-deuda.service';
+import { VentasTarjetaService } from '../../../core/services/ventas-tarjeta.service';
 import { obtenerPeriodo } from '../../../core/utils/fecha-helpers';
 import { FacturaDeuda } from '../../../core/models/factura-deuda.model';
 
@@ -152,7 +153,8 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     private cajaChicaService: CajaChicaService,
     private cajaBancoService: CajaBancoService,
     private authService: AuthService,
-    private facturasDeudaService: FacturasDeudaService
+    private facturasDeudaService: FacturasDeudaService,
+    private ventasTarjetaService: VentasTarjetaService
   ) {}
 
   /**
@@ -792,28 +794,27 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
           });
         }
       } else if (this.metodoPago === 'Tarjeta' && abonoReal > 0) {
-        // 💳 Pago por TARJETA → Registrar en Caja Banco
-        // ✅ IMPORTANTE: Permitir registrar INCLUSO si los últimos 4 dígitos están vacíos
-        // (igual a como funciona en facturas normales)
+        // 💳 Pago por TARJETA → Registrar en módulo Ventas con Tarjeta (cuenta por cobrar al banco)
+        // ✅ IMPORTANTE: Los cobros de deuda con tarjeta deben aparecer en el módulo "Cobros de Ventas con Tarjeta"
         try {
-          const usuario = this.authService.getCurrentUser();
-          await this.cajaBancoService.registrarPagoTarjeta(
-            abonoReal,
-            this.ultimosCuatroTarjeta || '', // Permitir dígitos vacíos
-            f.id,
-            usuario?.id || '',
-            usuario?.nombre || 'Usuario',
-            fechaFinal,  // Pasar la fecha seleccionada por el usuario
-            'Cobro de deuda'  // Especificar que es cobro de deuda, no venta
-          );
-          console.log('✅ Pago por tarjeta registrado en Caja Banco con fecha', fechaFinal);
+          // 1️⃣ Registrar en ventas_tarjeta (para control de cobros diferidos del banco)
+          await this.ventasTarjetaService.crearVentaTarjeta({
+            facturaId: f.id,
+            facturaIdPersonalizado: f.idPersonalizado || f.id,
+            clienteId: this.clienteId,
+            clienteNombre: this.clienteNombre,
+            fechaVenta: fechaFinal,
+            montoTotal: abonoReal, // Solo el monto que se está pagando ahora
+            ultimosCuatroTarjeta: this.ultimosCuatroTarjeta || undefined
+          }, true); // ✅ Pasar true para indicar que es cobro de deuda (actualizar si existe)
+          console.log('✅ Cobro de deuda con tarjeta registrado en módulo ventas_tarjeta');
         } catch (err) {
-          console.error('❌ Error registrando pago por tarjeta en Caja Banco:', err);
+          console.error('❌ Error registrando cobro en ventas_tarjeta:', err);
           // Mostrar advertencia pero no fallar la operación
-          Swal.fire({
+          await Swal.fire({
             icon: 'warning',
             title: 'Advertencia',
-            text: `El pago se registró pero hubo un error al registrar el pago por tarjeta en caja banco: ${err instanceof Error ? err.message : 'Error desconocido'}`,
+            text: `El pago se registró pero no apareció en el módulo de Cobros con Tarjeta. Error: ${err instanceof Error ? err.message : 'Error desconocido'}`,
             confirmButtonText: 'Aceptar'
           });
         }
