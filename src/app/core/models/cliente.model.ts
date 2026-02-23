@@ -62,6 +62,9 @@ export interface Cliente {
   /** Campo informativo: cantidad de facturas pendientes (solo para referencia) */
   _facturasPendientes?: number;
 
+  /** 🛒 Indica si es el cliente especial "CONSUMIDOR FINAL" (true = es cliente especial, no editable ni visible en listados) */
+  esConsumidorFinal?: boolean;
+
   /** Fecha de creación del registro en Firestore */
   createdAt?: any;
 

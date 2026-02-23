@@ -78,6 +78,13 @@ export class ListaClientesComponent implements OnInit, OnDestroy {
   cargando = true;
   filtroEstado: 'todos' | 'conHistorial' | 'sinHistorial' = 'todos';
   filtroCredito: 'todos' | 'conCredito' | 'sinCredito' = 'todos';
+
+  /**
+   * 🛡️ Verificar si un cliente es CONSUMIDOR FINAL
+   */
+  esConsumidorFinal(cliente: Cliente): boolean {
+    return cliente.esConsumidorFinal === true;
+  }
   filtroDeuda: 'todos' | 'conDeuda' | 'sinDeuda' = 'todos';
   ordenamiento: 'reciente' | 'nombre' = 'reciente';
 

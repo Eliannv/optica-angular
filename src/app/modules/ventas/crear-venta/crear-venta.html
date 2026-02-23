@@ -36,12 +36,16 @@
                     <div class="info-item info-item-cliente">
                         <span class="info-label">Cliente:</span>
                         <ng-container *ngIf="!modoEdicion; else clienteNombre">
-                            <div class="cliente-search">
+                            <!-- Badge de tipo de venta -->
+                            <span class="badge-tipo-venta" *ngIf="esVentaConsumidorFinal" title="Venta a consumidor final">
+                                CONSUMIDOR FINAL
+                            </span>
+                            <div class="cliente-search" *ngIf="!esVentaConsumidorFinal">
                                 <div class="cliente-search-input">
                                     <input
                                         type="text"
                                         class="cliente-search-field"
-                                        placeholder="Buscar por nombre, cédula o teléfono"
+                                        placeholder="Buscar cliente (opcional - presiona Enter para continuar)"
                                         [(ngModel)]="terminoBusquedaCliente"
                                         (input)="buscarClientesVenta()"
                                     />
@@ -207,7 +211,7 @@
                         </ng-container>
                         <ng-template #historialBadge>
                             <span class="badge" [class.badge-success]="historial" [class.badge-danger]="!historial && clienteId" [class.badge-info]="!clienteId">
-                                {{ historial ? '✓ Disponible' : (!clienteId ? 'Seleccione cliente' : '✗ No seleccionado') }}
+                                {{ historial ? '✓ Disponible' : (!clienteId ? 'Cliente opcional' : '✗ No seleccionado') }}
                             </span>
                             <div class="periodo-after">
                                 <span class="periodo-label">Periodo</span>
@@ -473,27 +477,27 @@
                                 <textarea class="input-compacto" rows="2" [(ngModel)]="observacion" placeholder="Detalle opcional de la venta"></textarea>
                             </div>
 
-                            <!-- 7️⃣ SECCIÓN DE CRÉDITO (SOLO SI ESTÁ ACTIVA) -->
-                            <div class="credito-seccion" *ngIf="esCredito || abono > 0 || saldoPendiente > 0">
+                            <!-- 7️⃣ SECCIÓN DE CRÉDITO (SOLO SI NO ES CONSUMIDOR FINAL) -->
+                            <div class="credito-seccion" *ngIf="!esVentaConsumidorFinal">
                                 <div class="credito-grid">
                                     <div class="credito-item credito-checkbox">
                                         <label class="checkbox-label">
-                                            <input type="checkbox" [(ngModel)]="esCredito" class="checkbox-input" />
+                                            <input type="checkbox" [(ngModel)]="esCredito" class="checkbox-input" [disabled]="esVentaConsumidorFinal" (ngModelChange)="onCreditoChange()" />
                                             <span class="checkbox-text">Crédito<br />Personal</span>
                                         </label>
                                     </div>
                                     <div class="credito-item">
-                                        <label class="label-compacto">{{ esCredito ? 'Abono inicial' : 'Abono hoy' }}</label>
+                                        <label class="label-compacto">{{ esCredito ? 'Abono inicial' : 'Monto recibido' }}</label>
                                         <input #abonoInput type="number" min="0" class="input-abono" [(ngModel)]="abono" (ngModelChange)="recalcularAbono()" (blur)="validarAbono()" (focus)="selectAll($event)" (keydown.enter)="onInputEnter($event, 'abono')" placeholder="0.00" />
                                     </div>
-                                    <div class="credito-item">
+                                    <div class="credito-item" *ngIf="esCredito">
                                         <span class="label-compacto">Saldo pendiente</span>
                                         <span class="saldo-valor">${{ saldoPendiente.toFixed(2) }}</span>
                                     </div>
                                 </div>
 
-                                <!-- VUELTO (SOLO EFECTIVO) -->
-                                <div class="vuelto-alert" *ngIf="metodoPago === 'Efectivo' && abono > 0">
+                                <!-- VUELTO (SOLO EFECTIVO Y SIN CRÉDITO) -->
+                                <div class="vuelto-alert" *ngIf="metodoPago === 'Efectivo' && !esCredito && abono > 0">
                                     <span class="vuelto-label">🔄 Vuelto a entregar:</span>
                                     <span class="vuelto-valor" [class.vuelto-negativo]="vuelto < 0">${{ vuelto | number:'1.2-2' }}</span>
                                 </div>
@@ -609,5 +613,34 @@
         <div class="t-center t-small">Gracias por su compra</div>
         <div class="t-center t-small">Conserve su factura</div>
 
+    </div>
+
+    <!-- 🛒 MODAL SELECCIÓN TIPO DE VENTA -->
+    <div class="modal-overlay" *ngIf="mostrarModalTipoVenta" (click)="cancelarModalTipoVenta()">
+        <div class="modal-tipo-venta" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <h3 class="modal-title">Selecciona el tipo de venta</h3>
+                <button type="button" class="btn-close-modal" (click)="cancelarModalTipoVenta()" title="Cancelar">✕</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-description">¿A quién va destinada esta venta?</p>
+                <div class="tipo-venta-opciones">
+                    <button type="button" class="btn-tipo-venta btn-consumidor-final" (click)="elegirTipoVenta('consumidor-final')">
+                        <div class="btn-tipo-venta-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shopping-cart-icon lucide-shopping-cart"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg></div>
+                        <div class="btn-tipo-venta-content">
+                            <h4 class="btn-tipo-venta-title">Consumidor Final</h4>
+                            <p class="btn-tipo-venta-desc">Venta genérica sin cliente registrado</p>
+                        </div>
+                    </button>
+                    <button type="button" class="btn-tipo-venta btn-cliente-registrado" (click)="elegirTipoVenta('cliente-registrado')">
+                        <div class="btn-tipo-venta-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user-icon lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+                        <div class="btn-tipo-venta-content">
+                            <h4 class="btn-tipo-venta-title">Cliente Registrado</h4>
+                            <p class="btn-tipo-venta-desc">Asignar a un cliente específico</p>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>

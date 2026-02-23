@@ -29,11 +29,18 @@ import {
   endBefore,
   limitToLast,
   DocumentSnapshot,
-  QueryDocumentSnapshot
+  QueryDocumentSnapshot,
+  getDoc
 } from '@angular/fire/firestore';
 import { Observable, shareReplay, map } from 'rxjs';
 import { Cliente } from '../models/cliente.model';
 import { FacturasService } from './facturas';
+
+/**
+ * ID fijo del cliente especial "CONSUMIDOR FINAL"
+ * Este cliente se usa para ventas sin cliente registrado específico
+ */
+export const CONSUMIDOR_FINAL_ID = 'CONSUMIDOR_FINAL_SYSTEM';
 
 @Injectable({
   providedIn: 'root',
@@ -52,13 +59,14 @@ export class ClientesService {
 
   /**
    * Recupera todos los clientes activos del sistema.
-   * 🎯 ACTUALIZADO: Con caché compartido
+   * 🎯 ACTUALIZADO: Con caché compartido y filtrando CONSUMIDOR FINAL
    *
-   * Este método filtra automáticamente los clientes desactivados (soft-delete),
+   * Este método filtra automáticamente los clientes desactivados (soft-delete)
+   * y el cliente especial CONSUMIDOR FINAL,
    * retornando únicamente aquellos cuyo campo 'activo' es diferente de false.
    * Los resultados se emiten en tiempo real a través de un Observable.
    *
-   * @returns Observable<Cliente[]> Stream reactivo con la lista de clientes activos.
+   * @returns Observable<Cliente[]> Stream reactivo con la lista de clientes activos (sin CONSUMIDOR FINAL).
    */
   getClientes(): Observable<Cliente[]> {
     if (!this.cachedClientes$) {
@@ -66,7 +74,11 @@ export class ClientesService {
       this.cachedClientes$ = collectionData(q, {
         idField: 'id',
       }).pipe(
-        map(data => data as Cliente[]),
+        map(data => {
+          // Filtrar el cliente CONSUMIDOR FINAL de los resultados
+          const clientes = data as Cliente[];
+          return clientes.filter(c => c.id !== CONSUMIDOR_FINAL_ID && !c.esConsumidorFinal);
+        }),
         shareReplay(1) // 🎯 Compartir resultado entre suscriptores
       );
     }
@@ -82,13 +94,16 @@ export class ClientesService {
   /**
    * Obtiene TODOS los clientes activos directamente desde Firestore (sin caché Observable).
    * Útil para búsquedas donde se necesitan datos frescos garantizados.
+   * Filtra automáticamente el cliente CONSUMIDOR FINAL.
    * 
-   * @returns Promise<Cliente[]> Array con todos los clientes activos.
+   * @returns Promise<Cliente[]> Array con todos los clientes activos (sin CONSUMIDOR FINAL).
    */
   async getAllClientesDirect(): Promise<Cliente[]> {
     const q = query(this.clientesRef, where('activo', '!=', false));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Cliente));
+    const clientes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Cliente));
+    // Filtrar el cliente CONSUMIDOR FINAL
+    return clientes.filter(c => c.id !== CONSUMIDOR_FINAL_ID && !c.esConsumidorFinal);
   }
 
   /**
@@ -543,6 +558,10 @@ export class ClientesService {
     // Aplicar búsqueda en múltiples campos
     const termino = terminoBusqueda.toLowerCase().trim();
     clientes = clientes.filter(c => {
+      // Filtrar CONSUMIDOR FINAL
+      if (c.id === CONSUMIDOR_FINAL_ID || c.esConsumidorFinal) {
+        return false;
+      }
       const nombre = `${c.nombres ?? ''} ${c.apellidos ?? ''}`.toLowerCase();
       const cedula = (c.cedula ?? '').toLowerCase();
       const telefono = (c.telefono ?? '').toLowerCase();
@@ -606,4 +625,53 @@ export class ClientesService {
       // No lanzar error para que no bloquee el flujo principal
       // Solo loguear para debugging
     }
-  }}
+  }
+
+  /**
+   * Obtiene el cliente especial CONSUMIDOR FINAL
+   * Este cliente se usa para ventas sin cliente registrado específico
+   * Busca por el campo esConsumidorFinal = true
+   * 
+   * @returns Promise<Cliente | null> Cliente CONSUMIDOR FINAL o null si no existe
+   */
+  async getConsumidorFinal(): Promise<Cliente | null> {
+    try {
+      // Buscar cliente con esConsumidorFinal = true
+      const q = query(
+        this.clientesRef,
+        where('esConsumidorFinal', '==', true),
+        limit(1)
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        return { id: doc.id, ...doc.data() } as Cliente;
+      }
+      
+      // Fallback: intentar con el ID fijo (por compatibilidad)
+      const clienteDoc = doc(this.firestore, `clientes/${CONSUMIDOR_FINAL_ID}`);
+      const docSnapshot = await getDoc(clienteDoc);
+      
+      if (docSnapshot.exists()) {
+        return { id: docSnapshot.id, ...docSnapshot.data() } as Cliente;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('❌ Error obteniendo cliente CONSUMIDOR FINAL:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Verifica si un cliente es el CONSUMIDOR FINAL
+   * 
+   * @param clienteId ID del cliente a verificar
+   * @returns boolean True si es CONSUMIDOR FINAL
+   */
+  esConsumidorFinal(clienteId: string | undefined): boolean {
+    return clienteId === CONSUMIDOR_FINAL_ID;
+  }
+}

@@ -66,7 +66,9 @@
             </svg>
             Volver
           </button>
+          <!-- 🛡️ Ocultar botón Editar para CONSUMIDOR FINAL -->
           <button
+            *ngIf="!esConsumidorFinal"
             class="btn btn-primary"
             (click)="editarCliente()"
             title="Editar información del cliente"
@@ -129,7 +131,9 @@
         <span>Información</span>
       </button>
       
+      <!-- 🛡️ Ocultar pestaña Historial Clínico para CONSUMIDOR FINAL -->
       <button
+        *ngIf="!esConsumidorFinal"
         class="tab-button"
         [class.active]="tabActiva === 'historial'"
         (click)="cambiarTab('historial')"

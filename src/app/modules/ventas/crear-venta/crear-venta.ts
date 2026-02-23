@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -7,6 +7,7 @@ import { firstValueFrom, Subject, Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
 import { ClientesService } from '../../../core/services/clientes';
+import { CONSUMIDOR_FINAL_ID } from '../../../core/services/clientes';
 import { ProductosService } from '../../../core/services/productos';
 import { HistorialClinicoService } from '../../../core/services/historial-clinico.service';
 import { FacturasService } from '../../../core/services/facturas';
@@ -122,6 +123,10 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   // ✅ CRÉDITO PERSONAL
   esCredito = false; // Checkbox para venta a crédito personal
 
+  // 🛒 TIPO DE VENTA (CONSUMIDOR FINAL)
+  tipoVentaSeleccionado: 'consumidor-final' | 'cliente-registrado' | null = null; // Tipo de venta elegido
+  mostrarModalTipoVenta = false; // Controla si se muestra el modal de selección de tipo de venta
+
   loading = true;
   guardando = false;
 
@@ -160,7 +165,8 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
 
   /**
    * Valida si se puede guardar la venta
-   * Requiere: al menos un item (producto O servicio) y cliente
+   * Requiere: al menos un item (producto O servicio)
+   * NO requiere cliente seleccionado (se elegirá tipo de venta al guardar)
    * En modo edición, también requiere que la factura original esté cargada
    */
   get puedeGuardar(): boolean {
@@ -168,11 +174,26 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     if (this.cargandoFactura) {
       return false;
     }
-    // En modo edición, verificar que la factura original esté cargada
+    // En modo edición, verificar que la factura original esté cargada y que haya cliente
     if (this.modoEdicion && !this.facturaOriginal) {
       return false;
     }
-    return Boolean(this.clienteId && this.items.length > 0);
+    if (this.modoEdicion && !this.clienteId) {
+      return false;
+    }
+    // Para modo creación, solo se requieren items
+    return this.items.length > 0;
+  }
+
+  /**
+   * Verifica si el cliente actual es CONSUMIDOR FINAL
+   */
+  get esVentaConsumidorFinal(): boolean {
+    return (
+      this.clienteId === CONSUMIDOR_FINAL_ID || 
+      this.tipoVentaSeleccionado === 'consumidor-final' ||
+      this.cliente?.esConsumidorFinal === true
+    );
   }
 
   /**
@@ -208,7 +229,8 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     private cajaBancoService: CajaBancoService,
     private cajaChicaService: CajaChicaService,
     private authService: AuthService,
-    private ventasTarjetaService: VentasTarjetaService
+    private ventasTarjetaService: VentasTarjetaService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   async ngOnInit() {
@@ -555,7 +577,9 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   async seleccionarClienteVenta(cliente: Cliente): Promise<void> {
     if (!cliente.id) return;
 
-    if (this.items.length > 0) {
+    // 🛒 Solo mostrar confirmación si YA HAY un cliente seleccionado y hay items en el carrito
+    // Si no hay cliente previo, es la primera selección -> no pedir confirmación
+    if (this.clienteId && this.items.length > 0) {
       const result = await Swal.fire({
         icon: 'warning',
         title: 'Cambiar cliente',
@@ -676,12 +700,10 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
         <!-- Cabecera con fecha y doctor -->
         <div class="header-info-detalle">
           <div class="header-item-detalle">
-            <span>📅</span>
             <span class="header-label-detalle">Fecha del chequeo:</span>
             <span class="header-value-detalle">${this.formatearFechaHistorial(historial.fechaHoraChequeo, historial.createdAt)}</span>
           </div>
           <div class="header-item-detalle">
-            <span>👨‍⚕️</span>
             <span class="header-label-detalle">Doctor/Optometrista:</span>
             <span class="header-value-detalle">${formatearValor(historial.doctor)}</span>
           </div>
@@ -1324,6 +1346,20 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     this.saldoPendiente = Math.max(0, +(this.total - this._abono).toFixed(2));
   }
 
+  /**
+   * 💳 Manejar cambio en el checkbox de crédito
+   */
+  onCreditoChange() {
+    if (!this.esCredito) {
+      // Si se desactiva el crédito, resetear abono y saldo pendiente
+      this.abono = 0;
+      this.saldoPendiente = 0;
+    } else {
+      // Si se activa el crédito, calcular saldo pendiente
+      this.recalcularAbono();
+    }
+  }
+
   // ✅ Navegación por Enter entre inputs
   onInputEnter(event: Event, inputType: string, itemIndex?: number) {
     const keyboardEvent = event as KeyboardEvent;
@@ -1431,18 +1467,9 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     this.recalcularAbono(); // Recalcular saldo pendiente con el nuevo total
   }
 agregarProducto(p: any) {
-  if (!this.modoEdicion && !this.clienteId) {
-    Swal.fire({
-      icon: 'warning',
-      title: 'Selecciona un cliente',
-      text: 'Debes elegir un cliente antes de agregar productos.',
-      confirmButtonText: 'Entendido'
-    });
-    return;
-  }
-
-  // ✅ VALIDAR: No permitir agregar productos si no se ha seleccionado opción de historial
-  if (!this.modoEdicion && this.clienteId && !this.sinHistorial && !this.historialId) {
+  // 🛒 NUEVO: Permitir agregar productos sin cliente (para consumidor final)
+  // Solo validar historial si hay un cliente registrado (no consumidor final)
+  if (!this.modoEdicion && this.clienteId && !this.esVentaConsumidorFinal && !this.sinHistorial && !this.historialId) {
     Swal.fire({
       icon: 'warning',
       title: 'Selecciona una opción de historial',
@@ -1831,6 +1858,113 @@ private toNumber(v: any): number {
 async guardarEImprimir() {
   if (!this.items.length || this.guardando) return;
 
+  // 🛒 NUEVA VALIDACIÓN: Si no hay cliente seleccionado (modo creación), abrir modal para elegir tipo de venta
+  if (!this.modoEdicion && !this.clienteId) {
+    this.mostrarModalTipoVenta = true;
+    return; // Esperamos que el usuario elija en el modal
+  }
+
+  // Continuar con el proceso normal de guardado
+  await this.procesarGuardadoVenta();
+}
+
+/**
+ * 🛒 Procesar elección de tipo de venta desde el modal
+ */
+async elegirTipoVenta(tipo: 'consumidor-final' | 'cliente-registrado') {
+  this.tipoVentaSeleccionado = tipo;
+  this.mostrarModalTipoVenta = false;
+
+  if (tipo === 'consumidor-final') {
+    // ✅ Validar que NO esté activo el crédito
+    if (this.esCredito) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Crédito activo',
+        text: 'No se puede realizar una venta a consumidor final con crédito activo. Por favor, desactive el crédito primero.',
+        confirmButtonText: 'Entendido'
+      });
+      this.tipoVentaSeleccionado = null;
+      this.mostrarModalTipoVenta = true; // Volver a mostrar el modal
+      return;
+    }
+
+    // ✅ Validar que el monto recibido cubra el total (para consumidor final debe pagar completo)
+    if (this.abono < this.total) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Pago incompleto',
+        html: `Para una venta a consumidor final, el monto recibido debe ser igual o mayor al total de la venta.<br><br>
+               <strong>Total a pagar:</strong> $${this.total.toFixed(2)}<br>
+               <strong>Monto recibido:</strong> $${this.abono.toFixed(2)}<br><br>
+               Por favor, ingrese el monto completo antes de continuar.`,
+        confirmButtonText: 'Entendido'
+      });
+      this.tipoVentaSeleccionado = null;
+      this.mostrarModalTipoVenta = true; // Volver a mostrar el modal
+      return;
+    }
+
+    // Asignar automáticamente el cliente CONSUMIDOR FINAL
+    try {
+      const consumidorFinal = await this.clientesSrv.getConsumidorFinal();
+      
+      if (!consumidorFinal) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Cliente no encontrado',
+          text: 'No se pudo encontrar el cliente CONSUMIDOR FINAL. Por favor contacte al administrador.',
+          confirmButtonText: 'Entendido'
+        });
+        this.tipoVentaSeleccionado = null;
+        return;
+      }
+
+      this.clienteId = consumidorFinal.id!;
+      this.cliente = consumidorFinal;
+      this.historialId = '';
+      this.historial = null;
+      this.sinHistorial = true;
+      this.esCredito = false; // No permitir crédito para consumidor final
+      
+      // Continuar con el guardado
+      await this.procesarGuardadoVenta();
+    } catch (error) {
+      console.error('❌ Error al obtener cliente CONSUMIDOR FINAL:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Ocurrió un error al configurar la venta a consumidor final.',
+        confirmButtonText: 'Entendido'
+      });
+      this.tipoVentaSeleccionado = null;
+    }
+  } else {
+    // Cliente registrado: solicitar que seleccione un cliente
+    await Swal.fire({
+      icon: 'info',
+      title: 'Seleccionar cliente',
+      text: 'Por favor, seleccione un cliente registrado para continuar con la venta.',
+      confirmButtonText: 'Entendido'
+    });
+    this.tipoVentaSeleccionado = null;
+  }
+}
+
+/**
+ * 🛒 Cancelar selección de tipo de venta
+ */
+cancelarModalTipoVenta() {
+  this.mostrarModalTipoVenta = false;
+  this.tipoVentaSeleccionado = null;
+}
+
+/**
+ * 🛒 PROCESO PRINCIPAL DE GUARDADO (extraído de guardarEImprimir)
+ */
+async procesarGuardadoVenta() {
+  if (!this.items.length || this.guardando) return;
+
   // ✅ VALIDACIÓN: Verificar que se haya seleccionado opción de historial
   if (!this.modoEdicion && this.clienteId && !this.sinHistorial && !this.historialId) {
     Swal.fire({
@@ -2048,6 +2182,13 @@ async guardarEImprimir() {
     
     console.log('✅ Fecha validada (Date):', fechaFinal);
 
+    // ✅ OBTENER USUARIO ACTUAL LOGEADO
+    const usuario = this.authService.getCurrentUser();
+    const usuarioId = usuario?.id || 'admin'; // Fallback a 'admin' si no hay usuario
+    const usuarioNombre = usuario?.nombre || 'Usuario';
+    
+    console.log('👤 Usuario actual:', { id: usuarioId, nombre: usuarioNombre });
+
     // ✅ CREAR FACTURA CON DATOS DE CRÉDITO
     const observacionLimpia = (this.observacion || '').trim();
     const factura: any = {
@@ -2080,7 +2221,7 @@ async guardarEImprimir() {
       codigoTransferencia: this.metodoPago === 'Transferencia' ? this.codigoTransferencia : undefined,
       observacion: observacionLimpia || undefined,
       fecha: fechaFinal,  // Firestore convertirá Date a Timestamp automáticamente
-      usuarioId: 'admin',
+      usuarioId: usuarioId, // ✅ Usuario actual logeado
 
       // ✅ NUEVO: DATOS DE CRÉDITO PERSONAL
       esCredito: this.esCredito,
@@ -2153,7 +2294,7 @@ async guardarEImprimir() {
     }
 
     // ✅ REGISTRAR AUTOMÁTICAMENTE EN CAJA CHICA O CAJA BANCO
-    const usuario = this.authService.getCurrentUser();
+    // (usuario ya obtenido antes de crear factura)
     
     // Variable para controlar si ya se registró el movimiento (evitar duplicados)
     let movimientoYaRegistrado = false;
@@ -2327,12 +2468,49 @@ async guardarEImprimir() {
       fecha: convertirTimestamp(factura.fecha)
     };
 
-    // Esperar a que Angular renderice el DOM del ticket antes de imprimir
-    setTimeout(() => {
-      this.imprimirTicket();
-    }, 200);
+    console.log('✅ facturaParaImprimir seteada:', this.facturaParaImprimir);
 
-    // ✅ Mostrar mensaje de éxito y redirigir (después de dar tiempo a la impresión)
+    // Forzar detección de cambios para renderizar el ticket
+    this.cdr.detectChanges();
+
+    // Función auxiliar para intentar imprimir con reintentos
+    const intentarImprimir = (intentos: number = 0) => {
+      console.log(`🖨️ Intento de impresión #${intentos + 1}...`);
+      const ticketElement = document.getElementById('ticket');
+      
+      if (ticketElement) {
+        console.log('📄 ✅ Elemento ticket encontrado');
+        this.imprimirTicket();
+      } else {
+        console.warn('📄 ⚠️ Elemento ticket NO encontrado');
+        
+        // Reintentar hasta 3 veces con intervalos crecientes
+        if (intentos < 3) {
+          const delay = 200 * (intentos + 1); // 200ms, 400ms, 600ms
+          console.log(`⏳ Reintentando en ${delay}ms...`);
+          setTimeout(() => {
+            this.cdr.detectChanges(); // Forzar detección de nuevo
+            intentarImprimir(intentos + 1);
+          }, delay);
+        } else {
+          console.error('❌ No se pudo renderizar el ticket después de 3 intentos');
+          Swal.fire({
+            icon: 'error',
+            title: 'Error de impresión',
+            text: 'No se pudo generar el ticket. La venta se guardó correctamente, pero no se pudo imprimir.',
+            confirmButtonText: 'Entendido'
+          });
+        }
+      }
+    };
+
+    // Usar requestAnimationFrame para intentar imprimir lo antes posible (minimizar delay)
+    requestAnimationFrame(() => {
+      this.cdr.detectChanges(); // Forzar detección una vez más
+      intentarImprimir();
+    });
+
+    // ✅ Mostrar mensaje de éxito y redirigir (después de dar tiempo a la impresión y reintentos)
     setTimeout(() => {
       const tituloMensaje = this.modoEdicion ? '¡Venta Actualizada!' : '¡Venta Realizada!';
       const textoMensaje = this.modoEdicion 
@@ -2343,13 +2521,36 @@ async guardarEImprimir() {
         icon: 'success',
         title: tituloMensaje,
         text: textoMensaje,
-        confirmButtonText: 'Continuar',
+        showDenyButton: true,
+        confirmButtonText: 'Finalizar',
+        denyButtonText: 'Reimprimir Ticket',
         allowOutsideClick: false,
         allowEscapeKey: false
-      }).then(() => {
-        this.router.navigate(['/clientes/historial-clinico']);
+      }).then((result) => {
+        if (result.isDenied) {
+          // Usuario quiere reimprimir
+          this.imprimirTicket();
+          // Mostrar nuevamente el modal
+          Swal.fire({
+            icon: 'success',
+            title: tituloMensaje,
+            text: textoMensaje,
+            showDenyButton: true,
+            confirmButtonText: 'Finalizar',
+            denyButtonText: 'Reimprimir Ticket',
+            allowOutsideClick: false,
+            allowEscapeKey: false
+          }).then((result2) => {
+            if (result2.isDenied) {
+              this.imprimirTicket();
+            }
+            this.router.navigate(['/clientes/historial-clinico']);
+          });
+        } else {
+          this.router.navigate(['/clientes/historial-clinico']);
+        }
       });
-    }, 1000);
+    }, 1500); // Ajustado a 1500ms (200 + 400 + 600 = 1200 + margen)
 
   } catch (e) {
     console.error(e);
@@ -2388,16 +2589,29 @@ private cleanUndefined(obj: any): any {
 
 
   imprimirTicket() {
+    console.log('🖨️ imprimirTicket() llamado');
     const ticket = document.getElementById('ticket');
     if (!ticket) {
+      console.error('❌ Elemento #ticket no encontrado en el DOM');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error de impresión',
+        text: 'No se pudo generar el ticket para imprimir. Por favor, intente nuevamente.',
+        confirmButtonText: 'Entendido'
+      });
       return;
     }
 
+    console.log('✅ Elemento #ticket encontrado, abriendo ventana de impresión...');
+    
     // Abrir ventana aislada solo con el ticket para evitar que se oculte por estilos de la app
     const w = window.open('', 'PRINT', 'height=600,width=380');
     if (!w) {
+      
       return;
     }
+
+    console.log('✅ Ventana de impresión abierta, generando contenido...');
 
     const styles = `
       html, body { margin: 0; padding: 0; width: 80mm; background: #fff; font-family: monospace; }

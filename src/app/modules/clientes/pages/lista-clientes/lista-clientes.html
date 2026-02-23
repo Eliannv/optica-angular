@@ -108,25 +108,35 @@
                                 </td>
                                 <td class="col-acciones">
                                     <div class="table-actions">
-                                        <button class="btn-action btn-action-view" (click)="$event.stopPropagation(); irFichaClinica(cliente.id!)" title="Ir a ficha clinica">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-stethoscope-icon lucide-stethoscope"><path d="M11 2v2"/><path d="M5 2v2"/><path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"/><path d="M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/></svg>
-                  </button>
-                                        <button class="btn-action btn-action-info" (click)="$event.stopPropagation(); abrirHistorialesPeriodo(cliente)" title="Historiales del periodo">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M10 13h4"/><path d="M10 17h4"/></svg>
-                  </button>
-                                        <!-- Botón Venta sin historial -->
-                                        <button class="btn-action btn-action-success" (click)="$event.stopPropagation(); ventaSinHistorial(cliente.id!)" title="Venta sin historial clínico">
-                                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shopping-cart-icon lucide-shopping-cart"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
-                                        </button>
-                                        <button class="btn-action btn-action-payment" (click)="$event.stopPropagation(); cobrarDeuda(cliente.id!)" [disabled]="!cajaChicaAbierta || !cliente.id || (getDeuda(cliente)?.deudaTotal ?? 0) <= 0" [title]="!cajaChicaAbierta ? 'Abre una caja chica primero' : (getDeuda(cliente)?.deudaTotal ?? 0) > 0 ? 'Cobrar deuda' : 'Sin deuda'">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
-                                        </button>
-                                        <button class="btn-action btn-action-warning" (click)="$event.stopPropagation(); editarCliente(cliente.id!)" title="Editar cliente">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                  </button>
-                                        <button *ngIf="esAdmin" class="btn-action btn-action-danger" (click)="$event.stopPropagation(); desactivarCliente(cliente.id!)" title="Desactivar cliente">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-                  </button>
+                                        <!-- 🛡️ CONSUMIDOR FINAL: Solo mostrar Ficha Cliente -->
+                                        <ng-container *ngIf="esConsumidorFinal(cliente); else accionesNormales">
+                                            <button class="btn-action btn-action-view" (click)="$event.stopPropagation(); irFichaClinica(cliente.id!)" title="Ir a ficha del cliente">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-stethoscope-icon lucide-stethoscope"><path d="M11 2v2"/><path d="M5 2v2"/><path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"/><path d="M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/></svg>
+                                            </button>
+                                        </ng-container>
+                                        
+                                        <!-- ✅ ACCIONES NORMALES PARA OTROS CLIENTES -->
+                                        <ng-template #accionesNormales>
+                                            <button class="btn-action btn-action-view" (click)="$event.stopPropagation(); irFichaClinica(cliente.id!)" title="Ir a ficha clinica">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-stethoscope-icon lucide-stethoscope"><path d="M11 2v2"/><path d="M5 2v2"/><path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"/><path d="M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/></svg>
+                                            </button>
+                                            <button class="btn-action btn-action-info" (click)="$event.stopPropagation(); abrirHistorialesPeriodo(cliente)" title="Historiales del periodo">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M10 13h4"/><path d="M10 17h4"/></svg>
+                                            </button>
+                                            <!-- Botón Venta sin historial -->
+                                            <button class="btn-action btn-action-success" (click)="$event.stopPropagation(); ventaSinHistorial(cliente.id!)" title="Venta sin historial clínico">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shopping-cart-icon lucide-shopping-cart"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+                                            </button>
+                                            <button class="btn-action btn-action-payment" (click)="$event.stopPropagation(); cobrarDeuda(cliente.id!)" [disabled]="!cajaChicaAbierta || !cliente.id || (getDeuda(cliente)?.deudaTotal ?? 0) <= 0" [title]="!cajaChicaAbierta ? 'Abre una caja chica primero' : (getDeuda(cliente)?.deudaTotal ?? 0) > 0 ? 'Cobrar deuda' : 'Sin deuda'">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+                                            </button>
+                                            <button class="btn-action btn-action-warning" (click)="$event.stopPropagation(); editarCliente(cliente.id!)" title="Editar cliente">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                                            </button>
+                                            <button *ngIf="esAdmin" class="btn-action btn-action-danger" (click)="$event.stopPropagation(); desactivarCliente(cliente.id!)" title="Desactivar cliente">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                                            </button>
+                                        </ng-template>
                                     </div>
                                 </td>
                             </tr>

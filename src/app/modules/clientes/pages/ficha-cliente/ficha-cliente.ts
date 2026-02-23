@@ -46,6 +46,13 @@ export class FichaClienteComponent implements OnInit {
   cliente: Cliente | null = null;
   cargando = true;
   returnTo = '';
+
+  /**
+   * 🛡️ Verificar si el cliente actual es CONSUMIDOR FINAL
+   */
+  get esConsumidorFinal(): boolean {
+    return this.cliente?.esConsumidorFinal === true;
+  }
   
   // Control de pestañas (Cuentas eliminada - todo en Facturación)
   tabActiva: 'informacion' | 'historial' | 'facturas' = 'informacion';
