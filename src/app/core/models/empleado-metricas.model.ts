@@ -21,6 +21,12 @@ export interface MetricasVentas {
   /** Promedio por venta */
   promedioPorVenta: number;
   
+  /** Monto abonado por el empleado (suma de campo 'abonado' de facturas) */
+  montoAbonado: number;
+  
+  /** Promedio de monto abonado por venta */
+  promedioAbonado: number;
+  
   /** Comparación con mes anterior (porcentaje) */
   variacionMesAnterior?: number;
   
@@ -41,6 +47,9 @@ export interface MetricasCobros {
   
   /** Cantidad de cobros realizados */
   cantidadCobros: number;
+  
+  /** Saldo restante total de las deudas */
+  saldoRestante: number;
 }
 
 /**
@@ -76,6 +85,30 @@ export interface PagoEmpleado {
 }
 
 /**
+ * Métricas de ingresos registrados por el empleado.
+ * Fuente: movimientos_cajas_chicas y movimientos_cajas_banco (tipo = INGRESO)
+ */
+export interface MetricasIngresos {
+  /** Monto total de ingresos en caja chica */
+  montoCajaChica: number;
+  
+  /** Cantidad de ingresos en caja chica */
+  cantidadCajaChica: number;
+  
+  /** Monto total de ingresos en caja banco */
+  montoCajaBanco: number;
+  
+  /** Cantidad de ingresos en caja banco */
+  cantidadCajaBanco: number;
+  
+  /** Total de ingresos (suma de ambas cajas) */
+  montoTotal: number;
+  
+  /** Cantidad total de ingresos */
+  cantidadTotal: number;
+}
+
+/**
  * Resumen mensual del rendimiento del empleado.
  */
 export interface ResumenMensual {
@@ -93,6 +126,9 @@ export interface ResumenMensual {
   
   /** Métricas de pagos del mes */
   pagos: MetricasPagos;
+  
+  /** Métricas de ingresos registrados del mes */
+  ingresos: MetricasIngresos;
 }
 
 /**

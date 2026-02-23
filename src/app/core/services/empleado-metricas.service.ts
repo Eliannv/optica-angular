@@ -27,6 +27,7 @@ import {
   MetricasVentas,
   MetricasCobros,
   MetricasPagos,
+  MetricasIngresos,
   ResumenMensual,
   EmpleadoConMetricas,
   MetricaGlobal,
@@ -65,18 +66,24 @@ export class EmpleadoMetricasService {
 
       const totalVentas = facturas.length;
       const montoTotalVendido = facturas.reduce((sum, f: any) => sum + (f.total || 0), 0);
+      const montoAbonado = facturas.reduce((sum, f: any) => sum + (f.abonado || 0), 0);
       const promedioPorVenta = totalVentas > 0 ? montoTotalVendido / totalVentas : 0;
+      const promedioAbonado = totalVentas > 0 ? montoAbonado / totalVentas : 0;
 
       return {
         totalVentas,
         montoTotalVendido,
-        promedioPorVenta
+        promedioPorVenta,
+        montoAbonado,
+        promedioAbonado
       };
     } catch (error: any) {
       return {
         totalVentas: 0,
         montoTotalVendido: 0,
-        promedioPorVenta: 0
+        promedioPorVenta: 0,
+        montoAbonado: 0,
+        promedioAbonado: 0
       };
     }
   }
@@ -105,16 +112,30 @@ export class EmpleadoMetricasService {
       const totalCobros = cobros.length;
       const montoCobrado = cobros.reduce((sum, c: any) => sum + (c.montoPagado || 0), 0);
 
+      // Calcular saldo restante de las facturas con deuda
+      const facturasRef = collection(this.firestore, 'facturas');
+      const qFacturas = query(
+        facturasRef,
+        where('usuarioId', '==', usuarioId),
+        where('esDeuda', '==', true)
+      );
+
+      const snapshotFacturas = await getDocs(qFacturas);
+      const facturas = snapshotFacturas.docs.map(doc => doc.data());
+      const saldoRestante = facturas.reduce((sum, f: any) => sum + (f.saldoRestante || 0), 0);
+
       return {
         totalCobros,
         montoCobrado,
-        cantidadCobros: totalCobros
+        cantidadCobros: totalCobros,
+        saldoRestante
       };
     } catch (error: any) {
       return {
         totalCobros: 0,
         montoCobrado: 0,
-        cantidadCobros: 0
+        cantidadCobros: 0,
+        saldoRestante: 0
       };
     }
   }
@@ -179,6 +200,69 @@ export class EmpleadoMetricasService {
   }
 
   /**
+   * Calcula los ingresos registrados por el empleado.
+   * Fuente: movimientos_cajas_chicas y movimientos_cajas_banco (tipo = INGRESO)
+   * 
+   * ⚠️ IMPORTANTE: Busca por usuario_id (quien REGISTRA el ingreso)
+   */
+  async calcularMetricasIngresos(
+    usuarioId: string,
+    fechaInicio: Date,
+    fechaFin: Date
+  ): Promise<MetricasIngresos> {
+    try {
+      // Ingresos de caja chica
+      const cajaChicaRef = collection(this.firestore, 'movimientos_cajas_chicas');
+      const qChica = query(
+        cajaChicaRef,
+        where('usuario_id', '==', usuarioId),
+        where('tipo', '==', 'INGRESO'),
+        where('fecha', '>=', Timestamp.fromDate(fechaInicio)),
+        where('fecha', '<=', Timestamp.fromDate(fechaFin))
+      );
+
+      const snapshotChica = await getDocs(qChica);
+      const ingresosChica = snapshotChica.docs.map(doc => doc.data());
+      const montoCajaChica = ingresosChica.reduce((sum, m: any) => sum + (m.monto || 0), 0);
+      const cantidadCajaChica = ingresosChica.length;
+
+      // Ingresos de caja banco
+      const cajaBancoRef = collection(this.firestore, 'movimientos_cajas_banco');
+      const qBanco = query(
+        cajaBancoRef,
+        where('usuario_id', '==', usuarioId),
+        where('tipo', '==', 'INGRESO'),
+        where('fecha', '>=', Timestamp.fromDate(fechaInicio)),
+        where('fecha', '<=', Timestamp.fromDate(fechaFin))
+      );
+
+      const snapshotBanco = await getDocs(qBanco);
+      const ingresosBanco = snapshotBanco.docs.map(doc => doc.data());
+      const montoCajaBanco = ingresosBanco.reduce((sum, m: any) => sum + (m.monto || 0), 0);
+      const cantidadCajaBanco = ingresosBanco.length;
+
+      return {
+        montoCajaChica,
+        cantidadCajaChica,
+        montoCajaBanco,
+        cantidadCajaBanco,
+        montoTotal: montoCajaChica + montoCajaBanco,
+        cantidadTotal: cantidadCajaChica + cantidadCajaBanco
+      };
+    } catch (error: any) {
+      console.error('❌ Error al calcular ingresos de empleado:', error);
+      return {
+        montoCajaChica: 0,
+        cantidadCajaChica: 0,
+        montoCajaBanco: 0,
+        cantidadCajaBanco: 0,
+        montoTotal: 0,
+        cantidadTotal: 0
+      };
+    }
+  }
+
+  /**
    * Calcula el resumen mensual completo de un empleado.
    * Combina las tres fuentes de datos SIN mezclarlas.
    */
@@ -190,10 +274,11 @@ export class EmpleadoMetricasService {
     const fechaInicio = new Date(year, month - 1, 1);
     const fechaFin = new Date(year, month, 0, 23, 59, 59);
 
-    const [ventas, cobros, pagos] = await Promise.all([
+    const [ventas, cobros, pagos, ingresos] = await Promise.all([
       this.calcularMetricasVentas(usuarioId, fechaInicio, fechaFin),
       this.calcularMetricasCobros(usuarioId, fechaInicio, fechaFin),
-      this.calcularMetricasPagos(usuarioId, fechaInicio, fechaFin)
+      this.calcularMetricasPagos(usuarioId, fechaInicio, fechaFin),
+      this.calcularMetricasIngresos(usuarioId, fechaInicio, fechaFin)
     ]);
 
     const mesNombre = this.obtenerNombreMes(month, year);
@@ -204,7 +289,8 @@ export class EmpleadoMetricasService {
       mesNombre,
       ventas,
       cobros,
-      pagos
+      pagos,
+      ingresos
     };
   }
 

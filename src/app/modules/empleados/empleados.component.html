@@ -92,7 +92,7 @@
                 <div class="col-md-6 mb-3">
                     <div class="card shadow-sm">
                         <div class="card-header">
-                            <h6 class="mb-0">Top 3 por Monto Vendido</h6>
+                            <h6 class="mb-0">Top 3 por total Ventas</h6>
                         </div>
                         <div class="card-body">
                             <div *ngIf="rankingMontos.length === 0" class="text-center text-muted py-3">
@@ -332,15 +332,23 @@
                     <div class="metrics-container-centered">
                         <div class="metric-card-compact" style="min-width: 140px;">
                             <div class="metric-value">{{ resumenMensualDetalle.ventas.totalVentas }}</div>
-                            <div class="metric-label">Ventas</div>
+                            <div class="metric-label">Ventas realizadas</div>
                         </div>
                         <div class="metric-card-compact" style="min-width: 140px;">
                             <div class="metric-value">{{ formatearMoneda(resumenMensualDetalle.ventas.montoTotalVendido) }}</div>
-                            <div class="metric-label">Monto vendido</div>
+                            <div class="metric-label">Total vendido</div>
                         </div>
                         <div class="metric-card-compact" style="min-width: 140px;">
                             <div class="metric-value">{{ formatearMoneda(resumenMensualDetalle.ventas.promedioPorVenta) }}</div>
-                            <div class="metric-label">Promedio</div>
+                            <div class="metric-label">Promedio ventas</div>
+                        </div>
+                        <div class="metric-card-compact" style="min-width: 140px;">
+                            <div class="metric-value">{{ formatearMoneda(resumenMensualDetalle.ventas.montoAbonado) }}</div>
+                            <div class="metric-label">Monto vendido</div>
+                        </div>
+                        <div class="metric-card-compact" style="min-width: 140px;">
+                            <div class="metric-value">{{ formatearMoneda(resumenMensualDetalle.ventas.promedioAbonado) }}</div>
+                            <div class="metric-label">Promedio monto</div>
                         </div>
                     </div>
                 </div>
@@ -355,7 +363,38 @@
                         </div>
                         <div class="metric-card-compact" style="min-width: 140px;">
                             <div class="metric-value">{{ formatearMoneda(resumenMensualDetalle.cobros.montoCobrado) }}</div>
-                            <div class="metric-label">Total cobrado</div>
+                            <div class="metric-label">Monto cobrado</div>
+                        </div>
+                        <div class="metric-card-compact" style="min-width: 140px;">
+                            <div class="metric-value">{{ formatearMoneda(resumenMensualDetalle.cobros.saldoRestante) }}</div>
+                            <div class="metric-label">Saldos restantes</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DINERO INGRESADO POR EL EMPLEADO -->
+                <div class="seccion-detalle-compact mb-3">
+                    <h6 class="seccion-titulo-compact">Dinero ingresado por el empleado</h6>
+                    <div class="metrics-container-centered">
+                        <div class="metric-card-compact" style="min-width: 140px;">
+                            <div class="metric-value">{{ resumenMensualDetalle.ingresos.cantidadCajaChica }}</div>
+                            <div class="metric-label">Caja chica</div>
+                        </div>
+                        <div class="metric-card-compact" style="min-width: 140px;">
+                            <div class="metric-value">{{ formatearMoneda(resumenMensualDetalle.ingresos.montoCajaChica) }}</div>
+                            <div class="metric-label">Monto ingresado</div>
+                        </div>
+                        <div class="metric-card-compact" style="min-width: 140px;">
+                            <div class="metric-value">{{ resumenMensualDetalle.ingresos.cantidadCajaBanco }}</div>
+                            <div class="metric-label">Caja banco</div>
+                        </div>
+                        <div class="metric-card-compact" style="min-width: 140px;">
+                            <div class="metric-value">{{ formatearMoneda(resumenMensualDetalle.ingresos.montoCajaBanco) }}</div>
+                            <div class="metric-label">Monto ingresado</div>
+                        </div>
+                        <div class="metric-card-compact" style="min-width: 140px;">
+                            <div class="metric-value">{{ formatearMoneda(resumenMensualDetalle.ingresos.montoCajaBanco + resumenMensualDetalle.ingresos.montoCajaChica) }}</div>
+                            <div class="metric-label">Total ingresado</div>
                         </div>
                     </div>
                 </div>
@@ -421,7 +460,10 @@
                                 <tr>
                                     <th>Mes</th>
                                     <th>Ventas</th>
-                                    <th>Monto Vendido</th>
+                                    <th>Monto</th>
+                                    <th>Cobros</th>
+                                    <th>Monto</th>
+                                    <th>Monto total</th>
                                     <th>Pagos Recibidos</th>
                                 </tr>
                             </thead>
@@ -429,7 +471,10 @@
                                 <tr *ngFor="let mes of historialMensual">
                                     <td><strong>{{ mes.mesNombre }}</strong></td>
                                     <td>{{ mes.ventas.totalVentas }}</td>
-                                    <td>{{ formatearMoneda(mes.ventas.montoTotalVendido) }}</td>
+                                    <td>{{ formatearMoneda(mes.ventas.montoAbonado) }}</td>
+                                    <td>{{ mes.cobros.totalCobros }}</td>
+                                    <td>{{ formatearMoneda(mes.cobros.montoCobrado) }}</td>
+                                    <td>{{ formatearMoneda(mes.ventas.montoAbonado + mes.cobros.montoCobrado) }}</td>
                                     <td>{{ formatearMoneda(mes.pagos.totalPagado) }}</td>
                                 </tr>
                             </tbody>
