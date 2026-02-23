@@ -209,26 +209,21 @@
                                 </td>
                                 <td class="acciones-cell">
                                     <div class="acciones-group">
-                                        <button class="btn-accion btn-accion-info" (click)="abrirModalDetalle(empleado)" title="Ver detalle">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <circle cx="12" cy="12" r="10"></circle>
-                                                <line x1="12" y1="16" x2="12" y2="12"></line>
-                                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                                            </svg>
+                                        <button class="btn-accion btn-action-view" (click)="abrirModalDetalle(empleado)" title="Ver detalle">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                         </button>
-                                        <button class="btn-accion btn-accion-editar" (click)="abrirModalEditar(empleado)" title="Editar">
+                                        <button class="btn-accion btn-action-warning" (click)="abrirModalEditar(empleado)" title="Editar">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                 <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
                                             </svg>
                                         </button>
                                         <button class="btn-accion" 
-                                                [ngClass]="empleado.activo ? 'btn-accion-bloquear' : 'btn-accion-desbloquear'" 
+                                                [ngClass]="empleado.activo ? 'btn-action-bloquear' : 'btn-action-desbloquear'" 
                                                 (click)="toggleEstado(empleado)" 
                                                 [title]="empleado.activo ? 'Bloquear' : 'Desbloquear'">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                                            </svg>
+                                                <!-- Cambiar icono según estado -->
+                                                <svg *ngIf="empleado.activo" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-lock-keyhole-icon lucide-lock-keyhole"><circle cx="12" cy="16" r="1"/><rect x="3" y="10" width="18" height="12" rx="2"/><path d="M7 10V7a5 5 0 0 1 10 0v3"/></svg>
+                                                <svg *ngIf="!empleado.activo" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-lock-keyhole-open-icon lucide-lock-keyhole-open"><circle cx="12" cy="16" r="1"/><rect width="18" height="12" x="3" y="10" rx="2"/><path d="M7 10V7a5 5 0 0 1 9.33-2.5"/></svg>
                                         </button>
                                     </div>
                                 </td>

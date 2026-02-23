@@ -957,73 +957,44 @@
 
 .acciones-group {
     display: flex;
-    gap: 6px;
-    justify-content: center;
+    gap: .4rem;
     align-items: center;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
 }
 
 .btn-accion {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    border: 1px solid var(--border-color);
-    background: #ffffff;
-    border-radius: 4px;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all .2s ease;
     padding: 0;
+    flex-shrink: 0;
 }
 
-.btn-accion:hover {
-    background: var(--secondary-bg);
-    border-color: var(--text-primary);
-}
+.btn-action svg { width: 17px; height: 17px; stroke-width: 2; }
 
-.btn-accion svg {
-    color: var(--text-secondary);
-}
+.btn-action-view   { color: white; background: #3b82f6; }
+.btn-action-view:hover   { background: #2563eb; transform: translateY(-2px); }
 
-.btn-accion:hover svg {
-    color: var(--text-primary);
-}
+.btn-action-warning { color: white; background: #5a6268; }
+.btn-action-warning:hover   { background: #4b5563; transform: translateY(-2px); }
 
-.btn-accion-info:hover {
-    background: #dbeafe;
-    border-color: #3b82f6;
-}
+.btn-action-lock   { color: #f59e0b; background: #fef3c7; }
+.btn-action-lock:hover   { background: #fde68a; transform: translateY(-2px); }
 
-.btn-accion-info:hover svg {
-    color: #3b82f6;
-}
+.btn-action-bloquear { color: #ef4444; background: #fee2e2; }
+.btn-action-bloquear:hover { background: #fecaca; transform: translateY(-2px); }
 
-.btn-accion-editar:hover {
-    background: #fef3c7;
-    border-color: #f59e0b;
-}
+.btn-action-desbloquear { color: #10b981; background: #d1fae5; }
+.btn-action-desbloquear:hover { background: #a7f3d0; transform: translateY(-2px); }
 
-.btn-accion-editar:hover svg {
-    color: #f59e0b;
-}
-
-.btn-accion-bloquear:hover {
-    background: #fee2e2;
-    border-color: #ef4444;
-}
-
-.btn-accion-bloquear:hover svg {
-    color: #ef4444;
-}
-
-.btn-accion-desbloquear:hover {
-    background: #d1fae5;
-    border-color: #10b981;
-}
-
-.btn-accion-desbloquear:hover svg {
-    color: #10b981;
-}
 
 /* ===== RESPONSIVE ===== */
 

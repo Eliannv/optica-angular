@@ -67,14 +67,14 @@
                         </button>
 
                         <!-- Child sin hijos (normal) -->
-                        <a *ngIf="!hasChildren(child)" [routerLink]="child.route" [queryParams]="child.queryParams" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="submenu-link" (click)="onMenuItemClick()">
+                        <a *ngIf="!hasChildren(child)" [routerLink]="child.route" [queryParams]="child.queryParams" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: child.exactRouteMatch !== false }" class="submenu-link" (click)="onMenuItemClick()">
                             <span class="submenu-label">{{ child.label }}</span>
                         </a>
 
                         <!-- Sub-submenú (tercer nivel) -->
                         <ul *ngIf="hasChildren(child) && child.expanded" class="submenu-list submenu-nested">
                             <li *ngFor="let subchild of child.children" class="submenu-item">
-                                <a [routerLink]="subchild.route" [queryParams]="subchild.queryParams" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="submenu-link" (click)="onMenuItemClick()">
+                                <a [routerLink]="subchild.route" [queryParams]="subchild.queryParams" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: subchild.exactRouteMatch !== false }" class="submenu-link" (click)="onMenuItemClick()">
                                     <span class="submenu-label">{{ subchild.label }}</span>
                                 </a>
                             </li>

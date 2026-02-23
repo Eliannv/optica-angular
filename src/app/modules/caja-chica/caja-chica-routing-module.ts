@@ -62,7 +62,9 @@ const routes: Routes = [
   { path: '', component: ListarCajasComponent },
   { path: 'nueva', component: AbrirCajaComponent },
   { path: 'ver/:id', component: VerCajaComponent },
+  { path: 'registrar', component: RegistrarMovimientoComponent },
   { path: 'registrar/:id', component: RegistrarMovimientoComponent },
+  { path: 'registrar-movimiento', redirectTo: 'registrar', pathMatch: 'full' }, // Redirección por compatibilidad
 ];
 
 /**

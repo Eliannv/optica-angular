@@ -35,6 +35,7 @@ interface MenuItem {
   roles: RolUsuario[];
   children?: MenuItem[];
   expanded?: boolean;
+  exactRouteMatch?: boolean; // Si es false, permite coincidencia parcial en routerLinkActive
 }
 
 @Component({
@@ -165,7 +166,25 @@ export class SidebarComponent implements OnInit {
             icon: '',
             route: '/caja-chica',
             active: false,
-            roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
+            roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR],
+            expanded: false,
+            children: [
+              {
+                label: 'Registrar Movimiento',
+                icon: '',
+                route: '/caja-chica/registrar',
+                active: false,
+                roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR],
+                exactRouteMatch: false // Permite /caja-chica/registrar/:id también
+              },
+              {
+                label: 'Ver Cajas',
+                icon: '',
+                route: '/caja-chica',
+                active: false,
+                roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
+              }
+            ]
           },
           {
             label: 'Caja Banco',

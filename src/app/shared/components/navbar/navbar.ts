@@ -61,7 +61,9 @@ export class NavbarComponent {
     
     // Finanzas
     { nombre: 'Caja Chica', ruta: '/caja-chica', categoria: 'Finanzas', keywords: ['caja', 'efectivo', 'dinero'] },
+    { nombre: 'Registrar movimiento caja chica', ruta: '/caja-chica/registrar', categoria: 'Finanzas', keywords: ['caja', 'efectivo', 'dinero'] },
     { nombre: 'Caja Banco', ruta: '/caja-banco', categoria: 'Finanzas', keywords: ['banco', 'cuenta', 'deposito'] },
+    { nombre: 'Registrar movimiento caja banco', ruta: '/caja-banco/registrar-movimiento', categoria: 'Finanzas', keywords: ['banco', 'cuenta', 'deposito'] },
     { nombre: 'Cobros Tarjeta', ruta: '/caja-banco/ventas-tarjeta', categoria: 'Finanzas', keywords: ['tarjeta', 'cobro', 'visa', 'mastercard'] },
     { nombre: 'Cuentas por Pagar', ruta: '/cuentas/pagar', categoria: 'Finanzas', keywords: ['pagar', 'deuda', 'proveedor'] },
     { nombre: 'Cuentas por Cobrar', ruta: '/cuentas/cobrar', categoria: 'Finanzas', keywords: ['cobrar', 'cliente', 'credito'] },

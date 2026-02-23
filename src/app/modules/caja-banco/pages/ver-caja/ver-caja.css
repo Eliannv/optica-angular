@@ -129,25 +129,6 @@
   background: rgba(231, 76, 60, 0.3);
 }
 
-.btn-reimprimir {
-  padding: .65rem 1.25rem;
-  border-radius: var(--radius-md);
-  background: var(--btn-secondary-bg);
-  color: var(--btn-secondary-text);
-  font-size: .9rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: .4rem;
-  border: none;
-  transition: all var(--transition-fast);
-}
-
-.btn-reimprimir:hover {
-  background: var(--btn-secondary-hover);
-}
-
 /* ─── Cuerpo principal ────────────────────────────── */
 .caja-body {
   padding: 1.5rem 1.5rem;
@@ -164,8 +145,8 @@
 }
 
 .kpi-card {
-  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-  border: 1px solid var(--border-color, #dee2e6);
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.08) 0%, rgba(52, 152, 219, 0.04) 100%);
+  border: 1px solid rgba(52, 152, 219, 0.2);
   border-radius: 8px;
   padding: 1.5rem;
   transition: all 0.3s ease;
@@ -179,18 +160,18 @@
 }
 
 .kpi-saldo-inicial {
-  background: linear-gradient(135deg, rgba(148, 163, 184, 0.08) 0%, rgba(148, 163, 184, 0.04) 100%);
-  border-color: rgba(148, 163, 184, 0.2);
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.08) 0%, rgba(52, 152, 219, 0.04) 100%);
+  border-color: rgba(52, 152, 219, 0.2);
 }
 
 .kpi-ingresos {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(34, 197, 94, 0.04) 100%);
-  border-color: rgba(34, 197, 94, 0.2);
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.08) 0%, rgba(52, 152, 219, 0.04) 100%);
+  border-color: rgba(52, 152, 219, 0.2);
 }
 
 .kpi-egresos {
-  background: linear-gradient(135deg, rgba(244, 67, 54, 0.08) 0%, rgba(244, 67, 54, 0.04) 100%);
-  border-color: rgba(244, 67, 54, 0.2);
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.08) 0%, rgba(52, 152, 219, 0.04) 100%);
+  border-color: rgba(52, 152, 219, 0.2);
 }
 
 .kpi-saldo-actual {
@@ -199,31 +180,29 @@
 }
 
 .kpi-label {
-  font-size: .75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .06em;
+  font-size: .85rem;
+  font-weight: 500;
   color: var(--text-secondary, #64748b);
-  margin-bottom: .5rem;
+  margin-bottom: .25rem;
 }
 
 .kpi-value {
   font-size: 1.5rem;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-primary, #1e293b);
 }
 
 .kpi-positivo {
-  color: #16a34a !important;
+  color: var(--text-primary, #1e293b) !important;
 }
 
 .kpi-negativo {
-  color: #dc2626 !important;
+  color: var(--text-primary, #1e293b) !important;
 }
 
 .kpi-destacado {
-  font-size: 1.8rem !important;
-  color: #2563eb !important;
+  font-size: 1.5rem !important;
+  color: var(--text-primary, #1e293b) !important;
 }
 
 /* ══════════════════════════════════════════════════
@@ -602,8 +581,8 @@
   align-items: center;
   gap: 0.75rem;
   padding: 1rem;
-  background: var(--bg-card, #fff);
-  border: 1px solid var(--border-color, #e2e8f0);
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.08) 0%, rgba(52, 152, 219, 0.04) 100%);
+  border: 1px solid rgba(52, 152, 219, 0.2);
   border-radius: 10px;
   transition: all 0.2s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -612,7 +591,7 @@
 .cat-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  border-color: var(--border-hover, #cbd5e1);
+  border-color: rgba(52, 152, 219, 0.3);
 }
 
 .cat-icon {
@@ -624,26 +603,33 @@
   border-radius: 10px;
   flex-shrink: 0;
   transition: all 0.2s ease;
+  background: rgba(52, 152, 219, 0.15);
+  color: var(--text-primary, #1e293b) !important;
+}
+
+.cat-icon svg {
+  color: var(--text-primary, #1e293b) !important;
+  stroke: currentColor !important;
 }
 
 /* Iconos para categorías de INGRESOS */
 .categoria-ingresos .cat-icon {
-  background: rgba(34, 197, 94, 0.1);
-  color: #16a34a;
+  background: rgba(52, 152, 219, 0.15);
+  color: var(--text-primary, #1e293b);
 }
 
 .categoria-ingresos .cat-card:hover .cat-icon {
-  background: rgba(34, 197, 94, 0.2);
+  background: rgba(52, 152, 219, 0.25);
 }
 
 /* Iconos para categorías de EGRESOS */
 .categoria-egresos .cat-icon {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
+  background: rgba(52, 152, 219, 0.15);
+  color: var(--text-primary, #1e293b);
 }
 
 .categoria-egresos .cat-card:hover .cat-icon {
-  background: rgba(239, 68, 68, 0.2);
+  background: rgba(52, 152, 219, 0.25);
 }
 
 .cat-info {
@@ -665,14 +651,15 @@
   font-size: 1.1rem;
   font-weight: 800;
   line-height: 1.2;
+  color: var(--text-primary, #1e293b);
 }
 
 .cat-value-ingreso {
-  color: #16a34a;
+  color: var(--text-primary, #1e293b);
 }
 
 .cat-value-egreso {
-  color: #dc2626;
+  color: var(--text-primary, #1e293b);
 }
 
 /* Responsive: tarjetas en 1 columna en pantallas pequeñas */
@@ -739,14 +726,6 @@
   background: #f1f5f9;
 }
 
-.tabla-movimientos tbody tr {
-  transition: background .15s;
-}
-
-.tabla-movimientos tbody tr:hover {
-  background: var(--row-hover, rgba(59,130,246,.06)) !important;
-}
-
 .tabla-movimientos td {
   padding: .7rem 1rem;
   border-bottom: 1px solid var(--border-light, #f1f5f9);
@@ -756,14 +735,6 @@
 
 .tabla-movimientos tbody tr:last-child td {
   border-bottom: none;
-}
-
-.tabla-row-ingreso {
-  background-color: rgba(34,197,94,.06);
-}
-
-.tabla-row-egreso {
-  background-color: rgba(239,68,68,.06);
 }
 
 /* ══════════════════════════════════════════════════
@@ -904,39 +875,6 @@
   justify-content: center;
   transition: all .2s;
   flex-shrink: 0;
-}
-
-.btn-action-view {
-  background: rgba(59,130,246,.12);
-  color: #2563eb;
-}
-
-.btn-action-view:hover {
-  background: rgba(59,130,246,.22);
-  transform: translateY(-2px);
-  box-shadow: 0 2px 6px rgba(59,130,246,.3);
-}
-
-.btn-action-warning {
-  background: rgba(245,158,11,.12);
-  color: #d97706;
-}
-
-.btn-action-warning:hover {
-  background: rgba(245,158,11,.22);
-  transform: translateY(-2px);
-  box-shadow: 0 2px 6px rgba(245,158,11,.3);
-}
-
-.btn-action-danger {
-  background: rgba(239,68,68,.12);
-  color: #dc2626;
-}
-
-.btn-action-danger:hover {
-  background: rgba(239,68,68,.22);
-  transform: translateY(-2px);
-  box-shadow: 0 2px 6px rgba(239,68,68,.3);
 }
 
 /* ─── Estado vacío / loading ──────────────────────── */

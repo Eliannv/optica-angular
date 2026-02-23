@@ -87,8 +87,67 @@ export class RegistrarMovimientoComponent implements OnInit {
     this.inicializarFechaHora();
     
     this.cajaId = this.route.snapshot.paramMap.get('id') || '';
+    
+    // Si no hay ID en la ruta, buscar caja abierta del usuario
+    if (!this.cajaId) {
+      this.buscarCajaAbiertaYRedirigir();
+      return;
+    }
+    
     this.inicializarFormulario();
     this.cargarSaldoActual();
+  }
+
+  /**
+   * Busca la caja abierta del usuario actual y redirige a su formulario de registro.
+   * Si no hay caja abierta, muestra mensaje y redirige a lista de cajas.
+   */
+  private async buscarCajaAbiertaYRedirigir(): Promise<void> {
+    try {
+      this.cargando = true;
+      
+      // Obtener cajas abiertas
+      const cajasAbiertas = await firstValueFrom(this.cajaChicaService.getCajasChicasAbiertas());
+      
+      if (cajasAbiertas && cajasAbiertas.length > 0) {
+        // Buscar la primera caja abierta del usuario actual
+        const usuarioId = this.authService.getCurrentUserId();
+        const cajaDelUsuario = cajasAbiertas.find(c => c.usuario_id === usuarioId);
+        
+        if (cajaDelUsuario && cajaDelUsuario.id) {
+          // Redirigir a la caja del usuario
+          await this.router.navigate(['/caja-chica/registrar', cajaDelUsuario.id]);
+        } else if (cajasAbiertas[0].id) {
+          // Si no tiene caja propia pero hay cajas abiertas, usar la primera
+          await this.router.navigate(['/caja-chica/registrar', cajasAbiertas[0].id]);
+        } else {
+          // No hay cajas con ID válido
+          await this.mostrarMensajeNoCajasYRedirigir();
+        }
+      } else {
+        // No hay cajas abiertas
+        await this.mostrarMensajeNoCajasYRedirigir();
+      }
+    } catch (error) {
+      console.error('Error al buscar caja abierta:', error);
+      await this.mostrarMensajeNoCajasYRedirigir();
+    } finally {
+      this.cargando = false;
+    }
+  }
+
+  /**
+   * Muestra mensaje de que no hay cajas abiertas y redirige a lista de cajas.
+   */
+  private async mostrarMensajeNoCajasYRedirigir(): Promise<void> {
+    await Swal.fire({
+      icon: 'warning',
+      title: 'No hay cajas abiertas',
+      text: 'Para registrar un movimiento, primero debe abrir una caja chica.',
+      confirmButtonText: 'Ir a Cajas',
+      confirmButtonColor: '#3085d6'
+    });
+    await this.router.navigate(['/caja-chica']);
   }
 
   /**
