@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy, HostListener, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import Swal from 'sweetalert2';
 import { firstValueFrom, Subject, Subscription } from 'rxjs';
@@ -24,7 +24,7 @@ import { Cliente } from '../../../core/models/cliente.model';
 @Component({
   selector: 'app-crear-venta',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './crear-venta.html',
   styleUrls: ['./crear-venta.css', './crear-venta-compacto.css', './crear-venta-loading.css', './crear-venta-overrides.css'],
 })
@@ -47,6 +47,16 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   mostrarResultadosCliente = false;
   cargandoClientes = false;
   readonly MAX_RESULTADOS_CLIENTES = 10;
+  selectedClienteIndex = -1; // Índice del cliente seleccionado con teclado
+
+  // ➕ CREAR CLIENTE RÁPIDO en POS
+  mostrarModalCrearCliente = false;
+  clienteRapidoForm!: FormGroup;
+  guardandoClienteRapido = false;
+  validandoCedulaClienteRapido = false;
+  validandoEmailClienteRapido = false;
+  cedulaDuplicadaMsgClienteRapido = '';
+  emailDuplicadoMsgClienteRapido = '';
 
   // 🔎 BUSCAR HISTORIAL CLÍNICO EN CREAR-VENTA
   terminoBusquedaHistorial = '';
@@ -55,6 +65,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   mostrarResultadosHistorial = false;
   cargandoHistoriales = false;
   readonly MAX_RESULTADOS_HISTORIALES = 8;
+  selectedHistorialIndex = -1; // Índice del historial seleccionado con teclado
 
   productos: any[] = [];
   filtro = '';
@@ -230,12 +241,16 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     private cajaChicaService: CajaChicaService,
     private authService: AuthService,
     private ventasTarjetaService: VentasTarjetaService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private fb: FormBuilder
   ) {}
 
   async ngOnInit() {
-    // � Inicializar fecha y hora por defecto
+    // 📅 Inicializar fecha y hora por defecto
     this.inicializarFechaHora();
+    
+    // ➕ Inicializar formulario de crear cliente rápido
+    this.inicializarFormularioClienteRapido();
     
     // ✅ DETECTAR MODO EDICIÓN: Verificar si hay facturaId en la ruta
     this.facturaId = this.route.snapshot.paramMap.get('facturaId') || '';
@@ -471,11 +486,13 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     if (!termino) {
       this.clientesFiltrados = [];
       this.mostrarResultadosCliente = false;
+      this.selectedClienteIndex = -1;
       return;
     }
 
     if (termino.length < 2) {
       this.mostrarResultadosCliente = false;
+      this.selectedClienteIndex = -1;
       return;
     }
 
@@ -487,20 +504,106 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
 
     if (this.clientesBusqueda.length > 0) {
       this.aplicarFiltroClientesVenta(termino);
+      this.selectedClienteIndex = -1; // Resetear selección al filtrar
       this.cargandoClientes = false;
     } else {
       this.cargandoClientes = true;
     }
   }
 
-  limpiarBusquedaCliente(): void {
+  async limpiarBusquedaCliente(): Promise<void> {
+    // 🛒 Si hay un cliente seleccionado Y hay items en el carrito, pedir confirmación
+    if (this.clienteId && this.items.length > 0) {
+      const result = await Swal.fire({
+        icon: 'warning',
+        title: 'Quitar cliente',
+        text: '¿Desea quitar el cliente? Esto vaciará el carrito actual.',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, quitar',
+        cancelButtonText: 'Cancelar'
+      });
+
+      if (!result.isConfirmed) {
+        return;
+      }
+
+      this.resetVentaParaCambioCliente();
+    }
+
+    // 🧹 Limpiar búsqueda y cliente seleccionado
     this.terminoBusquedaCliente = '';
     this.clientesFiltrados = [];
     this.mostrarResultadosCliente = false;
+    this.selectedClienteIndex = -1;
+    
+    // 🧹 Limpiar cliente e historial
+    this.clienteId = '';
+    this.cliente = null;
+    this.historialId = '';
+    this.historial = null;
+    this.sinHistorial = false;
+    
+    // 🧹 Limpiar búsqueda de historial también
+    this.terminoBusquedaHistorial = '';
+    this.historialesFiltrados = [];
+    this.mostrarResultadosHistorial = false;
+    this.selectedHistorialIndex = -1;
   }
 
   cerrarResultadosCliente(): void {
     this.mostrarResultadosCliente = false;
+    this.selectedClienteIndex = -1;
+  }
+
+  /**
+   * 🎯 Navegar con teclado en resultados de búsqueda de clientes
+   */
+  onClienteKeyDown(event: KeyboardEvent): void {
+    if (!this.mostrarResultadosCliente || this.clientesFiltrados.length === 0) {
+      return;
+    }
+
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        this.selectedClienteIndex = Math.min(
+          this.selectedClienteIndex + 1,
+          this.clientesFiltrados.length - 1
+        );
+        this.scrollToSelectedCliente();
+        break;
+
+      case 'ArrowUp':
+        event.preventDefault();
+        this.selectedClienteIndex = Math.max(this.selectedClienteIndex - 1, 0);
+        this.scrollToSelectedCliente();
+        break;
+
+      case 'Enter':
+        if (this.selectedClienteIndex >= 0 && this.selectedClienteIndex < this.clientesFiltrados.length) {
+          event.preventDefault();
+          const clienteSeleccionado = this.clientesFiltrados[this.selectedClienteIndex];
+          this.seleccionarClienteVenta(clienteSeleccionado);
+        }
+        break;
+
+      case 'Escape':
+        event.preventDefault();
+        this.cerrarResultadosCliente();
+        break;
+    }
+  }
+
+  /**
+   * Desplazar el scroll para mostrar el cliente seleccionado
+   */
+  private scrollToSelectedCliente(): void {
+    setTimeout(() => {
+      const selectedElement = document.querySelector('.resultado-item-selected-cliente');
+      if (selectedElement) {
+        selectedElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }, 0);
   }
 
   trackByClienteIdVenta(index: number, item: Cliente): string {
@@ -574,6 +677,80 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     this.saldoPendiente = 0;
   }
 
+  /**
+   * 🔄 Resetear completamente el formulario de venta (después de finalizar una venta)
+   */
+  private resetearVentaCompleta(): void {
+    // 🧹 Cliente e historial
+    this.clienteId = '';
+    this.cliente = null;
+    this.historialId = '';
+    this.historial = null;
+    this.sinHistorial = false;
+    
+    // 🧹 Búsquedas
+    this.terminoBusquedaCliente = '';
+    this.clientesFiltrados = [];
+    this.mostrarResultadosCliente = false;
+    this.selectedClienteIndex = -1;
+    this.terminoBusquedaHistorial = '';
+    this.historialesFiltrados = [];
+    this.mostrarResultadosHistorial = false;
+    this.selectedHistorialIndex = -1;
+    
+    // 🧹 Carrito y productos
+    this.items = [];
+    this.productoSeleccionado = null;
+    this.selectedIndex = -1;
+    this.filtro = '';
+    this.productosFiltrados = [];
+    
+    // 🧹 Totales
+    this.subtotalBruto = 0;
+    this.subtotal = 0;
+    this.iva = 0;
+    this.total = 0;
+    this.descuentoPorcentaje = 0;
+    this.descuentoMonto = 0;
+    this._abono = 0;
+    this.saldoPendiente = 0;
+    
+    // 🧹 Pago
+    this.metodoPago = 'Efectivo';
+    this.codigoTransferencia = '';
+    this.ultimosCuatroTarjeta = '';
+    this.observacion = '';
+    this.montoRecibido = 0;
+    this.esCredito = false;
+    
+    // 🧹 Tipo de venta
+    this.tipoVentaSeleccionado = null;
+    this.mostrarModalTipoVenta = false;
+    
+    // 🧹 Servicios
+    this.mostrarFormServicio = false;
+    this.servicioNuevo = {
+      nombre: '',
+      cantidad: 1,
+      precio: 0
+    };
+    
+    // 🧹 Filtros de productos
+    this.grupoSeleccionado = '';
+    this.proveedorSeleccionado = '';
+    this.tipoStockSeleccionado = '';
+    this.mostrarFiltros = false;
+    this.mostrarRecientes = false;
+    
+    // 🧹 Ticket
+    this.facturaParaImprimir = null;
+    
+    // 🔄 Recargar productos
+    this.recargarProductos(true);
+    
+    console.log('✅ Formulario de venta reseteado completamente');
+  }
+
   async seleccionarClienteVenta(cliente: Cliente): Promise<void> {
     if (!cliente.id) return;
 
@@ -616,6 +793,269 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     await this.cargarHistorialesCliente();
   }
 
+  // ============================================
+  // ➕ CREAR CLIENTE RÁPIDO EN POS
+  // ============================================
+
+  /**
+   * Inicializa el formulario reactivo de crear cliente rápido
+   */
+  inicializarFormularioClienteRapido(): void {
+    this.clienteRapidoForm = this.fb.group({
+      cedula: [''],
+      nombres: [''],
+      apellidos: [''],
+      telefono: [''],
+      email: ['']
+    });
+
+    // Configurar validación reactiva de cédula
+    this.clienteRapidoForm.get('cedula')?.valueChanges
+      .pipe(
+        debounceTime(500),
+        distinctUntilChanged()
+      )
+      .subscribe(async (cedula: string) => {
+        this.cedulaDuplicadaMsgClienteRapido = '';
+        this.validandoCedulaClienteRapido = false;
+
+        if (!cedula || cedula.trim() === '') return;
+
+        this.validandoCedulaClienteRapido = true;
+        this.cdr.markForCheck();
+
+        try {
+          const existe = await this.clientesSrv.existeCedula(cedula);
+          if (existe) {
+            this.cedulaDuplicadaMsgClienteRapido = 'Esta cédula ya existe en el sistema';
+          }
+        } catch (error) {
+          console.error('Error validando cédula:', error);
+        } finally {
+          this.validandoCedulaClienteRapido = false;
+          this.cdr.markForCheck();
+        }
+      });
+
+    // Configurar validación reactiva de email
+    this.clienteRapidoForm.get('email')?.valueChanges
+      .pipe(
+        debounceTime(500),
+        distinctUntilChanged()
+      )
+      .subscribe(async (email: string) => {
+        this.emailDuplicadoMsgClienteRapido = '';
+        this.validandoEmailClienteRapido = false;
+
+        if (!email || email.trim() === '' || email.trim().toUpperCase() === 'N/A') return;
+
+        this.validandoEmailClienteRapido = true;
+        this.cdr.markForCheck();
+
+        try {
+          const existe = await this.clientesSrv.existeEmail(email);
+          if (existe) {
+            this.emailDuplicadoMsgClienteRapido = 'Este email ya existe en el sistema';
+          }
+        } catch (error) {
+          console.error('Error validando email:', error);
+        } finally {
+          this.validandoEmailClienteRapido = false;
+          this.cdr.markForCheck();
+        }
+      });
+  }
+
+  /**
+   * Abre el modal de crear cliente rápido
+   */
+  abrirModalCrearCliente(): void {
+    this.mostrarModalCrearCliente = true;
+    this.clienteRapidoForm.reset({
+      cedula: '',
+      nombres: '',
+      apellidos: '',
+      telefono: '',
+      email: ''
+    });
+    this.cedulaDuplicadaMsgClienteRapido = '';
+    this.emailDuplicadoMsgClienteRapido = '';
+    
+    // Enfocar el primer campo después de un pequeño delay
+    setTimeout(() => {
+      const primerInput = document.querySelector('.modal-crear-cliente input') as HTMLInputElement;
+      if (primerInput) primerInput.focus();
+    }, 100);
+  }
+
+  /**
+   * Cierra el modal de crear cliente rápido
+   */
+  cerrarModalCrearCliente(): void {
+    this.mostrarModalCrearCliente = false;
+    this.clienteRapidoForm.reset();
+    this.cedulaDuplicadaMsgClienteRapido = '';
+    this.emailDuplicadoMsgClienteRapido = '';
+  }
+
+  /**
+   * Valida si el formulario de cliente rápido puede guardarse
+   */
+  get puedeGuardarClienteRapido(): boolean {
+    const cedula = this.clienteRapidoForm.get('cedula')?.value;
+    
+    // Bloquear si cédula está vacía
+    if (!cedula || cedula.trim() === '') return false;
+    
+    // Bloquear si hay duplicados
+    if (this.cedulaDuplicadaMsgClienteRapido || this.emailDuplicadoMsgClienteRapido) return false;
+    
+    // Bloquear si se está validando
+    if (this.validandoCedulaClienteRapido || this.validandoEmailClienteRapido) return false;
+    
+    return true;
+  }
+
+  /**
+   * Navegar entre campos con Enter (dentro del modal de cliente rápido)
+   */
+  onEnterClienteRapido(event: KeyboardEvent, campoActual: string): void {
+    event.preventDefault();
+    
+    const camposOrden = ['cedula', 'nombres', 'apellidos', 'telefono', 'email'];
+    const indexActual = camposOrden.indexOf(campoActual);
+    
+    if (indexActual < camposOrden.length - 1) {
+      // Ir al siguiente campo
+      const siguienteCampo = camposOrden[indexActual + 1];
+      const elemento = document.querySelector(`input[formControlName="${siguienteCampo}"]`) as HTMLInputElement;
+      if (elemento) elemento.focus();
+    } else {
+      // Último campo - intentar guardar si es válido
+      if (this.puedeGuardarClienteRapido) {
+        this.guardarClienteRapido();
+      }
+    }
+  }
+
+  /**
+   * Guarda el cliente rápido y lo asigna automáticamente a la venta
+   */
+  async guardarClienteRapido(): Promise<void> {
+    const cedula = this.clienteRapidoForm.get('cedula')?.value || '';
+    const email = this.clienteRapidoForm.get('email')?.value || '';
+
+    // Validar cédula (siempre obligatoria)
+    if (!cedula || cedula.trim() === '') {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Cédula requerida',
+        text: 'La cédula es un campo obligatorio',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000
+      });
+      return;
+    }
+
+    // Validar cédula única
+    const cedulaExiste = await this.clientesSrv.existeCedula(cedula);
+    if (cedulaExiste) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Cédula duplicada',
+        text: 'Esta cédula ya existe en el sistema',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000
+      });
+      return;
+    }
+
+    // Validar email único (si se proporciona)
+    if (email && email.trim() !== '' && email.trim().toUpperCase() !== 'N/A') {
+      const emailExiste = await this.clientesSrv.existeEmail(email);
+      if (emailExiste) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Email duplicado',
+          text: 'Este email ya existe en el sistema',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000
+        });
+        return;
+      }
+    }
+
+    this.guardandoClienteRapido = true;
+
+    try {
+      const nuevoCliente: Cliente = {
+        ...this.clienteRapidoForm.value,
+        pais: 'Ecuador',
+        provincia: '',
+        ciudad: '',
+        direccion: '',
+        fechaNacimiento: ''
+      };
+
+      const docRef = await this.clientesSrv.createCliente(nuevoCliente);
+      const clienteId = docRef.id; // ✅ Extraer ID del DocumentReference
+      
+      // ✅ Cargar el cliente recién creado
+      const clienteCreado = await firstValueFrom(this.clientesSrv.getClienteById(clienteId));
+      
+      if (clienteCreado) {
+        // 🎯 Asignar automáticamente el cliente a la venta
+        this.clienteId = clienteId;
+        this.cliente = clienteCreado;
+        this.historialId = '';
+        this.historial = null;
+        this.sinHistorial = true;
+        
+        this.terminoBusquedaCliente = `${clienteCreado.nombres ?? ''} ${clienteCreado.apellidos ?? ''}`.trim();
+        this.terminoBusquedaHistorial = 'Sin historial clínico';
+        
+        // Cerrar modal
+        this.cerrarModalCrearCliente();
+        
+        // Notificación de éxito
+        await Swal.fire({
+          icon: 'success',
+          title: 'Cliente creado',
+          text: `${clienteCreado.nombres} ${clienteCreado.apellidos} se agregó correctamente`,
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 2000
+        });
+        
+        // Enfocar el buscador de productos
+        setTimeout(() => {
+          const inputProducto = document.querySelector('input[placeholder*="Buscar producto"]') as HTMLInputElement;
+          if (inputProducto) inputProducto.focus();
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Error al crear cliente:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo crear el cliente. Intente nuevamente.'
+      });
+    } finally {
+      this.guardandoClienteRapido = false;
+    }
+  }
+
+  // ============================================
+  // 🔎 FIN CREAR CLIENTE RÁPIDO
+  // ============================================
+
   /**
    * 🔎 Buscar historiales clínicos del cliente actual
    */
@@ -623,6 +1063,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     if (!this.clienteId) {
       this.historialesFiltrados = [];
       this.mostrarResultadosHistorial = false;
+      this.selectedHistorialIndex = -1;
       return;
     }
 
@@ -631,6 +1072,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     if (!termino) {
       this.historialesFiltrados = this.historialesBusqueda.slice(0, this.MAX_RESULTADOS_HISTORIALES);
       this.mostrarResultadosHistorial = this.historialesBusqueda.length > 0;
+      this.selectedHistorialIndex = -1;
       return;
     }
 
@@ -642,6 +1084,8 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
         return fecha.toLowerCase().includes(termino);
       })
       .slice(0, this.MAX_RESULTADOS_HISTORIALES);
+    
+    this.selectedHistorialIndex = -1; // Resetear selección al filtrar
   }
 
   /**
@@ -668,10 +1112,75 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     this.terminoBusquedaHistorial = '';
     this.sinHistorial = false;
     this.historialesFiltrados = this.historialesBusqueda.slice(0, this.MAX_RESULTADOS_HISTORIALES);
+    this.selectedHistorialIndex = -1;
   }
 
   cerrarResultadosHistorial(): void {
     this.mostrarResultadosHistorial = false;
+    this.selectedHistorialIndex = -1;
+  }
+
+  /**
+   * 🎯 Navegar con teclado en resultados de búsqueda de historiales
+   * Incluye la opción "Vender sin historial" en el índice -1 (primer elemento)
+   */
+  onHistorialKeyDown(event: KeyboardEvent): void {
+    if (!this.mostrarResultadosHistorial || this.sinHistorial) {
+      return;
+    }
+
+    // Total de opciones: "Vender sin historial" + historiales filtrados
+    const totalOpciones = this.historialesFiltrados.length + 1;
+
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        // Empezar desde -1 para incluir la opción "Sin historial"
+        this.selectedHistorialIndex = Math.min(
+          this.selectedHistorialIndex + 1,
+          totalOpciones - 1
+        );
+        this.scrollToSelectedHistorial();
+        break;
+
+      case 'ArrowUp':
+        event.preventDefault();
+        // -1 representa la opción "Vender sin historial"
+        this.selectedHistorialIndex = Math.max(this.selectedHistorialIndex - 1, -1);
+        this.scrollToSelectedHistorial();
+        break;
+
+      case 'Enter':
+        event.preventDefault();
+        // -1 = "Vender sin historial", 0+ = historiales
+        if (this.selectedHistorialIndex === -1) {
+          this.venderSinHistorial();
+        } else if (
+          this.selectedHistorialIndex >= 0 &&
+          this.selectedHistorialIndex < this.historialesFiltrados.length
+        ) {
+          const historialSeleccionado = this.historialesFiltrados[this.selectedHistorialIndex];
+          this.seleccionarHistorialVenta(historialSeleccionado);
+        }
+        break;
+
+      case 'Escape':
+        event.preventDefault();
+        this.cerrarResultadosHistorial();
+        break;
+    }
+  }
+
+  /**
+   * Desplazar el scroll para mostrar el historial seleccionado
+   */
+  private scrollToSelectedHistorial(): void {
+    setTimeout(() => {
+      const selectedElement = document.querySelector('.resultado-item-selected-historial');
+      if (selectedElement) {
+        selectedElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }, 0);
   }
 
   async seleccionarHistorialVenta(historial: any): Promise<void> {
@@ -2544,10 +3053,12 @@ async procesarGuardadoVenta() {
             if (result2.isDenied) {
               this.imprimirTicket();
             }
-            this.router.navigate(['/clientes/historial-clinico']);
+            // ✅ En lugar de navegar, resetear el formulario para una nueva venta
+            this.resetearVentaCompleta();
           });
         } else {
-          this.router.navigate(['/clientes/historial-clinico']);
+          // ✅ En lugar de navegar, resetear el formulario para una nueva venta
+          this.resetearVentaCompleta();
         }
       });
     }, 1500); // Ajustado a 1500ms (200 + 400 + 600 = 1200 + margen)
@@ -2717,7 +3228,12 @@ private cleanUndefined(obj: any): any {
   }
 
   volver() {
-    this.router.navigate(['/clientes/historial-clinico']);
+    // ✅ Si estamos en modo edición, volver a facturas; si no, resetear para nueva venta
+    if (this.modoEdicion) {
+      this.router.navigate(['/facturas']);
+    } else {
+      this.resetearVentaCompleta();
+    }
   }
 
   /**

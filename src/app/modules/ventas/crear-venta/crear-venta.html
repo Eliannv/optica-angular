@@ -48,6 +48,7 @@
                                         placeholder="Buscar cliente (opcional - presiona Enter para continuar)"
                                         [(ngModel)]="terminoBusquedaCliente"
                                         (input)="buscarClientesVenta()"
+                                        (keydown)="onClienteKeyDown($event)"
                                     />
                                     <button
                                         type="button"
@@ -59,6 +60,15 @@
                                         ✕
                                     </button>
                                 </div>
+                                <!-- BOTÓN CREAR CLIENTE RÁPIDO -->
+                                <button
+                                    type="button"
+                                    class="btn-crear-cliente-rapido"
+                                    (click)="abrirModalCrearCliente()"
+                                    title="Crear nuevo cliente"
+                                >
+                                    + Crear cliente
+                                </button>
 
                                 <div class="cliente-search-results" *ngIf="mostrarResultadosCliente">
                                     <div class="cliente-search-loading" *ngIf="cargandoClientes">
@@ -79,8 +89,9 @@
                                         <div class="resultados-items">
                                             <button
                                                 class="resultado-item cliente-search-item"
+                                                [class.resultado-item-selected-cliente]="i === selectedClienteIndex"
                                                 type="button"
-                                                *ngFor="let clienteItem of clientesFiltrados; trackBy: trackByClienteIdVenta"
+                                                *ngFor="let clienteItem of clientesFiltrados; let i = index; trackBy: trackByClienteIdVenta"
                                                 (click)="seleccionarClienteVenta(clienteItem)"
                                             >
                                                 <div class="resultado-content">
@@ -133,6 +144,7 @@
                                         [(ngModel)]="terminoBusquedaHistorial"
                                         (input)="buscarHistorialesVenta()"
                                         (focus)="mostrarResultadosHistorial = historialesBusqueda.length > 0 || sinHistorial"
+                                        (keydown)="onHistorialKeyDown($event)"
                                         [readonly]="sinHistorial"
                                     />
                                     <button
@@ -170,6 +182,7 @@
                                             <!-- Opcion: Vender sin historial -->
                                             <button
                                                 class="resultado-item cliente-search-item historial-sin-item"
+                                                [class.resultado-item-selected-historial]="selectedHistorialIndex === -1"
                                                 type="button"
                                                 (click)="venderSinHistorial()"
                                             >
@@ -189,8 +202,9 @@
                                             <!-- Historiales disponibles -->
                                             <button
                                                 class="resultado-item cliente-search-item"
+                                                [class.resultado-item-selected-historial]="i === selectedHistorialIndex"
                                                 type="button"
-                                                *ngFor="let historialItem of historialesFiltrados; trackBy: trackByHistorialIdVenta"
+                                                *ngFor="let historialItem of historialesFiltrados; let i = index; trackBy: trackByHistorialIdVenta"
                                                 (click)="seleccionarHistorialVenta(historialItem)"
                                                 (contextmenu)="verDetalleHistorial(historialItem); $event.preventDefault()"
                                                 title="Click izquierdo: Seleccionar | Click derecho: Ver detalle"
@@ -640,6 +654,140 @@
                         </div>
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ➕ MODAL CREAR CLIENTE RÁPIDO -->
+    <div class="modal-overlay modal-crear-cliente-overlay" *ngIf="mostrarModalCrearCliente" (click)="cerrarModalCrearCliente()">
+        <div class="modal-crear-cliente" (click)="$event.stopPropagation()" [formGroup]="clienteRapidoForm">
+            <!-- Header -->
+            <div class="modal-cliente-header">
+                <div class="modal-cliente-header-content">
+                    <h3 class="modal-cliente-title">Crear Cliente</h3>
+                    <p class="modal-cliente-subtitle">Registra un nuevo cliente sin salir del POS</p>
+                </div>
+                <button type="button" class="btn-close-modal-cliente" (click)="cerrarModalCrearCliente()" title="Cerrar">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-cliente-body">
+                <div class="modal-cliente-grid">
+                    <!-- Cédula (REQUERIDA) -->
+                    <div class="modal-cliente-field">
+                        <label for="cedulaRapido" class="modal-cliente-label modal-cliente-label-required">
+                            Cédula
+                        </label>
+                        <input
+                            type="text"
+                            id="cedulaRapido"
+                            class="modal-cliente-input"
+                            formControlName="cedula"
+                            placeholder="Ej: 1234567890"
+                            maxlength="10"
+                            (keydown.enter)="onEnterClienteRapido($any($event), 'cedula')"
+                        />
+                        <div class="modal-cliente-validacion-msg" *ngIf="cedulaDuplicadaMsgClienteRapido">
+                            {{ cedulaDuplicadaMsgClienteRapido }}
+                        </div>
+                    </div>
+
+                    <!-- Nombres -->
+                    <div class="modal-cliente-field">
+                        <label for="nombresRapido" class="modal-cliente-label">
+                            Nombres
+                        </label>
+                        <input
+                            type="text"
+                            id="nombresRapido"
+                            class="modal-cliente-input"
+                            formControlName="nombres"
+                            placeholder="Ej: Juan Carlos"
+                            (keydown.enter)="onEnterClienteRapido($any($event), 'nombres')"
+                        />
+                    </div>
+
+                    <!-- Apellidos -->
+                    <div class="modal-cliente-field">
+                        <label for="apellidosRapido" class="modal-cliente-label">
+                            Apellidos
+                        </label>
+                        <input
+                            type="text"
+                            id="apellidosRapido"
+                            class="modal-cliente-input"
+                            formControlName="apellidos"
+                            placeholder="Ej: Pérez García"
+                            (keydown.enter)="onEnterClienteRapido($any($event), 'apellidos')"
+                        />
+                    </div>
+
+                    <!-- Teléfono -->
+                    <div class="modal-cliente-field">
+                        <label for="telefonoRapido" class="modal-cliente-label">
+                            Teléfono
+                        </label>
+                        <input
+                            type="text"
+                            id="telefonoRapido"
+                            class="modal-cliente-input"
+                            formControlName="telefono"
+                            placeholder="Ej: 0987654321"
+                            maxlength="10"
+                            (keydown.enter)="onEnterClienteRapido($any($event), 'telefono')"
+                        />
+                    </div>
+
+                    <!-- Email (opcional) -->
+                    <div class="modal-cliente-field modal-cliente-field-full">
+                        <label for="emailRapido" class="modal-cliente-label">
+                            Email (opcional)
+                        </label>
+                        <input
+                            type="text"
+                            id="emailRapido"
+                            class="modal-cliente-input"
+                            formControlName="email"
+                            placeholder="ejemplo@correo.com o N/A"
+                            (keydown.enter)="onEnterClienteRapido($any($event), 'email')"
+                        />
+                        <div class="modal-cliente-validacion-msg" *ngIf="emailDuplicadoMsgClienteRapido">
+                            {{ emailDuplicadoMsgClienteRapido }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nota informativa -->
+                <div class="modal-cliente-nota">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 16v-4"/>
+                        <path d="M12 8h.01"/>
+                    </svg>
+                    <span>La cédula es obligatoria. Los demás campos son opcionales pero recomendados.</span>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-cliente-footer">
+                <button
+                    type="button"
+                    class="btn-modal-cliente-cancelar"
+                    (click)="cerrarModalCrearCliente()"
+                >
+                    Cancelar
+                </button>
+                <button
+                    type="button"
+                    class="btn-modal-cliente-guardar"
+                    [disabled]="!puedeGuardarClienteRapido || guardandoClienteRapido"
+                    (click)="guardarClienteRapido()"
+                >
+                    <span *ngIf="!guardandoClienteRapido">✓ Guardar y continuar venta</span>
+                    <span *ngIf="guardandoClienteRapido">Guardando...</span>
+                </button>
             </div>
         </div>
     </div>
