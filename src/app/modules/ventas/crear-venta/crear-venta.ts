@@ -1351,9 +1351,9 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
    */
   onCreditoChange() {
     if (!this.esCredito) {
-      // Si se desactiva el crédito, resetear abono y saldo pendiente
+      // Si se desactiva el crédito, resetear abono pero mantener el cálculo de saldo
       this.abono = 0;
-      this.saldoPendiente = 0;
+      this.recalcularAbono();
     } else {
       // Si se activa el crédito, calcular saldo pendiente
       this.recalcularAbono();

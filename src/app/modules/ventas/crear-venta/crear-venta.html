@@ -490,7 +490,7 @@
                                         <label class="label-compacto">{{ esCredito ? 'Abono inicial' : 'Monto recibido' }}</label>
                                         <input #abonoInput type="number" min="0" class="input-abono" [(ngModel)]="abono" (ngModelChange)="recalcularAbono()" (blur)="validarAbono()" (focus)="selectAll($event)" (keydown.enter)="onInputEnter($event, 'abono')" placeholder="0.00" />
                                     </div>
-                                    <div class="credito-item" *ngIf="esCredito">
+                                    <div class="credito-item">
                                         <span class="label-compacto">Saldo pendiente</span>
                                         <span class="saldo-valor">${{ saldoPendiente.toFixed(2) }}</span>
                                     </div>
@@ -498,7 +498,7 @@
 
                                 <!-- VUELTO (SOLO EFECTIVO Y SIN CRÉDITO) -->
                                 <div class="vuelto-alert" *ngIf="metodoPago === 'Efectivo' && !esCredito && abono > 0">
-                                    <span class="vuelto-label">🔄 Vuelto a entregar:</span>
+                                    <span class="vuelto-label">Vuelto a entregar:</span>
                                     <span class="vuelto-valor" [class.vuelto-negativo]="vuelto < 0">${{ vuelto | number:'1.2-2' }}</span>
                                 </div>
                             </div>
