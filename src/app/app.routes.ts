@@ -157,6 +157,30 @@ export const routes: Routes = [
      ========================================================================== */
 
   /**
+   * Redirección a la caja banco actual.
+   * Busca y redirige a la caja banco abierta con sus movimientos.
+   */
+  {
+    path: 'ver-caja-banco-actual',
+    loadComponent: () =>
+      import('./modules/caja-banco/ver-caja-banco-actual')
+        .then(m => m.VerCajaBancoActualComponent),
+    canActivate: [authGuard, roleGuard([RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR])]
+  },
+
+  /**
+   * Redirección a la caja chica actual.
+   * Busca y redirige a la caja chica abierta con sus movimientos.
+   */
+  {
+    path: 'ver-caja-chica-actual',
+    loadComponent: () =>
+      import('./modules/caja-chica/ver-caja-chica-actual')
+        .then(m => m.VerCajaChicaActualComponent),
+    canActivate: [authGuard, roleGuard([RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR])]
+  },
+
+  /**
    * Módulo de caja chica.
    * Control diario de efectivo, ingresos y egresos menores.
    */

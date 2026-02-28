@@ -331,7 +331,7 @@ export class IngresosService {
       if (detalle.productoId) {
         await this.registrarMovimiento({
           productoId: detalle.productoId,
-          ingresoId: ingresoId,
+          referenciaId: ingresoId,
           tipo: 'INGRESO',
           cantidad: detalle.cantidad,
           costoUnitario: detalle.costoUnitario,
@@ -564,10 +564,13 @@ export class IngresosService {
       // Ensamblar movimiento evitando campos undefined
       const nuevoMovimiento: any = {
         productoId: movimiento.productoId,
-        ingresoId: movimiento.ingresoId,
+        productoNombre: producto.nombre ?? '',
+        grupoProducto: (producto as any).grupo ?? '',
+        sucursalId: 'PASJO01',
+        referenciaId: movimiento.referenciaId ?? '',
         tipo: movimiento.tipo,
         cantidad: movimiento.cantidad,
-        costoUnitario: movimiento.costoUnitario,
+        costoUnitario: movimiento.costoUnitario ?? 0,
         stockAnterior,
         stockNuevo,
         createdAt: new Date(),

@@ -39,6 +39,7 @@ import {
 import { Observable, BehaviorSubject, shareReplay, map, tap, combineLatest } from 'rxjs';
 import { Factura } from '../models/factura.model';
 import { PaginationResult } from '../models/pagination.model';
+import { MovimientoStockService } from './movimiento-stock.service';
 
 @Injectable({ providedIn: 'root' })
 export class FacturasService {
@@ -46,8 +47,9 @@ export class FacturasService {
   private readonly facturasRef;
   private readonly facturasDeudaRef;
   private readonly clientesRef;
+  private readonly movimientoStockSrv: MovimientoStockService;
 
-  // 🎯 CACHÉ con shareReplay
+  // 🎯 CACÉ con shareReplay
   private facturasCache$ = new BehaviorSubject<Factura[]>([]);
   private cachedAllFacturas$: Observable<Factura[]> | null = null;
 
@@ -56,6 +58,7 @@ export class FacturasService {
     this.facturasRef = collection(this.fs, 'facturas');
     this.facturasDeudaRef = collection(this.fs, 'facturas_deudas');
     this.clientesRef = collection(this.fs, 'clientes');
+    this.movimientoStockSrv = inject(MovimientoStockService);
   }
 
   /**
@@ -110,6 +113,21 @@ export class FacturasService {
     });
 
     console.log('✅ Factura guardada con ID:', idPersonalizado);
+
+    // 📦 Registrar movimientos de stock VENTA (no bloquea si falla)
+    try {
+      await this.movimientoStockSrv.registrarMovimientosVenta(
+        idPersonalizado,
+        facturaParaGuardar.fecha,
+        factura.items ?? [],
+        factura.metodoPago,
+        (factura as any).sucursalId,
+        factura.usuarioId
+      );
+    } catch (err) {
+      console.error('⚠️ Error al registrar movimientos de stock (factura guardada correctamente):', err);
+    }
+
     return docRef;
   }
 

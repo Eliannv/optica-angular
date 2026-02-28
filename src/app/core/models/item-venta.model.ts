@@ -25,4 +25,13 @@ export interface ItemVenta {
 
   /** Total del ítem (cantidad × precioUnitario) */
   total: number;
+
+  /** Indica si el ítem es un servicio (true) o un producto físico (false) */
+  esServicio?: boolean;
+
+  /** Código de producto o referencia interna */
+  codigo?: string;
+
+  /** ID interno numérico del producto en el catálogo */
+  idInterno?: number;
 }

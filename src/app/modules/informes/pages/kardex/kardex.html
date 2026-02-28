@@ -1,0 +1,568 @@
+<div class="kardex-container">
+
+  <!-- ═══ HEADER ═══════════════════════════════════════════════════ -->
+  <div class="ventas-header">
+    <div class="header-content">
+      <div class="header-title-wrapper">
+        <h2 class="titulo">Kardex de Inventario</h2>
+        <!-- Icono de información con tooltip -->
+        <div class="info-tooltip-container">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="info-icon">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 16v-4"/>
+            <path d="M12 8h.01"/>
+          </svg>
+          <div class="info-tooltip">
+            <h6 class="tooltip-title">Instrucciones</h6>
+            <ul class="tooltip-list">
+              <li>Busca un <strong>producto</strong> (requerido para optimizar la consulta)</li>
+              <li>Opcionalmente filtra por sucursal, fechas o tipo de movimiento</li>
+              <li>Haz clic en "Consultar Kardex" para ver el historial completo</li>
+              <li>Los totales se calculan automáticamente desde los datos guardados</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <!-- Botones de acción -->
+      <div class="header-actions">
+        <button 
+          type="button" 
+          class="btn btn-outline-success btn-exportar-header"
+          (click)="exportarCSV()"
+          [disabled]="!mostrandoResultados || movimientos.length === 0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" x2="12" y1="15" y2="3"/>
+          </svg>
+          Exportar Excel
+        </button>
+        <button 
+          type="button" 
+          class="btn-reimprimir"
+          (click)="imprimir()"
+          [disabled]="!mostrandoResultados || movimientos.length === 0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 6 2 18 2 18 9"/>
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+            <rect width="12" height="8" x="6" y="14"/>
+          </svg>
+          Imprimir
+        </button>
+      </div>
+    </div>
+    <p class="subtitulo">Historial completo de movimientos de inventario por producto</p>
+  </div>
+
+  <!-- ═══ FILTROS ═══════════════════════════════════════════════════ -->
+  <div class="filtros-card">
+    <h3 class="filtros-titulo">Filtros de Búsqueda</h3>
+
+    <form [formGroup]="filtrosForm" (ngSubmit)="consultarKardex()">
+      <!-- LAYOUT DE 2 COLUMNAS -->
+      <div class="filtros-layout-dos-columnas">
+        
+        <!-- COLUMNA 1: BUSCADOR DE PRODUCTO CON FILTROS AVANZADOS -->
+        <div class="columna-buscador">
+          <div class="filtro-grupo producto-filtro-container">
+            <label for="busquedaProducto">
+              Producto <span class="text-danger">*</span>
+            </label>
+            
+            <!-- Botones de Filtros y Recientes
+            <div class="botones-filtros-recientes">
+              <button
+                type="button"
+                class="btn-toggle-filtros"
+                [class.active]="mostrarFiltrosAvanzados"
+                (click)="toggleFiltrosAvanzados()"
+                title="Filtros avanzados"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                </svg>
+                Filtros
+              </button>
+              
+              <button
+                type="button"
+                class="btn-toggle-recientes"
+                [class.active]="mostrarRecientes"
+                (click)="toggleRecientes()"
+                title="Productos recientes"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                Recientes
+              </button>
+            </div> -->
+            
+            <!-- Panel de Filtros Avanzados -->
+            @if (mostrarFiltrosAvanzados) {
+              <div class="panel-filtros-avanzados">
+                <div class="filtros-avanzados-grid">
+                  <div class="filtro-avanzado">
+                    <label>Grupo</label>
+                    <select 
+                      [(ngModel)]="grupoSeleccionado" 
+                      [ngModelOptions]="{standalone: true}"
+                      (change)="aplicarFiltros()"
+                      class="input-filtro-sm">
+                      <option value="">Todos</option>
+                      <option *ngFor="let grupo of gruposDisponibles" [value]="grupo">
+                        {{ grupo }}
+                      </option>
+                    </select>
+                  </div>
+                  
+                  <div class="filtro-avanzado">
+                    <label>Proveedor</label>
+                    <select 
+                      [(ngModel)]="proveedorSeleccionado"
+                      [ngModelOptions]="{standalone: true}"
+                      (change)="aplicarFiltros()"
+                      class="input-filtro-sm">
+                      <option value="">Todos</option>
+                      <option *ngFor="let prov of proveedoresDisponibles" [value]="prov">
+                        {{ prov }}
+                      </option>
+                    </select>
+                  </div>
+                  
+                  <div class="filtro-avanzado">
+                    <label>Stock</label>
+                    <select 
+                      [(ngModel)]="stockSeleccionado"
+                      [ngModelOptions]="{standalone: true}"
+                      (change)="aplicarFiltros()"
+                      class="input-filtro-sm">
+                      <option value="">Todos</option>
+                      <option value="ILIMITADO">Ilimitado</option>
+                      <option value="DISPONIBLE">Con stock</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <button 
+                  type="button" 
+                  class="btn-limpiar-filtros-avanzados"
+                  (click)="limpiarFiltrosAvanzados()">
+                  Limpiar filtros
+                </button>
+              </div>
+            }
+            
+            <div class="search-product-wrapper">
+              <input
+                id="busquedaProducto"
+                type="text"
+                class="input-filtro search-product-input"
+                placeholder="Buscar por nombre o código... (usa ↑↓ y Enter)"
+                [(ngModel)]="terminoBusquedaProducto"
+                [ngModelOptions]="{standalone: true}"
+                (input)="buscarProductos()"
+                autocomplete="off"
+              />
+              <!---->
+              @if (terminoBusquedaProducto) {
+                <button
+                  class="clear-product-btn"
+                  type="button"
+                  (click)="limpiarBusquedaProducto()"
+                  (click)="limpiarFiltros()"
+                  title="Limpiar búsqueda"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="m15 9-6 6"/>
+                    <path d="m9 9 6 6"/>
+                  </svg>
+                </button>
+              }
+              
+              <!-- Dropdown de productos (búsqueda) -->
+              @if (mostrarDropdownProductos && productosFiltrados.length > 0 && !mostrarRecientes) {
+                <div class="productos-dropdown">
+                  <div class="productos-dropdown-header">
+                    <span class="dropdown-count">
+                      {{ productosFiltrados.length }} producto{{ productosFiltrados.length !== 1 ? 's' : '' }} encontrado{{ productosFiltrados.length !== 1 ? 's' : '' }}
+                    </span>
+                    <button
+                      type="button"
+                      class="btn-close-dropdown"
+                      (click)="cerrarDropdownProductos()"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                  <div class="productos-dropdown-items">
+                    @for (producto of productosAMostrar; track producto.id) {
+                      <button
+                        type="button"
+                        class="producto-dropdown-item"
+                        (click)="seleccionarProducto(producto)"
+                      >
+                        <div class="producto-dropdown-content">
+                          <h4 class="producto-dropdown-nombre">{{ producto.nombre }}</h4>
+                          <div class="producto-dropdown-detalles">
+                            <span class="detalle-badge">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-asterisk-icon lucide-asterisk"><path d="M12 6v12"/><path d="M17.196 9 6.804 15"/><path d="m6.804 9 10.392 6"/></svg>
+                              {{ producto.idInterno || 'Sin código' }}
+                            </span>
+                            <span class="detalle-badge">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-box-icon lucide-box"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                                {{ producto.modelo || 'Sin modelo' }}
+                              </span> 
+                            <span class="detalle-badge">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-palette-icon lucide-palette"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+                              {{ producto.color || 'Sin color' }}
+                            </span>
+                            
+                              <span class="detalle-badge stock-badge">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                              </svg>
+                              {{ producto.tipo_control_stock === 'ILIMITADO' ? 'Ilimitado' : 'Agotado' }}
+                            </span>
+                            
+                            
+                          </div>
+                        </div>
+                        <div class="producto-dropdown-arrow">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m9 18 6-6-6-6"/>
+                          </svg>
+                        </div>
+                      </button>
+                    }
+                  </div>
+                  
+                  <!-- Botón Cargar 10 más -->
+                  @if (hayMasProductos) {
+                    <div class="productos-dropdown-footer">
+                      <button
+                        type="button"
+                        class="btn-cargar-mas"
+                        (click)="cargarMasProductos()"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M12 5v14"/>
+                          <path d="m19 12-7 7-7-7"/>
+                        </svg>
+                        Cargar 10 más
+                      </button>
+                    </div>
+                  }
+                </div>
+              }
+              
+              <!-- Dropdown de productos recientes
+              @if (mostrarRecientes) {
+                <div class="productos-dropdown">
+                  <div class="productos-dropdown-header">
+                    <span class="dropdown-count">
+                      Productos recientes ({{ productosRecientes.length }})
+                    </span>
+                    <button
+                      type="button"
+                      class="btn-close-dropdown"
+                      (click)="toggleRecientes()"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                  <div class="productos-dropdown-items">
+                    @for (producto of productosRecientes; track producto.id) {
+                      <button
+                        type="button"
+                        class="producto-dropdown-item"
+                        (click)="seleccionarProducto(producto)"
+                      >
+                        <div class="producto-dropdown-content">
+                          <h4 class="producto-dropdown-nombre">{{ producto.nombre }}</h4>
+                          <div class="producto-dropdown-detalles">
+                            <span class="detalle-badge">
+                              {{ producto.codigo || 'Sin código' }}
+                            </span>
+                            <span class="detalle-badge stock-badge">
+                              Stock: {{ producto.stock || 0 }}
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    }
+                  </div>
+                </div>
+              } -->
+            </div>
+            
+            @if (productoSeleccionado) {
+  <div class="producto-seleccionado">
+    <div class="producto-info-grid">
+      <div class="producto-campo">
+        <span class="campo-label">Código</span>
+        <span class="campo-valor">{{ productoSeleccionado.idInterno }}</span>
+      </div>
+      <div class="producto-campo campo-nombre">
+        <span class="campo-label">Nombre</span>
+        <span class="campo-valor">{{ productoSeleccionado.nombre }}</span>
+      </div>
+      <div class="producto-campo">
+        <span class="campo-label">Grupo</span>
+        <span class="campo-valor">{{ productoSeleccionado.grupo }}</span>
+      </div>
+      @if (productoSeleccionado.proveedor) {
+        <div class="producto-campo">
+          <span class="campo-label">Proveedor</span>
+          <span class="campo-valor">{{ productoSeleccionado.proveedor }}</span>
+        </div>
+      }
+      @if (productoSeleccionado.modelo) {
+        <div class="producto-campo">
+          <span class="campo-label">Modelo</span>
+          <span class="campo-valor">{{ productoSeleccionado.modelo }}</span>
+        </div>
+      }
+      <div class="producto-campo">
+        <span class="campo-label">Control stock</span>
+        <span class="campo-valor">{{ productoSeleccionado.tipo_control_stock }}</span>
+      </div>
+    </div>
+  </div>
+}
+            
+          </div>
+        </div>
+        
+        <!-- COLUMNA 2: FILTROS PRINCIPALES (4 filtros) -->
+        <div class="columna-filtros-principales">
+          <div class="filtros-grid-4-vertical">
+            
+
+            <!-- Fecha Inicio -->
+            <div class="filtro-grupo">
+              <label for="fechaInicio">Fecha Inicio</label>
+              <input 
+                type="date" 
+                id="fechaInicio" 
+                formControlName="fechaInicio" 
+                class="input-filtro">
+            </div>
+
+            <!-- Sucursal -->
+            <div class="filtro-grupo">
+              <label for="sucursalId">Sucursal</label>
+              <select 
+                id="sucursalId" 
+                formControlName="sucursalId" 
+                class="input-filtro">
+                <option value="">-- Todas las sucursales --</option>
+                <option *ngFor="let suc of sucursales" [value]="suc.id">
+                  {{ suc.nombre }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Fecha Fin -->
+            <div class="filtro-grupo">
+              <label for="fechaFin">Fecha Fin</label>
+              <input 
+                type="date" 
+                id="fechaFin" 
+                formControlName="fechaFin" 
+                class="input-filtro">
+            </div>
+
+            <!-- Tipo de Movimiento -->
+            <div class="filtro-grupo">
+              <label for="tipo">Tipo de Movimiento</label>
+              <select 
+                id="tipo" 
+                formControlName="tipo" 
+                class="input-filtro">
+                <option value="">-- Todos los tipos --</option>
+                <option value="INGRESO">INGRESO</option>
+                <option value="VENTA">VENTA</option>
+                <option value="SALIDA">SALIDA</option>
+                <option value="AJUSTE">AJUSTE</option>
+                <option value="ANULACION">ANULACIÓN</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+
+      <!-- Acciones -->
+      <div class="filtros-acciones">
+        <div class="filtros-botones">
+          <button 
+            type="submit" 
+            class="btn-mostrar"
+            [disabled]="loading">
+            {{ loading ? 'Consultando...' : 'Consultar' }}
+          </button>
+
+          <button 
+            type="button" 
+            class="btn-limpiar"
+            (click)="limpiarFiltros()"
+            [disabled]="loading">
+            Limpiar
+          </button>
+        </div>
+        <span class="filtros-resultado" *ngIf="mostrandoResultados && !loading">
+          {{ movimientos.length }} movimiento(s) encontrado(s)
+        </span>
+      </div>
+    </form>
+  </div>
+
+
+  <!-- ═══ LOADING ════════════════════════════════════════════════════ -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Consultando movimientos del Kardex...</p>
+  </div>
+
+  <!-- ═══ ESTADÍSTICAS (RESUMEN) ════════════════════════════════════ -->
+  <div class="estadisticas-card" *ngIf="mostrandoResultados && !loading">
+    <div class="estadisticas-grid">
+      <!-- Total Entradas -->
+      <div class="stat-item stat-primary">
+        <div class="stat-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Total Entradas</span>
+          <span class="stat-value">{{ resumen.totalEntradas }}</span>
+        </div>
+      </div>
+
+      <!-- Total Salidas -->
+      <div class="stat-item stat-primary">
+        <div class="stat-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Total Salidas</span>
+          <span class="stat-value">{{ resumen.totalSalidas }}</span>
+        </div>
+      </div>
+
+      <!-- Stock Final -->
+      <div class="stat-item stat-primary">
+        <div class="stat-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Stock Actual</span>
+          <span class="stat-value">{{ resumen.stockFinal }}</span>
+        </div>
+      </div>
+
+      <!-- Utilidad Total -->
+      <div class="stat-item stat-primary">
+        <div class="stat-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Utilidad Total Ventas</span>
+          <span class="stat-value">${{ resumen.utilidadTotal | number:'1.2-2' }}</span>
+        </div>
+      </div>
+
+      <!-- Costo Total Entradas -->
+      <div class="stat-item stat-primary">
+        <div class="stat-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Costo Total Entradas</span>
+          <span class="stat-value">${{ resumen.costoTotalEntradas | number:'1.2-2' }}</span>
+        </div>
+      </div>
+
+      <!-- Valor Total Ventas -->
+      <div class="stat-item stat-primary">
+        <div class="stat-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Valor Total Ventas</span>
+          <span class="stat-value">${{ resumen.valorTotalVentas | number:'1.2-2' }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══ TABLA DE MOVIMIENTOS ══════════════════════════════════════ -->
+  <div *ngIf="mostrandoResultados && !loading" class="table-wrapper">
+    <table class="ventas-table">
+      <thead>
+        <tr>
+          <th class="cell-fecha-sm">Fecha</th>
+          <th>Tipo</th>
+          <th>Documento</th>
+          <th class="text-right">Entrada</th>
+          <th class="text-right">Salida</th>
+          <th class="text-right">Stock</th>
+          <th class="text-right">Costo Unit.</th>
+          <th class="text-right">Precio Venta</th>
+          <th class="text-right">Sucursal</th>
+          <th class="text-right">Usuario</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let mov of movimientos; let i = index" class="fila-hover">
+          <td class="cell-fecha-sm">
+            {{ formatearFechaHora(mov.createdAt) }}
+          </td>
+          <td>
+            <span [class]="obtenerClaseTipo(mov.tipo)" class="badge-tipo">
+              {{ mov.tipo }}
+            </span>
+          </td>
+          <td class="text-muted-cell">
+            {{ mov.referenciaId || '-' }}
+          </td>
+          <td class="text-right text-success-bold">
+            {{ mov.tipo === 'INGRESO' ? '+' + mov.cantidad : '-' }}
+          </td>
+          <td class="text-right text-danger-bold">
+            {{ (mov.tipo === 'VENTA' || mov.tipo === 'SALIDA' || mov.tipo === 'ANULACION') ? '-' + mov.cantidad : '-' }}
+          </td>
+          <td class="text-right font-weight-bold">
+            {{ mov.stockNuevo }}
+          </td>
+          <td class="text-right">
+            ${{ mov.costoUnitario | number:'1.2-2' }}
+          </td>
+          <td class="text-right">
+            {{ mov.precioVenta ? ('$' + (mov.precioVenta | number:'1.2-2')) : '-' }}
+          </td>
+          <td class="text-right">
+            {{ mov.sucursalId || '-' }}
+          </td>
+          <td class="text-right">
+  {{ mov.usuarioId !== undefined && mov.usuarioId !== null ? (usuariosDict[mov.usuarioId] || '-') : '-' }}
+</td>
+        </tr>
+
+        <!-- Fila vacía si no hay datos -->
+        <tr *ngIf="movimientos.length === 0">
+          <td colspan="10" class="empty-state">
+            <div class="empty-state-content">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3zM21 9H3M21 15H3M12 3v18"/></svg>
+              <p>No se encontraron movimientos con los filtros seleccionados.</p>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>

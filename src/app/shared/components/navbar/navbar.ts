@@ -58,15 +58,19 @@ export class NavbarComponent {
     { nombre: 'Punto de Venta (POS)', ruta: '/ventas/crear', categoria: 'Ventas', keywords: ['pos', 'venta', 'factura', 'vender'] },
     { nombre: 'Facturas', ruta: '/facturas', categoria: 'Ventas', keywords: ['factura', 'recibo', 'comprobante'] },
     { nombre: 'Cobrar Deudas', ruta: '/ventas/deuda', categoria: 'Ventas', keywords: ['deuda', 'cobrar', 'pendiente', 'crédito'] },
+    { nombre: 'Cobros Tarjeta', ruta: '/caja-banco/ventas-tarjeta', categoria: 'Ventas', keywords: ['tarjeta', 'cobro'] },
     
     // Finanzas
-    { nombre: 'Caja Chica', ruta: '/caja-chica', categoria: 'Finanzas', keywords: ['caja', 'efectivo', 'dinero'] },
-    { nombre: 'Registrar movimiento caja chica', ruta: '/caja-chica/registrar', categoria: 'Finanzas', keywords: ['caja', 'efectivo', 'dinero'] },
-    { nombre: 'Caja Banco', ruta: '/caja-banco', categoria: 'Finanzas', keywords: ['banco', 'cuenta', 'deposito'] },
-    { nombre: 'Registrar movimiento caja banco', ruta: '/caja-banco/registrar-movimiento', categoria: 'Finanzas', keywords: ['banco', 'cuenta', 'deposito'] },
-    { nombre: 'Cobros Tarjeta', ruta: '/caja-banco/ventas-tarjeta', categoria: 'Finanzas', keywords: ['tarjeta', 'cobro', 'visa', 'mastercard'] },
-    { nombre: 'Cuentas por Pagar', ruta: '/cuentas/pagar', categoria: 'Finanzas', keywords: ['pagar', 'deuda', 'proveedor'] },
-    { nombre: 'Cuentas por Cobrar', ruta: '/cuentas/cobrar', categoria: 'Finanzas', keywords: ['cobrar', 'cliente', 'credito'] },
+    { nombre: 'Ver Caja Actual', ruta: '/ver-caja-banco-actual', categoria: 'Finanzas > Caja banco', keywords: ['caja', 'banco', 'actual', 'abierta', 'ver', 'movimientos'] },
+    { nombre: 'Ver Caja Actual', ruta: '/ver-caja-chica-actual', categoria: 'Finanzas > Caja chica', keywords: ['caja', 'chica', 'actual', 'abierta', 'ver', 'movimientos'] },
+    { nombre: 'Caja Chica', ruta: '/caja-chica', categoria: 'Finanzas > Caja chica', keywords: ['caja', 'efectivo', 'dinero'] },
+    { nombre: 'Registrar movimiento', ruta: '/caja-chica/registrar', categoria: 'Finanzas > Caja chica', keywords: ['caja', 'efectivo', 'dinero'] },
+    { nombre: 'Caja Banco', ruta: '/caja-banco', categoria: 'Finanzas > Caja banco', keywords: ['banco', 'cuenta', 'deposito'] },
+    { nombre: 'Registrar movimiento', ruta: '/caja-banco/registrar-movimiento', categoria: 'Finanzas > Caja banco', keywords: ['banco', 'cuenta', 'deposito'] },    
+    
+    // Tesorería
+    { nombre: 'Cuentas por Pagar', ruta: '/cuentas/pagar', categoria: 'Tesorería', keywords: ['pagar', 'deuda', 'proveedor'] },
+    { nombre: 'Cuentas por Cobrar', ruta: '/cuentas/cobrar', categoria: 'Tesorería', keywords: ['cobrar', 'cliente', 'credito'] },
     
     // Inventario - Productos
     { nombre: 'Todos los Productos', ruta: '/productos', categoria: 'Inventario', keywords: ['producto', 'inventario', 'stock'] },

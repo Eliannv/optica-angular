@@ -26,13 +26,15 @@
 import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { Subscription, firstValueFrom } from 'rxjs';
 import Swal from 'sweetalert2';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { CajaChica } from '../../../../core/models/caja-chica.model';
 import { CajaBanco } from '../../../../core/models/caja-banco.model';
 import { QueryDocumentSnapshot, DocumentData } from '@angular/fire/firestore';
+import { normalizarFecha } from '../../../../core/utils/fecha-helpers';
 
 @Component({
   selector: 'app-listar-cajas',
@@ -43,6 +45,7 @@ import { QueryDocumentSnapshot, DocumentData } from '@angular/fire/firestore';
 export class ListarCajasComponent implements OnInit, OnDestroy {
   private cajaChicaService = inject(CajaChicaService);
   private cajaBancoService = inject(CajaBancoService);
+  private authService = inject(AuthService);
   private router = inject(Router);
   private subscriptions = new Subscription();
 
@@ -383,10 +386,225 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Navega hacia el formulario de apertura de nueva caja chica.
+   * Abre un modal para crear una nueva caja chica.
+   * Similar al flujo de caja banco, pero validando primero que exista una caja banco.
    */
-  abrirCaja(): void {
-    this.router.navigate(['/caja-chica/nueva']);
+  async abrirCaja(): Promise<void> {
+    try {
+      // Verificar primero que exista al menos una caja banco
+      const existeCajaBanco = await firstValueFrom(this.cajaBancoService.existeAlMenosUnaCajaBanco());
+      
+      if (!existeCajaBanco) {
+        const esAdmin = this.authService.isAdmin();
+        
+        if (esAdmin) {
+          const result = await Swal.fire({
+            icon: 'warning',
+            title: 'Caja Banco requerida',
+            text: 'Debe crear primero una Caja Banco antes de registrar una Caja Chica.',
+            confirmButtonText: 'Ir a Caja Banco',
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: 'var(--btn-primary-bg)',
+            cancelButtonColor: 'var(--btn-secondary-bg)'
+          });
+          
+          if (result.isConfirmed) {
+            this.router.navigate(['/caja-banco']);
+          }
+        } else {
+          await Swal.fire({
+            icon: 'error',
+            title: 'Caja Banco no disponible',
+            text: 'No existe una Caja Banco creada. Contacte con el administrador para que la cree.',
+            confirmButtonText: 'Aceptar'
+          });
+        }
+        return;
+      }
+
+      // Obtener restricciones de fecha de la caja banco abierta
+      const cajaBanco = await this.cajaBancoService.getCajaBancoAbierta();
+      let fechaMinima = '';
+      let fechaMaxima = '';
+      let periodoNombre = '';
+
+      if (cajaBanco?.fecha) {
+        const fechaCaja = (cajaBanco.fecha as any)?.toDate ? (cajaBanco.fecha as any).toDate() : new Date(cajaBanco.fecha);
+        const year = fechaCaja.getFullYear();
+        const month = fechaCaja.getMonth();
+        
+        const primerDia = new Date(year, month, 1);
+        const ultimoDia = new Date(year, month + 1, 0);
+        const hoy = new Date();
+        
+        fechaMinima = this.formatearFechaInput(primerDia);
+        fechaMaxima = this.formatearFechaInput(ultimoDia < hoy ? ultimoDia : hoy);
+        
+        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        periodoNombre = `${meses[month]} ${year}`;
+      }
+
+      const hoy = new Date();
+      const fechaHoy = this.formatearFechaInput(hoy);
+
+      const { value: formValues } = await Swal.fire({
+        title: 'Crear Nueva Caja Chica',
+        iconHtml: '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="16" r="1"/><rect width="18" height="12" x="3" y="10" rx="2"/><path d="M7 10V7a5 5 0 0 1 9.33-2.5"/></svg>',
+        html: `
+          <div style="text-align: left;">
+            <!-- Fecha -->
+            <div style="margin-bottom: 1rem;">
+              <label for="fecha" style="display: block; margin-bottom: 0.4rem; font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">
+                Fecha de Apertura *
+              </label>
+              <input 
+                id="fecha" 
+                type="date" 
+                class="swal2-input" 
+                value="${fechaHoy}"
+                min="${fechaMinima}"
+                max="${fechaMaxima}"
+                style="width: 100%; padding: 0.6rem; border: 2px solid var(--border-color); border-radius: 6px; font-size: 0.95rem; box-sizing: border-box; margin: 0;"
+              />
+              <small style="display: block; margin-top: 0.2rem; color: var(--text-tertiary); font-size: 0.8rem;">
+                ${periodoNombre ? `Periodo de caja banco: ${periodoNombre}` : 'Seleccione la fecha de apertura'}
+              </small>
+            </div>
+            
+            <!-- Monto Inicial -->
+            <div style="margin-bottom: 1rem;">
+              <label for="monto_inicial" style="display: block; margin-bottom: 0.4rem; font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">
+                Monto Inicial (USD) *
+              </label>
+              <input 
+                id="monto_inicial" 
+                type="number" 
+                class="swal2-input" 
+                placeholder="0.00"
+                step="0.01"
+                min="0"
+                style="width: 100%; padding: 0.6rem; border: 2px solid var(--border-color); border-radius: 6px; font-size: 0.95rem; box-sizing: border-box; margin: 0;"
+              />
+            </div>
+
+            <!-- Observación -->
+            <div style="margin-bottom: 1rem;">
+              <label for="observacion" style="display: block; margin-bottom: 0.4rem; font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">
+                Observación (opcional)
+              </label>
+              <textarea 
+                id="observacion" 
+                class="swal2-textarea" 
+                placeholder="Detalles sobre la apertura..."
+                rows="2"
+                style="width: 100%; padding: 0.6rem; border: 2px solid var(--border-color); border-radius: 6px; font-size: 0.9rem; box-sizing: border-box; resize: vertical; font-family: inherit; margin: 0;"
+              ></textarea>
+            </div>
+          </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: '✓ Crear Caja Chica',
+        cancelButtonText: '✕ Cancelar',
+        confirmButtonColor: 'var(--btn-primary-bg)',
+        cancelButtonColor: 'var(--btn-secondary-bg)',
+        preConfirm: () => {
+          const fechaInput = (document.getElementById('fecha') as HTMLInputElement)?.value;
+          const montoInput = (document.getElementById('monto_inicial') as HTMLInputElement)?.value;
+          const observacion = (document.getElementById('observacion') as HTMLTextAreaElement)?.value;
+
+          if (!fechaInput) {
+            Swal.showValidationMessage('La fecha es requerida');
+            return false;
+          }
+
+          if (!montoInput || montoInput.trim() === '') {
+            Swal.showValidationMessage('El monto inicial es requerido');
+            return false;
+          }
+
+          const monto = parseFloat(montoInput);
+          if (isNaN(monto) || monto < 0) {
+            Swal.showValidationMessage('El monto debe ser un número válido mayor o igual a 0');
+            return false;
+          }
+
+          // Validar que la fecha esté dentro del periodo
+          if (fechaMinima && fechaMaxima) {
+            if (fechaInput < fechaMinima || fechaInput > fechaMaxima) {
+              Swal.showValidationMessage(`La fecha debe estar dentro del periodo ${periodoNombre}`);
+              return false;
+            }
+          }
+
+          // Validar que no sea fecha futura
+          const fechaSeleccionada = new Date(fechaInput + 'T00:00:00');
+          const hoyValidacion = new Date();
+          hoyValidacion.setHours(0, 0, 0, 0);
+          
+          if (fechaSeleccionada.getTime() > hoyValidacion.getTime()) {
+            Swal.showValidationMessage('No se pueden crear cajas con fechas futuras');
+            return false;
+          }
+
+          return { fecha: fechaInput, monto_inicial: monto, observacion };
+        }
+      });
+
+      if (!formValues) return;
+
+      // Obtener usuario actual
+      const usuario = this.authService.getCurrentUser();
+      
+      const nuevaCaja = {
+        fecha: normalizarFecha(formValues.fecha),
+        monto_inicial: formValues.monto_inicial,
+        monto_actual: formValues.monto_inicial,
+        estado: 'ABIERTA' as const,
+        usuario_id: usuario?.id || '',
+        usuario_nombre: usuario?.nombre || 'Sistema',
+        observacion: formValues.observacion || ''
+      };
+
+      await this.cajaChicaService.abrirCajaChica(nuevaCaja);
+
+      await Swal.fire({
+        icon: 'success',
+        title: '¡Caja Chica Creada!',
+        html: `
+          <div style="text-align: center;">
+            <div style="background: var(--bg-tertiary); padding: 0.75rem; border-radius: 8px;">
+              <p style="margin: 0; font-size: 1.4rem; font-weight: bold; color: var(--success-color);">✓</p>
+              <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">Caja creada con éxito</p>
+            </div>
+          </div>
+        `,
+        timer: 2000,
+        showConfirmButton: false
+      });
+
+      // Recargar cajas
+      this.cargarTodasLasCajasDelPeriodo();
+    } catch (error: any) {
+      console.error('Error al crear caja chica:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error al crear caja',
+        text: error?.message || 'No se pudo crear la caja chica. Intenta de nuevo.'
+      });
+    }
+  }
+
+  /**
+   * Formatea una fecha a string YYYY-MM-DD para input[type="date"]
+   */
+  private formatearFechaInput(fecha: Date): string {
+    const year = fecha.getFullYear();
+    const month = (fecha.getMonth() + 1).toString().padStart(2, '0');
+    const day = fecha.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   /**

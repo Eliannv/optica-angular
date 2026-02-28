@@ -146,6 +146,41 @@ export class SidebarComponent implements OnInit {
             route: '/ventas/deuda',
             active: false,
             roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
+          },
+          {
+                label: 'Cobros Tarjeta',
+                icon: '',
+                route: '/caja-banco/ventas-tarjeta',
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
+              }
+        ]
+      },
+
+      // 🛒 VENTAS
+      {
+        label: 'Tesorería',
+        icon: this.sanitizer.bypassSecurityTrustHtml(`
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-receipt-icon lucide-receipt"><path d="M12 17V7"/><path d="M16 8h-6a2 2 0 0 0 0 4h4a2 2 0 0 1 0 4H8"/><path d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z"/></svg>
+        `),
+        route: '/ventas/crear',
+        active: false,
+        roles: [RolUsuario.ADMINISTRADOR],
+        expanded: false,
+        children: [
+          {
+            label: 'Cuentas por Pagar',
+            icon: '',
+            route: '/cuentas/pagar',
+            active: false,
+            roles: [RolUsuario.ADMINISTRADOR]
+          },
+          {
+            label: 'Cuentas por Cobrar',
+            icon: '',
+            route: '/cuentas/cobrar',
+            active: false,
+            roles: [RolUsuario.ADMINISTRADOR]
           }
         ]
       },
@@ -183,6 +218,13 @@ export class SidebarComponent implements OnInit {
                 route: '/caja-chica',
                 active: false,
                 roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
+              },
+              {
+                label: 'Ver Caja Actual',
+                icon: '',
+                route: '/ver-caja-chica-actual',
+                active: false,
+                roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
               }
             ]
           },
@@ -209,35 +251,11 @@ export class SidebarComponent implements OnInit {
                 roles: [RolUsuario.ADMINISTRADOR]
               },
               {
-                label: 'Cobros Tarjeta',
+                label: 'Ver Caja Actual',
                 icon: '',
-                route: '/caja-banco/ventas-tarjeta',
+                route: '/ver-caja-banco-actual',
                 active: false,
-                roles: [RolUsuario.ADMINISTRADOR]
-              }
-            ]
-          },
-          {
-            label: 'Cuentas',
-            icon: '',
-            route: '/cuentas',
-            active: false,
-            roles: [RolUsuario.ADMINISTRADOR],
-            expanded: false,
-            children: [
-              {
-                label: 'Cuentas por Pagar',
-                icon: '',
-                route: '/cuentas/pagar',
-                active: false,
-                roles: [RolUsuario.ADMINISTRADOR]
-              },
-              {
-                label: 'Cuentas por Cobrar',
-                icon: '',
-                route: '/cuentas/cobrar',
-                active: false,
-                roles: [RolUsuario.ADMINISTRADOR]
+                roles: [RolUsuario.OPERADOR, RolUsuario.ADMINISTRADOR]
               }
             ]
           }
@@ -418,7 +436,24 @@ export class SidebarComponent implements OnInit {
         `),
         route: '/informes',
         active: false,
-        roles: [RolUsuario.ADMINISTRADOR]
+        roles: [RolUsuario.ADMINISTRADOR],
+        expanded: false,
+        children: [
+          {
+            label: 'Ventas Generales',
+            icon: '',
+            route: '/informes',
+            active: false,
+            roles: [RolUsuario.ADMINISTRADOR]
+          },
+          {
+            label: 'Kardex',
+            icon: '',
+            route: '/informes/kardex',
+            active: false,
+            roles: [RolUsuario.ADMINISTRADOR]
+          }
+        ]
       },
 
       // ⚙️ CONFIGURACIÓN
