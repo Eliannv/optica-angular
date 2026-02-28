@@ -7,6 +7,9 @@
 import { Component, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ThemeService } from '../../../core/services/theme.service';
+import { environment } from '../../../../environments/environment';
+
+const APP_VERSION = environment.appVersion;
 
 /**
  * @component FooterComponent
@@ -23,7 +26,7 @@ import { ThemeService } from '../../../core/services/theme.service';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './footer.html',
-  styleUrl: './footer.css'
+  styleUrls: ['./footer.css']
 })
 export class FooterComponent {
   /**
@@ -36,7 +39,7 @@ export class FooterComponent {
    * Versión actual de la aplicación mostrada en el footer.
    * @type {string}
    */
-  readonly appVersion: string = '0.0.25';
+  readonly appVersion: string = APP_VERSION;
 
   /**
    * Servicio de temas para detectar el modo oscuro/claro.
