@@ -227,14 +227,22 @@
                     <button type="button" class="btn-cancel" (click)="cancelar()">
                         Cancelar
                     </button>
-                    <button type="submit" class="btn btn-primary" [disabled]="!puedeGuardar">
-                        <span *ngIf="validandoCedula || validandoEmail">
+                    <button type="submit" class="btn btn-primary" [disabled]="!puedeGuardar || guardando">
+                        @if (guardando) {
                             <span class="loading-spinner">
-                                <span class="spinner"></span>
-                                Validando...
+                            <span class="spinner"></span>
+                            {{ 'Guardando...' }}
                             </span>
-                        </span>
-                        <span *ngIf="!validandoCedula && !validandoEmail">Guardar Todo</span>
+                        }
+                        @else if (validandoCedula || validandoEmail) {
+                             <span class="loading-spinner">
+                            <span class="spinner"></span>
+                            Validando...
+                            </span>
+                        }
+                        @else {
+                            <span>Guardar Todo</span>
+                        }
                     </button>
                 </div>
             </form>

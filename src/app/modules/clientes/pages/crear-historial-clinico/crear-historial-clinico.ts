@@ -73,6 +73,8 @@ export class CrearHistorialClinicoComponent implements OnInit {
   esOperador = false;
   mostrarCampoFechaHora = false;
 
+  guardando = false;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -446,6 +448,8 @@ export class CrearHistorialClinicoComponent implements OnInit {
       return;
     }
 
+    this.guardando = true;
+
     try {
       let nuevoHistorialId = this.historialId;
       const data = this.form.getRawValue();
@@ -496,8 +500,9 @@ export class CrearHistorialClinicoComponent implements OnInit {
           icon: 'success',
           title: 'Guardado exitoso',
           text: `El historial clínico fue ${this.mode === 'create' ? 'creado' : 'actualizado'} correctamente.`,
-          timer: 2000,
-          showConfirmButton: false
+          timer: 3000,
+          toast: true,
+          position: 'top-end'
         });
       }
 
@@ -516,7 +521,9 @@ export class CrearHistorialClinicoComponent implements OnInit {
         text: error?.message || 'Error al guardar',
         confirmButtonColor: '#d33'
       });
-    }
+    } finally {
+    this.guardando = false; 
+  }
   }
 
   /**

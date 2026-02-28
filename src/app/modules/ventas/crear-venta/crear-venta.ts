@@ -3032,7 +3032,10 @@ async procesarGuardadoVenta() {
         text: textoMensaje,
         showDenyButton: true,
         confirmButtonText: 'Finalizar',
+        //Cambiar color de confirmación button de color verde
+        confirmButtonColor: '#28a745',
         denyButtonText: 'Reimprimir Ticket',
+        denyButtonColor: '#3085d6',
         allowOutsideClick: false,
         allowEscapeKey: false
       }).then((result) => {
@@ -3046,7 +3049,9 @@ async procesarGuardadoVenta() {
             text: textoMensaje,
             showDenyButton: true,
             confirmButtonText: 'Finalizar',
+            confirmButtonColor: '#28a745',
             denyButtonText: 'Reimprimir Ticket',
+            denyButtonColor: '#3085d6',
             allowOutsideClick: false,
             allowEscapeKey: false
           }).then((result2) => {

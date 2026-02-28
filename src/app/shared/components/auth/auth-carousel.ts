@@ -254,6 +254,8 @@ export class AuthCarousel implements OnInit, OnDestroy {
           title: 'Bienvenido',
           text: `¡Hola ${usuario.nombre}!`,
           showConfirmButton: false,
+          toast: true,
+          position: 'top-end',
           timer: 2000,
         });
       },

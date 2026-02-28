@@ -823,18 +823,19 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
       // ✅ MOSTRAR SWAL DE ÉXITO Y REGRESAR A HISTORIAL
       await Swal.fire({
         icon: 'success',
-        title: '¡Deuda Cobrada!',
-        text: `Se registró el abono de $${abonoReal.toFixed(2)} correctamente.`,
-        confirmButtonText: 'Aceptar'
+        title: 'Validado',
+        text: `Se registró el abono de $${abonoReal.toFixed(2)} al cliente ${this.clienteNombre} correctamente.`,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: true,
+        confirmButtonColor: '#28a745',
+        timer: 3000,
       });
 
       if (this.returnTo) {
         this.router.navigateByUrl(this.returnTo);
         return;
       }
-
-      // Regresar a historial-clinico
-      this.router.navigate(['/clientes/historial-clinico']);
 
     } catch (e: any) {
       console.error(e);
@@ -1107,7 +1108,5 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
       this.router.navigateByUrl(this.returnTo);
       return;
     }
-
-    this.router.navigate(['/clientes/historial-clinico']);
   }
 }

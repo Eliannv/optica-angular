@@ -291,9 +291,11 @@ export class SeleccionarHistorialComponent implements OnInit, OnDestroy {
       // Mostrar mensaje de éxito
       Swal.fire({
         icon: 'success',
-        title: '¡Exportado!',
-        text: 'El pedido ha sido exportado a Excel exitosamente',
+        title: 'Validado',
+        text: 'El pedido fue exportado a Excel',
         timer: 2000,
+        toast: true,
+        position: 'top-end',
         showConfirmButton: false
       });
 
@@ -302,7 +304,11 @@ export class SeleccionarHistorialComponent implements OnInit, OnDestroy {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'Hubo un problema al generar el archivo Excel'
+        text: 'Hubo un problema al generar el archivo Excel',
+        timer: 2000,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false
       });
     }
   }

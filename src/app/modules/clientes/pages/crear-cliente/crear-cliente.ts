@@ -49,6 +49,8 @@ export class CrearCliente implements OnInit {
   validandoCedula = false;
   validandoEmail = false;
 
+  guardando = false;
+
   readonly provinciasEcuador = [
     'Azuay', 'Bolívar', 'Cañar', 'Carchi', 'Chimborazo', 'Cotopaxi', 
     'El Oro', 'Esmeraldas', 'Galápagos', 'Guayas', 'Imbabura', 'Loja', 
@@ -299,13 +301,33 @@ export class CrearCliente implements OnInit {
       ...this.clienteForm.value
     };
 
+    this.guardando = true;
+
     try {
       if (this.clienteIdEdicion) {
         // Editar cliente existente
         await this.clientesService.updateCliente(this.clienteIdEdicion, cliente);
+        Swal.fire({
+          icon: 'success',
+          title: '¡Cliente actualizado!',
+          text: 'Los cambios se guardaron correctamente',
+          toast: true,
+          position: 'top-end',
+          timer: 3000,
+          showConfirmButton: false
+        })
       } else {
         // Crear nuevo cliente
         await this.clientesService.createCliente(cliente);
+        Swal.fire({
+          icon: 'success',
+          title: '¡Cliente creado!',
+          text: 'El cliente se creó correctamente',
+          toast: true,
+          position: 'top-end',
+          timer: 3000,
+          showConfirmButton: false
+        })
       }
 
       const returnTo = this.route.snapshot.queryParamMap.get('returnTo') || '/clientes/historial-clinico';
@@ -318,7 +340,10 @@ export class CrearCliente implements OnInit {
         text: 'Error al guardar el cliente',
         confirmButtonText: 'Entendido'
       });
-    }
+    } finally {
+    this.guardando = false;
+  }
+    
   }
 
   /**

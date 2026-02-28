@@ -573,15 +573,10 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
       await Swal.fire({
         icon: 'success',
         title: '¡Caja Chica Creada!',
-        html: `
-          <div style="text-align: center;">
-            <div style="background: var(--bg-tertiary); padding: 0.75rem; border-radius: 8px;">
-              <p style="margin: 0; font-size: 1.4rem; font-weight: bold; color: var(--success-color);">✓</p>
-              <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">Caja creada con éxito</p>
-            </div>
-          </div>
-        `,
-        timer: 2000,
+        text: 'Caja creada con éxito',
+        timer: 3000,
+        toast: true,
+          position: 'top-end',
         showConfirmButton: false
       });
 
@@ -592,7 +587,11 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
       await Swal.fire({
         icon: 'error',
         title: 'Error al crear caja',
-        text: error?.message || 'No se pudo crear la caja chica. Intenta de nuevo.'
+        text: error?.message || 'No se pudo crear la caja chica. Intenta de nuevo.',
+        toast: true,
+          position: 'top-end',
+          timer: 3000,
+          showConfirmButton: false
       });
     }
   }
@@ -645,7 +644,9 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
         icon: 'success',
         title: '¡Caja cerrada!',
         text: 'La caja chica se cerró exitosamente',
-        timer: 2000,
+        timer: 3000,
+        toast: true,
+        position: 'top-end',
         showConfirmButton: false
       });
       this.cargarTodasLasCajasDelPeriodo();
@@ -654,7 +655,9 @@ export class ListarCajasComponent implements OnInit, OnDestroy {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'No se pudo cerrar la caja chica'
+        text: 'No se pudo cerrar la caja chica',
+        toast: true,
+        position: 'top-end',
       });
     }
   }

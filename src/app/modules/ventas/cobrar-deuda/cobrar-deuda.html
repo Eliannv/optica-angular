@@ -150,11 +150,11 @@
                 </div>
 
                 <div class="empty-state" *ngIf="!pendientes.length">
-                    <span>✅ No hay deudas pendientes</span>
+                    <span>No hay deudas pendientes</span>
                 </div>
 
                 <div class="empty-state" *ngIf="pendientes.length && !facturasFiltradas.length">
-                    <span>❌ No hay facturas que coincidan con los filtros</span>
+                    <span>No hay facturas que coincidan con los filtros</span>
                 </div>
 
                 <div class="productos-list" *ngIf="facturasFiltradas.length">

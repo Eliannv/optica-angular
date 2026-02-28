@@ -459,8 +459,11 @@ export class RegistrarMovimientoComponent implements OnInit {
     this.cargarSaldoActual();
     Swal.fire({
       icon: 'success',
-      title: 'Movimiento registrado',
-      timer: 1500,
+      title: 'Validado',
+      text: 'Movimiento registrado correctamente',
+      timer: 2000,
+      toast: true,
+      position: 'top-end',
       showConfirmButton: false
     }).then(() => {
       this.router.navigate(['/caja-chica/ver', this.cajaId]);

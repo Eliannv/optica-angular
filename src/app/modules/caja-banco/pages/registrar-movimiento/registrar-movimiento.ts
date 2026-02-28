@@ -777,9 +777,11 @@ export class RegistrarMovimientoComponent implements OnInit {
 
       Swal.fire({
         icon: 'success',
-        title: 'Éxito',
+        title: 'Validado',
         text: 'Movimiento registrado correctamente',
-        timer: 1500,
+        timer: 2000,
+        toast: true,
+        position: 'top-end',
         showConfirmButton: false
       }).then(() => {
         if (this.returnTo) {
@@ -799,7 +801,11 @@ export class RegistrarMovimientoComponent implements OnInit {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'Error al guardar el movimiento'
+        text: 'Error al guardar el movimiento',
+        timer: 2000,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false
       });
     } finally {
       this.guardando = false;

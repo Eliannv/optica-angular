@@ -143,15 +143,20 @@
                         <button type="button" class="btn-cancel" (click)="cancelar()">
                             Cancelar
                         </button>
-                        <button type="submit" class="btn btn-primary" [disabled]="!puedeGuardar">
-                            @if (validandoCedula || validandoEmail) {
-                                <span class="loading-spinner">
-                                    <span class="spinner"></span>
-                                    Validando...
-                                </span>
-                            } @else {
-                                <span>{{ clienteIdEdicion ? 'Actualizar Cliente' : 'Guardar Cliente' }}</span>
-                            }
+                        <button type="submit" class="btn btn-primary" [disabled]="!puedeGuardar || guardando">
+                        @if (guardando) {
+                            <span class="loading-spinner">
+                            <span class="spinner"></span>
+                            {{ clienteIdEdicion ? 'Actualizando...' : 'Guardando...' }}
+                            </span>
+                        } @else if (validandoCedula || validandoEmail) {
+                            <span class="loading-spinner">
+                            <span class="spinner"></span>
+                            Validando...
+                            </span>
+                        } @else {
+                            <span>{{ clienteIdEdicion ? 'Actualizar Cliente' : 'Guardar Cliente' }}</span>
+                        }
                         </button>
                     </div>
                 </form>

@@ -629,9 +629,11 @@ export class ListaClientesComponent implements OnInit, OnDestroy {
 
       await Swal.fire({
         icon: 'success',
-        title: 'Exportado',
+        title: 'Validado',
         text: 'El pedido fue exportado a Excel',
         timer: 2000,
+        toast: true,
+        position: 'top-end',
         showConfirmButton: false
       });
     } catch (error) {
@@ -639,7 +641,11 @@ export class ListaClientesComponent implements OnInit, OnDestroy {
       await Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'Hubo un problema al generar el archivo Excel'
+        text: 'Hubo un problema al generar el archivo Excel',
+        timer: 2000,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false
       });
     }
   }
@@ -762,10 +768,10 @@ export class ListaClientesComponent implements OnInit, OnDestroy {
   async desactivarCliente(clienteId: string): Promise<void> {
     const result = await Swal.fire({
       icon: 'warning',
-      title: '¿Desactivar cliente?',
-      text: 'El cliente se desactivará pero podrá reactivarlo después',
+      title: '¿Eliminar cliente?',
+      text: 'El cliente se eliminará pero podrá reactivarlo después',
       showCancelButton: true,
-      confirmButtonText: 'Sí, desactivar',
+      confirmButtonText: 'Sí, eliminar',
       cancelButtonText: 'Cancelar'
     });
 
@@ -777,17 +783,19 @@ export class ListaClientesComponent implements OnInit, OnDestroy {
       await this.cargarPrimeraPage();
       await Swal.fire({
         icon: 'success',
-        title: 'Desactivado',
-        text: 'Cliente desactivado exitosamente',
-        timer: 1500,
+        title: 'Validado',
+        text: 'Cliente eliminado exitosamente',
+        timer: 3000,
+        toast: true,
+        position: 'top-end',
         showConfirmButton: false
       });
     } catch (error) {
-      console.error('Error al desactivar cliente:', error);
+      console.error('Error al eliminar cliente:', error);
       await Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'No se pudo desactivar el cliente',
+        text: 'No se pudo eliminar el cliente',
         confirmButtonText: 'Entendido'
       });
     }
