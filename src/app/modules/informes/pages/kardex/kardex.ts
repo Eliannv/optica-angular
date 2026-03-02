@@ -7,10 +7,10 @@ import Swal from 'sweetalert2';
 import { MovimientoStockService } from '../../../../core/services/movimiento-stock.service';
 import { ProductosService } from '../../../../core/services/productos';
 import { SucursalesService } from '../../../../core/services/sucursales.service';
-import { 
-  MovimientoStock, 
-  FiltrosKardex, 
-  ResumenKardex 
+import {
+  MovimientoStock,
+  FiltrosKardex,
+  ResumenKardex
 } from '../../../../core/models/movimiento-stock.model';
 import { Producto } from '../../../../core/models/producto.model';
 import { Sucursal } from '../../../../core/models/sucursal.model';
@@ -18,10 +18,10 @@ import { EmpleadosService } from '../../../../core/services/empleados.service';
 
 /**
  * Componente de Kardex - Reporte detallado de movimientos de inventario.
- * 
+ *
  * Permite consultar el historial completo de entradas, salidas y ajustes de stock
  * con filtros por producto, sucursal y rango de fechas.
- * 
+ *
  * Calcula automáticamente:
  * - Total de entradas/salidas
  * - Stock final
@@ -50,11 +50,11 @@ export class KardexComponent implements OnInit, OnDestroy {
   productosFiltrados: Producto[] = [];
   mostrarDropdownProductos = false;
   productoSeleccionado: Producto | null = null;
-  
+
   // Paginación del dropdown
   productosPorPagina = 10;
   productosVisibles = 10;
-  
+
   // Filtros avanzados de productos
   mostrarFiltrosAvanzados = false;
   grupoSeleccionado = '';
@@ -63,7 +63,7 @@ export class KardexComponent implements OnInit, OnDestroy {
   gruposDisponibles: string[] = [];
   proveedoresDisponibles: string[] = [];
   usuariosDict: { [id: string]: string } = {};
-  
+
   // Productos recientes
   mostrarRecientes = false;
   productosRecientes: Producto[] = [];
@@ -134,7 +134,7 @@ export class KardexComponent implements OnInit, OnDestroy {
     // Cargar productos
     const subProductos = this.productosSrv.getProductos().subscribe({
       next: (prods: Producto[]) => {
-        this.productos = prods.sort((a: Producto, b: Producto) => 
+        this.productos = prods.sort((a: Producto, b: Producto) =>
           (a.nombre ?? '').localeCompare(b.nombre ?? '')
         );
       },
@@ -158,7 +158,7 @@ export class KardexComponent implements OnInit, OnDestroy {
     this.subs.add(subProductos);
     this.subs.add(subSucursales);
   }
-  
+
   /**
    * Carga los filtros avanzados (grupos y proveedores únicos).
    */
@@ -171,7 +171,7 @@ export class KardexComponent implements OnInit, OnDestroy {
             .map(p => p.grupo)
             .filter((g): g is string => !!g)
         )].sort();
-        
+
         // Extraer proveedores únicos
         this.proveedoresDisponibles = [...new Set(
           productos
@@ -180,10 +180,10 @@ export class KardexComponent implements OnInit, OnDestroy {
         )].sort();
       }
     });
-    
+
     this.subs.add(sub);
   }
-  
+
   /**
    * Carga los productos recientes ordenados por fecha de creación.
    */
@@ -201,10 +201,10 @@ export class KardexComponent implements OnInit, OnDestroy {
           .slice(0, 10);
       }
     });
-    
+
     this.subs.add(sub);
   }
-  
+
   /**
    * Convierte un timestamp de Firestore a Date.
    */
@@ -247,7 +247,7 @@ export class KardexComponent implements OnInit, OnDestroy {
 
       // Consultar con resumen
       const resultado = await this.movimientoStockSrv.obtenerKardexConResumen(filtros);
-      
+
       this.movimientos = resultado.movimientos;
       this.resumen = resultado.resumen;
       this.mostrandoResultados = true;
@@ -323,8 +323,8 @@ export class KardexComponent implements OnInit, OnDestroy {
       this.formatearFechaHora(m.createdAt),
       m.tipo,
       m.referenciaId || '-',
-      m.tipo === 'INGRESO' ? m.cantidad : '',
-      (m.tipo === 'VENTA' || m.tipo === 'SALIDA') ? m.cantidad : '',
+      (m.tipo === 'INGRESO' || m.tipo === 'ANULACION' || (m.tipo === 'AJUSTE' && m.cantidad > 0)) ? Math.abs(m.cantidad) : '',
+      (m.tipo === 'VENTA NORMAL' || m.tipo === 'VENTA' || m.tipo === 'SALIDA' || (m.tipo === 'AJUSTE' && m.cantidad < 0)) ? Math.abs(m.cantidad) : '',
       m.stockNuevo,
       m.costoUnitario?.toFixed(2) || '0.00',
       m.precioVenta?.toFixed(2) || '-',
@@ -342,7 +342,7 @@ export class KardexComponent implements OnInit, OnDestroy {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     const productoNombre = this.productos.find(p => p.id === this.filtrosForm.value.productoId)?.nombre || 'producto';
-    
+
     link.setAttribute('href', url);
     link.setAttribute('download', `kardex_${productoNombre}_${new Date().getTime()}.csv`);
     link.style.visibility = 'hidden';
@@ -370,7 +370,7 @@ export class KardexComponent implements OnInit, OnDestroy {
    */
   buscarProductos(): void {
     const termino = this.terminoBusquedaProducto.toLowerCase().trim();
-    
+
     if (termino.length === 0) {
       this.productosFiltrados = [];
       this.mostrarDropdownProductos = false;
@@ -383,13 +383,13 @@ export class KardexComponent implements OnInit, OnDestroy {
       const codigo = (producto.codigo || '').toLowerCase();
       const idInterno = String(producto.idInterno || '').toLowerCase();
       const modelo = (producto.modelo || '').toLowerCase();
-      
-      return nombre.includes(termino) || 
-             codigo.includes(termino) || 
+
+      return nombre.includes(termino) ||
+             codigo.includes(termino) ||
              idInterno.includes(termino) ||
              modelo.includes(termino);
     });
-    
+
     // Aplicar filtros avanzados
     resultados = this.aplicarFiltrosAvanzados(resultados);
 
@@ -398,21 +398,21 @@ export class KardexComponent implements OnInit, OnDestroy {
     this.productosVisibles = this.productosPorPagina;
     this.mostrarDropdownProductos = this.productosFiltrados.length > 0;
   }
-  
+
   /**
    * Aplica filtros avanzados (grupo, proveedor, stock).
    */
   private aplicarFiltrosAvanzados(productos: Producto[]): Producto[] {
     let resultado = [...productos];
-    
+
     if (this.grupoSeleccionado) {
       resultado = resultado.filter(p => p.grupo === this.grupoSeleccionado);
     }
-    
+
     if (this.proveedorSeleccionado) {
       resultado = resultado.filter(p => p.proveedor === this.proveedorSeleccionado);
     }
-    
+
     if (this.stockSeleccionado) {
       if (this.stockSeleccionado === 'ILIMITADO') {
         resultado = resultado.filter(p => p.tipo_control_stock === 'ILIMITADO');
@@ -422,10 +422,10 @@ export class KardexComponent implements OnInit, OnDestroy {
         resultado = resultado.filter(p => p.tipo_control_stock !== 'ILIMITADO' && (p.stock || 0) === 0);
       }
     }
-    
+
     return resultado;
   }
-  
+
   /**
    * Toggle de filtros avanzados.
    */
@@ -435,7 +435,7 @@ export class KardexComponent implements OnInit, OnDestroy {
       this.mostrarRecientes = false;
     }
   }
-  
+
   /**
    * Toggle de productos recientes.
    */
@@ -445,14 +445,14 @@ export class KardexComponent implements OnInit, OnDestroy {
       this.mostrarFiltrosAvanzados = false;
     }
   }
-  
+
   /**
    * Aplicar filtros avanzados y actualizar resultados.
    */
   aplicarFiltros(): void {
     this.buscarProductos();
   }
-  
+
   /**
    * Limpiar filtros avanzados.
    */
@@ -462,21 +462,21 @@ export class KardexComponent implements OnInit, OnDestroy {
     this.stockSeleccionado = '';
     this.buscarProductos();
   }
-  
+
   /**
    * Carga 10 productos más en el dropdown.
    */
   cargarMasProductos(): void {
     this.productosVisibles += this.productosPorPagina;
   }
-  
+
   /**
    * Obtiene los productos visibles según la paginación.
    */
   get productosAMostrar(): Producto[] {
     return this.productosFiltrados.slice(0, this.productosVisibles);
   }
-  
+
   /**
    * Verifica si hay más productos para cargar.
    */
@@ -528,7 +528,7 @@ export class KardexComponent implements OnInit, OnDestroy {
    */
   formatearFechaHora(timestamp: any): string {
     if (!timestamp) return '-';
-    
+
     let fecha: Date;
     if (timestamp.toDate) {
       fecha = timestamp.toDate();
@@ -556,6 +556,7 @@ export class KardexComponent implements OnInit, OnDestroy {
     switch (tipo) {
       case 'INGRESO':
         return 'badge-ingreso';
+      case 'VENTA NORMAL':
       case 'VENTA':
         return 'badge-venta';
       case 'SALIDA':

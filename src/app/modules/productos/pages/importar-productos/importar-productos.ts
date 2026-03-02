@@ -530,7 +530,7 @@ export class ImportarProductosComponent implements OnInit {
           ingresoId: null
         });
 
-        if (cantidad > 0 && esControlNormal) {
+        if (cantidad > 0) {
           await this.movimientoStockSrv.registrarMovimientoIngreso({
             productoId: prod.productoId,
             cantidad,
@@ -546,7 +546,7 @@ export class ImportarProductosComponent implements OnInit {
           stock: esControlNormal ? cantidad : 0,
         });
 
-        if (cantidad > 0 && esControlNormal) {
+        if (cantidad > 0) {
           await this.movimientoStockSrv.registrarMovimientoIngresoSinActualizarStock({
             productoId: nuevoProductoRef.id,
             cantidad,

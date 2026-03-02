@@ -25,8 +25,8 @@
       </div>
       <!-- Botones de acción -->
       <div class="header-actions">
-        <button 
-          type="button" 
+        <button
+          type="button"
           class="btn btn-outline-success btn-exportar-header"
           (click)="exportarCSV()"
           [disabled]="!mostrandoResultados || movimientos.length === 0">
@@ -37,8 +37,8 @@
           </svg>
           Exportar Excel
         </button>
-        <button 
-          type="button" 
+        <button
+          type="button"
           class="btn-reimprimir"
           (click)="imprimir()"
           [disabled]="!mostrandoResultados || movimientos.length === 0">
@@ -61,14 +61,14 @@
     <form [formGroup]="filtrosForm" (ngSubmit)="consultarKardex()">
       <!-- LAYOUT DE 2 COLUMNAS -->
       <div class="filtros-layout-dos-columnas">
-        
+
         <!-- COLUMNA 1: BUSCADOR DE PRODUCTO CON FILTROS AVANZADOS -->
         <div class="columna-buscador">
           <div class="filtro-grupo producto-filtro-container">
             <label for="busquedaProducto">
               Producto <span class="text-danger">*</span>
             </label>
-            
+
             <!-- Botones de Filtros y Recientes
             <div class="botones-filtros-recientes">
               <button
@@ -83,7 +83,7 @@
                 </svg>
                 Filtros
               </button>
-              
+
               <button
                 type="button"
                 class="btn-toggle-recientes"
@@ -98,15 +98,15 @@
                 Recientes
               </button>
             </div> -->
-            
+
             <!-- Panel de Filtros Avanzados -->
             @if (mostrarFiltrosAvanzados) {
               <div class="panel-filtros-avanzados">
                 <div class="filtros-avanzados-grid">
                   <div class="filtro-avanzado">
                     <label>Grupo</label>
-                    <select 
-                      [(ngModel)]="grupoSeleccionado" 
+                    <select
+                      [(ngModel)]="grupoSeleccionado"
                       [ngModelOptions]="{standalone: true}"
                       (change)="aplicarFiltros()"
                       class="input-filtro-sm">
@@ -116,10 +116,10 @@
                       </option>
                     </select>
                   </div>
-                  
+
                   <div class="filtro-avanzado">
                     <label>Proveedor</label>
-                    <select 
+                    <select
                       [(ngModel)]="proveedorSeleccionado"
                       [ngModelOptions]="{standalone: true}"
                       (change)="aplicarFiltros()"
@@ -130,10 +130,10 @@
                       </option>
                     </select>
                   </div>
-                  
+
                   <div class="filtro-avanzado">
                     <label>Stock</label>
-                    <select 
+                    <select
                       [(ngModel)]="stockSeleccionado"
                       [ngModelOptions]="{standalone: true}"
                       (change)="aplicarFiltros()"
@@ -144,16 +144,16 @@
                     </select>
                   </div>
                 </div>
-                
-                <button 
-                  type="button" 
+
+                <button
+                  type="button"
                   class="btn-limpiar-filtros-avanzados"
                   (click)="limpiarFiltrosAvanzados()">
                   Limpiar filtros
                 </button>
               </div>
             }
-            
+
             <div class="search-product-wrapper">
               <input
                 id="busquedaProducto"
@@ -181,7 +181,7 @@
                   </svg>
                 </button>
               }
-              
+
               <!-- Dropdown de productos (búsqueda) -->
               @if (mostrarDropdownProductos && productosFiltrados.length > 0 && !mostrarRecientes) {
                 <div class="productos-dropdown">
@@ -214,20 +214,20 @@
                             <span class="detalle-badge">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-box-icon lucide-box"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
                                 {{ producto.modelo || 'Sin modelo' }}
-                              </span> 
+                              </span>
                             <span class="detalle-badge">
                               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-palette-icon lucide-palette"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/></svg>
                               {{ producto.color || 'Sin color' }}
                             </span>
-                            
+
                               <span class="detalle-badge stock-badge">
                               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                               </svg>
                               {{ producto.tipo_control_stock === 'ILIMITADO' ? 'Ilimitado' : 'Agotado' }}
                             </span>
-                            
-                            
+
+
                           </div>
                         </div>
                         <div class="producto-dropdown-arrow">
@@ -238,7 +238,7 @@
                       </button>
                     }
                   </div>
-                  
+
                   <!-- Botón Cargar 10 más -->
                   @if (hayMasProductos) {
                     <div class="productos-dropdown-footer">
@@ -257,7 +257,7 @@
                   }
                 </div>
               }
-              
+
               <!-- Dropdown de productos recientes
               @if (mostrarRecientes) {
                 <div class="productos-dropdown">
@@ -297,7 +297,7 @@
                 </div>
               } -->
             </div>
-            
+
             @if (productoSeleccionado) {
   <div class="producto-seleccionado">
     <div class="producto-info-grid">
@@ -332,31 +332,31 @@
     </div>
   </div>
 }
-            
+
           </div>
         </div>
-        
+
         <!-- COLUMNA 2: FILTROS PRINCIPALES (4 filtros) -->
         <div class="columna-filtros-principales">
           <div class="filtros-grid-4-vertical">
-            
+
 
             <!-- Fecha Inicio -->
             <div class="filtro-grupo">
               <label for="fechaInicio">Fecha Inicio</label>
-              <input 
-                type="date" 
-                id="fechaInicio" 
-                formControlName="fechaInicio" 
+              <input
+                type="date"
+                id="fechaInicio"
+                formControlName="fechaInicio"
                 class="input-filtro">
             </div>
 
             <!-- Sucursal -->
             <div class="filtro-grupo">
               <label for="sucursalId">Sucursal</label>
-              <select 
-                id="sucursalId" 
-                formControlName="sucursalId" 
+              <select
+                id="sucursalId"
+                formControlName="sucursalId"
                 class="input-filtro">
                 <option value="">-- Todas las sucursales --</option>
                 <option *ngFor="let suc of sucursales" [value]="suc.id">
@@ -368,45 +368,44 @@
             <!-- Fecha Fin -->
             <div class="filtro-grupo">
               <label for="fechaFin">Fecha Fin</label>
-              <input 
-                type="date" 
-                id="fechaFin" 
-                formControlName="fechaFin" 
+              <input
+                type="date"
+                id="fechaFin"
+                formControlName="fechaFin"
                 class="input-filtro">
             </div>
 
             <!-- Tipo de Movimiento -->
             <div class="filtro-grupo">
               <label for="tipo">Tipo de Movimiento</label>
-              <select 
-                id="tipo" 
-                formControlName="tipo" 
+              <select
+                id="tipo"
+                formControlName="tipo"
                 class="input-filtro">
                 <option value="">-- Todos los tipos --</option>
                 <option value="INGRESO">INGRESO</option>
-                <option value="VENTA">VENTA</option>
-                <option value="SALIDA">SALIDA</option>
+                <option value="VENTA NORMAL">VENTA NORMAL</option>
                 <option value="AJUSTE">AJUSTE</option>
                 <option value="ANULACION">ANULACIÓN</option>
               </select>
             </div>
           </div>
         </div>
-        
+
       </div>
 
       <!-- Acciones -->
       <div class="filtros-acciones">
         <div class="filtros-botones">
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             class="btn-mostrar"
             [disabled]="loading">
             {{ loading ? 'Consultando...' : 'Consultar' }}
           </button>
 
-          <button 
-            type="button" 
+          <button
+            type="button"
             class="btn-limpiar"
             (click)="limpiarFiltros()"
             [disabled]="loading">
@@ -530,10 +529,10 @@
             {{ mov.referenciaId || '-' }}
           </td>
           <td class="text-right text-success-bold">
-            {{ mov.tipo === 'INGRESO' ? '+' + mov.cantidad : '-' }}
+            {{ (mov.tipo === 'INGRESO' || mov.tipo === 'ANULACION' || (mov.tipo === 'AJUSTE' && mov.cantidad > 0)) ? '+' + (mov.cantidad | number:'1.0-2') : '-' }}
           </td>
           <td class="text-right text-danger-bold">
-            {{ (mov.tipo === 'VENTA' || mov.tipo === 'SALIDA' || mov.tipo === 'ANULACION') ? '-' + mov.cantidad : '-' }}
+            {{ (mov.tipo === 'VENTA NORMAL' || mov.tipo === 'VENTA' || mov.tipo === 'SALIDA' || (mov.tipo === 'AJUSTE' && mov.cantidad < 0)) ? '-' + ((mov.cantidad < 0 ? -mov.cantidad : mov.cantidad) | number:'1.0-2') : '-' }}
           </td>
           <td class="text-right font-weight-bold">
             {{ mov.stockNuevo }}

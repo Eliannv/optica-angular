@@ -122,14 +122,14 @@ export class MovimientoStockService {
           productoNombre: producto.nombre ?? item.nombre ?? '',
           grupoProducto: producto.grupo ?? '',
           sucursalId: sucursalId || 'PASJO01',
-          tipo: 'VENTA',
+          tipo: 'VENTA NORMAL',
           cantidad: item.cantidad,
           costoUnitario: producto.costo ?? 0,
           precioVenta: item.precioUnitario ?? 0,
           stockAnterior,
           stockNuevo,
           referenciaId: facturaId,
-          referenciaTipo: 'FACTURA',
+          referenciaTipo: referenciaTipo || 'FACTURA',
           usuarioId: usuarioId ?? '',
           createdAt: serverTimestamp(),
         };
@@ -147,7 +147,7 @@ export class MovimientoStockService {
     });
 
     console.log(
-      `✅ Movimientos VENTA registrados para factura ${facturaId} (${itemsConStock.length} ítems).`
+      `✅ Movimientos VENTA NORMAL registrados para factura ${facturaId} (${itemsConStock.length} ítems).`
     );
   }
 
@@ -252,6 +252,7 @@ export class MovimientoStockService {
   async registrarEliminacionFactura(
     facturaId: string,
     items: ItemVenta[],
+    referenciaTipo?: string,
     sucursalId?: string,
     usuarioId?: string
   ): Promise<void> {
@@ -288,11 +289,11 @@ export class MovimientoStockService {
           productoId: item.productoId,
           productoNombre: producto.nombre || item.nombre || '',
           referenciaId: facturaId,
-          referenciaTipo: 'ELIMINACION_FACTURA',
+          referenciaTipo: referenciaTipo || 'ELIMINACION_FACTURA',
           stockAnterior,
           stockNuevo,
           sucursalId: sucursalId || 'PASJO01',
-          tipo: 'ELIMINACION',
+          tipo: 'ANULACION',
           usuarioId: usuarioId || '',
         });
 
@@ -313,6 +314,7 @@ export class MovimientoStockService {
     facturaId: string,
     itemsOriginales: ItemVenta[],
     itemsNuevos: ItemVenta[],
+    referenciaTipo?: string,
     sucursalId?: string,
     usuarioId?: string
   ): Promise<void> {
@@ -370,7 +372,7 @@ export class MovimientoStockService {
           productoId: ajuste.productoId,
           productoNombre: producto.nombre || ajuste.nombre || '',
           referenciaId: facturaId,
-          referenciaTipo: 'AJUSTE_FACTURA',
+          referenciaTipo: referenciaTipo || 'AJUSTE_FACTURA',
           stockAnterior,
           stockNuevo,
           sucursalId: sucursalId || 'PASJO01',
@@ -462,9 +464,9 @@ export class MovimientoStockService {
     let stock = 0;
     snap.forEach((d) => {
       const m = d.data() as MovimientoStock;
-      if (m.tipo === 'INGRESO') {
+      if (m.tipo === 'INGRESO' || m.tipo === 'ANULACION' || m.tipo === 'COMPRA_EDITADA') {
         stock += m.cantidad;
-      } else if (m.tipo === 'VENTA' || m.tipo === 'SALIDA') {
+      } else if (m.tipo === 'VENTA NORMAL' || m.tipo === 'VENTA' || m.tipo === 'VENTA_EDITADA' || m.tipo === 'SALIDA') {
         stock = Math.max(0, stock - m.cantidad);
       } else if (m.tipo === 'AJUSTE') {
         stock = m.stockNuevo ?? stock;
@@ -626,17 +628,23 @@ export class MovimientoStockService {
       movimientos.push(mov);
 
       // Calcular totales según tipo de movimiento
-      if (mov.tipo === 'INGRESO') {
+      if (mov.tipo === 'INGRESO' || mov.tipo === 'ANULACION' || mov.tipo === 'COMPRA_EDITADA') {
         totalEntradas += mov.cantidad;
         costoTotalEntradas += (mov.costoUnitario ?? 0) * mov.cantidad;
-      } else if (mov.tipo === 'VENTA') {
+      } else if (mov.tipo === 'VENTA NORMAL' || mov.tipo === 'VENTA' || mov.tipo === 'VENTA_EDITADA') {
         totalSalidas += mov.cantidad;
         const costo = mov.costoUnitario ?? 0;
         const precio = mov.precioVenta ?? 0;
         utilidadTotal += (precio - costo) * mov.cantidad;
         valorTotalVentas += precio * mov.cantidad;
-      } else if (mov.tipo === 'SALIDA' || mov.tipo === 'ANULACION') {
+      } else if (mov.tipo === 'SALIDA') {
         totalSalidas += mov.cantidad;
+      } else if (mov.tipo === 'AJUSTE') {
+        if (mov.cantidad >= 0) {
+          totalEntradas += mov.cantidad;
+        } else {
+          totalSalidas += Math.abs(mov.cantidad);
+        }
       }
 
       // El stock final es el último stockNuevo

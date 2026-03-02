@@ -152,6 +152,8 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   facturaOriginal: any = null; // Copia de la factura original para comparar cambios
   itemsOriginales: any[] = []; // Items originales para revertir inventario
   cargandoFactura = false; // Indica si se está cargando la factura para edición
+  private edicionTemporalStockActiva = false;
+  private edicionTemporalFinalizada = false;
 
   // Getter y Setter para descuentoPorcentaje (limpia "0" inicial)
   get descuentoPorcentaje(): number {
@@ -2539,6 +2541,13 @@ async procesarGuardadoVenta() {
     // 🕐 CONSTRUIR FECHA FINAL CON HORA
     let fechaFinal: Date;
 
+    // ✅ En modo edición, conservar SIEMPRE la fecha original de la factura
+    if (this.modoEdicion && this.facturaOriginal?.fecha) {
+      const fechaOriginal = this.facturaOriginal.fecha;
+      fechaFinal = fechaOriginal.toDate ? fechaOriginal.toDate() : new Date(fechaOriginal);
+      console.log('🛡️ Modo edición: se conserva fecha original de factura:', fechaFinal);
+    } else {
+
     console.log('🔍 DEBUG - Método de pago:', this.metodoPago);
     console.log('🔍 DEBUG - horaPago:', this.horaPago);
     console.log('🔍 DEBUG - fechaPago:', this.fechaPago);
@@ -2663,6 +2672,7 @@ async procesarGuardadoVenta() {
         fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
       }
     }
+    }
 
     console.log('🎯 FECHA FINAL QUE SE GUARDARÁ:', fechaFinal);
 
@@ -2748,6 +2758,8 @@ async procesarGuardadoVenta() {
       // MODO EDICIÓN: Actualizar factura existente
       await this.facturasSrv.actualizarFactura(this.facturaId, facturaLimpia);
       facturaId = this.facturaId;
+      this.edicionTemporalFinalizada = true;
+      this.edicionTemporalStockActiva = false;
       console.log('✅ Factura actualizada:', facturaId);
     } else {
       // MODO CREACIÓN: Crear nueva factura
@@ -3194,9 +3206,17 @@ private cleanUndefined(obj: any): any {
     return fechaBase;
   }
 
-  volver() {
+  async volver() {
     // ✅ Si estamos en modo edición, volver a facturas; si no, resetear para nueva venta
     if (this.modoEdicion) {
+      if (this.facturaId && this.edicionTemporalStockActiva && !this.edicionTemporalFinalizada) {
+        try {
+          await this.facturasSrv.cancelarEdicionFacturaTemporal(this.facturaId);
+          this.edicionTemporalStockActiva = false;
+        } catch (error) {
+          console.error('Error al restaurar stock original al cancelar edición:', error);
+        }
+      }
       this.router.navigate(['/facturas']);
     } else {
       this.resetearVentaCompleta();
@@ -3232,6 +3252,11 @@ private cleanUndefined(obj: any): any {
       // Guardar copia de la factura original INMEDIATAMENTE
       this.facturaOriginal = { ...factura };
       this.itemsOriginales = factura.items ? JSON.parse(JSON.stringify(factura.items)) : [];
+
+      // Restaurar temporalmente el stock original para la edición
+      await this.facturasSrv.iniciarEdicionFacturaTemporal(this.facturaId);
+      this.edicionTemporalStockActiva = true;
+      this.edicionTemporalFinalizada = false;
 
       // Pre-llenar datos del cliente
       this.clienteId = factura.clienteId || '';
@@ -3319,6 +3344,12 @@ private cleanUndefined(obj: any): any {
   }
 
   ngOnDestroy() {
+    if (this.modoEdicion && this.facturaId && this.edicionTemporalStockActiva && !this.edicionTemporalFinalizada) {
+      this.facturasSrv.cancelarEdicionFacturaTemporal(this.facturaId).catch((error) => {
+        console.error('Error al revertir edición temporal al salir de la pantalla:', error);
+      });
+    }
+
     // 🚀 OPTIMIZADO: Limpiar suscripción de búsqueda
     if (this.searchSubscription) {
       this.searchSubscription.unsubscribe();
