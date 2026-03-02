@@ -22,7 +22,7 @@ export interface MovimientoStock {
   sucursalId?: string;
 
   /** Tipo de movimiento que afecta el inventario */
-  tipo: 'INGRESO' | 'SALIDA' | 'AJUSTE' | 'VENTA' | 'ANULACION';
+  tipo: 'INGRESO' | 'SALIDA' | 'AJUSTE' | 'VENTA' | 'ANULACION' | 'ELIMINACION';
 
   /** Cantidad del movimiento (positiva para entradas, negativa para salidas) */
   cantidad: number;
@@ -82,7 +82,7 @@ export interface FiltrosKardex {
   fechaFin?: Date;
 
   /** Tipo de movimiento a filtrar (opcional) */
-  tipo?: 'INGRESO' | 'SALIDA' | 'AJUSTE' | 'VENTA' | 'ANULACION';
+  tipo?: 'INGRESO' | 'SALIDA' | 'AJUSTE' | 'VENTA' | 'ANULACION' | 'ELIMINACION';
 }
 
 /**

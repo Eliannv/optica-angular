@@ -16,6 +16,7 @@ import { inject, Injectable } from '@angular/core';
 import {
   Firestore,
   collection,
+  addDoc,
   doc,
   getDoc,
   getDocs,
@@ -128,9 +129,9 @@ export class MovimientoStockService {
           stockAnterior,
           stockNuevo,
           referenciaId: facturaId,
-          referenciaTipo: (referenciaTipo ?? '').toUpperCase(),
+          referenciaTipo: 'FACTURA',
           usuarioId: usuarioId ?? '',
-          createdAt: this.normalizarFecha(facturaFecha),
+          createdAt: serverTimestamp(),
         };
 
         tx.set(movRef, movimiento);
@@ -148,6 +149,243 @@ export class MovimientoStockService {
     console.log(
       `✅ Movimientos VENTA registrados para factura ${facturaId} (${itemsConStock.length} ítems).`
     );
+  }
+
+  /**
+   * Registra un ingreso de stock (importación o ingreso manual) y actualiza el stock del producto.
+   */
+  async registrarMovimientoIngreso(input: {
+    productoId: string;
+    cantidad: number;
+    referenciaId: string;
+    referenciaTipo: 'IMPORT_EXCEL' | 'INGRESO_MANUAL';
+    sucursalId?: string;
+    usuarioId?: string;
+  }): Promise<void> {
+    const productoRef = doc(this.fs, `productos/${input.productoId}`);
+
+    await runTransaction(this.fs, async (tx) => {
+      const snap = await tx.get(productoRef);
+      if (!snap.exists()) {
+        throw new Error(`Producto ${input.productoId} no encontrado`);
+      }
+
+      const producto = snap.data() as Producto;
+      const tipoControl = producto.tipo_control_stock ?? 'NORMAL';
+      const esNormal = tipoControl === 'NORMAL';
+
+      const stockAnterior = esNormal ? Number(producto.stock || 0) : 0;
+      const stockNuevo = esNormal ? stockAnterior + Number(input.cantidad || 0) : 0;
+
+      const movimientoRef = doc(this.movimientosRef);
+      tx.set(movimientoRef, {
+        cantidad: Number(input.cantidad || 0),
+        costoUnitario: Number(producto.costo || 0),
+        createdAt: serverTimestamp(),
+        grupoProducto: producto.grupo || '',
+        precioVenta: Number(producto.pvp1 || 0),
+        productoId: input.productoId,
+        productoNombre: producto.nombre || '',
+        referenciaId: input.referenciaId,
+        referenciaTipo: input.referenciaTipo,
+        stockAnterior,
+        stockNuevo,
+        sucursalId: input.sucursalId || 'PASJO01',
+        tipo: 'INGRESO',
+        usuarioId: input.usuarioId || '',
+      });
+
+      if (esNormal) {
+        tx.update(productoRef, {
+          stock: stockNuevo,
+          updatedAt: new Date(),
+        });
+      }
+    });
+  }
+
+  /**
+   * Registra un ingreso en Kardex sin modificar stock (útil para productos recién creados
+   * cuyo stock inicial ya fue persistido previamente).
+   */
+  async registrarMovimientoIngresoSinActualizarStock(input: {
+    productoId: string;
+    cantidad: number;
+    referenciaId: string;
+    referenciaTipo: 'IMPORT_EXCEL' | 'INGRESO_MANUAL';
+    sucursalId?: string;
+    usuarioId?: string;
+  }): Promise<void> {
+    const productoRef = doc(this.fs, `productos/${input.productoId}`);
+    const snap = await getDoc(productoRef);
+    if (!snap.exists()) {
+      throw new Error(`Producto ${input.productoId} no encontrado`);
+    }
+
+    const producto = snap.data() as Producto;
+    const tipoControl = producto.tipo_control_stock ?? 'NORMAL';
+    const esNormal = tipoControl === 'NORMAL';
+    const stockNuevo = esNormal ? Number(producto.stock || 0) : 0;
+    const stockAnterior = esNormal ? Math.max(0, stockNuevo - Number(input.cantidad || 0)) : 0;
+
+    await addDoc(this.movimientosRef, {
+      cantidad: Number(input.cantidad || 0),
+      costoUnitario: Number(producto.costo || 0),
+      createdAt: serverTimestamp(),
+      grupoProducto: producto.grupo || '',
+      precioVenta: Number(producto.pvp1 || 0),
+      productoId: input.productoId,
+      productoNombre: producto.nombre || '',
+      referenciaId: input.referenciaId,
+      referenciaTipo: input.referenciaTipo,
+      stockAnterior,
+      stockNuevo,
+      sucursalId: input.sucursalId || 'PASJO01',
+      tipo: 'INGRESO',
+      usuarioId: input.usuarioId || '',
+    } as any);
+  }
+
+  /**
+   * Registra movimientos inversos por eliminación de factura y restaura stock.
+   */
+  async registrarEliminacionFactura(
+    facturaId: string,
+    items: ItemVenta[],
+    sucursalId?: string,
+    usuarioId?: string
+  ): Promise<void> {
+    const itemsConStock = (items || []).filter(
+      (item) => !item.esServicio && item.productoId?.trim() && Number(item.cantidad || 0) > 0
+    );
+
+    if (!itemsConStock.length) return;
+
+    const productoRefs = itemsConStock.map((item) => doc(this.fs, `productos/${item.productoId}`));
+
+    await runTransaction(this.fs, async (tx) => {
+      const snaps = await Promise.all(productoRefs.map((ref) => tx.get(ref)));
+
+      for (let index = 0; index < itemsConStock.length; index++) {
+        const item = itemsConStock[index];
+        const snap = snaps[index];
+        if (!snap.exists()) continue;
+
+        const producto = snap.data() as Producto;
+        const tipoControl = producto.tipo_control_stock ?? 'NORMAL';
+        const esNormal = tipoControl === 'NORMAL';
+
+        const stockAnterior = esNormal ? Number(producto.stock || 0) : 0;
+        const stockNuevo = esNormal ? stockAnterior + Number(item.cantidad || 0) : 0;
+
+        const movimientoRef = doc(this.movimientosRef);
+        tx.set(movimientoRef, {
+          cantidad: Number(item.cantidad || 0),
+          costoUnitario: Number(producto.costo || 0),
+          createdAt: serverTimestamp(),
+          grupoProducto: producto.grupo || '',
+          precioVenta: Number(item.precioUnitario || producto.pvp1 || 0),
+          productoId: item.productoId,
+          productoNombre: producto.nombre || item.nombre || '',
+          referenciaId: facturaId,
+          referenciaTipo: 'ELIMINACION_FACTURA',
+          stockAnterior,
+          stockNuevo,
+          sucursalId: sucursalId || 'PASJO01',
+          tipo: 'ELIMINACION',
+          usuarioId: usuarioId || '',
+        });
+
+        if (esNormal) {
+          tx.update(productoRefs[index], {
+            stock: stockNuevo,
+            updatedAt: new Date(),
+          });
+        }
+      }
+    });
+  }
+
+  /**
+   * Registra ajustes de stock por edición de factura según diferencia por producto.
+   */
+  async registrarAjustesEdicionFactura(
+    facturaId: string,
+    itemsOriginales: ItemVenta[],
+    itemsNuevos: ItemVenta[],
+    sucursalId?: string,
+    usuarioId?: string
+  ): Promise<void> {
+    const acumulado = new Map<string, { deltaVenta: number; nombre: string; precioVenta: number }>();
+
+    for (const item of itemsOriginales || []) {
+      if (item.esServicio || !item.productoId) continue;
+      const key = item.productoId;
+      const actual = acumulado.get(key) || { deltaVenta: 0, nombre: item.nombre || '', precioVenta: Number(item.precioUnitario || 0) };
+      actual.deltaVenta -= Number(item.cantidad || 0);
+      acumulado.set(key, actual);
+    }
+
+    for (const item of itemsNuevos || []) {
+      if (item.esServicio || !item.productoId) continue;
+      const key = item.productoId;
+      const actual = acumulado.get(key) || { deltaVenta: 0, nombre: item.nombre || '', precioVenta: Number(item.precioUnitario || 0) };
+      actual.deltaVenta += Number(item.cantidad || 0);
+      actual.nombre = item.nombre || actual.nombre;
+      actual.precioVenta = Number(item.precioUnitario || actual.precioVenta || 0);
+      acumulado.set(key, actual);
+    }
+
+    const ajustes = [...acumulado.entries()]
+      .filter(([, value]) => value.deltaVenta !== 0)
+      .map(([productoId, value]) => ({ productoId, ...value }));
+
+    if (!ajustes.length) return;
+
+    const refs = ajustes.map((a) => doc(this.fs, `productos/${a.productoId}`));
+
+    await runTransaction(this.fs, async (tx) => {
+      const snaps = await Promise.all(refs.map((ref) => tx.get(ref)));
+
+      for (let index = 0; index < ajustes.length; index++) {
+        const ajuste = ajustes[index];
+        const snap = snaps[index];
+        if (!snap.exists()) continue;
+
+        const producto = snap.data() as Producto;
+        const tipoControl = producto.tipo_control_stock ?? 'NORMAL';
+        const esNormal = tipoControl === 'NORMAL';
+
+        const stockAnterior = esNormal ? Number(producto.stock || 0) : 0;
+        const deltaStock = -ajuste.deltaVenta;
+        const stockNuevo = esNormal ? Math.max(0, stockAnterior + deltaStock) : 0;
+
+        const movimientoRef = doc(this.movimientosRef);
+        tx.set(movimientoRef, {
+          cantidad: deltaStock,
+          costoUnitario: Number(producto.costo || 0),
+          createdAt: serverTimestamp(),
+          grupoProducto: producto.grupo || '',
+          precioVenta: Number(ajuste.precioVenta || producto.pvp1 || 0),
+          productoId: ajuste.productoId,
+          productoNombre: producto.nombre || ajuste.nombre || '',
+          referenciaId: facturaId,
+          referenciaTipo: 'AJUSTE_FACTURA',
+          stockAnterior,
+          stockNuevo,
+          sucursalId: sucursalId || 'PASJO01',
+          tipo: 'AJUSTE',
+          usuarioId: usuarioId || '',
+        });
+
+        if (esNormal) {
+          tx.update(refs[index], {
+            stock: stockNuevo,
+            updatedAt: new Date(),
+          });
+        }
+      }
+    });
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -202,7 +440,7 @@ export class MovimientoStockService {
   getMovimientosPorFactura(facturaId: string): Observable<MovimientoStock[]> {
     const q = query(
       this.movimientosRef,
-      where('facturaId', '==', facturaId),
+      where('referenciaId', '==', facturaId),
       orderBy('createdAt', 'desc')
     );
     return collectionData(q, { idField: 'id' }) as Observable<MovimientoStock[]>;

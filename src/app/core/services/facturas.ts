@@ -94,7 +94,7 @@ export class FacturasService {
 
     // Convertir Date a Timestamp de Firestore
     const facturaParaGuardar: any = { ...factura };
-    
+
     // Si fecha es un Date, convertirlo a Timestamp
     if (facturaParaGuardar.fecha instanceof Date) {
       facturaParaGuardar.fecha = Timestamp.fromDate(facturaParaGuardar.fecha);
@@ -441,7 +441,9 @@ export class FacturasService {
    */
   async actualizarFactura(facturaId: string, factura: Partial<Factura>) {
     const ref = doc(this.fs, `facturas/${facturaId}`);
-    
+    const facturaActualSnap = await getDoc(ref);
+    const facturaActual = facturaActualSnap.exists() ? (facturaActualSnap.data() as Factura) : null;
+
     // Convertir Date a Timestamp si es necesario
     const facturaParaGuardar: any = { ...factura };
     if (facturaParaGuardar.fecha instanceof Date) {
@@ -453,11 +455,21 @@ export class FacturasService {
     delete facturaParaGuardar.idPersonalizado;
     delete facturaParaGuardar.historialSnapshot; // NO modificar historial clínico
 
+    if (facturaActual && Array.isArray(facturaParaGuardar.items)) {
+      await this.movimientoStockSrv.registrarAjustesEdicionFactura(
+        facturaId,
+        (facturaActual.items || []) as any[],
+        (facturaParaGuardar.items || []) as any[],
+        (facturaParaGuardar as any).sucursalId || (facturaActual as any).sucursalId,
+        facturaParaGuardar.usuarioId || facturaActual.usuarioId
+      );
+    }
+
     await updateDoc(ref, {
       ...facturaParaGuardar,
       ultimaActualizacion: serverTimestamp()
     } as any);
-    
+
     console.log('✅ Factura actualizada:', facturaId);
   }
 
@@ -468,16 +480,28 @@ export class FacturasService {
    */
   async eliminarFactura(facturaId: string): Promise<void> {
     const ref = doc(this.fs, `facturas/${facturaId}`);
+    const facturaSnap = await getDoc(ref);
+
+    if (facturaSnap.exists()) {
+      const factura = facturaSnap.data() as Factura;
+      await this.movimientoStockSrv.registrarEliminacionFactura(
+        facturaId,
+        (factura.items || []) as any[],
+        (factura as any).sucursalId,
+        factura.usuarioId
+      );
+    }
+
     await deleteDoc(ref);
     console.log('✅ Factura eliminada permanentemente:', facturaId);
   }
 
   /**
    * 🚀 PAGINACIÓN REAL DESDE FIRESTORE
-   * 
+   *
    * Obtiene facturas con paginación real usando cursores de Firestore.
    * Solo carga 10 facturas por consulta, reduciendo uso de memoria y lecturas.
-   * 
+   *
    * @param options - Opciones de paginación
    * @param options.pageSize - Cantidad de facturas por página (default: 10)
    * @param options.lastVisible - Snapshot del último documento visible (para "siguiente")
@@ -485,7 +509,7 @@ export class FacturasService {
    * @param options.direction - Dirección de navegación: 'next' | 'prev' (default: 'next')
    * @param options.terminoBusqueda - Término para buscar en múltiples campos
    * @param options.filtroTipoFactura - Filtro por tipo: 'TODAS' | 'NORMALES' | 'COBROS_DEUDA'
-   * 
+   *
    * @returns Promise con productos, documentos snapshot y flag hasMore
    */
   async getFacturasPaginadasReal(options: {
@@ -521,19 +545,19 @@ export class FacturasService {
     // 🔍 SI HAY BÚSQUEDA ACTIVA O FILTROS DE FECHA, traer TODOS y filtrar en cliente
     if (terminoBusqueda.trim() || startDate || endDate || fechaExacta) {
       return this.buscarFacturasSinPaginacion(
-        terminoBusqueda, 
-        filtroTipoFactura, 
+        terminoBusqueda,
+        filtroTipoFactura,
         pageSize,
         currentPage,
-        startDate, 
-        endDate, 
+        startDate,
+        endDate,
         fechaExacta
       );
     }
 
     // ✅ Construir query base ordenado por fecha descendente
     let q;
-    
+
     if (direction === 'prev' && firstVisible) {
       q = query(
         this.facturasRef,
@@ -640,7 +664,7 @@ export class FacturasService {
     else if (startDate || endDate) {
       facturas = facturas.filter(f => {
         const fechaFactura = this.convertirADate(f.fecha);
-        
+
         if (startDate && endDate) {
           const inicio = new Date(startDate);
           inicio.setHours(0, 0, 0, 0);

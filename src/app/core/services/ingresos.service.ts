@@ -44,6 +44,7 @@ import { MovimientoStock } from '../models/movimiento-stock.model';
 import { Producto } from '../models/producto.model';
 import { ProductosService } from './productos';
 import { ProveedoresService } from './proveedores';
+import { MovimientoStockService } from './movimiento-stock.service';
 
 @Injectable({
   providedIn: 'root',
@@ -52,7 +53,8 @@ export class IngresosService {
   private firestore = inject(Firestore);
   private productosService = inject(ProductosService);
   private proveedoresService = inject(ProveedoresService);
-  
+  private movimientoStockSrv = inject(MovimientoStockService);
+
   private ingresosRef = collection(this.firestore, 'ingresos');
   private movimientosRef = collection(this.firestore, 'movimientos_stock');
   private productosRef = collection(this.firestore, 'productos');
@@ -239,6 +241,10 @@ export class IngresosService {
     const ingresoDoc = doc(this.firestore, `ingresos/${ingresoId}`);
     const ingresoSnap = await getDoc(ingresoDoc);
     const ingreso = ingresoSnap.data() as Ingreso;
+    const referenciaTipo: 'IMPORT_EXCEL' | 'INGRESO_MANUAL' =
+      (ingreso?.observacion || '').toUpperCase().includes('IMPORTADO DESDE EXCEL')
+        ? 'IMPORT_EXCEL'
+        : 'INGRESO_MANUAL';
     // IMPORTANTE: Siempre usar ingreso.proveedor (el nombre), NO el proveedorId
     const proveedorIngreso = ingreso?.proveedor || '';
 
@@ -267,30 +273,30 @@ export class IngresosService {
         // Actualizar datos del producto existente si es necesario
         const productoDoc = doc(this.firestore, `productos/${detalle.productoId}`);
         const productoSnap = await getDoc(productoDoc);
-        
+
         if (productoSnap.exists()) {
           const productoData = productoSnap.data() as Producto;
           const actualizaciones: any = { updatedAt: new Date() };
-          
+
           // SI el producto estaba desactivado, reactivarlo
           if (detalle.estaDesactivado) {
             actualizaciones.activo = true;
             console.log('🔄 Reactivando producto desactivado:', detalle.nombre);
           }
-          
+
           // SIEMPRE actualizar el proveedor al del Excel (se reemplaza)
           actualizaciones.proveedor = proveedorIngreso;
-          
+
           // Actualizar PVP1 si viene en el detalle y es diferente
           if (detalle.pvp1 !== undefined && detalle.pvp1 > 0) {
             actualizaciones.pvp1 = detalle.pvp1;
           }
-          
+
           // Actualizar costo si viene en el detalle y es diferente
           if (detalle.costoUnitario !== undefined && detalle.costoUnitario > 0) {
             actualizaciones.costo = detalle.costoUnitario;
           }
-          
+
           // Actualizar otros datos del producto desde la importación
           if (detalle.modelo && detalle.modelo !== productoData.modelo) {
             actualizaciones.modelo = detalle.modelo;
@@ -301,44 +307,19 @@ export class IngresosService {
           if (detalle.grupo && detalle.grupo !== productoData.grupo) {
             actualizaciones.grupo = detalle.grupo;
           }
-          
-          // Actualizar stock del producto existente
-          // IMPORTANTE: Si estaba desactivado, ya tiene el stock guardado, solo suma la nueva cantidad
-          // Solo actualizar stock si el tipo de control es NORMAL (no ILIMITADO)
-          const tipoControl = productoData.tipo_control_stock || 'NORMAL';
-          if (tipoControl === 'NORMAL') {
-            const stockActual = productoData.stock || 0;
-            const nuevoStock = stockActual + detalle.cantidad;
-            actualizaciones.stock = nuevoStock;
-          }
-          // Si es ILIMITADO: cantidad se usa SOLO para calcular subtotal, NO se suma al stock
-          
+
           // Actualizar observación: CONCATENAR con el anterior, NO reemplazar
           if (detalle.observacion !== undefined && detalle.observacion !== null && detalle.observacion !== '') {
             const observacionAnterior = productoData.observacion || '';
             // Concatenar si hay observación anterior, sino solo usar la nueva
-            actualizaciones.observacion = observacionAnterior 
+            actualizaciones.observacion = observacionAnterior
               ? `${observacionAnterior} | ${detalle.observacion}`
               : detalle.observacion;
           }
-          
+
           // Hacer el update con todos los cambios en batch
           batch.update(productoDoc, actualizaciones);
         }
-      }
-
-      // Registrar movimiento de stock (ahora todos los detalles tienen productoId)
-      if (detalle.productoId) {
-        await this.registrarMovimiento({
-          productoId: detalle.productoId,
-          referenciaId: ingresoId,
-          tipo: 'INGRESO',
-          cantidad: detalle.cantidad,
-          costoUnitario: detalle.costoUnitario,
-          stockAnterior: 0, // Se actualizará en el método
-          stockNuevo: 0, // Se actualizará en el método
-          observacion: detalle.observacion,
-        });
       }
 
       // Calcular total
@@ -348,7 +329,7 @@ export class IngresosService {
     // PASO 3: Guardar detalles en subcolección (ahora todos tienen productoId asignado)
     for (const detalle of detalles) {
       const detalleRef = doc(collection(this.firestore, `ingresos/${ingresoId}/detalles`));
-      
+
       // Filtrar valores undefined para Firestore
       const detalleData: any = {
         tipo: detalle.tipo,
@@ -365,7 +346,7 @@ export class IngresosService {
       } else {
         console.warn('⚠️ Detalle sin productoId:', detalle.nombre);
       }
-      
+
       if (detalle.modelo) detalleData.modelo = detalle.modelo;
       if (detalle.color) detalleData.color = detalle.color;
       if (detalle.grupo) detalleData.grupo = detalle.grupo;
@@ -377,7 +358,7 @@ export class IngresosService {
       if (detalle.pvp1) detalleData.pvp1 = detalle.pvp1;
       if (detalle.iva) detalleData.iva = detalle.iva; // Agregar IVA del detalle
       if (detalle.stockInicial) detalleData.stockInicial = detalle.stockInicial;
-      
+
       console.log('💾 Guardando detalle con ID:', detalleData.productoId, '| nombre:', detalle.nombre);
       batch.set(detalleRef, detalleData);
     }
@@ -390,6 +371,32 @@ export class IngresosService {
     });
 
     await batch.commit();
+
+    for (const detalle of detalles) {
+      if (!detalle.productoId || Number(detalle.cantidad || 0) <= 0) {
+        continue;
+      }
+
+      if (detalle.tipo === 'NUEVO') {
+        await this.movimientoStockSrv.registrarMovimientoIngresoSinActualizarStock({
+          productoId: detalle.productoId,
+          cantidad: detalle.cantidad,
+          referenciaId: ingresoId,
+          referenciaTipo,
+          usuarioId: '',
+          sucursalId: 'PASJO01',
+        });
+      } else {
+        await this.movimientoStockSrv.registrarMovimientoIngreso({
+          productoId: detalle.productoId,
+          cantidad: detalle.cantidad,
+          referenciaId: ingresoId,
+          referenciaTipo,
+          usuarioId: '',
+          sucursalId: 'PASJO01',
+        });
+      }
+    }
 
     // Actualizar saldo del proveedor en Firestore (después de finalizar ingreso)
     const proveedorNombre = ingreso?.proveedor || '';
@@ -431,7 +438,7 @@ export class IngresosService {
     }
 
     let idInterno: number;
-    
+
     if (detalle.idInterno && detalle.idInterno > 0) {
       // Usar idInterno del Excel si existe y NO está duplicado en este lote
       if (!idsAsignadosEnEsteLote.has(detalle.idInterno)) {
@@ -456,7 +463,7 @@ export class IngresosService {
       }
       idsAsignadosEnEsteLote.add(idInterno);
     }
-    
+
     // Obtener el ingreso para extraer el proveedor
     const ingresoDoc = doc(this.firestore, `ingresos/${ingresoId}`);
     const ingresoSnap = await getDoc(ingresoDoc);
@@ -468,7 +475,7 @@ export class IngresosService {
     const grupo = detalle.grupo || '';
     const esControlNormal = grupo === 'ARMAZONES' || grupo === 'GAFAS';
     const tipoControlStock = esControlNormal ? 'NORMAL' : 'ILIMITADO';
-    
+
     const nuevoProducto: any = {
       idInterno: idInterno,
       nombre: detalle.nombre,
@@ -487,11 +494,11 @@ export class IngresosService {
     if (detalle.grupo) nuevoProducto.grupo = detalle.grupo;
     if (detalle.costoUnitario !== undefined) nuevoProducto.costo = detalle.costoUnitario;
     if (detalle.pvp1 !== undefined) nuevoProducto.pvp1 = detalle.pvp1;
-    
+
     if (detalle.observacion !== undefined && detalle.observacion !== null) nuevoProducto.observacion = detalle.observacion;
 
     const productoRef = await addDoc(this.productosRef, nuevoProducto as Producto);
-    
+
     // 🔹 IMPORTANTE: Actualizar el counter después de crear el producto
     try {
       const counterDoc = doc(this.firestore, 'counters/productos');
@@ -499,7 +506,7 @@ export class IngresosService {
     } catch (error) {
       console.warn('⚠️ No se pudo actualizar el contador, pero el producto fue creado:', productoRef.id);
     }
-    
+
     return productoRef.id;
   }
 
@@ -523,14 +530,14 @@ export class IngresosService {
       const tipoControl = producto.tipo_control_stock || 'NORMAL';
 
       const updateData: any = { updatedAt: new Date() };
-      
+
       // Solo actualizar stock si el control es NORMAL
       if (tipoControl === 'NORMAL') {
         const nuevoStock = (producto.stock || 0) + cantidad;
         updateData.stock = nuevoStock;
       }
       // Para productos ILIMITADOS: cantidad se usa SOLO para calcular costo total, NO para stock
-      
+
       if (costoUnitario !== undefined) {
         updateData.costo = costoUnitario;
       }
@@ -550,15 +557,15 @@ export class IngresosService {
     // Obtener stock ACTUAL del producto (después de haber sido actualizado)
     const productoDoc = doc(this.firestore, `productos/${movimiento.productoId}`);
     const productoSnap = await getDoc(productoDoc);
-    
+
     if (productoSnap.exists()) {
       const producto = productoSnap.data() as Producto;
       // El stock ya fue actualizado en actualizarStockProducto
       // Solo registramos el estado actual, no volvemos a sumar
       const stockNuevo = producto.stock || 0;
       // stockAnterior = stockNuevo - cantidad (para casos INGRESO)
-      const stockAnterior = movimiento.tipo === 'INGRESO' 
-        ? (stockNuevo - movimiento.cantidad) 
+      const stockAnterior = movimiento.tipo === 'INGRESO'
+        ? (stockNuevo - movimiento.cantidad)
         : (movimiento.stockAnterior || 0);
 
       // Ensamblar movimiento evitando campos undefined
@@ -651,15 +658,15 @@ export class IngresosService {
   async eliminarIngreso(id: string): Promise<void> {
     const ingresoDoc = doc(this.firestore, `ingresos/${id}`);
     const ingresoSnap = await getDoc(ingresoDoc);
-    
+
     if (ingresoSnap.exists()) {
       const ingreso = ingresoSnap.data() as Ingreso;
       const proveedorNombre = ingreso?.proveedor || '';
       const proveedorIdCampo = (ingreso as any)?.proveedorId || '';
-      
+
       // Eliminar el ingreso
       await deleteDoc(ingresoDoc);
-      
+
       // Recalcular y actualizar saldo del proveedor
       if (proveedorNombre) {
         // Si tenemos proveedorId directo, usarlo; sino buscar por nombre
@@ -684,13 +691,13 @@ export class IngresosService {
     try {
       const proveedoresRef = collection(this.firestore, 'proveedores');
       const snap = await getDocs(proveedoresRef);
-      
+
       let totalDeuda = 0;
       snap.forEach(docSnap => {
         const proveedor: any = docSnap.data();
         totalDeuda += proveedor.saldo || 0;
       });
-      
+
       return totalDeuda;
     } catch (error) {
       console.error('Error al calcular deuda de sucursal:', error);

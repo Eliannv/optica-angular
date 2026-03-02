@@ -35,7 +35,6 @@ import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { FacturasService } from '../../../../core/services/facturas';
-import { ProductosService } from '../../../../core/services/productos';
 import { CajaChica, MovimientoCajaChica, ResumenCajaChica } from '../../../../core/models/caja-chica.model';
 import { QueryDocumentSnapshot, DocumentData } from '@angular/fire/firestore';
 import Swal from 'sweetalert2';
@@ -51,7 +50,6 @@ export class VerCajaComponent implements OnInit, OnDestroy {
   private cajaBancoService = inject(CajaBancoService);
   private authService = inject(AuthService);
   private facturasSrv = inject(FacturasService);
-  private productosSrv = inject(ProductosService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private subscriptions = new Subscription();
@@ -59,13 +57,13 @@ export class VerCajaComponent implements OnInit, OnDestroy {
   cajaId: string = '';
   caja: CajaChica | null = null;
   returnTo = '';
-  
+
   // 📄 Movimientos con paginación (navegación anterior/siguiente)
   movimientos: MovimientoCajaChica[] = [];
   movimientosCargados = false; // Flag para lazy loading
   mostrarMovimientos = true; // Flag para expandir/contraer sección (por defecto visible)
   mostrarDetallesCaja = false; // Flag para expandir/contraer detalles de la caja
-  
+
   // Control de paginación
   paginaActualMovimientos = 1;
   pageSize = 20;
@@ -80,7 +78,7 @@ export class VerCajaComponent implements OnInit, OnDestroy {
     lastDoc: QueryDocumentSnapshot<DocumentData> | null;
     pageNumber: number;
   }> = [];
-  
+
   // ─── Filtros de movimientos ───────────────────────────────────────────
   filtroBusqueda: string = '';
   filtroTipoMov: string = 'TODOS';
@@ -90,7 +88,7 @@ export class VerCajaComponent implements OnInit, OnDestroy {
   filtroMontoMin: number | null = null;
   filtroMontoMax: number | null = null;
   mostrarFiltrosMov: boolean = false;
-  
+
   resumen: ResumenCajaChica | null = null;
   cargando = false;
   error = '';
@@ -119,26 +117,26 @@ export class VerCajaComponent implements OnInit, OnDestroy {
     const promedio = this.movimientos.length > 0 ? (totalIngresos + totalEgresos) / this.movimientos.length : 0;
 
     return [
-      { 
-        titulo: 'Total Ingresos', 
-        valor: this.formatoMoneda(totalIngresos), 
+      {
+        titulo: 'Total Ingresos',
+        valor: this.formatoMoneda(totalIngresos),
         subtitulo: `${ingresos.length} ingreso${ingresos.length !== 1 ? 's' : ''}`,
         icono: 'money'
       },
-      { 
-        titulo: 'Total Egresos', 
-        valor: this.formatoMoneda(totalEgresos), 
+      {
+        titulo: 'Total Egresos',
+        valor: this.formatoMoneda(totalEgresos),
         subtitulo: `${egresos.length} egreso${egresos.length !== 1 ? 's' : ''}`,
         icono: 'money'
       },
-      { 
-        titulo: 'Balance Neto', 
+      {
+        titulo: 'Balance Neto',
         valor: this.formatoMoneda(balance),
         subtitulo: balance >= 0 ? 'Positivo' : 'Negativo',
         icono: 'chart'
       },
-      { 
-        titulo: 'Promedio por Movimiento', 
+      {
+        titulo: 'Promedio por Movimiento',
         valor: this.formatoMoneda(promedio),
         subtitulo: `de ${this.movimientos.length} movimiento${this.movimientos.length !== 1 ? 's' : ''}`,
         icono: 'trophy'
@@ -264,19 +262,19 @@ export class VerCajaComponent implements OnInit, OnDestroy {
   /** Clasifica un movimiento según palabras clave en su descripción */
   clasificarMovimiento(movimiento: MovimientoCajaChica): 'VENTA' | 'PAGO_DEUDA' | 'GASTO' | 'OTRO' {
     const desc = (movimiento.descripcion || '').toLowerCase();
-    
+
     if (desc.includes('venta') || desc.includes('factura')) {
       return 'VENTA';
     }
-    
+
     if (desc.includes('deuda') || desc.includes('cobro') || desc.includes('abono')) {
       return 'PAGO_DEUDA';
     }
-    
+
     if (movimiento.tipo === 'EGRESO') {
       return 'GASTO';
     }
-    
+
     return 'OTRO';
   }
 
@@ -286,7 +284,7 @@ export class VerCajaComponent implements OnInit, OnDestroy {
     if (total === 0) return [];
 
     const categorias = new Map<string, {cantidad: number; monto: number}>();
-    
+
     this.movimientos.forEach(m => {
       const cat = this.clasificarMovimiento(m);
       const actual = categorias.get(cat) || { cantidad: 0, monto: 0 };
@@ -330,7 +328,7 @@ export class VerCajaComponent implements OnInit, OnDestroy {
   /** Comprobantes duplicados (mismo comprobante en múltiples movimientos) */
   get comprobantesDuplicados(): Array<{comprobante: string; cantidad: number}> {
     const comprobantes = new Map<string, number>();
-    
+
     this.movimientos.forEach(m => {
       if (m.comprobante && m.comprobante.trim()) {
         const count = comprobantes.get(m.comprobante) || 0;
@@ -346,20 +344,20 @@ export class VerCajaComponent implements OnInit, OnDestroy {
   /** Saltos inconsistentes de saldo (diferencia > monto movimiento - tolerancia de error) */
   get saltosInconsistentes(): MovimientoCajaChica[] {
     const inconsistentes: MovimientoCajaChica[] = [];
-    
+
     for (let i = 1; i < this.movimientos.length; i++) {
       const anterior = this.movimientos[i - 1];
       const actual = this.movimientos[i];
-      
+
       const saldoEsperado = anterior.saldo_nuevo;
       const saldoReal = actual.saldo_anterior;
-      
+
       // Tolerancia de 0.01 para errores de redondeo
       if (saldoEsperado !== undefined && saldoReal !== undefined && Math.abs(saldoEsperado - saldoReal) > 0.01) {
         inconsistentes.push(actual);
       }
     }
-    
+
     return inconsistentes;
   }
 
@@ -403,7 +401,7 @@ export class VerCajaComponent implements OnInit, OnDestroy {
       next: async (caja) => {
         this.caja = caja;
         this.cargando = false;
-        
+
         // Cargar movimientos automáticamente
         if (!this.movimientosCargados) {
           await this.cargarMovimientosPaginados();
@@ -658,7 +656,7 @@ export class VerCajaComponent implements OnInit, OnDestroy {
 
     // Buscar el movimiento para obtener el comprobante (facturaId)
     const movimiento = this.movimientos.find(m => m.id === movimientoId);
-    
+
     const confirmar = await Swal.fire({
       icon: 'warning',
       title: 'Eliminar movimiento',
@@ -677,44 +675,25 @@ export class VerCajaComponent implements OnInit, OnDestroy {
       confirmButtonColor: '#d33',
       cancelButtonText: 'Cancelar'
     });
-    
+
     if (!confirmar.isConfirmed) return;
 
     try {
       // Verificar si es un movimiento de venta (no de cobro de deuda)
       const esMovimientoDeVenta = movimiento?.descripcion?.startsWith('Venta #');
       let facturaEliminada = false;
-      
+
       // 1️⃣ Si hay factura asociada Y es movimiento de venta, eliminarla y revertir stock
       if (movimiento?.comprobante && esMovimientoDeVenta) {
         const facturaId = movimiento.comprobante;
         console.log('🔄 Buscando factura asociada (movimiento de venta):', facturaId);
-        
+
         try {
           // Buscar la factura
           const factura = await firstValueFrom(this.facturasSrv.getFacturaById(facturaId));
-          
+
           if (factura) {
-            console.log('🔄 Revirtiendo stock de productos...');
-            
-            // Revertir stock de cada producto
-            for (const item of factura.items || []) {
-              if (item.esServicio) {
-                console.log(`⏭️ Saltando servicio: "${item.nombre}"`);
-                continue;
-              }
-              
-              if (item.productoId && item.cantidad > 0) {
-                try {
-                  await this.productosSrv.incrementarStock(item.productoId, item.cantidad);
-                  console.log(`✅ Stock restaurado: ${item.nombre} (+${item.cantidad})`);
-                } catch (error) {
-                  console.error(`Error restaurando stock de "${item.nombre}":`, error);
-                }
-              }
-            }
-            
-            // Eliminar factura
+            // Eliminar factura (incluye reversión de stock + Kardex en servicio)
             console.log('🔄 Eliminando factura...');
             if (factura.id) {
               await this.facturasSrv.eliminarFactura(factura.id);
@@ -728,32 +707,32 @@ export class VerCajaComponent implements OnInit, OnDestroy {
         }
       } else if (movimiento?.comprobante && !esMovimientoDeVenta) {
         console.log('⚠️ Movimiento de cobro de deuda - Restando del abonado de la factura');
-        
+
         // Para cobros de deuda, restar el monto del campo abonado de la factura
         try {
           const facturaId = movimiento.comprobante;
           const factura = await firstValueFrom(this.facturasSrv.getFacturaById(facturaId));
-          
+
           if (factura && factura.id) {
             const nuevoAbonado = (factura.abonado || 0) - movimiento.monto;
             const nuevoSaldoPendiente = (factura.total || 0) - nuevoAbonado;
-            
+
             // Preparar datos de actualización
             const datosActualizacion: any = {
               abonado: nuevoAbonado >= 0 ? nuevoAbonado : 0,
               saldoPendiente: nuevoSaldoPendiente >= 0 ? nuevoSaldoPendiente : 0
             };
-            
+
             // Si hay saldo pendiente, cambiar estado de pago a PENDIENTE
             if (nuevoSaldoPendiente > 0) {
               datosActualizacion.estadoPago = 'PENDIENTE';
-              
+
               // Si es crédito, cambiar a ACTIVO
               if (factura.esCredito || factura.tipoVenta === 'CREDITO') {
                 datosActualizacion.estadoCredito = 'ACTIVO';
               }
             }
-            
+
             await this.facturasSrv.actualizarFactura(factura.id, datosActualizacion);
             console.log(`✅ Abonado actualizado: ${factura.abonado} → ${nuevoAbonado}`);
             console.log(`✅ Saldo pendiente actualizado: ${factura.saldoPendiente} → ${nuevoSaldoPendiente}`);
@@ -769,11 +748,11 @@ export class VerCajaComponent implements OnInit, OnDestroy {
           // Continuar con la eliminación del movimiento
         }
       }
-      
+
       // 2️⃣ Eliminar el movimiento de caja chica
       console.log('🔄 Eliminando movimiento de caja...');
       await this.cajaChicaService.eliminarMovimiento(this.cajaId, movimientoId);
-      
+
       await Swal.fire({
         icon: 'success',
         title: '✅ Eliminado',
@@ -786,10 +765,10 @@ export class VerCajaComponent implements OnInit, OnDestroy {
         timer: 2000,
         showConfirmButton: false
       });
-      
+
       // Recargar datos después de eliminar
       await this.cargarResumen();
-      
+
       // Si los movimientos están expandidos, recargarlos
       if (this.mostrarMovimientos) {
         await this.cargarMovimientosPaginados();
@@ -868,9 +847,9 @@ export class VerCajaComponent implements OnInit, OnDestroy {
   formatoFechaHora(fecha: any): string {
     if (!fecha) return '-';
     const date = fecha.toDate ? fecha.toDate() : new Date(fecha);
-    return date.toLocaleDateString('es-ES', { 
-      year: 'numeric', 
-      month: '2-digit', 
+    return date.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit'
