@@ -38,6 +38,14 @@ import { CajaBancoService } from './caja-banco.service';
 import { AuthService } from './auth.service';
 import { MovimientoCajaBanco } from '../models/caja-banco.model';
 
+interface RegistrarAbonoOpciones {
+  cajaBancoId?: string;
+  proveedor?: string;
+  referenciaCuenta?: string;
+  descripcionMovimiento?: string;
+  permitirCajaCerrada?: boolean;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -320,7 +328,13 @@ export class CuentasService {
    * @param observacion Observación del abono (opcional).
    * @returns Promise que se resuelve cuando el abono se registra correctamente.
    */
-  async registrarAbono(cuentaId: string, monto: number, fechaAbono?: Date, observacion?: string): Promise<void> {
+  async registrarAbono(
+    cuentaId: string,
+    monto: number,
+    fechaAbono?: Date,
+    observacion?: string,
+    opciones?: RegistrarAbonoOpciones
+  ): Promise<void> {
     try {
       // Obtener el usuario actual
       const usuarioActual = this.authService.getCurrentUser();
@@ -340,11 +354,14 @@ export class CuentasService {
         id: cuentaSnapshot.id,
         fecha: (cuentaData['fecha'] as Timestamp).toDate(),
         tipo: cuentaData['tipo'] as TipoCuenta,
+        tipoCuentaPorPagar: cuentaData['tipoCuentaPorPagar'] as TipoCuentaPorPagar | undefined,
         montoTotal: cuentaData['montoTotal'],
         montoAbonado: cuentaData['montoAbonado'],
         saldo: cuentaData['saldo'],
         estado: cuentaData['estado'] as EstadoCuenta,
         observacion: cuentaData['observacion'],
+        proveedor: cuentaData['proveedor'],
+        cuentaBancoId: cuentaData['cuentaBancoId'],
         abonos: cuentaData['abonos']?.map((abono: any) => ({
           ...abono,
           fecha: (abono.fecha as Timestamp).toDate()
@@ -372,26 +389,27 @@ export class CuentasService {
       // Usar la fecha proporcionada o la fecha actual
       const fechaDelAbono = fechaAbono || new Date();
 
-      // Crear registro del abono
-      const nuevoAbono: AbonoCuenta = {
-        fecha: fechaDelAbono,
-        monto: monto,
-        observacion: observacion,
-        saldoRestante: nuevoSaldo
-      };
+      const referenciaCuenta = (
+        opciones?.referenciaCuenta
+        || `CPP-${(cuenta.id || cuentaId).slice(0, 8).toUpperCase()}`
+      ).trim();
 
-      const abonosActualizados = [...(cuenta.abonos || []), nuevoAbono];
+      const proveedorAbono = (
+        opciones?.proveedor
+        || cuenta.proveedor
+        || 'Proveedor no especificado'
+      ).trim();
 
       // Determinar el tipo de movimiento en caja/banco
       let tipoMovimiento: 'INGRESO' | 'EGRESO';
-      let categoriaMovimiento: 'CIERRE_CAJA_CHICA' | 'TRANSFERENCIA_CLIENTE' | 'PAGO_TRABAJADOR' | 'OTRO_INGRESO' | 'OTRO_EGRESO';
+      let categoriaMovimiento: 'CIERRE_CAJA_CHICA' | 'TRANSFERENCIA_CLIENTE' | 'PAGO_TRABAJADOR' | 'PAGO_PROVEEDORES' | 'OTRO_INGRESO' | 'OTRO_EGRESO';
       let descripcion: string;
 
       if (cuenta.tipo === TipoCuenta.PAGAR) {
         // Al pagar cuenta por PAGAR: EGRESO de caja (devolvemos dinero)
         tipoMovimiento = 'EGRESO';
-        categoriaMovimiento = 'OTRO_EGRESO';
-        descripcion = 'Pago de cuenta por pagar';
+        categoriaMovimiento = 'PAGO_PROVEEDORES';
+        descripcion = opciones?.descripcionMovimiento || `Pago de Cuenta por Pagar N° ${referenciaCuenta}`;
       } else {
         // Al cobrar cuenta por COBRAR: INGRESO a caja (nos devuelven dinero)
         tipoMovimiento = 'INGRESO';
@@ -399,35 +417,80 @@ export class CuentasService {
         descripcion = 'Cobro de cuenta por cobrar';
       }
 
-      // Registrar movimiento en caja/banco del periodo del abono
-      const year = fechaDelAbono.getFullYear();
-      const monthIndex0 = fechaDelAbono.getMonth();
-      
-      const caja = await this.cajaBancoService.getCajaBancoPorPeriodo(year, monthIndex0);
-      if (!caja) {
-        const nombreMes = new Date(year, monthIndex0).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-        throw new Error(`No hay una caja banco abierta para el periodo ${nombreMes}. Debe abrir una caja para ese mes primero.`);
+      // Resolver caja destino: si viene explícita (flujo CxP), usarla aunque esté cerrada.
+      let cajaIdDestino: string;
+      let permitirCajaCerrada = false;
+
+      if (opciones?.cajaBancoId) {
+        const cajaDocRef = doc(this.firestore, `cajas_banco/${opciones.cajaBancoId}`);
+        const cajaDoc = await getDoc(cajaDocRef);
+        const cajaData = cajaDoc.data() as any;
+
+        if (!cajaDoc.exists() || !cajaData || cajaData.activo === false) {
+          throw new Error('La caja banco seleccionada no existe o está desactivada.');
+        }
+
+        cajaIdDestino = cajaDoc.id;
+        permitirCajaCerrada = !!opciones.permitirCajaCerrada;
+      } else {
+        const year = fechaDelAbono.getFullYear();
+        const monthIndex0 = fechaDelAbono.getMonth();
+        const caja = await this.cajaBancoService.getCajaBancoPorPeriodo(year, monthIndex0);
+
+        if (!caja?.id) {
+          const nombreMes = new Date(year, monthIndex0).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+          throw new Error(`No hay una caja banco abierta para el periodo ${nombreMes}. Debe abrir una caja para ese mes primero.`);
+        }
+
+        cajaIdDestino = caja.id;
       }
 
+      const observacionMovimiento = [
+        `Proveedor: ${proveedorAbono}`,
+        observacion ? `Detalle pago: ${observacion}` : ''
+      ].filter(Boolean).join(' | ');
+
       const movimiento: MovimientoCajaBanco = {
-        caja_banco_id: caja.id!,
+        caja_banco_id: cajaIdDestino,
         tipo: tipoMovimiento,
         categoria: categoriaMovimiento,
         monto: monto,
         descripcion: descripcion,
-        referencia: observacion,
+        referencia: referenciaCuenta,
+        observacion: observacionMovimiento,
+        cuenta_id: cuenta.id,
+        cuenta_tipo: cuenta.tipo,
+        cuenta_referencia: referenciaCuenta,
+        proveedor: cuenta.tipo === TipoCuenta.PAGAR ? proveedorAbono : undefined,
         usuario_nombre: nombreUsuario,
         usuario_id: idUsuario,
         fecha: fechaDelAbono
       };
 
-      await this.cajaBancoService.registrarMovimiento(movimiento);
+      const movimientoId = (cuenta.tipo === TipoCuenta.PAGAR && permitirCajaCerrada)
+        ? await this.cajaBancoService.registrarMovimientoIgnorarCierre(movimiento)
+        : await this.cajaBancoService.registrarMovimiento(movimiento);
+
+      // Crear registro del abono con trazabilidad hacia caja/banco
+      const nuevoAbono: AbonoCuenta = {
+        fecha: fechaDelAbono,
+        monto: monto,
+        observacion: observacion,
+        saldoRestante: nuevoSaldo,
+        movimientoCajaBancoId: movimientoId,
+        cajaBancoId: cajaIdDestino,
+        referenciaCuenta: referenciaCuenta,
+        proveedor: cuenta.tipo === TipoCuenta.PAGAR ? proveedorAbono : undefined
+      };
+
+      const abonosActualizados = [...(cuenta.abonos || []), nuevoAbono];
 
       // Actualizar la cuenta en Firestore
       await updateDoc(cuentaDocRef, {
         montoAbonado: nuevoMontoAbonado,
         saldo: nuevoSaldo,
         estado: nuevoEstado,
+        ...(cuenta.tipo === TipoCuenta.PAGAR && !cuenta.proveedor ? { proveedor: proveedorAbono } : {}),
         abonos: abonosActualizados.map(abono => ({
           ...abono,
           fecha: Timestamp.fromDate(abono.fecha)

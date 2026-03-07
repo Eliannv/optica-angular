@@ -108,6 +108,18 @@ export interface MovimientoCajaBanco {
   /** Observaciones adicionales sobre el movimiento */
   observacion?: string;
 
+  /** ID de la cuenta (por pagar/cobrar) relacionada al movimiento */
+  cuenta_id?: string;
+
+  /** Tipo de cuenta relacionada (PAGAR/COBRAR) */
+  cuenta_tipo?: 'PAGAR' | 'COBRAR';
+
+  /** Referencia legible de la cuenta (ej: CPP-ABCD1234) */
+  cuenta_referencia?: string;
+
+  /** Nombre del proveedor relacionado (si aplica) */
+  proveedor?: string;
+
   /** Fecha de creación del registro en Firestore */
   createdAt?: any;
 }
