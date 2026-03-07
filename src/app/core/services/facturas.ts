@@ -24,6 +24,7 @@ import {
   query,
   where,
   getDocs,
+  runTransaction,
   updateDoc,
   writeBatch,
   orderBy,
@@ -47,6 +48,7 @@ export class FacturasService {
   private readonly facturasRef;
   private readonly facturasDeudaRef;
   private readonly clientesRef;
+  private readonly movimientosStockRef;
   private readonly movimientoStockSrv: MovimientoStockService;
 
   // 🎯 CACÉ con shareReplay
@@ -58,7 +60,117 @@ export class FacturasService {
     this.facturasRef = collection(this.fs, 'facturas');
     this.facturasDeudaRef = collection(this.fs, 'facturas_deudas');
     this.clientesRef = collection(this.fs, 'clientes');
+    this.movimientosStockRef = collection(this.fs, 'movimientos_stock');
     this.movimientoStockSrv = inject(MovimientoStockService);
+  }
+
+  /**
+   * Inicia la edición temporal de una factura restaurando stock original SIN generar movimientos.
+   */
+  async iniciarEdicionFacturaTemporal(facturaId: string): Promise<void> {
+    const facturaRef = doc(this.fs, `facturas/${facturaId}`);
+
+    await runTransaction(this.fs, async (tx) => {
+      const facturaSnap = await tx.get(facturaRef);
+      if (!facturaSnap.exists()) {
+        throw new Error('Factura no encontrada para iniciar edición');
+      }
+
+      const facturaData: any = facturaSnap.data();
+      if (facturaData?.edicionTemporalStockActiva) {
+        return;
+      }
+
+      const itemsOriginales = (facturaData?.items || []).filter(
+        (item: any) => !item?.esServicio && item?.productoId && Number(item?.cantidad || 0) > 0
+      );
+
+      const refs = itemsOriginales.map((item: any) => doc(this.fs, `productos/${item.productoId}`));
+      const snaps = await Promise.all(refs.map((ref: any) => tx.get(ref)));
+
+      for (let index = 0; index < itemsOriginales.length; index++) {
+        const item = itemsOriginales[index];
+        const productoSnap = snaps[index];
+        if (!productoSnap.exists()) {
+          continue;
+        }
+
+        const productoData: any = productoSnap.data();
+        const tipoControl = productoData?.tipo_control_stock || 'NORMAL';
+        if (tipoControl !== 'NORMAL') {
+          continue;
+        }
+
+        const stockActual = Number(productoData?.stock || 0);
+        const stockNuevo = stockActual + Number(item?.cantidad || 0);
+        tx.update(refs[index], {
+          stock: stockNuevo,
+          updatedAt: new Date(),
+        });
+      }
+
+      tx.update(facturaRef, {
+        edicionTemporalStockActiva: true,
+        edicionTemporalStockAt: serverTimestamp(),
+      } as any);
+    });
+  }
+
+  /**
+   * Cancela la edición temporal de una factura reaplicando el descuento original SIN generar movimientos.
+   */
+  async cancelarEdicionFacturaTemporal(facturaId: string): Promise<void> {
+    const facturaRef = doc(this.fs, `facturas/${facturaId}`);
+
+    await runTransaction(this.fs, async (tx) => {
+      const facturaSnap = await tx.get(facturaRef);
+      if (!facturaSnap.exists()) {
+        return;
+      }
+
+      const facturaData: any = facturaSnap.data();
+      if (!facturaData?.edicionTemporalStockActiva) {
+        return;
+      }
+
+      const itemsOriginales = (facturaData?.items || []).filter(
+        (item: any) => !item?.esServicio && item?.productoId && Number(item?.cantidad || 0) > 0
+      );
+
+      const refs = itemsOriginales.map((item: any) => doc(this.fs, `productos/${item.productoId}`));
+      const snaps = await Promise.all(refs.map((ref: any) => tx.get(ref)));
+
+      for (let index = 0; index < itemsOriginales.length; index++) {
+        const item = itemsOriginales[index];
+        const productoSnap = snaps[index];
+        if (!productoSnap.exists()) {
+          continue;
+        }
+
+        const productoData: any = productoSnap.data();
+        const tipoControl = productoData?.tipo_control_stock || 'NORMAL';
+        if (tipoControl !== 'NORMAL') {
+          continue;
+        }
+
+        const stockActual = Number(productoData?.stock || 0);
+        const cantidad = Number(item?.cantidad || 0);
+        const stockNuevo = stockActual - cantidad;
+        if (stockNuevo < 0) {
+          throw new Error(`No se pudo restaurar stock original en ${item?.nombre || item?.productoId}`);
+        }
+
+        tx.update(refs[index], {
+          stock: stockNuevo,
+          updatedAt: new Date(),
+        });
+      }
+
+      tx.update(facturaRef, {
+        edicionTemporalStockActiva: false,
+        edicionTemporalStockAt: null,
+      } as any);
+    });
   }
 
   /**
@@ -94,7 +206,7 @@ export class FacturasService {
 
     // Convertir Date a Timestamp de Firestore
     const facturaParaGuardar: any = { ...factura };
-    
+
     // Si fecha es un Date, convertirlo a Timestamp
     if (facturaParaGuardar.fecha instanceof Date) {
       facturaParaGuardar.fecha = Timestamp.fromDate(facturaParaGuardar.fecha);
@@ -441,7 +553,9 @@ export class FacturasService {
    */
   async actualizarFactura(facturaId: string, factura: Partial<Factura>) {
     const ref = doc(this.fs, `facturas/${facturaId}`);
-    
+    const facturaActualSnap = await getDoc(ref);
+    const facturaActual = facturaActualSnap.exists() ? (facturaActualSnap.data() as Factura) : null;
+
     // Convertir Date a Timestamp si es necesario
     const facturaParaGuardar: any = { ...factura };
     if (facturaParaGuardar.fecha instanceof Date) {
@@ -453,11 +567,110 @@ export class FacturasService {
     delete facturaParaGuardar.idPersonalizado;
     delete facturaParaGuardar.historialSnapshot; // NO modificar historial clínico
 
+    if (facturaActual && (facturaActual as any).edicionTemporalStockActiva && Array.isArray(facturaParaGuardar.items)) {
+      const itemsNuevos = (facturaParaGuardar.items || []).filter(
+        (item: any) => !item?.esServicio && item?.productoId && Number(item?.cantidad || 0) > 0
+      );
+
+      const mapaCantidades = new Map<string, { cantidad: number; nombre: string; precioUnitario: number }>();
+      for (const item of itemsNuevos) {
+        const key = String(item.productoId);
+        const actual = mapaCantidades.get(key) || {
+          cantidad: 0,
+          nombre: String(item.nombre || ''),
+          precioUnitario: Number(item.precioUnitario || 0),
+        };
+        actual.cantidad += Number(item.cantidad || 0);
+        actual.nombre = String(item.nombre || actual.nombre || '');
+        actual.precioUnitario = Number(item.precioUnitario || actual.precioUnitario || 0);
+        mapaCantidades.set(key, actual);
+      }
+
+      const ajustes = [...mapaCantidades.entries()].map(([productoId, value]) => ({
+        productoId,
+        cantidad: value.cantidad,
+        nombre: value.nombre,
+        precioUnitario: value.precioUnitario,
+      }));
+
+      await runTransaction(this.fs, async (tx) => {
+        const refs = ajustes.map((item) => doc(this.fs, `productos/${item.productoId}`));
+        const snaps = await Promise.all(refs.map((productoRef) => tx.get(productoRef)));
+
+        for (let index = 0; index < ajustes.length; index++) {
+          const ajuste = ajustes[index];
+          const productoSnap = snaps[index];
+          if (!productoSnap.exists()) {
+            throw new Error(`Producto no encontrado: ${ajuste.productoId}`);
+          }
+
+          const productoData: any = productoSnap.data();
+          const tipoControl = productoData?.tipo_control_stock || 'NORMAL';
+          const esNormal = tipoControl === 'NORMAL';
+
+          const stockAnterior = esNormal ? Number(productoData?.stock || 0) : 0;
+          const stockNuevo = esNormal
+            ? stockAnterior - Number(ajuste.cantidad || 0)
+            : 0;
+
+          if (esNormal && stockNuevo < 0) {
+            throw new Error(`Stock insuficiente para ${ajuste.nombre || ajuste.productoId}`);
+          }
+
+          const movRef = doc(this.movimientosStockRef);
+          tx.set(movRef, {
+            cantidad: Number(ajuste.cantidad || 0),
+            costoUnitario: Number(productoData?.costo || 0),
+            createdAt: serverTimestamp(),
+            grupoProducto: String(productoData?.grupo || ''),
+            precioVenta: Number(ajuste.precioUnitario || productoData?.pvp1 || 0),
+            productoId: ajuste.productoId,
+            productoNombre: String(productoData?.nombre || ajuste.nombre || ''),
+            referenciaId: facturaId,
+            referenciaTipo: (facturaParaGuardar as any).metodoPago || (facturaActual as any)?.metodoPago || 'FACTURA_EDITADA',
+            stockAnterior,
+            stockNuevo,
+            sucursalId: (facturaParaGuardar as any).sucursalId || (facturaActual as any)?.sucursalId || 'PASJO01',
+            tipo: 'AJUSTE',
+            usuarioId: facturaParaGuardar.usuarioId || facturaActual?.usuarioId || '',
+          });
+
+          if (esNormal) {
+            tx.update(refs[index], {
+              stock: stockNuevo,
+              updatedAt: new Date(),
+            });
+          }
+        }
+
+        tx.update(ref, {
+          ...facturaParaGuardar,
+          ultimaActualizacion: serverTimestamp(),
+          edicionTemporalStockActiva: false,
+          edicionTemporalStockAt: null,
+        } as any);
+      });
+
+      console.log('✅ Factura actualizada con edición temporal:', facturaId);
+      return;
+    }
+
+    if (facturaActual && Array.isArray(facturaParaGuardar.items)) {
+      await this.movimientoStockSrv.registrarAjustesEdicionFactura(
+        facturaId,
+        (facturaActual.items || []) as any[],
+        (facturaParaGuardar.items || []) as any[],
+        (facturaParaGuardar as any).metodoPago || (facturaActual as any).metodoPago,
+        (facturaParaGuardar as any).sucursalId || (facturaActual as any).sucursalId,
+        facturaParaGuardar.usuarioId || facturaActual.usuarioId
+      );
+    }
+
     await updateDoc(ref, {
       ...facturaParaGuardar,
       ultimaActualizacion: serverTimestamp()
     } as any);
-    
+
     console.log('✅ Factura actualizada:', facturaId);
   }
 
@@ -468,16 +681,29 @@ export class FacturasService {
    */
   async eliminarFactura(facturaId: string): Promise<void> {
     const ref = doc(this.fs, `facturas/${facturaId}`);
+    const facturaSnap = await getDoc(ref);
+
+    if (facturaSnap.exists()) {
+      const factura = facturaSnap.data() as Factura;
+      await this.movimientoStockSrv.registrarEliminacionFactura(
+        facturaId,
+        (factura.items || []) as any[],
+        (factura as any).metodoPago,
+        (factura as any).sucursalId,
+        factura.usuarioId
+      );
+    }
+
     await deleteDoc(ref);
     console.log('✅ Factura eliminada permanentemente:', facturaId);
   }
 
   /**
    * 🚀 PAGINACIÓN REAL DESDE FIRESTORE
-   * 
+   *
    * Obtiene facturas con paginación real usando cursores de Firestore.
    * Solo carga 10 facturas por consulta, reduciendo uso de memoria y lecturas.
-   * 
+   *
    * @param options - Opciones de paginación
    * @param options.pageSize - Cantidad de facturas por página (default: 10)
    * @param options.lastVisible - Snapshot del último documento visible (para "siguiente")
@@ -485,7 +711,7 @@ export class FacturasService {
    * @param options.direction - Dirección de navegación: 'next' | 'prev' (default: 'next')
    * @param options.terminoBusqueda - Término para buscar en múltiples campos
    * @param options.filtroTipoFactura - Filtro por tipo: 'TODAS' | 'NORMALES' | 'COBROS_DEUDA'
-   * 
+   *
    * @returns Promise con productos, documentos snapshot y flag hasMore
    */
   async getFacturasPaginadasReal(options: {
@@ -521,19 +747,19 @@ export class FacturasService {
     // 🔍 SI HAY BÚSQUEDA ACTIVA O FILTROS DE FECHA, traer TODOS y filtrar en cliente
     if (terminoBusqueda.trim() || startDate || endDate || fechaExacta) {
       return this.buscarFacturasSinPaginacion(
-        terminoBusqueda, 
-        filtroTipoFactura, 
+        terminoBusqueda,
+        filtroTipoFactura,
         pageSize,
         currentPage,
-        startDate, 
-        endDate, 
+        startDate,
+        endDate,
         fechaExacta
       );
     }
 
     // ✅ Construir query base ordenado por fecha descendente
     let q;
-    
+
     if (direction === 'prev' && firstVisible) {
       q = query(
         this.facturasRef,
@@ -640,7 +866,7 @@ export class FacturasService {
     else if (startDate || endDate) {
       facturas = facturas.filter(f => {
         const fechaFactura = this.convertirADate(f.fecha);
-        
+
         if (startDate && endDate) {
           const inicio = new Date(startDate);
           inicio.setHours(0, 0, 0, 0);

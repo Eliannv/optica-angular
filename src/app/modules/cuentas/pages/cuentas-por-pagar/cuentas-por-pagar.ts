@@ -62,17 +62,17 @@ export class CuentasPorPagarComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.cargarCajasBanco(); // Esto cargará las cuentas automáticamente después de seleccionar la caja abierta
+    this.cargarCajasBanco(); // Carga periodos y luego lista todas las cuentas por pagar
     this.cargarRestriccionesFechaCajaBanco();
   }
 
   /**
    * Carga todas las cuentas banco disponibles (para el selector de período).
-   * Selecciona automáticamente la caja banco abierta.
+   * Luego carga inicialmente todas las cuentas por pagar.
    */
   async cargarCajasBanco(): Promise<void> {
     this.cajaBancoService.getCajasBanco().subscribe({
-      next: async (cajas) => {
+      next: (cajas) => {
         // Ordenar por fecha descendente (más reciente primero)
         this.cajasBanco = cajas.sort((a, b) => {
           const fechaA = this.convertirFechaFirestore(a.fecha);
@@ -80,28 +80,15 @@ export class CuentasPorPagarComponent implements OnInit {
           return fechaB.getTime() - fechaA.getTime();
         });
 
-        // Seleccionar automáticamente la caja banco abierta
-        try {
-          const cajaAbierta = await this.cajaBancoService.getCajaBancoAbierta();
-          if (cajaAbierta?.id) {
-            this.cuentaBancoSeleccionada = cajaAbierta.id;
-            this.cargarCuentas();
-          } else if (this.cajasBanco.length > 0) {
-            // Si no hay caja abierta, seleccionar la más reciente
-            this.cuentaBancoSeleccionada = this.cajasBanco[0].id!;
-            this.cargarCuentas();
-          }
-        } catch (error) {
-          console.error('Error al obtener caja banco abierta:', error);
-          // Si falla, seleccionar la primera disponible
-          if (this.cajasBanco.length > 0) {
-            this.cuentaBancoSeleccionada = this.cajasBanco[0].id!;
-            this.cargarCuentas();
-          }
-        }
+        // Mostrar inicialmente todas las cuentas (sin filtro por período).
+        this.cuentaBancoSeleccionada = null;
+        this.cargarCuentas();
       },
       error: (error) => {
         console.error('Error al cargar cajas banco:', error);
+        // Si falla la carga de períodos, de todos modos mostrar cuentas.
+        this.cuentaBancoSeleccionada = null;
+        this.cargarCuentas();
       }
     });
   }
@@ -206,16 +193,31 @@ export class CuentasPorPagarComponent implements OnInit {
   }
 
   /**
+   * Construye una referencia corta y legible para la cuenta por pagar.
+   */
+  private construirReferenciaCuenta(cuenta: Cuenta): string {
+    const baseId = (cuenta.id || '').trim();
+    return `CPP-${baseId.slice(0, 8).toUpperCase() || 'SIN-ID'}`;
+  }
+
+  /**
+   * Devuelve la caja banco según ID desde la lista cargada en memoria.
+   */
+  private obtenerCajaBancoPorId(cajaId: string): CajaBanco | undefined {
+    return this.cajasBanco.find(c => c.id === cajaId);
+  }
+
+  /**
    * Carga todas las cuentas por pagar desde Firestore.
-   * Siempre filtra por el período seleccionado (cuentaBancoId).
+   * Si no hay período seleccionado, muestra todas las cuentas.
    */
   cargarCuentas(): void {
-    if (!this.cuentaBancoSeleccionada) {
-      return; // No cargar si no hay período seleccionado
-    }
-
     this.cargando = true;
-    this.cuentasService.getCuentasPorTipoYCajaBanco(TipoCuenta.PAGAR, this.cuentaBancoSeleccionada).subscribe({
+    const cuentas$ = this.cuentaBancoSeleccionada
+      ? this.cuentasService.getCuentasPorTipoYCajaBanco(TipoCuenta.PAGAR, this.cuentaBancoSeleccionada)
+      : this.cuentasService.getCuentasPorTipo(TipoCuenta.PAGAR);
+
+    cuentas$.subscribe({
       next: (cuentas) => {
         this.cuentas = cuentas;
         this.aplicarFiltros();
@@ -234,7 +236,7 @@ export class CuentasPorPagarComponent implements OnInit {
    */
   cambiarPeriodo(event: Event): void {
     const select = event.target as HTMLSelectElement;
-    this.cuentaBancoSeleccionada = select.value;
+    this.cuentaBancoSeleccionada = select.value || null;
     this.cargarCuentas();
   }
 
@@ -331,12 +333,32 @@ export class CuentasPorPagarComponent implements OnInit {
    * Muestra un formulario para registrar un abono a una cuenta.
    */
   async realizarAbono(cuenta: Cuenta): Promise<void> {
-    // Validar que haya caja banco disponible
-    if (!this.fechaMinima || !this.fechaMaximaPermitida) {
+    // Validar que haya al menos un período de caja/banco disponible
+    if (!this.cajasBanco.length) {
       Swal.fire({
         icon: 'error',
-        title: 'Sin caja banco',
-        text: 'No hay una caja banco abierta. Debe abrir una caja banco primero para registrar abonos.'
+        title: 'Sin períodos de Caja/Banco',
+        text: 'No hay períodos de Caja/Banco disponibles para registrar el pago.'
+      });
+      return;
+    }
+
+    const referenciaCuenta = this.construirReferenciaCuenta(cuenta);
+    const cajaDefaultId = cuenta.cuentaBancoId || this.cuentaBancoSeleccionada || this.cajasBanco[0].id || '';
+    const opcionesPeriodo = this.cajasBanco
+      .filter(caja => !!caja.id)
+      .map(caja => {
+        const estado = caja.estado === 'ABIERTA' ? 'ABIERTA' : 'CERRADA';
+        const selected = caja.id === cajaDefaultId ? 'selected' : '';
+        return `<option value="${caja.id}" ${selected}>${this.obtenerNombrePeriodo(caja)} (${estado})</option>`;
+      })
+      .join('');
+
+    if (!opcionesPeriodo) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Sin períodos válidos',
+        text: 'No se encontraron períodos de Caja/Banco con identificador válido.'
       });
       return;
     }
@@ -354,15 +376,24 @@ export class CuentasPorPagarComponent implements OnInit {
               <span class="info-label">Saldo pendiente:</span>
               <span class="info-value highlight">$${cuenta.saldo.toFixed(2)}</span>
             </div>
+            <div class="info-row">
+              <span class="info-label">Referencia:</span>
+              <span class="info-value">${referenciaCuenta}</span>
+            </div>
             <div class="period-badge">
               <i class="bi bi-calendar-check"></i>
-              Periodo permitido: <strong>${this.periodoNombre}</strong>
+              Seleccione el período de Caja/Banco para registrar el egreso
             </div>
+          </div>
+
+          <div class="form-group-modern">
+            <label for="periodo-abono" class="form-label-modern">Período de Caja/Banco</label>
+            <select id="periodo-abono" class="form-input-modern">${opcionesPeriodo}</select>
           </div>
           
           <div class="form-group-modern">
             <label for="fecha-abono" class="form-label-modern">Fecha del pago</label>
-            <input id="fecha-abono" class="form-input-modern" type="date" value="${this.formatearFecha(new Date())}" min="${this.fechaMinima}" max="${this.fechaMaximaPermitida}">
+            <input id="fecha-abono" class="form-input-modern" type="date" value="${this.formatearFecha(new Date())}">
           </div>
           
           <div class="form-group-modern">
@@ -374,7 +405,7 @@ export class CuentasPorPagarComponent implements OnInit {
             <label for="monto-abono" class="form-label-modern">Monto a pagar</label>
             <input id="monto-abono" class="form-input-modern" type="number" placeholder="0.00" step="0.01" min="0.01" max="${cuenta.saldo}">
           </div>
-          
+
           <div class="form-group-modern">
             <label for="observacion-abono" class="form-label-modern">Observación (opcional)</label>
             <input id="observacion-abono" class="form-input-modern" type="text" placeholder="Información adicional sobre este pago">
@@ -421,11 +452,17 @@ export class CuentasPorPagarComponent implements OnInit {
         cancelButton: 'modern-cancel-btn'
       },
       preConfirm: () => {
+        const periodoInput = document.getElementById('periodo-abono') as HTMLSelectElement;
         const fechaInput = document.getElementById('fecha-abono') as HTMLInputElement;
         const horaInput = document.getElementById('hora-abono') as HTMLInputElement;
         const montoInput = document.getElementById('monto-abono') as HTMLInputElement;
         const observacionInput = document.getElementById('observacion-abono') as HTMLInputElement;
         const monto = parseFloat(montoInput.value);
+
+        if (!periodoInput.value) {
+          Swal.showValidationMessage('Selecciona un período de Caja/Banco');
+          return null;
+        }
 
         if (!fechaInput.value) {
           Swal.showValidationMessage('Selecciona una fecha válida');
@@ -452,10 +489,29 @@ export class CuentasPorPagarComponent implements OnInit {
         const fechaCompleta = new Date(fechaInput.value + 'T00:00:00');
         fechaCompleta.setHours(hours, minutes, seconds || 0);
 
+        const cajaSeleccionada = this.obtenerCajaBancoPorId(periodoInput.value);
+        if (!cajaSeleccionada) {
+          Swal.showValidationMessage('El período seleccionado no es válido');
+          return null;
+        }
+
+        const fechaPeriodo = this.convertirFechaFirestore(cajaSeleccionada.fecha);
+        if (
+          fechaCompleta.getFullYear() !== fechaPeriodo.getFullYear() ||
+          fechaCompleta.getMonth() !== fechaPeriodo.getMonth()
+        ) {
+          Swal.showValidationMessage(
+            `La fecha del pago debe pertenecer al período ${this.obtenerNombrePeriodo(cajaSeleccionada)}`
+          );
+          return null;
+        }
+
         return {
           fecha: fechaCompleta,
           monto: monto,
-          observacion: observacionInput.value
+          observacion: observacionInput.value,
+          cajaBancoId: periodoInput.value,
+          referenciaCuenta
         };
       }
     });
@@ -467,7 +523,13 @@ export class CuentasPorPagarComponent implements OnInit {
         cuenta.id!,
         formValues.monto,
         formValues.fecha,
-        formValues.observacion || undefined
+        formValues.observacion || undefined,
+        {
+          cajaBancoId: formValues.cajaBancoId,
+          referenciaCuenta: formValues.referenciaCuenta,
+          descripcionMovimiento: `Pago de Cuenta por Pagar N° ${formValues.referenciaCuenta}`,
+          permitirCajaCerrada: true
+        }
       );
 
       Swal.fire('¡Éxito!', 'Pago registrado correctamente', 'success');

@@ -73,7 +73,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   selectedIndex = -1; // Para navegación con flechas
   productoSeleccionado: any = null; // Producto actualmente seleccionado
   ordenamientoProductos: string = 'codigo'; // 'reciente' o 'codigo' - Por defecto ordenar por idInterno (código)
-  
+
   // 🚀 OPTIMIZACIÓN: Lazy loading y búsqueda
   private searchSubject$ = new Subject<string>();
   private searchSubscription?: Subscription;
@@ -82,7 +82,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   limitProductos = 10; // Límite inicial de productos
   hayMasProductos = true; // Indica si hay más productos por cargar
   private preservarLimite = false; // Flag para preservar límite al limpiar filtro
-  
+
   // Filtros adicionales
   mostrarFiltros: boolean = false; // Panel de filtros colapsable
   mostrarRecientes: boolean = false; // Toggle para mostrar últimos vendidos
@@ -114,7 +114,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   codigoTransferencia = ''; // Código de transferencia bancaria
   ultimosCuatroTarjeta = ''; // Últimos 4 dígitos de la tarjeta
   observacion = '';
-  
+
   // � FECHA Y HORA DE PAGO
   horaPago = ''; // Hora del pago (HH:mm) - para todos los métodos
   fechaPago = ''; // Fecha del pago (YYYY-MM-DD) - solo para transferencia/tarjeta
@@ -124,10 +124,10 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   private fechaHoraIntervalId?: number;
   private fechaManual = false;
   private horaManual = false;
-  
+
   // 🔒 CONTROL DE CAJA ABIERTA
   hayCajaAbierta = false; // Indica si existe una caja chica abierta (para habilitar/deshabilitar efectivo)
-  
+
   // �💵 VUELTO (solo visual para efectivo)
   montoRecibido = 0; // Cuánto dinero entrega el cliente
 
@@ -145,14 +145,16 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   facturaParaImprimir: any = null;
   private _abono = 0;
   saldoPendiente = 0;
-  
+
   // ✅ MODO EDICIÓN
   modoEdicion = false; // Indica si estamos editando una factura existente
   facturaId = ''; // ID de la factura a editar
   facturaOriginal: any = null; // Copia de la factura original para comparar cambios
   itemsOriginales: any[] = []; // Items originales para revertir inventario
   cargandoFactura = false; // Indica si se está cargando la factura para edición
-  
+  private edicionTemporalStockActiva = false;
+  private edicionTemporalFinalizada = false;
+
   // Getter y Setter para descuentoPorcentaje (limpia "0" inicial)
   get descuentoPorcentaje(): number {
     return this._descuentoPorcentaje;
@@ -201,7 +203,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
    */
   get esVentaConsumidorFinal(): boolean {
     return (
-      this.clienteId === CONSUMIDOR_FINAL_ID || 
+      this.clienteId === CONSUMIDOR_FINAL_ID ||
       this.tipoVentaSeleccionado === 'consumidor-final' ||
       this.cliente?.esConsumidorFinal === true
     );
@@ -248,26 +250,26 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   async ngOnInit() {
     // 📅 Inicializar fecha y hora por defecto
     this.inicializarFechaHora();
-    
+
     // ➕ Inicializar formulario de crear cliente rápido
     this.inicializarFormularioClienteRapido();
-    
+
     // ✅ DETECTAR MODO EDICIÓN: Verificar si hay facturaId en la ruta
     this.facturaId = this.route.snapshot.paramMap.get('facturaId') || '';
     this.modoEdicion = !!this.facturaId;
-    
+
     // 🔒 Verificar si hay caja abierta (para controlar método de pago)
     await this.verificarCajaAbierta();
-    
+
     // �🔒 VALIDACIÓN CRÍTICA: Verificar que exista alguna caja chica ABIERTA (solo en modo creación)
     if (!this.modoEdicion) {
       try {
         const validacion = await this.cajaChicaService.validarCajaAbierta();
-        
+
         // ✅ Caja ABIERTA - Permitir entrada
         if (validacion.valida) {
           // Continuamos con la carga normal
-        } 
+        }
         // ❌ NO existe caja ABIERTA
         else {
           await Swal.fire({
@@ -336,7 +338,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
           if (this.historial) {
             this.terminoBusquedaHistorial = this.formatearFechaHistorial(this.historial.fechaHoraChequeo, this.historial.createdAt);
           }
-        } 
+        }
         // Si no hay historialId, no cargar automáticamente - dejar que el usuario elija
         else if (!this.historialId && !this.historial) {
           this.historial = null;
@@ -352,7 +354,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
 
     // 🚀 OPTIMIZADO: Cargar solo productos limitados inicialmente
     await this.cargarProductosIniciales();
-    
+
     // 🚀 OPTIMIZADO: Configurar búsqueda con debounce
     this.configurarBusquedaOptimizada();
 
@@ -365,12 +367,12 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   extraerGruposYProveedores() {
     const grupos = new Set<string>();
     const proveedores = new Set<string>();
-    
+
     this.productos.forEach(p => {
       if (p.grupo) grupos.add(p.grupo);
       if (p.proveedor) proveedores.add(p.proveedor);
     });
-    
+
     this.gruposDisponibles = Array.from(grupos).sort();
     this.proveedoresDisponibles = Array.from(proveedores).sort();
   }
@@ -382,28 +384,28 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     try {
       this.cargandoProductos = true;
       console.log('🔄 Cargando productos...');
-      
+
       // Cargar TODOS los productos una vez para extraer grupos/proveedores
       const todosProductos = await firstValueFrom(this.productosSrv.getProductos());
       this.productos = todosProductos || [];
       this.extraerGruposYProveedores();
-      
+
       console.log(`✅ Productos cargados: ${this.productos.length} productos totales`);
-      
+
       // Cargar solo productos limitados para mostrar
       const productosLimitados = await firstValueFrom(
         this.productosSrv.getProductosLimitados(this.limitProductos)
       );
       this.productosFiltrados = productosLimitados;
       this.hayMasProductos = productosLimitados.length >= this.limitProductos;
-      
+
     } catch (error) {
       console.error('Error al cargar productos:', error);
     } finally {
       this.cargandoProductos = false;
     }
   }
-  
+
   /**
    * 🚀 OPTIMIZADO: Configurar búsqueda con debounce
    */
@@ -413,7 +415,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
       distinctUntilChanged(), // Solo emitir si el valor cambió
       switchMap(searchTerm => {
         this.cargandoProductos = true;
-        
+
         // 🔧 FIX: Si la búsqueda está vacía Y no hay filtros Y no está en modo recientes, resetear límite y cargar iniciales
         if (!searchTerm.trim() && !this.grupoSeleccionado && !this.proveedorSeleccionado && !this.tipoStockSeleccionado && !this.mostrarRecientes) {
           // Solo resetear límite si no se ha marcado la flag de preservar
@@ -423,7 +425,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
           this.preservarLimite = false; // Resetear flag después de usar
           return this.productosSrv.getProductosLimitados(this.limitProductos, 'idInterno');
         }
-        
+
         // 🔧 FIX: Si está en modo Recientes, usar límite de 10
         if (this.mostrarRecientes) {
           return this.productosSrv.buscarProductosConFiltros({
@@ -434,7 +436,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
             limitCount: 10 // Solo 10 productos recientes
           });
         }
-        
+
         // Si hay filtros activos (sin recientes), usar búsqueda con filtros
         if (this.grupoSeleccionado || this.proveedorSeleccionado || this.tipoStockSeleccionado) {
           return this.productosSrv.buscarProductosConFiltros({
@@ -445,7 +447,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
             limitCount: 20
           });
         }
-        
+
         // Búsqueda simple limitada
         return this.productosSrv.buscarProductosLimitado(searchTerm, 20);
       })
@@ -469,7 +471,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
       }
     });
   }
-  
+
   /**
    * 🚀 OPTIMIZADO: Emitir búsqueda con debounce
    */
@@ -535,14 +537,14 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     this.clientesFiltrados = [];
     this.mostrarResultadosCliente = false;
     this.selectedClienteIndex = -1;
-    
+
     // 🧹 Limpiar cliente e historial
     this.clienteId = '';
     this.cliente = null;
     this.historialId = '';
     this.historial = null;
     this.sinHistorial = false;
-    
+
     // 🧹 Limpiar búsqueda de historial también
     this.terminoBusquedaHistorial = '';
     this.historialesFiltrados = [];
@@ -687,7 +689,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     this.historialId = '';
     this.historial = null;
     this.sinHistorial = false;
-    
+
     // 🧹 Búsquedas
     this.terminoBusquedaCliente = '';
     this.clientesFiltrados = [];
@@ -697,14 +699,14 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     this.historialesFiltrados = [];
     this.mostrarResultadosHistorial = false;
     this.selectedHistorialIndex = -1;
-    
+
     // 🧹 Carrito y productos
     this.items = [];
     this.productoSeleccionado = null;
     this.selectedIndex = -1;
     this.filtro = '';
     this.productosFiltrados = [];
-    
+
     // 🧹 Totales
     this.subtotalBruto = 0;
     this.subtotal = 0;
@@ -714,7 +716,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     this.descuentoMonto = 0;
     this._abono = 0;
     this.saldoPendiente = 0;
-    
+
     // 🧹 Pago
     this.metodoPago = 'Efectivo';
     this.codigoTransferencia = '';
@@ -722,11 +724,11 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     this.observacion = '';
     this.montoRecibido = 0;
     this.esCredito = false;
-    
+
     // 🧹 Tipo de venta
     this.tipoVentaSeleccionado = null;
     this.mostrarModalTipoVenta = false;
-    
+
     // 🧹 Servicios
     this.mostrarFormServicio = false;
     this.servicioNuevo = {
@@ -734,20 +736,20 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
       cantidad: 1,
       precio: 0
     };
-    
+
     // 🧹 Filtros de productos
     this.grupoSeleccionado = '';
     this.proveedorSeleccionado = '';
     this.tipoStockSeleccionado = '';
     this.mostrarFiltros = false;
     this.mostrarRecientes = false;
-    
+
     // 🧹 Ticket
     this.facturaParaImprimir = null;
-    
+
     // 🔄 Recargar productos
     this.recargarProductos(true);
-    
+
     console.log('✅ Formulario de venta reseteado completamente');
   }
 
@@ -880,7 +882,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     });
     this.cedulaDuplicadaMsgClienteRapido = '';
     this.emailDuplicadoMsgClienteRapido = '';
-    
+
     // Enfocar el primer campo después de un pequeño delay
     setTimeout(() => {
       const primerInput = document.querySelector('.modal-crear-cliente input') as HTMLInputElement;
@@ -903,16 +905,16 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
    */
   get puedeGuardarClienteRapido(): boolean {
     const cedula = this.clienteRapidoForm.get('cedula')?.value;
-    
+
     // Bloquear si cédula está vacía
     if (!cedula || cedula.trim() === '') return false;
-    
+
     // Bloquear si hay duplicados
     if (this.cedulaDuplicadaMsgClienteRapido || this.emailDuplicadoMsgClienteRapido) return false;
-    
+
     // Bloquear si se está validando
     if (this.validandoCedulaClienteRapido || this.validandoEmailClienteRapido) return false;
-    
+
     return true;
   }
 
@@ -921,10 +923,10 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
    */
   onEnterClienteRapido(event: KeyboardEvent, campoActual: string): void {
     event.preventDefault();
-    
+
     const camposOrden = ['cedula', 'nombres', 'apellidos', 'telefono', 'email'];
     const indexActual = camposOrden.indexOf(campoActual);
-    
+
     if (indexActual < camposOrden.length - 1) {
       // Ir al siguiente campo
       const siguienteCampo = camposOrden[indexActual + 1];
@@ -1005,10 +1007,10 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
 
       const docRef = await this.clientesSrv.createCliente(nuevoCliente);
       const clienteId = docRef.id; // ✅ Extraer ID del DocumentReference
-      
+
       // ✅ Cargar el cliente recién creado
       const clienteCreado = await firstValueFrom(this.clientesSrv.getClienteById(clienteId));
-      
+
       if (clienteCreado) {
         // 🎯 Asignar automáticamente el cliente a la venta
         this.clienteId = clienteId;
@@ -1016,13 +1018,13 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
         this.historialId = '';
         this.historial = null;
         this.sinHistorial = true;
-        
+
         this.terminoBusquedaCliente = `${clienteCreado.nombres ?? ''} ${clienteCreado.apellidos ?? ''}`.trim();
         this.terminoBusquedaHistorial = 'Sin historial clínico';
-        
+
         // Cerrar modal
         this.cerrarModalCrearCliente();
-        
+
         // Notificación de éxito
         await Swal.fire({
           icon: 'success',
@@ -1033,7 +1035,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
           showConfirmButton: false,
           timer: 2000
         });
-        
+
         // Enfocar el buscador de productos
         setTimeout(() => {
           const inputProducto = document.querySelector('input[placeholder*="Buscar producto"]') as HTMLInputElement;
@@ -1084,7 +1086,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
         return fecha.toLowerCase().includes(termino);
       })
       .slice(0, this.MAX_RESULTADOS_HISTORIALES);
-    
+
     this.selectedHistorialIndex = -1; // Resetear selección al filtrar
   }
 
@@ -1229,7 +1231,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
             </svg>
             Datos Clínicos
           </h3>
-          
+
           <div class="clinico-grid-detalle">
             <!-- OD -->
             <div class="ojo-card-detalle">
@@ -1257,7 +1259,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
                 </div>
               </div>
             </div>
-            
+
             <!-- OI -->
             <div class="ojo-card-detalle">
               <h4>Ojo Izquierdo (OI)</h4>
@@ -1315,7 +1317,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
             </svg>
             Medidas del Armazón
           </h3>
-          
+
           <div class="armazon-grid-2-detalle">
             <div class="armazon-medidas-detalle">
               <div class="form-field-detalle">
@@ -1361,141 +1363,141 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
 
       <style>
         .modal-historial-detalle { text-align: left; padding: 1rem; }
-        
+
         /* Header */
-        .header-info-detalle { 
-          display: grid; 
-          grid-template-columns: 1fr 1fr; 
-          gap: 1rem; 
-          margin-bottom: 1.5rem; 
-          padding: 1rem 1.25rem; 
-          background: var(--bg-secondary); 
-          border-radius: var(--radius-lg); 
-          border: 1px solid var(--border-color); 
+        .header-info-detalle {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1rem;
+          margin-bottom: 1.5rem;
+          padding: 1rem 1.25rem;
+          background: var(--bg-secondary);
+          border-radius: var(--radius-lg);
+          border: 1px solid var(--border-color);
         }
         .header-item-detalle { display: flex; align-items: center; gap: 0.5rem; }
         .header-label-detalle { font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; }
         .header-value-detalle { font-size: 0.95rem; color: var(--primary-color); font-weight: 600; }
-        
+
         /* Secciones */
         .form-section-detalle { margin-bottom: 2rem; }
-        .section-title-detalle { 
-          font-size: 1.1rem; 
-          font-weight: 600; 
-          color: var(--text-primary); 
-          margin-bottom: 1.25rem; 
-          display: flex; 
-          align-items: center; 
-          gap: 0.75rem; 
+        .section-title-detalle {
+          font-size: 1.1rem;
+          font-weight: 600;
+          color: var(--text-primary);
+          margin-bottom: 1.25rem;
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
         }
         .section-title-detalle svg { color: var(--primary-color); width: 20px; height: 20px; }
-        
+
         /* Grid de ojos */
-        .clinico-grid-detalle { 
-          display: grid; 
-          grid-template-columns: 1fr 1fr auto; 
-          gap: 1.5rem; 
-          margin-bottom: 1rem; 
+        .clinico-grid-detalle {
+          display: grid;
+          grid-template-columns: 1fr 1fr auto;
+          gap: 1.5rem;
+          margin-bottom: 1rem;
         }
-        
+
         /* Cards de ojos */
-        .ojo-card-detalle { 
-          background: var(--bg-secondary); 
-          padding: 1rem 1.25rem; 
-          border-radius: var(--radius-lg); 
-          border: 1px solid var(--border-color); 
+        .ojo-card-detalle {
+          background: var(--bg-secondary);
+          padding: 1rem 1.25rem;
+          border-radius: var(--radius-lg);
+          border: 1px solid var(--border-color);
         }
-        .ojo-card-detalle h4 { 
-          margin: 0 0 1rem 0; 
-          font-size: 1rem; 
-          font-weight: 600; 
-          color: var(--text-primary); 
-          padding-bottom: 0.5rem; 
-          border-bottom: 1px solid var(--border-color); 
-          text-align: center; 
+        .ojo-card-detalle h4 {
+          margin: 0 0 1rem 0;
+          font-size: 1rem;
+          font-weight: 600;
+          color: var(--text-primary);
+          padding-bottom: 0.5rem;
+          border-bottom: 1px solid var(--border-color);
+          text-align: center;
         }
-        .ojo-inputs-detalle { 
-          display: grid; 
-          grid-template-columns: repeat(3, 1fr); 
-          gap: 0.75rem; 
+        .ojo-inputs-detalle {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 0.75rem;
         }
-        
+
         /* Medidas verticales al lado de OI */
-        .medidas-verticales-detalle { 
-          display: flex; 
-          flex-direction: column; 
-          gap: 0.75rem; 
-          min-width: 180px; 
+        .medidas-verticales-detalle {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+          min-width: 180px;
         }
-        
+
         /* Medidas inline (ya no se usa, pero se deja por compatibilidad) */
-        .clinico-medidas-inline-detalle { 
-          display: grid; 
-          grid-template-columns: repeat(3, 1fr); 
-          gap: 1rem; 
-          margin-bottom: 1rem; 
+        .clinico-medidas-inline-detalle {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 1rem;
+          margin-bottom: 1rem;
         }
-        
+
         /* Grid armazón */
-        .armazon-grid-2-detalle { 
-          display: grid; 
-          grid-template-columns: 2fr 1fr; 
-          gap: 1.5rem; 
+        .armazon-grid-2-detalle {
+          display: grid;
+          grid-template-columns: 2fr 1fr;
+          gap: 1.5rem;
         }
-        .armazon-medidas-detalle { 
-          display: grid; 
-          grid-template-columns: 1fr 1fr; 
-          gap: 1rem; 
+        .armazon-medidas-detalle {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1rem;
         }
-        .armazon-extra-detalle { 
-          display: flex; 
-          flex-direction: column; 
-          gap: 1rem; 
+        .armazon-extra-detalle {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
         }
-        
+
         /* Form fields */
-        .form-field-detalle { 
-          display: flex; 
-          flex-direction: column; 
-          gap: 0.5rem; 
+        .form-field-detalle {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
         }
-        .field-label-detalle { 
-          font-size: 0.9rem; 
-          font-weight: 600; 
-          color: var(--text-primary); 
+        .field-label-detalle {
+          font-size: 0.9rem;
+          font-weight: 600;
+          color: var(--text-primary);
         }
-        .field-value-detalle { 
-          padding: 0.75rem 1rem; 
-          border: 1px solid var(--border-color); 
-          border-radius: var(--radius-md); 
-          background: var(--bg-input); 
-          color: var(--text-primary); 
-          font-size: 0.95rem; 
+        .field-value-detalle {
+          padding: 0.75rem 1rem;
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-md);
+          background: var(--bg-input);
+          color: var(--text-primary);
+          font-size: 0.95rem;
         }
-        
+
         /* Observaciones */
-        .observaciones-detalle { 
-          margin-top: 1.5rem; 
+        .observaciones-detalle {
+          margin-top: 1.5rem;
         }
-        .obs-label-detalle { 
-          font-size: 0.9rem; 
-          font-weight: 600; 
-          color: var(--text-primary); 
-          display: block; 
-          margin-bottom: 0.5rem; 
+        .obs-label-detalle {
+          font-size: 0.9rem;
+          font-weight: 600;
+          color: var(--text-primary);
+          display: block;
+          margin-bottom: 0.5rem;
         }
-        .obs-value-detalle { 
-          padding: 0.75rem 1rem; 
-          border: 1px solid var(--border-color); 
-          border-radius: var(--radius-md); 
-          background: var(--bg-input); 
-          color: var(--text-primary); 
-          font-size: 0.95rem; 
-          line-height: 1.6; 
-          white-space: pre-line; 
-          min-height: 80px; 
+        .obs-value-detalle {
+          padding: 0.75rem 1rem;
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-md);
+          background: var(--bg-input);
+          color: var(--text-primary);
+          font-size: 0.95rem;
+          line-height: 1.6;
+          white-space: pre-line;
+          min-height: 80px;
         }
-        
+
         /* Responsive */
         @media (max-width: 920px) {
           .header-info-detalle { grid-template-columns: 1fr; }
@@ -1546,7 +1548,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     // Si no hay fechaHoraChequeo, usar createdAt
     const fecha = fechaChequeo || fechaCreacion;
     if (!fecha) return 'Sin fecha';
-    
+
     let fechaObj: Date;
     if (fecha.toDate) {
       fechaObj = fecha.toDate();
@@ -1564,14 +1566,14 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
 
     return `${dia}/${mes}/${año} ${horas}:${minutos}`;
   }
-  
+
   /**
    * 🔧 FIX: Forzar recarga de productos (para cuando se limpian filtros)
    */
   async recargarProductos(resetLimit: boolean = true) {
     try {
       this.cargandoProductos = true;
-      
+
       // Si no hay filtros ni búsqueda ni recientes, cargar productos iniciales
       if (!this.filtro.trim() && !this.grupoSeleccionado && !this.proveedorSeleccionado && !this.tipoStockSeleccionado && !this.mostrarRecientes) {
         if (resetLimit) {
@@ -1619,7 +1621,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
         this.productosFiltrados = productos;
         this.hayMasProductos = productos.length >= 20;
       }
-      
+
       this.aplicarOrdenamiento();
     } catch (error) {
       console.error('Error al recargar productos:', error);
@@ -1627,25 +1629,25 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
       this.cargandoProductos = false;
     }
   }
-  
+
   /**
    * 🚀 NUEVO: Cargar más productos (paginación)
    */
   async cargarMasProductos() {
     if (this.cargandoProductos || !this.hayMasProductos) return;
-    
+
     try {
       this.cargandoProductos = true;
       this.limitProductos += 10;
-      
+
       const productosAdicionales = await firstValueFrom(
         this.productosSrv.buscarProductosLimitado(this.filtro, this.limitProductos)
       );
-      
+
       this.productosFiltrados = productosAdicionales;
       this.hayMasProductos = productosAdicionales.length >= this.limitProductos;
       this.aplicarOrdenamiento();
-      
+
     } catch (error) {
       console.error('Error al cargar más productos:', error);
     } finally {
@@ -1688,7 +1690,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
    */
   toggleRecientes() {
     this.mostrarRecientes = !this.mostrarRecientes;
-    
+
     // Si activa Recientes, cambiar ordenamiento a 'reciente'
     if (this.mostrarRecientes) {
       this.ordenamientoProductos = 'reciente';
@@ -1697,7 +1699,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
       this.ordenamientoProductos = 'codigo';
       this.limitProductos = 10; // Resetear límite
     }
-    
+
     // 🔧 FIX: Usar recargarProductos para forzar recarga inmediata
     this.recargarProductos(false);
   }
@@ -1806,12 +1808,12 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     // Solo actuar si NO estamos en un input, textarea, select o button
     const target = event.target as HTMLElement;
     const tagName = target.tagName.toUpperCase();
-    
+
     // Ignorar si estamos en cualquier elemento de formulario o botón
     if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT' || tagName === 'BUTTON') {
       return;
     }
-    
+
     // Ignorar si el elemento tiene contenteditable
     if (target.contentEditable === 'true') {
       return;
@@ -1842,7 +1844,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   recalcularAbono() {
     // El setter ya limpia el "0" inicial automáticamente
     const a = Math.max(0, this._abono);
-    
+
     // ✅ CAMBIO: Permitir que el abono sea mayor al total (para calcular vuelto)
     // Solo limitar si NO es crédito Y NO es efectivo (evitar errores en transferencia/tarjeta)
     if (!this.esCredito && this.metodoPago !== 'Efectivo') {
@@ -1850,7 +1852,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     } else {
       this._abono = a; // Permitir cualquier valor para efectivo
     }
-    
+
     // ✅ Saldo pendiente nunca debe ser negativo (si abono > total, saldo = 0)
     this.saldoPendiente = Math.max(0, +(this.total - this._abono).toFixed(2));
   }
@@ -1873,7 +1875,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
   onInputEnter(event: Event, inputType: string, itemIndex?: number) {
     const keyboardEvent = event as KeyboardEvent;
     keyboardEvent.preventDefault();
-    
+
     if (inputType === 'cantidad') {
       // Si es cantidad de un item, ir al siguiente item o al descuento
       if (itemIndex !== undefined && itemIndex < this.items.length - 1) {
@@ -1994,7 +1996,7 @@ agregarProducto(p: any) {
   let precioSinIva: number;
   let precioConIva: number;
   let porcentajeIva: number = 0;
-  
+
   if (p.precioConIVA && Number(p.precioConIVA) > 0) {
     // Si existe precioConIVA, usar ese
     precioConIva = Number(p.precioConIVA);
@@ -2014,7 +2016,7 @@ agregarProducto(p: any) {
     precioSinIva = Number(p.pvp1 || p.costo || 0);
     precioConIva = precioSinIva;
   }
-  
+
   // Determinar tipo de control de stock (NORMAL o ILIMITADO)
   const tipoControl = (p as any).tipo_control_stock || 'NORMAL';
   const esStockIlimitado = tipoControl === 'ILIMITADO';
@@ -2086,11 +2088,11 @@ private toNumber(v: any): number {
    */
   getStockBadgeClass(p: any): string {
     const tipoControl = (p as any).tipo_control_stock || 'NORMAL';
-    
+
     if (tipoControl === 'ILIMITADO') {
       return 'badge-info'; // Azul para stock ilimitado
     }
-    
+
     const stock = Number(p.stock || 0);
     if (stock > 10) return 'badge-success'; // Verde
     if (stock > 0) return 'badge-warning';  // Amarillo
@@ -2102,11 +2104,11 @@ private toNumber(v: any): number {
    */
   getStockText(p: any): string {
     const tipoControl = (p as any).tipo_control_stock || 'NORMAL';
-    
+
     if (tipoControl === 'ILIMITADO') {
       return '∞'; // Símbolo infinito para stock ilimitado
     }
-    
+
     return String(p.stock || 0);
   }
 
@@ -2116,12 +2118,12 @@ private toNumber(v: any): number {
    */
   inicializarFechaHora(): void {
     this.actualizarFechaHoraActual();
-    
+
     // Actualizar fecha/hora continuamente hasta que el usuario edite manualmente
     this.fechaHoraIntervalId = window.setInterval(() => {
       this.actualizarFechaHoraActual();
     }, 1000);
-    
+
     // Cargar restricciones de fecha según caja banco abierta (solo para admin)
     if (this.esAdmin) {
       this.cargarRestriccionesFechaCajaBanco();
@@ -2136,7 +2138,7 @@ private toNumber(v: any): number {
     try {
       const caja = await this.cajaChicaService.getCajaAbierta();
       this.hayCajaAbierta = !!caja;
-      
+
       // Si no hay caja abierta y el método de pago es Efectivo, cambiar a Transferencia
       if (!this.hayCajaAbierta && this.metodoPago === 'Efectivo') {
         this.metodoPago = 'Transferencia';
@@ -2153,7 +2155,7 @@ private toNumber(v: any): number {
    */
   private actualizarFechaHoraActual(): void {
     const ahora = new Date();
-    
+
     // Formato HH:mm:ss para hora
     const horas = ahora.getHours().toString().padStart(2, '0');
     const minutos = ahora.getMinutes().toString().padStart(2, '0');
@@ -2161,7 +2163,7 @@ private toNumber(v: any): number {
     if (!this.horaManual) {
       this.horaPago = `${horas}:${minutos}:${segundos}`;
     }
-    
+
     // Formato YYYY-MM-DD para fecha
     const año = ahora.getFullYear();
     const mes = (ahora.getMonth() + 1).toString().padStart(2, '0');
@@ -2179,7 +2181,7 @@ private toNumber(v: any): number {
   marcarHoraManual(): void {
     this.horaManual = true;
   }
-  
+
   /**
    * Carga las restricciones de fecha min/max basadas en el periodo de la caja banco abierta.
    * Limita la selección de fecha al mes de la caja banco activa.
@@ -2187,7 +2189,7 @@ private toNumber(v: any): number {
   async cargarRestriccionesFechaCajaBanco(): Promise<void> {
     try {
       const caja = await this.cajaBancoService.getCajaBancoAbierta();
-      
+
       if (!caja?.fecha) {
         console.warn('⚠️ No hay caja banco abierta');
         return;
@@ -2218,9 +2220,9 @@ private toNumber(v: any): number {
       // La fecha máxima es el menor entre el último día del mes y hoy
       const fechaMax = ultimoDia < hoy ? ultimoDia : hoy;
       this.fechaMaxima = this.formatearFecha(fechaMax);
-      
+
       // Nombre del periodo para mostrar
-      const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+      const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
                      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
       this.periodoNombre = `${meses[month]} ${year}`;
 
@@ -2417,7 +2419,7 @@ async elegirTipoVenta(tipo: 'consumidor-final' | 'cliente-registrado') {
     // Asignar automáticamente el cliente CONSUMIDOR FINAL
     try {
       const consumidorFinal = await this.clientesSrv.getConsumidorFinal();
-      
+
       if (!consumidorFinal) {
         await Swal.fire({
           icon: 'error',
@@ -2435,7 +2437,7 @@ async elegirTipoVenta(tipo: 'consumidor-final' | 'cliente-registrado') {
       this.historial = null;
       this.sinHistorial = true;
       this.esCredito = false; // No permitir crédito para consumidor final
-      
+
       // Continuar con el guardado
       await this.procesarGuardadoVenta();
     } catch (error) {
@@ -2505,12 +2507,6 @@ async procesarGuardadoVenta() {
   this.guardando = true;
 
   try {
-    // ✅ MODO EDICIÓN: Revertir inventario de items originales PRIMERO
-    if (this.modoEdicion) {
-      console.log('🔄 Revirtiendo inventario original...');
-      await this.revertirInventarioOriginal();
-    }
-
     // ✅ Verificar stock en tiempo real antes de guardar (solo para PRODUCTOS, no servicios)
     for (const it of this.items) {
       // ✅ Saltar verificación si es servicio
@@ -2519,10 +2515,10 @@ async procesarGuardadoVenta() {
       }
 
       const prodActual: any = await firstValueFrom(this.productosSrv.getProductoById(it.productoId));
-      
+
       // Determinar el tipo de control de stock (compatible con datos legacy)
       const tipoControl = prodActual?.tipo_control_stock || 'NORMAL';
-      
+
       // Solo validar stock si es NORMAL (no ilimitado)
       if (tipoControl === 'NORMAL') {
         const disponible = Number(prodActual?.stock || 0);
@@ -2533,11 +2529,6 @@ async procesarGuardadoVenta() {
             text: `"${it.nombre}" ➜ disponible: ${disponible}, requerido: ${it.cantidad}.`,
           });
           this.guardando = false;
-          
-          // Si estamos en modo edición, revertir el inventario que acabamos de restaurar
-          if (this.modoEdicion) {
-            await this.descontarInventarioOriginal();
-          }
           return;
         }
       }
@@ -2549,17 +2540,24 @@ async procesarGuardadoVenta() {
 
     // 🕐 CONSTRUIR FECHA FINAL CON HORA
     let fechaFinal: Date;
-    
+
+    // ✅ En modo edición, conservar SIEMPRE la fecha original de la factura
+    if (this.modoEdicion && this.facturaOriginal?.fecha) {
+      const fechaOriginal = this.facturaOriginal.fecha;
+      fechaFinal = fechaOriginal.toDate ? fechaOriginal.toDate() : new Date(fechaOriginal);
+      console.log('🛡️ Modo edición: se conserva fecha original de factura:', fechaFinal);
+    } else {
+
     console.log('🔍 DEBUG - Método de pago:', this.metodoPago);
     console.log('🔍 DEBUG - horaPago:', this.horaPago);
     console.log('🔍 DEBUG - fechaPago:', this.fechaPago);
-    
+
     if (this.metodoPago === 'Efectivo') {
       // Para efectivo: usar fecha de caja chica + hora seleccionada
       try {
         const cajaAbierta = await this.cajaChicaService.getCajaAbierta();
         console.log('📅 Caja abierta obtenida:', cajaAbierta);
-        
+
         if (cajaAbierta?.fecha) {
           // Convertir correctamente Timestamp de Firestore a Date
           let fechaCaja: Date;
@@ -2571,10 +2569,10 @@ async procesarGuardadoVenta() {
           } else {
             fechaCaja = new Date(cajaAbierta.fecha);
           }
-          
+
           console.log('📅 Fecha de caja convertida:', fechaCaja);
           console.log('🕐 Hora de pago seleccionada:', this.horaPago);
-          
+
           fechaFinal = this.combinarFechaHora(fechaCaja, this.horaPago);
           console.log('✅ Fecha final EFECTIVO combinada:', fechaFinal);
         } else {
@@ -2588,7 +2586,7 @@ async procesarGuardadoVenta() {
     } else if (this.metodoPago === 'Transferencia') {
       // Para transferencia: validar fecha seleccionada y caja banco abierta
       console.log('🏦 Usando fecha contable de caja chica para transferencia');
-      
+
       // ✅ VALIDAR QUE LA FECHA ESTÉ DENTRO DEL PERIODO DE LA CAJA BANCO
       if (this.fechaMinima && this.fechaMaxima) {
         if (this.fechaPago < this.fechaMinima || this.fechaPago > this.fechaMaxima) {
@@ -2602,7 +2600,7 @@ async procesarGuardadoVenta() {
           return;
         }
       }
-      
+
       // ✅ VALIDAR QUE LA CAJA BANCO DEL PERÍODO ESTÉ ABIERTA
       const cajaAbierta = await this.cajaBancoService.verificarCajaAbiertaPorFecha(this.fechaPago);
       if (!cajaAbierta) {
@@ -2617,7 +2615,7 @@ async procesarGuardadoVenta() {
         this.guardando = false;
         return;
       }
-      
+
       // ✅ Usar FECHA DE CAJA CHICA como fecha contable oficial
       try {
         const cajaAbierta = await this.cajaChicaService.getCajaAbierta();
@@ -2674,9 +2672,10 @@ async procesarGuardadoVenta() {
         fechaFinal = this.combinarFechaHora(new Date(), this.horaPago);
       }
     }
-    
+    }
+
     console.log('🎯 FECHA FINAL QUE SE GUARDARÁ:', fechaFinal);
-    
+
     // Validar que fechaFinal sea válida
     if (!fechaFinal || !(fechaFinal instanceof Date) || isNaN(fechaFinal.getTime())) {
       console.error('❌ ERROR: fechaFinal no es válida:', fechaFinal);
@@ -2688,14 +2687,14 @@ async procesarGuardadoVenta() {
       this.guardando = false;
       return;
     }
-    
+
     console.log('✅ Fecha validada (Date):', fechaFinal);
 
     // ✅ OBTENER USUARIO ACTUAL LOGEADO
     const usuario = this.authService.getCurrentUser();
     const usuarioId = usuario?.id || 'admin'; // Fallback a 'admin' si no hay usuario
     const usuarioNombre = usuario?.nombre || 'Usuario';
-    
+
     console.log('👤 Usuario actual:', { id: usuarioId, nombre: usuarioNombre });
 
     // ✅ CREAR FACTURA CON DATOS DE CRÉDITO
@@ -2739,7 +2738,7 @@ async procesarGuardadoVenta() {
       saldoPendiente,
       estadoPago: saldoPendiente > 0 ? 'PENDIENTE' : 'PAGADA',
       estadoCredito: this.esCredito && saldoPendiente > 0 ? 'ACTIVO' : 'CANCELADO',
-      
+
       // ✅ NUEVO: TIPO DE FACTURA (Normal = venta convencional, NO cobro de deuda)
       tipoFactura: this.sinHistorial ? 'SIN_HISTORIAL' : 'NORMAL'
     };
@@ -2747,18 +2746,20 @@ async procesarGuardadoVenta() {
     console.log('📄 FACTURA A GUARDAR:', factura);
     console.log('📄 Fecha en factura:', factura.fecha);
     console.log('📄 Tipo de fecha:', typeof factura.fecha, factura.fecha instanceof Date);
-    
+
     const facturaLimpia = this.cleanUndefined(factura);
     console.log('📄 FACTURA LIMPIA:', facturaLimpia);
     console.log('📄 Fecha en factura limpia:', facturaLimpia.fecha);
     console.log('📄 Tipo de fecha limpia:', typeof facturaLimpia.fecha);
-    
+
     // ✅ GUARDAR O ACTUALIZAR SEGÚN MODO
     let facturaId: string;
     if (this.modoEdicion && this.facturaId) {
       // MODO EDICIÓN: Actualizar factura existente
       await this.facturasSrv.actualizarFactura(this.facturaId, facturaLimpia);
       facturaId = this.facturaId;
+      this.edicionTemporalFinalizada = true;
+      this.edicionTemporalStockActiva = false;
       console.log('✅ Factura actualizada:', facturaId);
     } else {
       // MODO CREACIÓN: Crear nueva factura
@@ -2804,19 +2805,19 @@ async procesarGuardadoVenta() {
 
     // ✅ REGISTRAR AUTOMÁTICAMENTE EN CAJA CHICA O CAJA BANCO
     // (usuario ya obtenido antes de crear factura)
-    
+
     // Variable para controlar si ya se registró el movimiento (evitar duplicados)
     let movimientoYaRegistrado = false;
-    
+
     // ✅ EN MODO EDICIÓN: Actualizar o eliminar/crear movimientos según cambios
     if (this.modoEdicion && this.facturaOriginal) {
       const cambioMetodoPago = this.facturaOriginal.metodoPago !== this.metodoPago;
       const cambioMonto = this.facturaOriginal.abonado !== abonado;
-      
+
       // CASO 1: Cambió de método de pago → Eliminar movimiento anterior y crear nuevo
       if (cambioMetodoPago) {
         console.log('🔄 Cambió método de pago. Eliminando movimiento antiguo y creando nuevo...');
-        
+
         // Eliminar movimiento anterior de caja chica si existía
         if (this.facturaOriginal.metodoPago === 'Efectivo') {
           try {
@@ -2829,7 +2830,7 @@ async procesarGuardadoVenta() {
             console.error('Error eliminando movimiento de Caja Chica:', err);
           }
         }
-        
+
         // Eliminar movimiento anterior de caja banco si existía
         if (this.facturaOriginal.metodoPago === 'Transferencia' || this.facturaOriginal.metodoPago === 'Tarjeta') {
           try {
@@ -2840,11 +2841,11 @@ async procesarGuardadoVenta() {
           }
         }
         // NO marcar como registrado aquí - se creará nuevo movimiento abajo
-      } 
+      }
       // CASO 2: Mismo método pero cambió el monto → Actualizar movimiento existente
       else if (cambioMonto) {
         console.log('🔄 Cambió monto pero no método de pago. Actualizando movimiento existente...');
-        
+
         // Actualizar movimiento en caja chica si es efectivo
         if (this.metodoPago === 'Efectivo') {
           try {
@@ -2869,7 +2870,7 @@ async procesarGuardadoVenta() {
             }
           }
         }
-        
+
         // Actualizar movimiento en caja banco si es transferencia/tarjeta
         // TODO: Implementar actualizarMovimientoPorFactura en CajaBancoService si es necesario
       }
@@ -2879,7 +2880,7 @@ async procesarGuardadoVenta() {
         movimientoYaRegistrado = true; // Marcar como ya registrado para no crear duplicado
       }
     }
-    
+
     // ✅ REGISTRAR NUEVO MOVIMIENTO (solo si NO se actualizó uno existente y NO es modo edición sin cambios)
     if (!movimientoYaRegistrado && this.metodoPago === 'Efectivo' && abonado > 0) {
       // 💵 Venta en EFECTIVO → Registrar en Caja Chica (solo lo que se pagó)
@@ -2900,7 +2901,7 @@ async procesarGuardadoVenta() {
             movimiento.usuario_id = usuario.id;
             movimiento.usuario_nombre = usuario.nombre || 'Usuario';
           }
-          
+
           await this.cajaChicaService.registrarMovimiento(caja.id, movimiento);
           console.log('✅ Venta registrada en Caja Chica:', abonado);
         } else {
@@ -2934,33 +2935,6 @@ async procesarGuardadoVenta() {
       }
     }
 
-    // ✅ Descontar stock de cada producto de manera segura
-    // ✅ NO descontar para servicios (esServicio === true)
-    for (const it of this.items) {
-      // ✅ Saltar si es servicio
-      if (it.esServicio) {
-        console.log(`⏭️ Saltando deducción de stock para servicio: "${it.nombre}"`);
-        continue;
-      }
-
-      try {
-        await this.productosSrv.descontarStock(it.productoId, it.cantidad);
-      } catch (err) {
-        // Solo mostrar error si NO es un producto con stock ilimitado
-        const prodActual: any = await firstValueFrom(this.productosSrv.getProductoById(it.productoId));
-        const tipoControl = prodActual?.tipo_control_stock || 'NORMAL';
-        
-        if (tipoControl !== 'ILIMITADO') {
-          console.error('Error descontando stock', err);
-          Swal.fire({
-            icon: 'error',
-            title: 'Stock no actualizado',
-            text: `Ocurrió un problema al actualizar el stock del producto "${it.nombre}". Por favor verifica manualmente.`,
-          });
-        }
-      }
-    }
-
     // Convertir Timestamps a Date para evitar errores NG02100
     const convertirTimestamp = (fecha: any): Date => {
       if (!fecha) return new Date();
@@ -2986,13 +2960,13 @@ async procesarGuardadoVenta() {
     const intentarImprimir = (intentos: number = 0) => {
       console.log(`🖨️ Intento de impresión #${intentos + 1}...`);
       const ticketElement = document.getElementById('ticket');
-      
+
       if (ticketElement) {
         console.log('📄 ✅ Elemento ticket encontrado');
         this.imprimirTicket();
       } else {
         console.warn('📄 ⚠️ Elemento ticket NO encontrado');
-        
+
         // Reintentar hasta 3 veces con intervalos crecientes
         if (intentos < 3) {
           const delay = 200 * (intentos + 1); // 200ms, 400ms, 600ms
@@ -3022,10 +2996,10 @@ async procesarGuardadoVenta() {
     // ✅ Mostrar mensaje de éxito y redirigir (después de dar tiempo a la impresión y reintentos)
     setTimeout(() => {
       const tituloMensaje = this.modoEdicion ? '¡Venta Actualizada!' : '¡Venta Realizada!';
-      const textoMensaje = this.modoEdicion 
+      const textoMensaje = this.modoEdicion
         ? `La venta #${facturaId} se ha actualizado correctamente.`
         : `La venta #${facturaId} se ha registrado correctamente.`;
-        
+
       Swal.fire({
         icon: 'success',
         title: tituloMensaje,
@@ -3119,11 +3093,11 @@ private cleanUndefined(obj: any): any {
     }
 
     console.log('✅ Elemento #ticket encontrado, abriendo ventana de impresión...');
-    
+
     // Abrir ventana aislada solo con el ticket para evitar que se oculte por estilos de la app
     const w = window.open('', 'PRINT', 'height=600,width=380');
     if (!w) {
-      
+
       return;
     }
 
@@ -3203,7 +3177,7 @@ private cleanUndefined(obj: any): any {
    */
   combinarFechaHora(fecha: string | Date, hora: string): Date {
     let fechaBase: Date;
-    
+
     if (typeof fecha === 'string') {
       // Parsear string YYYY-MM-DD y crear Date con hora 00:00:00 local
       const partes = fecha.split('-');
@@ -3216,25 +3190,33 @@ private cleanUndefined(obj: any): any {
       fechaBase = new Date(fecha);
       fechaBase.setHours(0, 0, 0, 0);
     }
-    
+
     // Parsear hora HH:mm:ss
     const partesHora = hora.split(':');
     const horas = parseInt(partesHora[0] || '0');
     const minutos = parseInt(partesHora[1] || '0');
     const segundos = parseInt(partesHora[2] || '0');
-    
+
     // Establecer la hora específica (esto NO causa conversión de zona horaria)
     fechaBase.setHours(horas, minutos, segundos, 0);
-    
+
     console.log(`🔧 combinarFechaHora entrada: fecha=${fecha}, hora=${hora}`);
     console.log(`🔧 combinarFechaHora resultado: ${fechaBase.toLocaleString()} (${fechaBase.toISOString()})`);
-    
+
     return fechaBase;
   }
 
-  volver() {
+  async volver() {
     // ✅ Si estamos en modo edición, volver a facturas; si no, resetear para nueva venta
     if (this.modoEdicion) {
+      if (this.facturaId && this.edicionTemporalStockActiva && !this.edicionTemporalFinalizada) {
+        try {
+          await this.facturasSrv.cancelarEdicionFacturaTemporal(this.facturaId);
+          this.edicionTemporalStockActiva = false;
+        } catch (error) {
+          console.error('Error al restaurar stock original al cancelar edición:', error);
+        }
+      }
       this.router.navigate(['/facturas']);
     } else {
       this.resetearVentaCompleta();
@@ -3249,10 +3231,10 @@ private cleanUndefined(obj: any): any {
     this.cargandoFactura = true;
     try {
       console.log('🔄 Cargando factura para editar:', this.facturaId);
-      
+
       // Cargar factura desde Firestore
       const factura: any = await firstValueFrom(this.facturasSrv.getFacturaById(this.facturaId));
-      
+
       if (!factura) {
         console.error('❌ Factura no encontrada:', this.facturaId);
         await Swal.fire({
@@ -3270,6 +3252,11 @@ private cleanUndefined(obj: any): any {
       // Guardar copia de la factura original INMEDIATAMENTE
       this.facturaOriginal = { ...factura };
       this.itemsOriginales = factura.items ? JSON.parse(JSON.stringify(factura.items)) : [];
+
+      // Restaurar temporalmente el stock original para la edición
+      await this.facturasSrv.iniciarEdicionFacturaTemporal(this.facturaId);
+      this.edicionTemporalStockActiva = true;
+      this.edicionTemporalFinalizada = false;
 
       // Pre-llenar datos del cliente
       this.clienteId = factura.clienteId || '';
@@ -3314,7 +3301,7 @@ private cleanUndefined(obj: any): any {
       // Pre-llenar método de pago
       this.metodoPago = factura.metodoPago || 'Efectivo';
       this.codigoTransferencia = factura.codigoTransferencia || '';
-      
+
       // Pre-llenar datos de crédito
       this.esCredito = factura.esCredito || false;
       this.abono = factura.abonado || 0;
@@ -3327,7 +3314,7 @@ private cleanUndefined(obj: any): any {
         const mes = (fechaFactura.getMonth() + 1).toString().padStart(2, '0');
         const dia = fechaFactura.getDate().toString().padStart(2, '0');
         this.fechaPago = `${año}-${mes}-${dia}`;
-        
+
         const horas = fechaFactura.getHours().toString().padStart(2, '0');
         const minutos = fechaFactura.getMinutes().toString().padStart(2, '0');
         const segundos = fechaFactura.getSeconds().toString().padStart(2, '0');
@@ -3337,10 +3324,10 @@ private cleanUndefined(obj: any): any {
       this.observacion = factura.observacion || '';
 
       console.log('✅ Factura cargada para edición:', factura);
-      
+
       // Pequeño delay para asegurar que todo esté sincronizado
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
     } catch (error) {
       console.error('Error cargando factura:', error);
       await Swal.fire({
@@ -3356,46 +3343,13 @@ private cleanUndefined(obj: any): any {
     }
   }
 
-  /**
-   * Revierte el inventario de los productos originales (suma el stock que se restó)
-   * Se usa en modo edición antes de aplicar los nuevos cambios
-   */
-  async revertirInventarioOriginal(): Promise<void> {
-    console.log('🔄 Revirtiendo inventario original...');
-    for (const itemOriginal of this.itemsOriginales) {
-      // Saltar servicios
-      if (itemOriginal.esServicio) continue;
-      
-      try {
-        // Devolver el stock (sumar la cantidad que se restó originalmente)
-        await this.productosSrv.incrementarStock(itemOriginal.productoId, itemOriginal.cantidad);
-        console.log(`✅ Stock revertido: ${itemOriginal.nombre} +${itemOriginal.cantidad}`);
-      } catch (err) {
-        console.error(`Error revirtiendo stock de ${itemOriginal.nombre}:`, err);
-      }
-    }
-  }
-
-  /**
-   * Descuenta el inventario original nuevamente (en caso de error durante edición)
-   * Se usa para revertir la reversión si algo falla
-   */
-  async descontarInventarioOriginal(): Promise<void> {
-    console.log('↩️ Descontando inventario original nuevamente...');
-    for (const itemOriginal of this.itemsOriginales) {
-      // Saltar servicios
-      if (itemOriginal.esServicio) continue;
-      
-      try {
-        await this.productosSrv.descontarStock(itemOriginal.productoId, itemOriginal.cantidad);
-        console.log(`✅ Stock descontado: ${itemOriginal.nombre} -${itemOriginal.cantidad}`);
-      } catch (err) {
-        console.error(`Error descontando stock de ${itemOriginal.nombre}:`, err);
-      }
-    }
-  }
-
   ngOnDestroy() {
+    if (this.modoEdicion && this.facturaId && this.edicionTemporalStockActiva && !this.edicionTemporalFinalizada) {
+      this.facturasSrv.cancelarEdicionFacturaTemporal(this.facturaId).catch((error) => {
+        console.error('Error al revertir edición temporal al salir de la pantalla:', error);
+      });
+    }
+
     // 🚀 OPTIMIZADO: Limpiar suscripción de búsqueda
     if (this.searchSubscription) {
       this.searchSubscription.unsubscribe();

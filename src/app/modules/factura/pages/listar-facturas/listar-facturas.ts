@@ -4,7 +4,6 @@ import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { FacturasService } from '../../../../core/services/facturas';
 import { FacturasDeudaService } from '../../../../core/services/facturas-deuda.service';
-import { ProductosService } from '../../../../core/services/productos';
 import { CajaChicaService } from '../../../../core/services/caja-chica.service';
 import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -68,7 +67,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
   firstVisibleDeuda: DocumentSnapshot | null = null;
   hasMore: boolean = false;
   isLoading: boolean = false;
-  
+
   // 🔍 Historial de páginas para navegación hacia atrás
   paginasHistorial: Array<{
     firstDoc: DocumentSnapshot | null;
@@ -128,7 +127,6 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
     private facturasDeudaSrv: FacturasDeudaService,
     private cajaBancoSrv: CajaBancoService,
     private router: Router,
-    private productosSrv: ProductosService,
     private cajaChicaSrv: CajaChicaService,
     private authService: AuthService
   ) {}
@@ -154,7 +152,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
       next: (cajasBanco) => {
         // Obtener periodos únicos ordenados por fecha descendente
         const periodosMap = new Map<string, {mes: number, anio: number, label: string}>();
-        
+
         cajasBanco.forEach(caja => {
           let fecha: Date;
           if (caja.fecha instanceof Date) {
@@ -164,11 +162,11 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           } else {
             fecha = new Date(caja.fecha);
           }
-          
+
           const mes = fecha.getMonth() + 1; // 1-12
           const anio = fecha.getFullYear();
           const key = `${mes.toString().padStart(2, '0')}/${anio}`;
-          
+
           if (!periodosMap.has(key)) {
             const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
                            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -218,7 +216,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
     }
 
     const [mes, anio] = this.periodoSeleccionado.split('/').map(Number);
-    
+
     // Primer día del mes
     const primerDia = new Date(anio, mes - 1, 1);
     // Último día del mes
@@ -295,10 +293,10 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
   async verificarCajaAbierta(): Promise<void> {
     try {
       const caja = await this.cajaChicaSrv.getCajaAbierta();
-      
+
       if (caja?.id && caja.estado === 'ABIERTA') {
         this.cajaChicaAbiertaId = caja.id;
-        
+
         // Cargar movimientos de esta caja para saber qué facturas pertenecen a ella
         this.cajaChicaSrv.getMovimientosCajaChica(caja.id).subscribe((movimientos: any[]) => {
           this.facturasEnCajaAbierta.clear();
@@ -310,7 +308,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           });
           console.log('📋 Facturas con venta en caja abierta:', Array.from(this.facturasEnCajaAbierta));
         });
-        
+
         console.log('🔍 Caja chica ABIERTA encontrada:', caja.id);
       } else {
         this.cajaChicaAbiertaId = null;
@@ -332,9 +330,9 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
       return false;
     }
 
-    return factura.metodoPago === 'Efectivo' 
-           && this.cajaChicaAbiertaId !== null 
-           && factura.id 
+    return factura.metodoPago === 'Efectivo'
+           && this.cajaChicaAbiertaId !== null
+           && factura.id
            && this.facturasEnCajaAbierta.has(factura.id);
   }
 
@@ -380,13 +378,13 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
    */
   private convertirFecha(fecha: any): Date {
     if (!fecha) return new Date();
-    
+
     // Firestore Timestamp
     if (typeof fecha?.toDate === 'function') return fecha.toDate();
-    
+
     // Ya es Date
     if (fecha instanceof Date) return fecha;
-    
+
     // String o número - intentar convertir
     const d = new Date(fecha);
     return isNaN(d.getTime()) ? new Date() : d;
@@ -400,7 +398,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
     // Obtener facturas originales para cada pago de deuda
     const facturasOriginalesMap = new Map<string, any>();
     const facturasIds = [...new Set(pagos.map((p: any) => p.facturaId).filter(Boolean))];
-    
+
     await Promise.all(
       facturasIds.map(async (facturaId: string) => {
         const factura = await this.facturasSrv.getFacturaByIdAsync(facturaId);
@@ -452,7 +450,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.paginaActual = 1;
     this.paginasHistorial = [];
-    
+
     try {
       const { startDate, endDate, fechaExacta } = this.obtenerFiltrosFecha();
 
@@ -585,7 +583,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
         this.firstVisible = resultadoFacturas.firstDoc;
         this.lastVisibleDeuda = resultadoPagos.lastDoc;
         this.firstVisibleDeuda = resultadoPagos.firstDoc;
-        
+
         if (resultadoFacturas.firstDoc || resultadoPagos.firstDoc) {
           this.paginasHistorial.push({
             firstDoc: resultadoFacturas.firstDoc,
@@ -596,9 +594,9 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           });
         }
       }
-      
+
       this.totalFacturas = this.facturasPaginadas.length;
-      
+
     } catch (error) {
       console.error('Error al cargar facturas:', error);
       Swal.fire('Error', 'No se pudieron cargar las facturas', 'error');
@@ -737,9 +735,9 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
 
   async paginaSiguiente(): Promise<void> {
     if (!this.hasMore || this.isLoading) return;
-    
+
     this.isLoading = true;
-    
+
     try {
  this.paginaActual++;
 
@@ -866,7 +864,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
         this.lastVisibleDeuda = resultadoPagos.lastDoc;
         this.firstVisibleDeuda = resultadoPagos.firstDoc;
         this.hasMore = resultadoFacturas.hasMore || resultadoPagos.hasMore;
-        
+
         this.paginasHistorial.push({
           firstDoc: resultadoFacturas.firstDoc,
           lastDoc: resultadoFacturas.lastDoc,
@@ -875,7 +873,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           pageNumber: this.paginaActual
         });
       }
-      
+
     } catch (error) {
       console.error('Error al cargar página siguiente:', error);
       Swal.fire('Error', 'No se pudo cargar la siguiente página', 'error');
@@ -886,32 +884,32 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
 
   async paginaAnterior(): Promise<void> {
     if (this.paginaActual <= 1 || this.isLoading) return;
-    
+
     this.isLoading = true;
-    
+
     try {
       this.paginasHistorial.pop();
       this.paginaActual--;
-      
+
       const { startDate, endDate, fechaExacta } = this.obtenerFiltrosFecha();
-      
+
       // 🔍 Si hay filtros activos (búsqueda o fechas), usar paginación en memoria
       const hayFiltrosActivos = this.term.trim() || startDate || endDate || fechaExacta;
-      
+
       if (hayFiltrosActivos) {
         // Con filtros: simplemente recargar con el nuevo currentPage
         await this.cargarPaginaConFiltros();
         return;
       }
-      
+
       // Sin filtros: usar cursores del historial
       const paginaAnterior = this.paginasHistorial[this.paginasHistorial.length - 1];
-      
+
       if (!paginaAnterior || paginaAnterior.pageNumber === 1) {
         await this.cargarPrimeraPage();
         return;
       }
-      
+
       // Restaurar cursores de la página anterior
       this.lastVisible = paginaAnterior.lastDoc;
       this.firstVisible = paginaAnterior.firstDoc;
@@ -990,7 +988,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
         this.facturasPaginadas = todasFacturas.slice(0, this.facturasPorPagina);
         this.hasMore = true;
       }
-      
+
     } catch (error) {
       console.error('Error al cargar página anterior:', error);
       Swal.fire('Error', 'No se pudo cargar la página anterior', 'error');
@@ -1016,7 +1014,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
       return;
     }
     this.router.navigate(['/ventas/deuda'], {
-      queryParams: { 
+      queryParams: {
         clienteId,
         returnTo: this.router.url
       }
@@ -1029,7 +1027,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
 
   async eliminarFactura(factura: any, ev?: Event): Promise<void> {
     ev?.stopPropagation();
-    
+
     // ⚠️ VALIDACIÓN 1: Solo permitir eliminar facturas de efectivo
     if (factura.metodoPago !== 'Efectivo') {
       Swal.fire({
@@ -1047,7 +1045,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
       });
       return;
     }
-    
+
     // ⚠️ VALIDACIÓN 2: Verificar que haya una caja chica abierta
     try {
       const cajaAbierta = await this.cajaChicaSrv.getCajaAbierta();
@@ -1076,7 +1074,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
       });
       return;
     }
-    
+
     const resultado = await Swal.fire({
       title: '¿Eliminar Factura?',
       html: `
@@ -1105,28 +1103,8 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
     if (resultado.isConfirmed) {
       try {
         const facturaId = factura.idPersonalizado || factura.id;
-        
-        // 1️⃣ REVERTIR STOCK DE PRODUCTOS
-        console.log('🔄 Revirtiendo stock de productos...');
-        for (const item of factura.items || []) {
-          // Saltar servicios (no afectan inventario)
-          if (item.esServicio) {
-            console.log(`⏭️ Saltando servicio: "${item.nombre}"`);
-            continue;
-          }
-          
-          if (item.productoId && item.cantidad > 0) {
-            try {
-              await this.productosSrv.incrementarStock(item.productoId, item.cantidad);
-              console.log(`✅ Stock restaurado: ${item.nombre} (+${item.cantidad})`);
-            } catch (error) {
-              console.error(`Error restaurando stock de "${item.nombre}":`, error);
-              // Continuar con otros productos aunque falle uno
-            }
-          }
-        }
-        
-        // 2️⃣ ELIMINAR MOVIMIENTO DE CAJA CHICA (Solo efectivo)
+
+        // 1️⃣ ELIMINAR MOVIMIENTO DE CAJA CHICA (Solo efectivo)
         console.log('🔄 Eliminando movimiento de Caja Chica...');
         try {
           const caja = await this.cajaChicaSrv.getCajaAbierta();
@@ -1137,12 +1115,12 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
         } catch (error) {
           console.error('Error eliminando movimiento de Caja Chica:', error);
         }
-        
-        // 3️⃣ ELIMINAR FACTURA
+
+        // 2️⃣ ELIMINAR FACTURA (incluye reversión de stock + Kardex en servicio)
         console.log('🔄 Eliminando factura...');
         await this.facturasSrv.eliminarFactura(factura.id);
         console.log('✅ Factura eliminada');
-        
+
         Swal.fire({
           title: '✅ Eliminada',
           html: `
@@ -1168,7 +1146,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
   }
   editarFactura(factura: any, ev?: Event): void {
     ev?.stopPropagation();
-    
+
     // Navegar al componente de edición
     const facturaId = factura.idPersonalizado || factura.id;
     this.router.navigate(['/ventas/editar', facturaId]);

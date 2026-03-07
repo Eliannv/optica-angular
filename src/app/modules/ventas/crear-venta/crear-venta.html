@@ -451,7 +451,7 @@
                                             </div>
                                             <span class="calculo-valor descuento-monto">-${{ descuentoMonto.toFixed(2) }}</span>
                                         </div>
-                                        
+
                                     </div>
                                     <div class="calculo-item iva-item" *ngIf="iva > 0">
                                         <span class="calculo-label">IVA incluido</span>
@@ -491,8 +491,8 @@
                                 <textarea class="input-compacto" rows="2" [(ngModel)]="observacion" placeholder="Detalle opcional de la venta"></textarea>
                             </div>
 
-                            <!-- 7️⃣ SECCIÓN DE CRÉDITO (SOLO SI NO ES CONSUMIDOR FINAL) -->
-                            <div class="credito-seccion" *ngIf="!esVentaConsumidorFinal">
+                            <!-- 7️⃣ SECCIÓN DE CRÉDITO (habilitada en edición, incluso consumidor final) -->
+                            <div class="credito-seccion" *ngIf="!esVentaConsumidorFinal || modoEdicion">
                                 <div class="credito-grid">
                                     <div class="credito-item credito-checkbox">
                                         <label class="checkbox-label">

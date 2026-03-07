@@ -98,6 +98,7 @@
                     Filtrar por período:
                 </label>
                 <select id="periodo-selector" (change)="cambiarPeriodo($event)" class="form-control periodo-select" [value]="cuentaBancoSeleccionada">
+                    <option value="">Todos los períodos</option>
                     <option *ngFor="let caja of cajasBanco" [value]="caja.id" [selected]="caja.id === cuentaBancoSeleccionada">
                         {{ obtenerNombrePeriodo(caja) }}
                     </option>

@@ -60,6 +60,11 @@ export interface Cuenta {
   observacion: string;
 
   /**
+   * Nombre del proveedor/acreedor asociado a la cuenta por pagar.
+   */
+  proveedor?: string;
+
+  /**
    * Nombre del usuario que creó la cuenta.
    */
   usuario_nombre?: string;
@@ -139,4 +144,24 @@ export interface AbonoCuenta {
    * Saldo restante después del abono.
    */
   saldoRestante: number;
+
+  /**
+   * ID del movimiento de caja banco generado para este abono.
+   */
+  movimientoCajaBancoId?: string;
+
+  /**
+   * ID de la caja banco donde se registró el movimiento.
+   */
+  cajaBancoId?: string;
+
+  /**
+   * Referencia contable de la cuenta utilizada en el egreso.
+   */
+  referenciaCuenta?: string;
+
+  /**
+   * Proveedor registrado en el egreso para trazabilidad.
+   */
+  proveedor?: string;
 }

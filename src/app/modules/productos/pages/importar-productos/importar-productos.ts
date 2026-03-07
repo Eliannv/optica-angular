@@ -3,26 +3,27 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { 
-  ExcelService, 
-  DatosExcelImportacion, 
-  ProductoExcelPreview 
+import {
+  ExcelService,
+  DatosExcelImportacion,
+  ProductoExcelPreview
 } from '../../../../core/services/excel.service';
 import { ProductosService } from '../../../../core/services/productos';
 import { IngresosService } from '../../../../core/services/ingresos.service';
 import { ProveedoresService } from '../../../../core/services/proveedores';
+import { MovimientoStockService } from '../../../../core/services/movimiento-stock.service';
 import { Ingreso, DetalleIngreso } from '../../../../core/models/ingreso.model';
 import { Proveedor } from '../../../../core/models/proveedor.model';
 import Swal from 'sweetalert2';
 
 /**
  * Componente para importar productos desde un archivo Excel
- * 
+ *
  * @description
  * Permite importar masivamente productos desde Excel con validaciones de proveedor,
  * detección de productos existentes/nuevos, verificación de factura única,
  * y generación automática de ingreso. Soporta 3 pasos: Subir archivo, Preview, Procesando.
- * 
+ *
  * @example
  * ```html
  * <app-importar-productos></app-importar-productos>
@@ -41,6 +42,7 @@ export class ImportarProductosComponent implements OnInit {
   private productosService = inject(ProductosService);
   private ingresosService = inject(IngresosService);
   private proveedoresService = inject(ProveedoresService);
+  private movimientoStockSrv = inject(MovimientoStockService);
   private fb = inject(FormBuilder);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -50,14 +52,14 @@ export class ImportarProductosComponent implements OnInit {
   datosImportacion = signal<DatosExcelImportacion | null>(null);
   mensajeError = signal<string>('');
   procesando = signal<boolean>(false);
-  
+
   proveedorExiste = signal<boolean>(false);
   proveedorExistente = signal<Proveedor | null>(null);
   mostrarFormProveedor = signal<boolean>(false);
   proveedorForm!: FormGroup;
   validandoNombre = false;
   validandoRuc = false;
-  
+
   validaciones = {
     codigo: { valido: false, mensaje: '' },
     nombre: { valido: false, mensaje: '' },
@@ -69,7 +71,7 @@ export class ImportarProductosComponent implements OnInit {
 
   validacionFactura = { valido: true, mensaje: '' };
   validandoNumeroFactura = false;
-  
+
   gruposDisponibles = [
     'ARMAZONES',
     'LENTES DE CONTACTO',
@@ -97,7 +99,7 @@ export class ImportarProductosComponent implements OnInit {
 
   /**
    * Valida si se puede confirmar la importación
-   * 
+   *
    * @returns true si existen datos de importación, proveedor válido y sin errores de factura
    */
   get puedeConfirmarImportacion(): boolean {
@@ -112,7 +114,7 @@ export class ImportarProductosComponent implements OnInit {
 
   /**
    * Verifica si el formulario de proveedor es válido para guardado
-   * 
+   *
    * @returns true si el formulario es válido y no hay validaciones pendientes
    */
   get puedeGuardarProveedor(): boolean {
@@ -142,7 +144,7 @@ export class ImportarProductosComponent implements OnInit {
 
   /**
    * Inicializa el formulario reactivo para crear un nuevo proveedor
-   * 
+   *
    * @private
    */
   private inicializarFormularioProveedor(): void {
@@ -161,9 +163,9 @@ export class ImportarProductosComponent implements OnInit {
 
   /**
    * Maneja la selección de archivo Excel
-   * 
+   *
    * @param event - Evento de selección de archivo
-   * 
+   *
    * @description
    * Valida que la extensión sea .xlsx o .xls antes de aceptar el archivo.
    */
@@ -171,7 +173,7 @@ export class ImportarProductosComponent implements OnInit {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
       const archivo = input.files[0];
-      
+
       if (!archivo.name.match(/\.(xlsx|xls)$/i)) {
         Swal.fire({
           icon: 'error',
@@ -181,7 +183,7 @@ export class ImportarProductosComponent implements OnInit {
         });
         return;
       }
-      
+
       this.archivoSeleccionado.set(archivo);
       this.mensajeError.set('');
     }
@@ -201,7 +203,7 @@ export class ImportarProductosComponent implements OnInit {
 
   /**
    * Procesa el archivo Excel seleccionado
-   * 
+   *
    * @description
    * Lee el Excel, verifica proveedor, valida número de factura único,
    * detecta productos existentes y muestra el preview antes de confirmar.
@@ -235,10 +237,10 @@ export class ImportarProductosComponent implements OnInit {
       }
 
       await this.verificarProductosExistentes(datos.productos);
-      
+
       this.datosImportacion.set(datos);
       this.paso.set(2);
-      
+
     } catch (error: any) {
       this.mensajeError.set(error.message || 'Error al procesar el archivo');
     } finally {
@@ -248,9 +250,9 @@ export class ImportarProductosComponent implements OnInit {
 
   /**
    * Verifica si el proveedor existe en el sistema
-   * 
+   *
    * @param nombreProveedor - Nombre del proveedor leído del Excel
-   * 
+   *
    * @private
    * @description
    * Busca el proveedor por nombre (case-insensitive). Si no existe,
@@ -281,9 +283,9 @@ export class ImportarProductosComponent implements OnInit {
 
   /**
    * Verifica qué productos ya existen en la base de datos
-   * 
+   *
    * @param productos - Array de productos desde Excel
-   * 
+   *
    * @private
    * @description
    * La combinación única de un producto es: nombre + modelo + color
@@ -299,7 +301,7 @@ export class ImportarProductosComponent implements OnInit {
 
       for (const prod of productos) {
         // PASO 1: Buscar por combinación única: nombre + modelo + color
-        let productoExistente: any = (productosSnapshot || []).find(p => 
+        let productoExistente: any = (productosSnapshot || []).find(p =>
           p.nombre?.toLowerCase().trim() === prod.nombre?.toLowerCase().trim() &&
           (p.modelo?.toLowerCase().trim() === prod.modelo?.toLowerCase().trim() || (!p.modelo && !prod.modelo)) &&
           (p.color?.toLowerCase().trim() === prod.color?.toLowerCase().trim() || (!p.color && !prod.color))
@@ -309,49 +311,49 @@ export class ImportarProductosComponent implements OnInit {
           // ✅ PRODUCTO EXISTENTE: Encontrado por nombre+modelo+color
           prod.estado = 'EXISTENTE';
           prod.productoId = productoExistente.id;
-          
+
           prod.estaDesactivado = productoExistente.activo === false;
-          
+
           const stockExistente = productoExistente.stock || 0;
           const cantidadAAgregar = prod.cantidad || 0;
           prod.stockAnterior = stockExistente;
           prod.stockActivoAnterior = stockExistente;
-          
+
           // 🔹 IMPORTANTE: Mantener costo del Excel si es diferente al existente
           // Solo usar costo existente si el Excel no tiene costo
           if (!prod.costo || prod.costo <= 0) {
             prod.costo = productoExistente.costo || 0;
           }
-          
+
           prod.grupo = productoExistente.grupo || 'GAFAS';
           prod.idInterno = productoExistente.idInterno || undefined;
-          
+
           prod.proveedorAnterior = productoExistente.proveedor || '';
-          
+
           // 🔹 IMPORTANTE: Mantener PVP del Excel si es diferente al existente
           if (!prod.pvp1 || prod.pvp1 <= 0) {
             prod.pvp1 = productoExistente.pvp1 || 0;
           }
           prod.pvp1Anterior = productoExistente.pvp1 || 0;
-          
+
           prod.observacion = productoExistente.observacion || '';
         } else {
           // ❌ PRODUCTO NUEVO: No encontrado por nombre+modelo+color
           // PASO 2: Verificar si el idInterno del Excel ya existe con diferente modelo/color
           const codigoExcel = prod.codigo ? parseInt(prod.codigo) : null;
-          
+
           if (codigoExcel !== null && codigoExcel > 0) {
-            const yaExisteConDiferentesAtributos = (productosSnapshot || []).some(p => 
+            const yaExisteConDiferentesAtributos = (productosSnapshot || []).some(p =>
               p.idInterno === codigoExcel &&
               (
                 p.nombre?.toLowerCase().trim() !== prod.nombre?.toLowerCase().trim() ||
-                (p.modelo?.toLowerCase().trim() !== prod.modelo?.toLowerCase().trim() && 
+                (p.modelo?.toLowerCase().trim() !== prod.modelo?.toLowerCase().trim() &&
                  !((!p.modelo && !prod.modelo))) ||
-                (p.color?.toLowerCase().trim() !== prod.color?.toLowerCase().trim() && 
+                (p.color?.toLowerCase().trim() !== prod.color?.toLowerCase().trim() &&
                  !((!p.color && !prod.color)))
               )
             );
-            
+
             if (yaExisteConDiferentesAtributos) {
               // 🔹 El idInterno del Excel EXISTE pero con diferente producto
               // RESETEAR código para que se asigne uno nuevo del contador AL GUARDAR
@@ -414,10 +416,10 @@ export class ImportarProductosComponent implements OnInit {
         return;
       }
 
-      console.log('📦 Iniciando importación...', { 
-        proveedor: datos.proveedor, 
+      console.log('📦 Iniciando importación...', {
+        proveedor: datos.proveedor,
         factura: datos.numeroFactura,
-        productos: datos.productos.length 
+        productos: datos.productos.length
       });
 
       // 1. Crear ingreso
@@ -465,7 +467,7 @@ export class ImportarProductosComponent implements OnInit {
         const idB = b.idInterno || 0;
         return idA - idB;
       });
-      
+
       console.log('📊 Productos ordenados por código:', {
         primero: detalles[0]?.idInterno,
         ultimo: detalles[detalles.length - 1]?.idInterno,
@@ -473,10 +475,10 @@ export class ImportarProductosComponent implements OnInit {
       });
 
       console.log('💾 Finalizando ingreso con', detalles.length, 'productos...');
-      
+
       // 3. Finalizar ingreso (crea/actualiza productos automáticamente)
       await this.ingresosService.finalizarIngreso(ingresoId, detalles);
-      
+
       console.log('✅ Importación completada exitosamente');
 
       // 4. Redirigir
@@ -488,7 +490,7 @@ export class ImportarProductosComponent implements OnInit {
         showConfirmButton: false
       });
       this.router.navigate(['/ingresos']);
-      
+
     } catch (error: any) {
       console.error('❌ Error en importación:', error);
       this.mensajeError.set('Error al importar: ' + (error.message || 'Error desconocido'));
@@ -502,6 +504,8 @@ export class ImportarProductosComponent implements OnInit {
    * ✅ Importar productos en modo CATÁLOGO (sin ingreso, sin deuda, sin caja/banco)
    */
   private async importarComoCatalogo(datos: DatosExcelImportacion): Promise<void> {
+    const referenciaId = `IMPORT_CATALOGO_${Date.now()}`;
+
     for (const prod of datos.productos) {
       const baseProducto: any = {
         codigo: prod.codigo || '',
@@ -514,18 +518,44 @@ export class ImportarProductosComponent implements OnInit {
         iva: prod.iva || 0,
         observacion: prod.observacion || '',
         activo: true,
-        controlaStock: false,
-        tipo_control_stock: 'ILIMITADO',
-        stock: 0
       };
+
+      const cantidad = Number(prod.cantidad || 0);
+      const grupoUpper = String(prod.grupo || '').toUpperCase();
+      const esControlNormal = grupoUpper === 'ARMAZONES' || grupoUpper === 'GAFAS';
 
       if (prod.estado === 'EXISTENTE' && prod.productoId) {
         await this.productosService.updateProducto(prod.productoId, {
           ...baseProducto,
           ingresoId: null
         });
+
+        if (cantidad > 0) {
+          await this.movimientoStockSrv.registrarMovimientoIngreso({
+            productoId: prod.productoId,
+            cantidad,
+            referenciaId,
+            referenciaTipo: 'IMPORT_EXCEL',
+            usuarioId: '',
+            sucursalId: 'PASJO01',
+          });
+        }
       } else {
-        await this.productosService.createProducto(baseProducto);
+        const nuevoProductoRef = await this.productosService.createProducto({
+          ...baseProducto,
+          stock: esControlNormal ? cantidad : 0,
+        });
+
+        if (cantidad > 0) {
+          await this.movimientoStockSrv.registrarMovimientoIngresoSinActualizarStock({
+            productoId: nuevoProductoRef.id,
+            cantidad,
+            referenciaId,
+            referenciaTipo: 'IMPORT_EXCEL',
+            usuarioId: '',
+            sucursalId: 'PASJO01',
+          });
+        }
       }
     }
   }
@@ -613,7 +643,7 @@ export class ImportarProductosComponent implements OnInit {
 
   async validarRUC(): Promise<void> {
     const ruc = this.proveedorForm.get('ruc')?.value;
-    
+
     if (!ruc || ruc.trim() === '') {
       this.validaciones.ruc.valido = false;
       this.validaciones.ruc.mensaje = '';
@@ -686,7 +716,7 @@ export class ImportarProductosComponent implements OnInit {
   validarTelefono(tipo: 'principal' | 'secundario'): void {
     const campo = tipo === 'principal' ? 'telefonoPrincipal' : 'telefonoSecundario';
     const telefono = this.proveedorForm.get(tipo === 'principal' ? 'telefonoPrincipal' : 'telefonoSecundario')?.value;
-    
+
     if (!telefono || telefono.trim() === '') {
       this.validaciones[campo].valido = false;
       this.validaciones[campo].mensaje = '';
@@ -710,7 +740,7 @@ export class ImportarProductosComponent implements OnInit {
 
   validarCodigoLugar(): void {
     const codigoLugar = this.proveedorForm.get('codigoLugar')?.value;
-    
+
     if (!codigoLugar || codigoLugar.trim() === '') {
       this.validaciones.codigoLugar.valido = false;
       this.validaciones.codigoLugar.mensaje = '';
