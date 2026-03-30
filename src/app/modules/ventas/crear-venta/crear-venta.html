@@ -244,7 +244,9 @@
                         <h4>Buscar Productos</h4>
                     </div>
 
-                    <div class="search-container">
+
+
+                    <div class="search-container" style="margin-top: 8px;">
                         <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"></circle>
             <path d="m21 21-4.35-4.35"></path>
@@ -255,6 +257,10 @@
           </button>
                     </div>
 
+                    <!-- Indicador visual para operación de escáner -->
+                    <div *ngIf="mensajeEscaneo" class="scanner-status" [ngClass]="{'success': mensajeEscaneoTipo==='success', 'warning': mensajeEscaneoTipo==='warning', 'error': mensajeEscaneoTipo==='error'}" style="margin-bottom: 10px; padding: 8px; border-radius: 6px; font-weight: 600;">
+                      {{ mensajeEscaneo }}
+                    </div>
                     <!-- Botones de acción rápida -->
                     <div class="action-buttons">
                         <button class="btn-action" [class.active]="mostrarFiltros" (click)="toggleFiltros()" title="Mostrar/Ocultar filtros avanzados">

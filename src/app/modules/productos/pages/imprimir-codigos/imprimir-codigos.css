@@ -1,0 +1,24 @@
+.productos-wrapper {
+  padding: 12px;
+}
+.card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+}
+.card-body {
+  padding: 12px;
+}
+.action-buttons button {
+  margin-left: 4px;
+}
+.form-group {
+  margin-bottom: 10px;
+}

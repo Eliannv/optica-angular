@@ -1,0 +1,31 @@
+<div class="productos-wrapper">
+  <div class="card">
+    <div class="card-header">
+      <h3>Imprimir códigos de barras</h3>
+      <div class="action-buttons">
+        <button class="btn btn-secondary" (click)="volverListado()">← Volver al listado</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div *ngIf="cargando" class="text-center p-3">Cargando productos...</div>
+      <div *ngIf="!cargando">
+        <p>Se generará un PDF con etiquetas de códigos de barras basados en el campo <strong>codigo</strong> de cada producto.</p>
+
+        <div class="form-group">
+          <label for="formatoCodigo">Formato de código</label>
+          <select id="formatoCodigo" class="form-control" [(ngModel)]="formatoCodigo">
+            <option value="code128">Code128 (recomendado)</option>
+            <option value="ean13">EAN13 (solo si el código tiene 13 dígitos)</option>
+          </select>
+        </div>
+
+        <div class="form-group form-check mt-2">
+          <input class="form-check-input" type="checkbox" id="soloConCodigo" [(ngModel)]="mostrarSoloConCodigo" />
+          <label class="form-check-label" for="soloConCodigo">Solo incluir productos con campo código presente</label>
+        </div>
+
+        <button class="btn btn-primary mt-3" (click)="generarPdf()">Generar PDF de etiquetas</button>
+      </div>
+    </div>
+  </div>
+</div>

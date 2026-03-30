@@ -49,10 +49,10 @@ export class SidebarComponent implements OnInit {
   closeSidebar = output<void>();
 
   collapsed = false;
-  
+
   private readonly authService = inject(AuthService);
   private readonly allMenuItems: MenuItem[];
-  
+
   menuItems: MenuItem[] = [];
 
   constructor(
@@ -108,7 +108,7 @@ export class SidebarComponent implements OnInit {
           }
         ]
       },
-      
+
       // 🛒 VENTAS
       {
         label: 'Ventas',
@@ -351,6 +351,13 @@ export class SidebarComponent implements OnInit {
                 queryParams: { grupo: 'VARIOS' },
                 active: false,
                 roles: [RolUsuario.ADMINISTRADOR]
+              },
+              {
+                label: 'Imprimir códigos de barras',
+                icon: '',
+                route: '/productos/imprimir-codigos',
+                active: false,
+                roles: [RolUsuario.ADMINISTRADOR]
               }
             ]
           },
@@ -478,7 +485,7 @@ export class SidebarComponent implements OnInit {
    */
   ngOnInit(): void {
     this.filterMenuByRole();
-    
+
     this.authService.authState$.subscribe(() => {
       this.filterMenuByRole();
     });
@@ -490,24 +497,24 @@ export class SidebarComponent implements OnInit {
    * Solo muestra los items del menú para los cuales el usuario tiene
    * permisos según su rol (ADMINISTRADOR u OPERADOR). Si no hay usuario
    * autenticado, el menú queda vacío.
-   * 
+   *
    * Filtra recursivamente todos los niveles de children.
    */
   private filterMenuByRole(): void {
     const currentUser = this.authService.getCurrentUser();
-    
+
     if (!currentUser) {
       this.menuItems = [];
       return;
     }
-    
+
     // Filtrar items recursivamente
     this.menuItems = this.filterItemsByRole(this.allMenuItems, currentUser.rol);
   }
 
   /**
    * Filtra recursivamente los items del menú según el rol.
-   * 
+   *
    * @param items - Array de items a filtrar
    * @param rol - Rol del usuario actual
    * @returns Array de items filtrados con sus children también filtrados
@@ -542,7 +549,7 @@ export class SidebarComponent implements OnInit {
   onLogoClick(): void {
     if (isPlatformBrowser(this.platformId)) {
       const isMobile = window.innerWidth < 1150;
-      
+
       // Solo permitir toggle en escritorio
       if (!isMobile) {
         this.collapsed = !this.collapsed;
@@ -555,14 +562,14 @@ export class SidebarComponent implements OnInit {
    *
    * En modo móvil (ancho < 1150px), cierra completamente el drawer lateral.
    * En modo escritorio, colapsa el sidebar para maximizar el espacio de trabajo.
-   * 
+   *
    * Se agrega un pequeño delay antes de colapsar para permitir que el routerLink
    * complete la navegación antes de que el DOM se modifique.
    */
   onMenuItemClick(): void {
     if (isPlatformBrowser(this.platformId)) {
       const isMobile = window.innerWidth < 1150;
-      
+
       if (isMobile) {
         // Móvil: cerrar drawer completamente
         this.closeSidebar.emit();
@@ -588,10 +595,10 @@ export class SidebarComponent implements OnInit {
   toggleSubmenu(item: MenuItem, event: Event): void {
     event.preventDefault();
     event.stopPropagation();
-    
+
     if (item.children && item.children.length > 0) {
       item.expanded = !item.expanded;
-      
+
       // Si el sidebar está colapsado, expandirlo al hacer clic en un item con hijos
       if (this.collapsed) {
         this.collapsed = false;

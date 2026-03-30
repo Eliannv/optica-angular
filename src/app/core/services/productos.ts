@@ -40,7 +40,7 @@ import {
   endBefore,
   DocumentSnapshot
 } from '@angular/fire/firestore';
-import { Observable, BehaviorSubject, shareReplay, forkJoin, map, tap } from 'rxjs';
+import { Observable, BehaviorSubject, shareReplay, forkJoin, map, of, tap, switchMap } from 'rxjs';
 import { Producto } from '../models/producto.model';
 import { PaginationResult } from '../models/pagination.model';
 
@@ -153,7 +153,7 @@ export class ProductosService {
   /**
    * 🚀 OPTIMIZADO: Cargar productos limitados para POS (crear venta)
    * Carga inicial de máximo 10-20 productos para reducir memoria y lecturas
-   * 
+   *
    * @param limitCount Número máximo de productos a cargar (default: 10)
    * @param orderByField Campo por el que ordenar (default: 'idInterno')
    * @returns Observable<Producto[]> Stream con productos limitados
@@ -173,9 +173,92 @@ export class ProductosService {
   }
 
   /**
-   * 🚀 OPTIMIZADO: Búsqueda de productos con límite y prefijo
+   * � Obtener producto(s) por código de barras/identificador único (exacto)
+   * @param codigo Código a buscar en el campo `codigo`
+   */
+  getProductoPorCodigo(codigo: string): Observable<Producto[]> {
+    const valorOriginal = (codigo || '').trim();
+    const valor = valorOriginal.replace(/\s+/g, '').toUpperCase();
+    if (!valor) {
+      return of([]);
+    }
+
+    // Consulta exacta del campo `codigo` con posibles variaciones de mayúsculas/minúsculas
+    const qExact = query(this.productosRef, where('codigo', '==', valorOriginal));
+    const qUpper = query(this.productosRef, where('codigo', '==', valor));
+    const qLower = query(this.productosRef, where('codigo', '==', valor.toLowerCase()));
+
+    // Consulta por campo `modelo` para armazones sin código
+    const qModelo = query(this.productosRef, where('modelo', '==', valorOriginal));
+    const qModeloUpper = query(this.productosRef, where('modelo', '==', valor));
+    const qModeloLower = query(this.productosRef, where('modelo', '==', valor.toLowerCase()));
+
+    // Si no se encuentra con código, buscar por idInterno si el valor es numérico
+    const idInternoNum = Number(valor);
+    const qIdInterno = !isNaN(idInternoNum)
+      ? query(this.productosRef, where('idInterno', '==', idInternoNum))
+      : null;
+
+    const filtrarActivos = (productos: any[]) =>
+      (productos || [])
+        .filter((p: any) => p.activo !== false)
+        .map((p: any) => p as Producto);
+
+    return collectionData(qExact, { idField: 'id' }).pipe(
+      switchMap((productos: any[]) => {
+        const activos = filtrarActivos(productos);
+        if (activos.length > 0) return of(activos);
+
+        return collectionData(qUpper, { idField: 'id' }).pipe(
+          switchMap((productos2: any[]) => {
+            const activos2 = filtrarActivos(productos2);
+            if (activos2.length > 0) return of(activos2);
+
+            return collectionData(qLower, { idField: 'id' }).pipe(
+              switchMap((productos3: any[]) => {
+                const activos3 = filtrarActivos(productos3);
+                if (activos3.length > 0) return of(activos3);
+
+                return collectionData(qModelo, { idField: 'id' }).pipe(
+                  switchMap((productos4: any[]) => {
+                    const activos4 = filtrarActivos(productos4);
+                    if (activos4.length > 0) return of(activos4);
+
+                    return collectionData(qModeloUpper, { idField: 'id' }).pipe(
+                      switchMap((productos5: any[]) => {
+                        const activos5 = filtrarActivos(productos5);
+                        if (activos5.length > 0) return of(activos5);
+
+                        return collectionData(qModeloLower, { idField: 'id' }).pipe(
+                          switchMap((productos6: any[]) => {
+                            const activos6 = filtrarActivos(productos6);
+                            if (activos6.length > 0) return of(activos6);
+
+                            if (qIdInterno) {
+                              return collectionData(qIdInterno, { idField: 'id' }).pipe(
+                                map((productos7: any[]) => filtrarActivos(productos7))
+                              );
+                            }
+
+                            return of([]);
+                          })
+                        );
+                      })
+                    );
+                  })
+                );
+              })
+            );
+          })
+        );
+      })
+    );
+  }
+
+  /**
+   * �🚀 OPTIMIZADO: Búsqueda de productos con límite y prefijo
    * Busca por nombre, código, modelo, etc. con límite de resultados
-   * 
+   *
    * @param searchTerm Término de búsqueda
    * @param limitCount Número máximo de resultados (default: 20)
    * @returns Observable<Producto[]> Productos que coinciden con la búsqueda
@@ -186,7 +269,7 @@ export class ProductosService {
     }
 
     const term = searchTerm.toLowerCase().trim();
-    
+
     // 🔍 Búsqueda mejorada sin límite inicial (para encontrar todos los productos)
     const q = query(
       this.productosRef,
@@ -205,12 +288,12 @@ export class ProductosService {
           const color = (p.color || '').toLowerCase();
           const codigo = (p.codigo || '').toLowerCase();
           const idInterno = (p.idInterno || '').toString().toLowerCase();
-          
-          return nombre.includes(term) || 
-                 tipo.includes(term) || 
-                 modelo.includes(term) || 
-                 color.includes(term) || 
-                 codigo.includes(term) || 
+
+          return nombre.includes(term) ||
+                 tipo.includes(term) ||
+                 modelo.includes(term) ||
+                 color.includes(term) ||
+                 codigo.includes(term) ||
                  idInterno.includes(term);
         });
 
@@ -223,7 +306,7 @@ export class ProductosService {
   /**
    * 🚀 OPTIMIZADO: Búsqueda con filtros avanzados y límite
    * Permite filtrar por grupo, proveedor y tipo de stock
-   * 
+   *
    * @param options Opciones de búsqueda y filtrado
    * @returns Observable<Producto[]> Productos filtrados
    */
@@ -250,14 +333,14 @@ export class ProductosService {
 
         // Filtrar por grupo
         if (grupo) {
-          filtrados = filtrados.filter(p => 
+          filtrados = filtrados.filter(p =>
             (p.grupo || '').toUpperCase() === grupo.toUpperCase()
           );
         }
 
         // Filtrar por proveedor
         if (proveedor) {
-          filtrados = filtrados.filter(p => 
+          filtrados = filtrados.filter(p =>
             (p.proveedor || '').toUpperCase() === proveedor.toUpperCase()
           );
         }
@@ -280,12 +363,12 @@ export class ProductosService {
             const color = (p.color || '').toLowerCase();
             const codigo = (p.codigo || '').toLowerCase();
             const idInterno = (p.idInterno || '').toString().toLowerCase();
-            
-            return nombre.includes(term) || 
-                   tipo.includes(term) || 
-                   modelo.includes(term) || 
-                   color.includes(term) || 
-                   codigo.includes(term) || 
+
+            return nombre.includes(term) ||
+                   tipo.includes(term) ||
+                   modelo.includes(term) ||
+                   color.includes(term) ||
+                   codigo.includes(term) ||
                    idInterno.includes(term);
           });
         }
@@ -298,10 +381,10 @@ export class ProductosService {
 
   /**
    * 🚀 PAGINACIÓN REAL DESDE FIRESTORE
-   * 
+   *
    * Obtiene productos con paginación real usando cursores de Firestore.
    * Solo carga 10 productos por consulta, reduciendo uso de memoria y lecturas.
-   * 
+   *
    * @param options - Opciones de paginación
    * @param options.pageSize - Cantidad de productos por página (default: 10)
    * @param options.lastVisible - Snapshot del último documento visible (para "siguiente")
@@ -310,25 +393,25 @@ export class ProductosService {
    * @param options.ordenamiento - Campo para ordenar: 'reciente' | 'codigo' (default: 'codigo')
    * @param options.terminoBusqueda - Término para buscar en múltiples campos
    * @param options.grupoSeleccionado - Filtro por grupo/categoría
-   * 
+   *
    * @returns Promise<{ productos: Producto[], lastDoc: DocumentSnapshot | null, firstDoc: DocumentSnapshot | null }>
-   * 
+   *
    * @example
    * // Primera carga
    * const result = await getProductosPaginadosReal({ pageSize: 10 });
-   * 
+   *
    * // Página siguiente
-   * const nextPage = await getProductosPaginadosReal({ 
-   *   pageSize: 10, 
-   *   lastVisible: result.lastDoc, 
-   *   direction: 'next' 
+   * const nextPage = await getProductosPaginadosReal({
+   *   pageSize: 10,
+   *   lastVisible: result.lastDoc,
+   *   direction: 'next'
    * });
-   * 
+   *
    * // Página anterior
-   * const prevPage = await getProductosPaginadosReal({ 
-   *   pageSize: 10, 
-   *   firstVisible: result.firstDoc, 
-   *   direction: 'prev' 
+   * const prevPage = await getProductosPaginadosReal({
+   *   pageSize: 10,
+   *   firstVisible: result.firstDoc,
+   *   direction: 'prev'
    * });
    */
 
@@ -373,7 +456,7 @@ export class ProductosService {
 
     // Aplicar filtro de grupo si existe
     if (grupoSeleccionado) {
-      productos = productos.filter(p => 
+      productos = productos.filter(p =>
         p.grupo?.toUpperCase() === grupoSeleccionado.toUpperCase()
       );
     }
@@ -441,7 +524,7 @@ export class ProductosService {
 
     // ✅ Construir query base con ordenamiento
     let q;
-    
+
     if (ordenamiento === 'reciente') {
       // Ordenar por fecha de creación descendente
       if (direction === 'prev' && firstVisible) {
@@ -507,14 +590,14 @@ export class ProductosService {
 
     // ✅ Aplicar filtro de grupo si existe
     if (grupoSeleccionado) {
-      productos = productos.filter(p => 
+      productos = productos.filter(p =>
         p.grupo?.toUpperCase() === grupoSeleccionado.toUpperCase()
       );
     }
 
     // ✅ Detectar si hay más páginas
     const hasMore = productos.length > pageSize;
-    
+
     // ✅ Limitar a pageSize
     const productosFinales = productos.slice(0, pageSize);
 
@@ -533,7 +616,7 @@ export class ProductosService {
   /**
    * 🆕 OPTIMIZADO: Cargar múltiples productos por IDs en batch
    * Evita N+1 problem cargando hasta 10 productos en una sola query
-   * 
+   *
    * @param ids Array de IDs de productos
    * @returns Observable con mapa de ID → Producto
    */
@@ -605,20 +688,20 @@ export class ProductosService {
   async getCounterDoc(): Promise<number | null> {
     const counterDoc = doc(this.firestore, 'counters/productos');
     const counterSnapshot = await getDoc(counterDoc);
-    
+
     // Verificar si existen productos en la colección
     const productosSnapshot = await getDocs(this.productosRef);
     const hayProductos = !productosSnapshot.empty;
-    
+
     if (!hayProductos) {
       // Si no hay productos, el próximo será 1
       return 1;
     }
-    
+
     if (counterSnapshot.exists()) {
       return counterSnapshot.data()['lastId'] || null;
     }
-    
+
     return null;
   }
 
@@ -630,11 +713,11 @@ export class ProductosService {
    */
   async getNextIdInterno(): Promise<number> {
     const counterDoc = doc(this.firestore, 'counters/productos');
-    
+
     // 1. Obtener todos los productos para encontrar el máximo idInterno real
     const productosSnapshot = await getDocs(this.productosRef);
     let maxIdInterno = 0;
-    
+
     productosSnapshot.docs.forEach(doc => {
       const data = doc.data();
       if (data['idInterno'] && typeof data['idInterno'] === 'number') {
@@ -643,17 +726,17 @@ export class ProductosService {
         }
       }
     });
-    
+
     // 2. El siguiente ID será el máximo + 1, o 1 si no hay productos
     const nextId = maxIdInterno > 0 ? maxIdInterno + 1 : 1;
-    
+
     // 3. Actualizar el contador para futuras referencias
     try {
       await setDoc(counterDoc, { lastId: nextId }, { merge: true });
     } catch (error) {
       console.warn('⚠️ No se pudo actualizar el contador, pero se usará el ID:', nextId);
     }
-    
+
     return nextId;
   }
 
@@ -670,19 +753,19 @@ export class ProductosService {
       this.productosRef,
       where('codigo', '==', codigo)
     );
-    
+
     const snapshot = await getDocs(q);
-    
+
     // Si hay documentos con ese código
     if (snapshot.empty) {
       return false;
     }
-    
+
     // Si estamos editando, excluir el propio documento
     if (excludeId) {
       return snapshot.docs.some(doc => doc.id !== excludeId);
     }
-    
+
     return true;
   }
 
@@ -726,13 +809,13 @@ export class ProductosService {
       this.productosRef,
       where('codigo', '==', codigo)
     );
-    
+
     const snapshot = await getDocs(q);
-    
+
     if (snapshot.empty) {
       return null;
     }
-    
+
     const doc = snapshot.docs[0];
     return { id: doc.id, ...doc.data() } as Producto;
   }
