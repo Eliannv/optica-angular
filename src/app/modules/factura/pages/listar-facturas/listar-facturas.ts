@@ -1272,106 +1272,135 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
 
   // ─── ESCÁNER DE CÓDIGO DE BARRAS DE FACTURAS ─────────────────────────────
 
-  /**
-   * Manejador de input del escáner: dispara la búsqueda con debounce de 250ms.
-   * Los lectores de código de barras envían todos los caracteres muy rápido.
-   */
-  onBarcodeInputFactura(): void {
-    if (this.scannerFacturaTimeout) {
-      clearTimeout(this.scannerFacturaTimeout);
-    }
-    this.scannerFacturaTimeout = setTimeout(() => {
-      if (this.codigoEscaneadoFactura) {
-        this.buscarFacturaPorCodigoBarras();
+  /** Abre el diálogo de escaneo de código de barras y busca la factura en el periodo activo. */
+  async abrirScannerFactura(): Promise<void> {
+    const etiquetaPeriodo = this.fechaSeleccionada
+      ? this.fechaSeleccionada
+      : (this.periodoSeleccionado ?? 'periodo actual');
+
+    const { value: rawCodigo, isConfirmed } = await Swal.fire({
+      title: 'Buscar factura por código de barras',
+      html: `<p style="margin:0 0 8px;font-size:0.9rem;color:#666">Periodo activo: <strong>${etiquetaPeriodo}</strong></p>
+             <p style="margin:0;font-size:0.85rem;color:#999">Escanee el código o ingréselo manualmente y presione Enter o "Buscar".</p>`,
+      input: 'text',
+      inputPlaceholder: 'Escanee aquí el código de barras...',
+      inputAttributes: { autocomplete: 'off' },
+      showCancelButton: true,
+      confirmButtonText: 'Buscar',
+      cancelButtonText: 'Cancelar',
+      didOpen: () => {
+        const inputEl = Swal.getInput();
+        if (inputEl) {
+          inputEl.focus();
+          // Auto-confirmar cuando el escáner envía Enter tras pegar el código rápido
+          inputEl.addEventListener('keydown', (e: KeyboardEvent) => {
+            if (e.key === 'Enter') { e.preventDefault(); Swal.clickConfirm(); }
+          });
+        }
+      },
+      preConfirm: (val: string) => {
+        if (!val?.trim()) {
+          Swal.showValidationMessage('Escanee o ingrese un código de barras');
+          return false;
+        }
+        return val;
       }
-    }, 250);
-  }
+    });
 
-  /** Manejador de Enter en el campo escáner (versión inmediata). */
-  onBarcodeEnterFactura(): void {
-    if (this.scannerFacturaTimeout) {
-      clearTimeout(this.scannerFacturaTimeout);
-      this.scannerFacturaTimeout = null;
-    }
-    this.buscarFacturaPorCodigoBarras();
+    if (!isConfirmed || !rawCodigo) return;
+
+    await this.buscarFacturaPorCodigoBarras(rawCodigo);
   }
 
   /**
-   * Busca la factura por el código escaneado (idPersonalizado de 10 dígitos)
-   * y navega directo a la vista de detalle.
+   * Busca la factura por código de barras SOLO dentro del periodo seleccionado.
+   * Si no existe en el periodo pero sí globalmente, muestra mensaje específico.
    */
-  async buscarFacturaPorCodigoBarras(): Promise<void> {
-    let codigo = (this.codigoEscaneadoFactura || '').replace(/[\r\n\t\x00-\x1F\x7F]/g, '').trim();
+  async buscarFacturaPorCodigoBarras(rawCodigo: string): Promise<void> {
+    const codigo = rawCodigo.replace(/[\r\n\t\x00-\x1F\x7F]/g, '').trim();
     if (!codigo) return;
 
-    // Normalizar: quitar ceros iniciales para facilitar búsqueda y luego
-    // volver a formatear a 10 dígitos si es numérico
     const soloDigitos = /^\d+$/.test(codigo);
     const idBusqueda = soloDigitos ? codigo.replace(/^0+/, '').padStart(10, '0') : codigo;
 
-    this.codigoEscaneadoFactura = '';
-
-    try {
-      const { startDate, endDate, fechaExacta } = this.obtenerFiltrosFecha();
-
-      const [resultadoFacturas, resultadoPagos] = await Promise.all([
-        this.facturasSrv.getFacturasPaginadasReal({
-          pageSize: 5000,
-          lastVisible: null,
-          direction: 'next',
-          terminoBusqueda: idBusqueda,
-          filtroTipoFactura: 'TODAS',
-          currentPage: 1,
-          startDate,
-          endDate,
-          fechaExacta
-        }),
-        this.facturasDeudaSrv.getPagosDeudaPaginadosReal({
-          pageSize: 5000,
-          lastVisible: null,
-          direction: 'next',
-          terminoBusqueda: idBusqueda,
-          currentPage: 1,
-          startDate,
-          endDate,
-          fechaExacta
-        })
-      ]);
-
-      const facturasNormalizadas = resultadoFacturas.facturas || [];
-      const pagosMapeados = await this.mapearCobrosDeuda(resultadoPagos.pagos || []);
-      const universo = [...facturasNormalizadas, ...pagosMapeados];
-
-      const encontrada = universo.find((f: any) => {
+    const encontrarEnResultados = (facturas: any[], pagos: any[]) => {
+      const universo = [...facturas, ...pagos];
+      return universo.find((f: any) => {
         const idPers = String(f?.idPersonalizado || '').trim();
         const idDoc = String(f?.id || '').trim();
         return idPers === idBusqueda || idDoc === idBusqueda || idPers === codigo || idDoc === codigo;
       });
+    };
 
-      if (encontrada?.id) {
-        this.router.navigate(['/facturas', encontrada.id]);
-      } else {
-        const etiquetaPeriodo = this.fechaSeleccionada
-          ? `fecha ${this.fechaSeleccionada}`
-          : (this.periodoSeleccionado ? `periodo ${this.periodoSeleccionado}` : 'periodo actual');
+    try {
+      // 1️⃣ Buscar dentro del periodo activo
+      const { startDate, endDate, fechaExacta } = this.obtenerFiltrosFecha();
 
+      const [resFacturasPeriodo, resDeudaPeriodo] = await Promise.all([
+        this.facturasSrv.getFacturasPaginadasReal({
+          pageSize: 5000, lastVisible: null, direction: 'next',
+          terminoBusqueda: idBusqueda, filtroTipoFactura: 'TODAS',
+          currentPage: 1, startDate, endDate, fechaExacta
+        }),
+        this.facturasDeudaSrv.getPagosDeudaPaginadosReal({
+          pageSize: 5000, lastVisible: null, direction: 'next',
+          terminoBusqueda: idBusqueda, currentPage: 1, startDate, endDate, fechaExacta
+        })
+      ]);
+
+      const pagosPeriodo = await this.mapearCobrosDeuda(resDeudaPeriodo.pagos || []);
+      const encontradaEnPeriodo = encontrarEnResultados(resFacturasPeriodo.facturas || [], pagosPeriodo);
+
+      if (encontradaEnPeriodo?.id) {
+        this.router.navigate(['/facturas', encontradaEnPeriodo.id]);
+        return;
+      }
+
+      // 2️⃣ No encontrada en el periodo — buscar globalmente para dar mensaje preciso
+      const [resFacturasGlobal, resDeudaGlobal] = await Promise.all([
+        this.facturasSrv.getFacturasPaginadasReal({
+          pageSize: 5000, lastVisible: null, direction: 'next',
+          terminoBusqueda: idBusqueda, filtroTipoFactura: 'TODAS',
+          currentPage: 1, startDate: null, endDate: null, fechaExacta: null
+        }),
+        this.facturasDeudaSrv.getPagosDeudaPaginadosReal({
+          pageSize: 5000, lastVisible: null, direction: 'next',
+          terminoBusqueda: idBusqueda, currentPage: 1,
+          startDate: null, endDate: null, fechaExacta: null
+        })
+      ]);
+
+      const pagosGlobal = await this.mapearCobrosDeuda(resDeudaGlobal.pagos || []);
+      const encontradaGlobal = encontrarEnResultados(resFacturasGlobal.facturas || [], pagosGlobal);
+
+      const etiquetaPeriodo = this.fechaSeleccionada
+        ? `la fecha ${this.fechaSeleccionada}`
+        : (this.periodoSeleccionado ? `el periodo ${this.periodoSeleccionado}` : 'el periodo actual');
+
+      if (encontradaGlobal?.id) {
         Swal.fire({
-          icon: 'warning',
-          title: 'Factura no encontrada en el periodo',
-          text: `No se encontró el código '${codigo}' dentro del ${etiquetaPeriodo}.`,
-          confirmButtonText: 'Entendido',
-          timer: 3200,
-          timerProgressBar: true
+          icon: 'info',
+          title: 'Factura no encontrada',
+          text: `Esta factura no pertenece a ${etiquetaPeriodo}.`,
+          timer: 3000,
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false
+        });
+      } else {
+        Swal.fire({
+          icon: 'info',
+          title: 'Factura no encontrada',
+          text: `No se encontró ninguna factura con el código '${codigo}'.`,
+          timer: 3000,
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false
         });
       }
     } catch (err) {
       console.error('[Facturas] Error buscando por código de barras:', err);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Ocurrió un error al buscar la factura. Intente nuevamente.',
-        confirmButtonText: 'Entendido'
-      });
+      Swal.fire({ icon: 'error', title: 'Error', text: 'Ocurrió un error al buscar la factura.', timer: 3000, toast: true, position: 'top-end', showConfirmButton: false });
     }
   }
 

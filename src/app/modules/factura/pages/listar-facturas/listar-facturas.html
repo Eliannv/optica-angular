@@ -31,11 +31,8 @@
                         </svg>
                     </button>
                 </div>
-            </div>
 
-            <!-- Escáner código de barras -->
-            <div class="filtro-item filtro-busqueda">
-                <label for="scanner-factura-input">
+                <button class="btn-scanner" (click)="abrirScannerFactura()" [disabled]="!periodoSeleccionado" title="Buscar factura por código de barras en el periodo seleccionado">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="3" y1="9" x2="3" y2="5"/><line x1="3" y1="5" x2="7" y2="5"/>
                         <line x1="21" y1="5" x2="17" y2="5"/><line x1="21" y1="9" x2="21" y2="5"/>
@@ -44,26 +41,8 @@
                         <line x1="7" y1="8" x2="7" y2="16"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="17" y1="8" x2="17" y2="16"/>
                         <line x1="10" y1="8" x2="10" y2="16"/><line x1="15" y1="8" x2="15" y2="16"/>
                     </svg>
-                    Escanear factura:
-                </label>
-                <div class="search-input-group">
-                    <input
-                        id="scanner-factura-input"
-                        class="form-control"
-                        placeholder="Escanee el código de barras..."
-                        [(ngModel)]="codigoEscaneadoFactura"
-                        (input)="onBarcodeInputFactura()"
-                        (keydown.enter)="onBarcodeEnterFactura()"
-                        autofocus
-                        autocomplete="off"
-                    />
-                    <button class="btn-clear-busqueda" *ngIf="codigoEscaneadoFactura" (click)="codigoEscaneadoFactura = ''">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-                </div>
+                    Escanear
+                </button>
             </div>
 
             <!-- Periodo -->

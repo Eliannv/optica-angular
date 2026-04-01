@@ -472,3 +472,33 @@
         min-width: unset;
     }
 }
+
+/* Scanner button */
+.btn-scanner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 36px;
+  padding: 0 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--primary-color);
+  color: var(--primary-color);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+.btn-scanner:hover:not(:disabled) {
+  background: var(--primary-color);
+  color: var(--btn-primary-text);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(var(--primary-rgb, 59,130,246), 0.25);
+}
+.btn-scanner:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn-scanner svg {
+  flex-shrink: 0;
+}
