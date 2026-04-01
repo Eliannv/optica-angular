@@ -156,12 +156,7 @@
                         </article>
                         <article class="stat-item stat-info">
                             <div class="stat-icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
-            <path d="M12 18V6"/>
-          </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-dollar-sign-icon lucide-dollar-sign"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                             </div>
                             <div class="stat-info">
                                 <span class="stat-label">Total abonado</span>
@@ -170,11 +165,25 @@
                         </article>
                         <article class="stat-item stat-warning">
                             <div class="stat-icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-dollar-sign-icon lucide-dollar-sign"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
+            <path d="M12 18V6"/>
+          </svg>
                             </div>
                             <div class="stat-info">
-                                <span class="stat-label">Saldo pendiente (crédito)</span>
-                                <strong class="stat-value">${{ saldoPendienteTotal.toFixed(2) }}</strong>
+                                <span class="stat-label">Crédito personal activo</span>
+                                <strong class="stat-value">${{ saldoCreditoPersonal.toFixed(2) }}</strong>
+                            </div>
+                        </article>
+                        <article class="stat-item" style="background: linear-gradient(135deg, rgba(231,76,60,0.08) 0%, rgba(231,76,60,0.04) 100%); border-color: rgba(231,76,60,0.25);">
+                            <div class="stat-icon" style="color: #e74c3c;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                            </div>
+                            <div class="stat-info">
+                                <span class="stat-label">Saldo pendiente total</span>
+                                <strong class="stat-value" style="color: #e74c3c;">${{ saldoPendienteTotal.toFixed(2) }}</strong>
                             </div>
                         </article>
                     </div>
@@ -269,6 +278,7 @@
                         <tr>
                             <th class="col-id">#</th>
                             <th class="col-cliente">Cliente</th>
+                            <th class="col-pago">Fecha</th>
                             <th class="col-pago">Método Pago</th>
 
                             <!-- ✅ NUEVO: Tipo de factura -->
@@ -292,6 +302,10 @@
 
                             <td class="col-cliente">
                                 <strong>{{ f.clienteNombre }}</strong>
+                            </td>
+
+                            <td class="col-pago">
+                                <span>{{ f.fecha?.toDate ? (f.fecha.toDate() | date:'dd/MM/yyyy HH:mm') : (f.fecha | date:'dd/MM/yyyy HH:mm') }}</span>
                             </td>
 
                             <td class="col-pago">

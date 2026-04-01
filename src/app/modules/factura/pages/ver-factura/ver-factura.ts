@@ -1,6 +1,6 @@
 import { Component, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { FacturasService } from '../../../../core/services/facturas';
 import { FacturasDeudaService } from '../../../../core/services/facturas-deuda.service';
@@ -61,7 +61,7 @@ import JsBarcode from 'jsbarcode';
 @Component({
   selector: 'app-ver-factura',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './ver-factura.html',
   styleUrl: './ver-factura.css'
 })
@@ -224,7 +224,7 @@ export class VerFacturaComponent implements OnDestroy {
         format: 'CODE128',
         width: 2,
         height: 40,
-        displayValue: true,
+        displayValue: false,
         fontSize: 11,
         margin: 4,
         textMargin: 2

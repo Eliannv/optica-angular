@@ -137,57 +137,73 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
   }
 
   get totalFacturado(): number {
-    return this.facturasStats.reduce((acc, f) => acc + Number(f?.total || 0), 0);
+    // Solo ventas nuevas (NORMAL) — los cobros de deuda no son facturación nueva
+    return this.facturasStats
+      .filter(f => f?.tipoFactura !== 'COBRO_DEUDA')
+      .reduce((acc, f) => acc + Number(f?.total || 0), 0);
   }
 
   get totalAbonado(): number {
     return this.facturasStats.reduce((acc, f) => acc + Number(f?.abonado || 0), 0);
   }
 
+  /** Saldo pendiente de facturas con crédito personal activo (esCredito: true) */
+  get saldoCreditoPersonal(): number {
+    return this.facturasStats
+      .filter(f => f?.tipoFactura !== 'COBRO_DEUDA' && f?.esCredito)
+      .reduce((acc, f) => acc + Number(f?.saldoPendiente || 0), 0);
+  }
+
+  /** Saldo pendiente total: todas las facturas del periodo con estado PENDIENTE */
   get saldoPendienteTotal(): number {
-    return this.facturasStats.reduce((acc, f) => {
-      if (!f?.esCredito) return acc;
-      return acc + Number(f?.saldoPendiente || 0);
-    }, 0);
+    return this.facturasStats
+      .filter(f => f?.tipoFactura !== 'COBRO_DEUDA' && f?.estadoPago === 'PENDIENTE' && Number(f?.saldoPendiente || 0) > 0)
+      .reduce((acc, f) => acc + Number(f?.saldoPendiente || 0), 0);
   }
 
   get ticketPromedio(): number {
-    const count = this.facturasStats.length;
+    const normales = this.facturasStats.filter(f => f?.tipoFactura !== 'COBRO_DEUDA');
+    const count = normales.length;
     if (!count) return 0;
-    return this.totalFacturado / count;
+    return normales.reduce((acc, f) => acc + Number(f?.total || 0), 0) / count;
   }
 
   get facturaMaxima(): number {
-    if (!this.facturasStats.length) return 0;
-    return Math.max(...this.facturasStats.map(f => Number(f?.total || 0)));
+    const normales = this.facturasStats.filter(f => f?.tipoFactura !== 'COBRO_DEUDA');
+    if (!normales.length) return 0;
+    return Math.max(...normales.map(f => Number(f?.total || 0)));
   }
 
   get facturaMinima(): number {
-    if (!this.facturasStats.length) return 0;
-    return Math.min(...this.facturasStats.map(f => Number(f?.total || 0)));
+    const normales = this.facturasStats.filter(f => f?.tipoFactura !== 'COBRO_DEUDA');
+    if (!normales.length) return 0;
+    return Math.min(...normales.map(f => Number(f?.total || 0)));
   }
 
   get ventasPorDia(): { dia: string; fecha: Date; total: number }[] {
     const agrupado = new Map<string, { fecha: Date; total: number }>();
 
-    this.facturasStats.forEach((f) => {
-      const ms = this.getFechaMs(f);
-      if (!ms) return;
+    // Solo ventas nuevas (NORMAL) en la gráfica por día — cobros no son facturación nueva
+    this.facturasStats
+      .filter(f => f?.tipoFactura !== 'COBRO_DEUDA')
+      .forEach((f) => {
+        const ms = this.getFechaMs(f);
+        if (!ms) return;
 
-      const fecha = new Date(ms);
-      const inicioDia = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
-      const key = inicioDia.toISOString().split('T')[0];
-      const prev = agrupado.get(key);
+        const fecha = new Date(ms);
+        const inicioDia = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
+        const key = inicioDia.toISOString().split('T')[0];
+        const prev = agrupado.get(key);
 
-      if (prev) {
-        prev.total += Number(f?.total || 0);
-      } else {
-        agrupado.set(key, {
-          fecha: inicioDia,
-          total: Number(f?.total || 0)
-        });
-      }
-    });
+        if (prev) {
+          prev.total += Number(f?.total || 0);
+        } else {
+          agrupado.set(key, {
+            fecha: inicioDia,
+            total: Number(f?.total || 0)
+          });
+        }
+      });
 
     return Array.from(agrupado.values())
       .sort((a, b) => a.fecha.getTime() - b.fecha.getTime())
@@ -212,8 +228,12 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
     this.facturasStats.forEach((f) => {
       const metodo = this.normalizarMetodoPago(f?.metodoPago);
       const registro = acc.get(metodo) || { metodo, cantidad: 0, monto: 0 };
+      // Para COBRO_DEUDA: usar el monto realmente cobrado (abonado), no el total de la factura original
+      const monto = f?.tipoFactura === 'COBRO_DEUDA'
+        ? Number(f?.abonado || 0)
+        : Number(f?.total || 0);
       registro.cantidad += 1;
-      registro.monto += Number(f?.total || 0);
+      registro.monto += monto;
       acc.set(metodo, registro);
     });
 
@@ -1267,7 +1287,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
   }
 
   nuevaVenta() {
-    this.router.navigate(['/clientes/historial-clinico']);
+    this.router.navigate(['/ventas/crear']);
   }
 
   // ─── ESCÁNER DE CÓDIGO DE BARRAS DE FACTURAS ─────────────────────────────
@@ -1313,8 +1333,8 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Busca la factura por código de barras SOLO dentro del periodo seleccionado.
-   * Si no existe en el periodo pero sí globalmente, muestra mensaje específico.
+   * Busca la factura por código de barras únicamente dentro del periodo activo.
+   * Si no encuentra, muestra un solo mensaje sin segunda consulta global.
    */
   async buscarFacturaPorCodigoBarras(rawCodigo: string): Promise<void> {
     const codigo = rawCodigo.replace(/[\r\n\t\x00-\x1F\x7F]/g, '').trim();
@@ -1323,20 +1343,10 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
     const soloDigitos = /^\d+$/.test(codigo);
     const idBusqueda = soloDigitos ? codigo.replace(/^0+/, '').padStart(10, '0') : codigo;
 
-    const encontrarEnResultados = (facturas: any[], pagos: any[]) => {
-      const universo = [...facturas, ...pagos];
-      return universo.find((f: any) => {
-        const idPers = String(f?.idPersonalizado || '').trim();
-        const idDoc = String(f?.id || '').trim();
-        return idPers === idBusqueda || idDoc === idBusqueda || idPers === codigo || idDoc === codigo;
-      });
-    };
-
     try {
-      // 1️⃣ Buscar dentro del periodo activo
       const { startDate, endDate, fechaExacta } = this.obtenerFiltrosFecha();
 
-      const [resFacturasPeriodo, resDeudaPeriodo] = await Promise.all([
+      const [resFacturas, resDeuda] = await Promise.all([
         this.facturasSrv.getFacturasPaginadasReal({
           pageSize: 5000, lastVisible: null, direction: 'next',
           terminoBusqueda: idBusqueda, filtroTipoFactura: 'TODAS',
@@ -1348,56 +1358,32 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
         })
       ]);
 
-      const pagosPeriodo = await this.mapearCobrosDeuda(resDeudaPeriodo.pagos || []);
-      const encontradaEnPeriodo = encontrarEnResultados(resFacturasPeriodo.facturas || [], pagosPeriodo);
+      const pagos = await this.mapearCobrosDeuda(resDeuda.pagos || []);
+      const universo = [...(resFacturas.facturas || []), ...pagos];
+      const encontrada = universo.find((f: any) => {
+        const idPers = String(f?.idPersonalizado || '').trim();
+        const idDoc = String(f?.id || '').trim();
+        return idPers === idBusqueda || idDoc === idBusqueda || idPers === codigo || idDoc === codigo;
+      });
 
-      if (encontradaEnPeriodo?.id) {
-        this.router.navigate(['/facturas', encontradaEnPeriodo.id]);
+      if (encontrada?.id) {
+        this.router.navigate(['/facturas', encontrada.id]);
         return;
       }
-
-      // 2️⃣ No encontrada en el periodo — buscar globalmente para dar mensaje preciso
-      const [resFacturasGlobal, resDeudaGlobal] = await Promise.all([
-        this.facturasSrv.getFacturasPaginadasReal({
-          pageSize: 5000, lastVisible: null, direction: 'next',
-          terminoBusqueda: idBusqueda, filtroTipoFactura: 'TODAS',
-          currentPage: 1, startDate: null, endDate: null, fechaExacta: null
-        }),
-        this.facturasDeudaSrv.getPagosDeudaPaginadosReal({
-          pageSize: 5000, lastVisible: null, direction: 'next',
-          terminoBusqueda: idBusqueda, currentPage: 1,
-          startDate: null, endDate: null, fechaExacta: null
-        })
-      ]);
-
-      const pagosGlobal = await this.mapearCobrosDeuda(resDeudaGlobal.pagos || []);
-      const encontradaGlobal = encontrarEnResultados(resFacturasGlobal.facturas || [], pagosGlobal);
 
       const etiquetaPeriodo = this.fechaSeleccionada
         ? `la fecha ${this.fechaSeleccionada}`
         : (this.periodoSeleccionado ? `el periodo ${this.periodoSeleccionado}` : 'el periodo actual');
 
-      if (encontradaGlobal?.id) {
-        Swal.fire({
-          icon: 'info',
-          title: 'Factura no encontrada',
-          text: `Esta factura no pertenece a ${etiquetaPeriodo}.`,
-          timer: 3000,
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false
-        });
-      } else {
-        Swal.fire({
-          icon: 'info',
-          title: 'Factura no encontrada',
-          text: `No se encontró ninguna factura con el código '${codigo}'.`,
-          timer: 3000,
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false
-        });
-      }
+      Swal.fire({
+        icon: 'warning',
+        title: 'Factura no encontrada',
+        text: `La factura '${codigo}' no existe o no pertenece a ${etiquetaPeriodo}.`,
+        timer: 3500,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false
+      });
     } catch (err) {
       console.error('[Facturas] Error buscando por código de barras:', err);
       Swal.fire({ icon: 'error', title: 'Error', text: 'Ocurrió un error al buscar la factura.', timer: 3000, toast: true, position: 'top-end', showConfirmButton: false });

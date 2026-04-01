@@ -530,14 +530,17 @@ export class CrearHistorialClinicoComponent implements OnInit {
    * Cancela la operación y retorna a la lista de historiales del cliente.
    */
   cancelar() {
-    if (this.returnTo) {
-      this.router.navigateByUrl(this.returnTo);
-      return;
-    }
-    this.router.navigate(['/clientes/historiales'], {
-      queryParams: { clienteId: this.clienteId }
-    });
+  if (this.returnTo) {
+    this.router.navigateByUrl(this.returnTo);
+    return;
   }
+  // Redirige a la ficha del cliente si hay clienteId
+  if (this.clienteId) {
+    this.router.navigate(['/clientes/ficha', this.clienteId]);
+    return;
+  }
+  this.router.navigate(['/clientes/lista']);
+}
 
   /**
    * Verifica si el botón de guardar debe estar habilitado.

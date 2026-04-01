@@ -76,6 +76,19 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
   // ✅ FILTROS Y BÚSQUEDA
   filtroFactura = ''; // Búsqueda por número de factura
 
+  // 🔫 ESCANER DE CÓDIGO DE BARRAS (activo durante la vida del componente)
+  codigoEscaneado = '';
+  
+  
+  private codigoScannerTimeout: any = null;
+  private scannerCodeBuffer = '';
+  private scannerLastKeyTime = 0;
+  private scannerTimer: any = null;
+  private scannerBusquedaEnProceso = false;
+  private ultimoCodigoProcesado = '';
+  private ultimoCodigoProcesadoTime = 0;
+  private facturaIdPendienteEscaneo: string | null = null;
+
   /**
    * Calcula el vuelto automáticamente
    * Vuelto = Abono - Saldo Pendiente (solo si abono es mayor)
@@ -328,6 +341,21 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
             this.recalcularSaldoNuevo();
           }
         }
+
+        // Selección diferida para escáner: evita requerir doble escaneo por timing de carga.
+        if (this.facturaIdPendienteEscaneo) {
+          const encontradaPorEscaner = this.pendientes.find(x => String(x?.id) === String(this.facturaIdPendienteEscaneo));
+          if (encontradaPorEscaner) {
+            this.filtroFactura = '';
+            this.filtroFecha = '';
+            this.filtroCredito = 'todos';
+            this.seleccionarFactura(encontradaPorEscaner, true);
+            this.selectedIndex = this.facturasFiltradas.findIndex((x: any) => x.id === encontradaPorEscaner.id);
+            this.scrollToSelectedFactura();
+            
+            this.facturaIdPendienteEscaneo = null;
+          }
+        }
       });
     } finally {
       this.loading = false;
@@ -336,6 +364,15 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.sub?.unsubscribe();
+    if (this.codigoScannerTimeout) {
+      clearTimeout(this.codigoScannerTimeout);
+      this.codigoScannerTimeout = null;
+    }
+    if (this.scannerTimer) {
+      clearTimeout(this.scannerTimer);
+      this.scannerTimer = null;
+    }
+    this.facturaIdPendienteEscaneo = null;
   }
 
   // ✅ BÚSQUEDA Y FILTROS
@@ -385,7 +422,46 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
   // ✅ NAVEGACIÓN GLOBAL CON TECLADO
   @HostListener('document:keydown', ['$event'])
   onDocumentKeydown(event: KeyboardEvent) {
-    // Solo si el usuario está en el componente
+    const target = event.target as HTMLElement;
+    const tagName = target.tagName.toUpperCase();
+    const inFormField = tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT' || tagName === 'BUTTON' || target.contentEditable === 'true';
+    const now = Date.now();
+
+    // (1) Captura de scanner: secuencias rápidas + Enter
+    if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      if (now - this.scannerLastKeyTime > 120) {
+        this.scannerCodeBuffer = '';
+      }
+
+      this.scannerCodeBuffer += event.key;
+      this.scannerLastKeyTime = now;
+
+      if (this.scannerTimer) {
+        clearTimeout(this.scannerTimer);
+      }
+      this.scannerTimer = setTimeout(() => {
+        this.scannerCodeBuffer = '';
+      }, 600);
+
+      if (inFormField) {
+        return;
+      }
+    }
+
+    const probableScanner = this.scannerCodeBuffer.length >= 3 && now - this.scannerLastKeyTime <= 200;
+    if (event.key === 'Enter' && probableScanner) {
+      event.preventDefault();
+      this.codigoEscaneado = this.scannerCodeBuffer;
+      this.scannerCodeBuffer = '';
+      if (this.scannerTimer) {
+        clearTimeout(this.scannerTimer);
+        this.scannerTimer = null;
+      }
+      this.buscarFacturaPendientePorCodigo();
+      return;
+    }
+
+    // (2) Navegación existente
     const filtradas = this.facturasFiltradas;
     if (!filtradas || filtradas.length === 0) return;
 
@@ -428,6 +504,151 @@ export class CobrarDeudaComponent implements OnInit, OnDestroy {
     // Solo recalcular índice si se hizo click (no desde keyboard)
     if (!desdeKeyboard) {
       this.selectedIndex = this.facturasFiltradas.findIndex(x => x.id === f.id);
+    }
+  }
+
+  private normalizarCodigoEscaneado(codigoRaw: string): { original: string; normalizado: string } {
+    const original = (codigoRaw || '').replace(/[\r\n\t\x00-\x1F\x7F]/g, '').trim();
+    if (!original) {
+      return { original: '', normalizado: '' };
+    }
+
+    let codigo = original.replace(/\s+/g, '').toUpperCase();
+    if (codigo.startsWith('FACT')) {
+      codigo = codigo.slice(4);
+    }
+
+    const soloDigitos = /^\d+$/.test(codigo);
+    if (soloDigitos) {
+      codigo = codigo.replace(/^0+/, '').padStart(10, '0');
+    }
+
+    return { original, normalizado: codigo };
+  }
+  /**
+   * Busca una factura por código de barras y la selecciona solo si tiene deuda pendiente.
+   */
+  async buscarFacturaPendientePorCodigo(): Promise<void> {
+    const { original, normalizado } = this.normalizarCodigoEscaneado(this.codigoEscaneado);
+    if (!normalizado) {
+      return;
+    }
+
+    if (this.scannerBusquedaEnProceso) {
+      return;
+    }
+
+    const ahora = Date.now();
+    if (normalizado === this.ultimoCodigoProcesado && ahora - this.ultimoCodigoProcesadoTime < 1000) {
+      return;
+    }
+
+    this.scannerBusquedaEnProceso = true;
+
+    try {
+
+      const resultado = await this.facturasSrv.getFacturasPaginadasReal({
+        pageSize: 5000,
+        lastVisible: null,
+        direction: 'next',
+        terminoBusqueda: normalizado,
+        filtroTipoFactura: 'NORMALES',
+        currentPage: 1,
+        startDate: null,
+        endDate: null,
+        fechaExacta: null
+      });
+
+      const candidata = (resultado.facturas || []).find((f: any) => {
+        const idPers = String(f?.idPersonalizado || '').trim();
+        const idDoc = String(f?.id || '').trim();
+        return idPers === normalizado || idDoc === normalizado || idPers === original || idDoc === original;
+      });
+
+      if (!candidata?.id || !candidata?.clienteId) {
+        
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Factura no encontrada',
+          text: `No se encontró ninguna factura con el código '${original}'.`,
+          timer: 3000,
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false
+        });
+        return;
+      }
+
+      const pendientesCliente = await firstValueFrom(this.facturasSrv.getPendientesPorCliente(candidata.clienteId));
+      const facturaPendiente = (pendientesCliente || []).find((f: any) => {
+        const idPers = String(f?.idPersonalizado || '').trim();
+        const idDoc = String(f?.id || '').trim();
+        return idDoc === String(candidata.id) || idPers === normalizado || idDoc === normalizado || idPers === original || idDoc === original;
+      });
+
+      if (!facturaPendiente) {
+        
+        await Swal.fire({
+          icon: 'error',
+          title: 'Factura sin cobro pendiente',
+          text: `La factura '${normalizado}' existe, pero no tiene un cobro pendiente.`,
+          timer: 3000,
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false
+        });
+        return;
+      }
+
+      if (this.clienteId !== candidata.clienteId) {
+        this.sub?.unsubscribe();
+        this.clienteId = candidata.clienteId;
+        this.facturaIdPendienteEscaneo = String(facturaPendiente.id);
+        
+        await this.cargarDeudasCliente();
+        return;
+      }
+
+      this.filtroFactura = '';
+      this.filtroFecha = '';
+      this.filtroCredito = 'todos';
+
+      const enLista = (this.pendientes || []).find((f: any) => String(f?.id) === String(facturaPendiente.id));
+      if (!enLista) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Factura no encontrada en la lista',
+          text: `No se pudo cargar la factura ${normalizado} en la lista de pendientes.`,
+          timer: 3000,
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false
+        });
+        return;
+      }
+
+      this.seleccionarFactura(enLista, true);
+      this.selectedIndex = this.facturasFiltradas.findIndex((x: any) => x.id === enLista.id);
+      this.scrollToSelectedFactura();
+
+      
+    } catch (error) {
+      console.error('Error al buscar factura por código de barras:', error);
+      
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Ocurrió un error al buscar la factura por código de barras.',
+        timer: 3000,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false
+      });
+    } finally {
+      this.scannerBusquedaEnProceso = false;
+      this.ultimoCodigoProcesado = normalizado;
+      this.ultimoCodigoProcesadoTime = ahora;
+      this.codigoEscaneado = '';
     }
   }
 
