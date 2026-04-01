@@ -69,6 +69,7 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
 
   productos: any[] = [];
   filtro = '';
+  codigoEscaneado = '';
   productosFiltrados: any[] = [];
   selectedIndex = -1; // Para navegación con flechas
   productoSeleccionado: any = null; // Producto actualmente seleccionado
@@ -101,6 +102,15 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     cantidad: 1,
     precio: 0
   };
+
+  permitirAgregarSinStock = false; // Control de stock activo: no permitir agregar con stock 0
+  private codigoScannerTimeout: any = null;
+  private codigoBusquedaEnProceso = false;
+  private ultimoCodigoProcesado = '';
+  private ultimoCodigoProcesadoTime = 0;
+
+  mensajeEscaneo = '';
+  mensajeEscaneoTipo: 'success' | 'warning' | 'error' | '' = '';
 
   ivaPct = 0.15;
   private _descuentoPorcentaje = 0;
@@ -357,6 +367,14 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
 
     // 🚀 OPTIMIZADO: Configurar búsqueda con debounce
     this.configurarBusquedaOptimizada();
+
+    // ⚡ Enfocar campo de escaner para entrada rápida con lector de código de barras
+    setTimeout(() => {
+      const input = document.querySelector<HTMLInputElement>('#codigoEscaneadoInput');
+      if (input) {
+        input.focus();
+      }
+    }, 150);
 
     this.loading = false;
   }
@@ -1759,6 +1777,216 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     // NO resetear selectedIndex para permitir navegación con flechas desde este producto
   }
 
+  /**
+   * 🔎 Buscar producto por código escaneado/ingresado y agregarlo al carrito
+   */
+  async buscarProductoPorCodigo() {
+    let codigo = (this.codigoEscaneado || '').replace(/\r|\n/g, '');
+    // Quitar caracteres no imprimibles que algunos scanners agregan, como tab, ctrl, etc.
+    codigo = codigo.replace(/[\x00-\x1F\x7F]/g, '').trim();
+    if (!codigo) {
+      return;
+    }
+
+    if (this.codigoBusquedaEnProceso) {
+      console.log('[POS] búsqueda en proceso, evitando doble ejecución:', codigo);
+      return;
+    }
+
+    const ahora = Date.now();
+    if (codigo === this.ultimoCodigoProcesado && ahora - this.ultimoCodigoProcesadoTime < 1000) {
+      console.log('[POS] código duplicado detectado en intervalo corto, ignorando', codigo);
+      return;
+    }
+
+    this.codigoBusquedaEnProceso = true;
+
+    // Normalización básica: quitar espacios, mayúsculas
+    const codigoOriginal = codigo;
+    codigo = codigo.replace(/\s+/g, '').toUpperCase();
+
+    // Quitar prefijo opcional (p.ej. PROD00123)
+    if (codigo.startsWith('PROD')) {
+      codigo = codigo.slice(4);
+    }
+
+    // Quitar ceros a la izquierda para búsqueda idInterno
+    const codigoSinCeros = codigo.replace(/^0+/, '');
+
+    const codigoAlfa = codigoSinCeros.replace(/[^0-9A-Z]/g, '');
+    console.log('[POS] buscarProductoPorCodigo (normalizado)', { codigoOriginal, codigo, codigoSinCeros, codigoAlfa });
+
+    // Usar ahora el valor limpio para búsqueda principal
+    const codigoBusqueda = codigoSinCeros || '0';
+
+    try {
+      this.cargandoProductos = true;
+
+      let productos = await firstValueFrom(this.productosSrv.getProductoPorCodigo(codigoBusqueda));
+      console.log('[POS] resultados Firestore exacto', productos);
+
+      // Fallback 1: preferir idInterno numérico (para productos con idInterno)
+      if (!isNaN(Number(codigoBusqueda))) {
+        const idInterno = Number(codigoBusqueda);
+
+        // Primero buscar localmente por idInterno para evitar falsos positivos de código numérico
+        let directMatch = (this.productos || []).filter(p => Number(p.idInterno) === idInterno && p.activo !== false);
+        if (directMatch.length > 0) {
+          productos = directMatch;
+          console.log('[POS] lookup por idInterno local', { idInterno, productos });
+        }
+
+        // Si sigue vacío, intentar desde servicio en Firestore (por si no se cargó localmente aún)
+        if ((!productos || productos.length === 0) && this.productosSrv) {
+          try {
+            const firestoreMatches = await firstValueFrom(this.productosSrv.getProductoPorCodigo(idInterno.toString()));
+            if (firestoreMatches && firestoreMatches.length > 0) {
+              productos = firestoreMatches;
+              console.log('[POS] lookup por idInterno firestore', { idInterno, productos });
+            }
+          } catch (err) {
+            console.warn('[POS] idInterno firestore fallback error', err);
+          }
+        }
+      }
+
+      // Fallback 2: buscar en la lista completa si no hay resultados exactos (insensible a mayúsculas/espacios)
+      if (!productos || productos.length === 0) {
+        const listaLocal = this.productos || [];
+        productos = listaLocal.filter(p => {
+          const codigoProd = ((p.codigo || p.idInterno?.toString() || p.modelo || '') + '')
+            .replace(/\s+/g, '').toUpperCase();
+          const codigoProdAlfa = codigoProd.replace(/[^0-9A-Z]/g, '');
+          return codigoProd === codigoBusqueda || codigoProd === codigoSinCeros || codigoProdAlfa === codigoAlfa;
+        });
+        console.log('[POS] fallback local exacto (sin espacios/modelo, normalizado alfa)', productos);
+      }
+
+      // Fallback 3: búsqueda parcial en local
+      if (!productos || productos.length === 0) {
+        const listaLocal = this.productos || [];
+        productos = listaLocal.filter(p => {
+          const codigoProd = ((p.codigo || p.idInterno?.toString() || p.modelo || '') + '')
+            .replace(/\s+/g, '').toUpperCase();
+          const codigoProdAlfa = codigoProd.replace(/[^0-9A-Z]/g, '');
+          return codigoProd.includes(codigoBusqueda) || codigoProdAlfa.includes(codigoAlfa);
+        });
+        console.log('[POS] fallback local parcial (contiene, incluye modelo, normalizado alfa)', productos);
+      }
+
+      // Fallback 4: comparación alfanumérica estricto, para modelos con guiones/puntos
+      if (!productos || productos.length === 0) {
+        const listaLocal = this.productos || [];
+        const codigoOnlyAlfa = codigoBusqueda.replace(/[^0-9A-Z]/g, '');
+        if (codigoOnlyAlfa) {
+          productos = listaLocal.filter(p => {
+            const codigoProd = ((p.codigo || p.idInterno?.toString() || p.modelo || '') + '')
+              .replace(/[^0-9A-Z]/g, '').toUpperCase();
+            return codigoProd === codigoOnlyAlfa || codigoProd.includes(codigoOnlyAlfa);
+          });
+          console.log('[POS] fallback local alfanumérico', { codigoOnlyAlfa, productos });
+        }
+      }
+
+      // Fallback 5: idInterno exacto para escáner numérico puro sobre valor limpio
+      if ((!productos || productos.length === 0) && /^\d+$/.test(codigoBusqueda)) {
+        const idInterno = Number(codigoBusqueda);
+        productos = (this.productos || []).filter(p => Number(p.idInterno) === idInterno && p.activo !== false);
+        console.log('[POS] fallback idInterno direct', { idInterno, productos });
+
+        if ((!productos || productos.length === 0) && !isNaN(idInterno)) {
+          try {
+            const byId = await firstValueFrom(this.productosSrv.getProductoPorCodigo(idInterno.toString()));
+            if (byId && byId.length > 0) {
+              productos = byId;
+              console.log('[POS] fallback idInterno firestore', { idInterno, productos });
+            }
+          } catch (e) {
+            console.warn('[POS] fallback idInterno firestore error', e);
+          }
+        }
+      }
+
+      if (!productos || productos.length === 0) {
+        this.setMensajeEscaneo(`No se encontró producto con código '${this.codigoEscaneado}'.`, 'warning');
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Producto no encontrado',
+          text: `No se encontró ningún producto con el código '${this.codigoEscaneado}'.`,
+          confirmButtonText: 'Entendido',
+        });
+        return;
+      }
+
+      const producto = productos[0];
+      console.log('[POS] producto encontrado a agregar', producto);
+      const agregado = this.agregarProducto(producto);
+
+      // No mostrar mensaje de éxito al agregar si hay stock. solo mantén el input listo.
+      if (!agregado) {
+        // El mensaje de error ya fue manejado en agregarProducto (stock 0/agotado)
+      }
+
+      // Mantener foco en el input de escáner para operaciones rápidas
+      this.codigoEscaneado = '';
+      this.filtro = '';
+      setTimeout(() => {
+        const input = document.querySelector<HTMLInputElement>('#codigoEscaneadoInput');
+        if (input) input.focus();
+      }, 0);
+    } catch (error) {
+      console.error('Error buscando producto por código:', error);
+      this.setMensajeEscaneo('Error buscando producto. Revisa conexión y código.', 'error');
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error de búsqueda',
+        text: 'Ocurrió un problema al buscar el producto. Intenta nuevamente.',
+        confirmButtonText: 'Listo',
+      });
+    } finally {
+      this.codigoBusquedaEnProceso = false;
+      this.ultimoCodigoProcesado = codigo;
+      this.ultimoCodigoProcesadoTime = ahora;
+      this.cargandoProductos = false;
+    }
+  }
+
+  onBarcodeInput() {
+    if (this.codigoScannerTimeout) {
+      clearTimeout(this.codigoScannerTimeout);
+    }
+    this.codigoScannerTimeout = setTimeout(() => {
+      if (!this.codigoEscaneado) {
+        return;
+      }
+      // Si el scanner incluye ENTER automático, busca en keydown; si no, auto busca acá.
+      console.log('[POS] onBarcodeInput deteccion automática', { codigoEscaneado: this.codigoEscaneado });
+      this.buscarProductoPorCodigo();
+    }, 250);
+  }
+
+  onBarcodeEnter() {
+    if (this.codigoScannerTimeout) {
+      clearTimeout(this.codigoScannerTimeout);
+      this.codigoScannerTimeout = null;
+    }
+    this.buscarProductoPorCodigo();
+  }
+
+  setMensajeEscaneo(mensaje: string, tipo: 'success' | 'warning' | 'error' | '') {
+    this.mensajeEscaneo = mensaje;
+    this.mensajeEscaneoTipo = tipo;
+
+    if (this.codigoScannerTimeout) {
+      clearTimeout(this.codigoScannerTimeout);
+    }
+
+    this.codigoScannerTimeout = setTimeout(() => {
+      this.mensajeEscaneo = '';
+      this.mensajeEscaneoTipo = '';
+    }, 2500);
+  }
+
   // Navegación con teclado en búsqueda
   onSearchKeydown(event: KeyboardEvent) {
     const filtrados = this.productosFiltrados;
@@ -1800,44 +2028,93 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
     }, 0);
   }
 
+  // Capturador de escáner de código de barras (teclado rápido)
+  private scannerCodeBuffer = '';
+  private scannerLastKeyTime = 0;
+  private scannerTimer: any = null;
+
   /**
    * Navegación global con teclado (incluso sin usar el input de búsqueda)
-   * Se activa con flechas arriba/abajo y Enter desde cualquier parte
+   *  - Pilas: flechas + Enter para seleccionar producto
+   *  - Scanner: acumula posibles códigos y procesa al Enter
    */
   onDocumentKeydown(event: KeyboardEvent) {
-    // Solo actuar si NO estamos en un input, textarea, select o button
     const target = event.target as HTMLElement;
     const tagName = target.tagName.toUpperCase();
 
-    // Ignorar si estamos en cualquier elemento de formulario o botón
-    if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT' || tagName === 'BUTTON') {
-      return;
+    // Si estamos tipeando en un campo de formulario, solo manejamos scanner rápido en Texto no manual.
+    const inFormField = tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT' || tagName === 'BUTTON' || target.contentEditable === 'true';
+
+    const now = Date.now();
+
+    // (1) Modo scanner: captura fast-key sequences + Enter
+    if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      // Si hay intervalo largo, resetear buffer
+      if (now - this.scannerLastKeyTime > 120) {
+        this.scannerCodeBuffer = '';
+      }
+
+      this.scannerCodeBuffer += event.key;
+      this.scannerLastKeyTime = now;
+
+      if (this.scannerTimer) {
+        clearTimeout(this.scannerTimer);
+      }
+      this.scannerTimer = setTimeout(() => {
+        this.scannerCodeBuffer = '';
+      }, 600);
+
+      // Si estamos en campo input normal no interrumpimos la escritura
+      if (inFormField) {
+        return;
+      }
     }
 
-    // Ignorar si el elemento tiene contenteditable
-    if (target.contentEditable === 'true') {
-      return;
+    if (event.key === 'Enter') {
+      if (this.scannerCodeBuffer.length >= 2) {
+        event.preventDefault();
+
+        // Ejecutar solo si no estamos en un control de formulario manual
+        if (!inFormField) {
+          this.codigoEscaneado = this.scannerCodeBuffer;
+          this.buscarProductoPorCodigo();
+          this.scannerCodeBuffer = '';
+          if (this.scannerTimer) {
+            clearTimeout(this.scannerTimer);
+            this.scannerTimer = null;
+          }
+          return;
+        }
+      }
+
+      // Si no era entrada de scanner, usamos la navegación existente
+      if (this.selectedIndex >= 0 && !inFormField) {
+        event.preventDefault();
+        const filtrados = this.productosFiltrados;
+        const p = filtrados[this.selectedIndex];
+        if (p) {
+          this.agregarProducto(p);
+        }
+        return;
+      }
     }
 
-    const filtrados = this.productosFiltrados;
-    if (filtrados.length === 0) return;
+    // (2) Navegación con flechas si no estamos en campos de formulario
+    if (!inFormField) {
+      const filtrados = this.productosFiltrados;
+      if (filtrados.length === 0) return;
 
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      // Si no hay selección, empezar desde el primero
-      if (this.selectedIndex < 0) this.selectedIndex = 0;
-      else this.selectedIndex = Math.min(this.selectedIndex + 1, filtrados.length - 1);
-      this.scrollToSelectedProduct();
-    } else if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      // Si no hay selección, empezar desde el primero
-      if (this.selectedIndex < 0) this.selectedIndex = 0;
-      else this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
-      this.scrollToSelectedProduct();
-    } else if (event.key === 'Enter' && this.selectedIndex >= 0) {
-      event.preventDefault();
-      const p = filtrados[this.selectedIndex];
-      if (p) this.agregarProducto(p);
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        if (this.selectedIndex < 0) this.selectedIndex = 0;
+        else this.selectedIndex = Math.min(this.selectedIndex + 1, filtrados.length - 1);
+        this.scrollToSelectedProduct();
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        if (this.selectedIndex < 0) this.selectedIndex = 0;
+        else this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
+        this.scrollToSelectedProduct();
+      }
     }
   }
 
@@ -2022,36 +2299,41 @@ agregarProducto(p: any) {
   const esStockIlimitado = tipoControl === 'ILIMITADO';
   const stockDisponible = esStockIlimitado ? Number.POSITIVE_INFINITY : Number(p.stock || 0);
 
-  // Solo validar stock si el producto NO es ILIMITADO (ej: no es LUNAS)
+  // Solo validar stock si el producto NO es ILIMITADO
+  const stockEnCarrito = (this.items.find(i => i.productoId === id)?.cantidad) || 0;
+  const stockRestante = esStockIlimitado ? Number.POSITIVE_INFINITY : (stockDisponible - stockEnCarrito);
+
   if (!esStockIlimitado) {
-    // Si no hay stock disponible, no permitir agregar
-    if (!isFinite(stockDisponible) || stockDisponible <= 0) {
+    if (stockDisponible <= 0) {
+      this.setMensajeEscaneo(`El producto "${p.nombre}" está en stock 0.`, 'warning');
       Swal.fire({
         icon: 'warning',
         title: 'Sin stock',
         text: `El producto "${p.nombre}" no tiene stock disponible.`,
       });
-      return;
+      return false;
+    }
+
+    if (stockRestante <= 0) {
+      this.setMensajeEscaneo(`No quedan unidades disponibles de "${p.nombre}".`, 'warning');
+      Swal.fire({
+        icon: 'warning',
+        title: 'Stock agotado',
+        text: `No quedan unidades disponibles de "${p.nombre}".`,
+      });
+      return false;
     }
   }
 
   const existing = this.items.find(i => i.productoId === id);
   if (existing) {
-    // Solo validar stock máximo si NO es ilimitado
-    if (!esStockIlimitado && existing.cantidad >= stockDisponible) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Stock insuficiente',
-        text: `Máximo disponible: ${stockDisponible}.`,
-      });
-      return;
-    }
+    // El check del stock total ya se realizó con stockRestante antes.
     existing.cantidad++;
     existing.total = existing.cantidad * existing.precioUnitario;
     existing.totalSinIva = existing.cantidad * existing.precioUnitarioSinIva;
   } else {
-      this.items.push({
-        codigo: p.codigo || '',
+    this.items.push({
+      codigo: p.codigo || '',
       idInterno: p.idInterno || '',
       productoId: id,
       nombre: p.nombre,
@@ -2068,6 +2350,7 @@ agregarProducto(p: any) {
 
   this.recalcular();
   this.recalcularAbono(); // Actualizar saldo pendiente cuando se agrega producto
+  return true;
 }
 private toNumber(v: any): number {
   if (typeof v === 'number') return isFinite(v) ? v : 0;

@@ -27,11 +27,14 @@
                     <button class="btn btn-outline-success" (click)="exportarProductos()" title="Exportar productos a Excel">
                         <i class="bi bi-file-earmark-excel"></i><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-to-line-icon lucide-arrow-up-to-line"><path d="M5 3h14"/><path d="m18 13-6-6-6 6"/><path d="M12 7v14"/></svg> Exportar
                     </button>
+                    <button class="btn btn-outline-info" (click)="router.navigate(['/productos/imprimir-codigos'])" title="Generar etiquetas de códigos de barras">
+                        <i class="bi bi-printer"></i> Etiquetas
+                    </button>
                     <button class="btn btn-outline-primary" (click)="importarProductos()" title="Importar productos desde Excel">
                         <i class="bi bi-file-earmark-arrow-up"></i><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down-to-line-icon lucide-arrow-down-to-line"><path d="M12 17V3"/><path d="m6 11 6 6 6-6"/><path d="M19 21H5"/></svg>  Importar
                     </button>
                     <button class="btn btn-primary" (click)="nuevoIngreso()">
-                        <i class="bi bi-file-earmark-arrow-down"></i> + Nuevo 
+                        <i class="bi bi-file-earmark-arrow-down"></i> + Nuevo
                     </button>
                 </div>
             </div>
@@ -92,8 +95,8 @@
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil-icon lucide-pencil"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
                                     </button>
                                     <!-- Toggle Activo/Desactivado -->
-                                        <button class="btn btn-sm" 
-                                            [class.btn-success]="producto.activo !== false" 
+                                        <button class="btn btn-sm"
+                                            [class.btn-success]="producto.activo !== false"
                                             [class.btn-secondary]="producto.activo === false"
                                             (click)="toggleEstadoProducto(producto); $event.stopPropagation()"
                                             [title]="(producto.activo !== false) ? 'Desactivar producto' : 'Activar producto'">
@@ -117,26 +120,26 @@
                         </span>
                     </div>
                     <div class="pagination-buttons">
-                        <button class="btn btn-secondary" 
-                                [disabled]="paginaActual === 1 || isLoading" 
+                        <button class="btn btn-secondary"
+                                [disabled]="paginaActual === 1 || isLoading"
                                 (click)="irPrimeraPagina()"
                                 title="Ir a la primera página">
                             «« Primera
                         </button>
-                        <button class="btn btn-secondary" 
-                                [disabled]="paginaActual === 1 || isLoading" 
+                        <button class="btn btn-secondary"
+                                [disabled]="paginaActual === 1 || isLoading"
                                 (click)="paginaAnterior()"
                                 title="Página anterior">
                             ← Anterior
                         </button>
-                        <button class="btn btn-secondary" 
-                                [disabled]="!hasMore || isLoading" 
+                        <button class="btn btn-secondary"
+                                [disabled]="!hasMore || isLoading"
                                 (click)="paginaSiguiente()"
                                 title="Página siguiente">
                             Siguiente →
                         </button>
-                        <button class="btn btn-secondary" 
-                                [disabled]="true" 
+                        <button class="btn btn-secondary"
+                                [disabled]="true"
                                 (click)="irUltimaPagina()"
                                 title="Función deshabilitada para mejor rendimiento">
                             Última »»

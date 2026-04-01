@@ -134,8 +134,9 @@ export class ListarCajasComponent implements OnInit {
       if (this.filtroSaldoInicialMax !== null && (caja.saldo_inicial || 0) > this.filtroSaldoInicialMax) return false;
 
       // Saldo actual
-      if (this.filtroSaldoActualMin !== null && (caja.saldo_actual || 0) < this.filtroSaldoActualMin) return false;
-      if (this.filtroSaldoActualMax !== null && (caja.saldo_actual || 0) > this.filtroSaldoActualMax) return false;
+      const saldoActualCaja = this.calcularSaldoActual(caja);
+      if (this.filtroSaldoActualMin !== null && saldoActualCaja < this.filtroSaldoActualMin) return false;
+      if (this.filtroSaldoActualMax !== null && saldoActualCaja > this.filtroSaldoActualMax) return false;
 
       // Usuario que abrió o cerró
       if (this.filtroUsuario.trim()) {
@@ -295,12 +296,12 @@ export class ListarCajasComponent implements OnInit {
           });
         
         const ultimaCaja = cajasOrdenadas[0];
-        const saldoHeredado = ultimaCaja?.saldo_actual || 0;
+        // Usar el saldo calculado para heredar a la nueva caja
+        const saldoHeredado = ultimaCaja ? this.calcularSaldoActual(ultimaCaja) : 0;
         
         console.log('💰 Heredando saldo de última caja:', {
           cajaFecha: ultimaCaja?.fecha,
-          saldoActual: ultimaCaja?.saldo_actual,
-          saldoAUsar: saldoHeredado
+          saldoCalculado: saldoHeredado
         });
         
         this.crearCajaAutomatica(saldoHeredado);
@@ -319,12 +320,12 @@ export class ListarCajasComponent implements OnInit {
     if (!cajaAnterior.id) return;
     
     try {
-      // Guardar el saldo actual ANTES de cerrar
-      const saldoFinal = cajaAnterior.saldo_actual || 0;
-      console.log('💰 Saldo final de caja anterior:', saldoFinal);
+      // Calcular el saldo actual ANTES de cerrar para heredarlo
+      const saldoFinal = this.calcularSaldoActual(cajaAnterior);
+      console.log('💰 Saldo calculado de caja anterior:', saldoFinal);
       
-      // Cerrar la caja anterior
-      await this.cajaBancoService.cerrarCajaBanco(cajaAnterior.id);
+      // Cerrar la caja anterior con el saldo calculado
+      await this.cajaBancoService.cerrarCajaBanco(cajaAnterior.id, saldoFinal);
       console.log('✅ Caja anterior cerrada automáticamente');
       
       // Crear nueva caja con el saldo final de la anterior
@@ -481,6 +482,52 @@ export class ListarCajasComponent implements OnInit {
       (this.movimientosGlobales || []).filter(m => m.tipo === 'EGRESO'),
       m => m.monto || 0
     );
+  }
+
+  /**
+   * Calcula el saldo actual de una caja banco específica.
+   * Fórmula: saldo_inicial + ingresos_cajas_chicas + otros_ingresos - egresos
+   * 
+   * @param caja - La caja banco para la cual calcular el saldo
+   * @returns {number} El saldo actual calculado
+   */
+  calcularSaldoActual(caja: CajaBanco): number {
+    if (!caja.id) return caja.saldo_actual || 0;
+
+    const sumCents = (items: any[], valueFn: (item: any) => number) =>
+      items.reduce((sum, item) => sum + Math.round(valueFn(item) * 100), 0) / 100;
+
+    // 1. Ingresos de cajas chicas: desde monto_actual de cajas cerradas de esta caja banco
+    const ingresosCajasChicas = sumCents(
+      (this.cajasChicas || []).filter(cc => cc.caja_banco_id === caja.id && cc.estado === 'CERRADA'),
+      cc => cc.monto_actual || 0
+    );
+
+    // 2. Otros ingresos: movimientos INGRESO de esta caja excluyendo CIERRE_CAJA_CHICA
+    const otrosIngresos = sumCents(
+      (this.movimientosGlobales || []).filter(m => 
+        m.caja_banco_id === caja.id && 
+        m.tipo === 'INGRESO' && 
+        m.categoria !== 'CIERRE_CAJA_CHICA'
+      ),
+      m => m.monto || 0
+    );
+
+    // 3. Egresos: movimientos EGRESO de esta caja
+    const egresos = sumCents(
+      (this.movimientosGlobales || []).filter(m => 
+        m.caja_banco_id === caja.id && 
+        m.tipo === 'EGRESO'
+      ),
+      m => m.monto || 0
+    );
+
+    // 4. Saldo calculado
+    const saldoInicial = caja.saldo_inicial || 0;
+    const totalIngresos = ingresosCajasChicas + otrosIngresos;
+    const saldoActual = saldoInicial + totalIngresos - egresos;
+
+    return Math.round(saldoActual * 100) / 100;
   }
 
   /**
@@ -735,7 +782,7 @@ export class ListarCajasComponent implements OnInit {
       icon: 'warning',
       title: '¿Cerrar Caja Banco?',
       html: `<p>Periodo: <strong>${this.formatoFecha(caja.fecha)}</strong></p>
-             <p>Saldo actual: <strong>${this.formatoMoneda(caja.saldo_actual || 0)}</strong></p>
+             <p>Saldo actual: <strong>${this.formatoMoneda(this.calcularSaldoActual(caja))}</strong></p>
              <p style="font-size:0.9rem; color:#999; margin-top:0.5rem;">Una vez cerrada, no podrás registrar más movimientos.</p>`,
       showCancelButton: true,
       confirmButtonText: 'Sí, Cerrar Caja',
@@ -746,7 +793,9 @@ export class ListarCajasComponent implements OnInit {
 
     if (result.isConfirmed) {
       try {
-        await this.cajaBancoService.cerrarCajaBanco(caja.id);
+        // Pasar el saldo calculado para que Firestore quede actualizado correctamente
+        const saldoFinal = this.calcularSaldoActual(caja);
+        await this.cajaBancoService.cerrarCajaBanco(caja.id, saldoFinal);
         await Swal.fire({
           icon: 'success',
           title: 'Caja Cerrada',
@@ -1197,8 +1246,9 @@ export class ListarCajasComponent implements OnInit {
         });
 
         if (cajaBancoHoy) {
-          // Restar el monto de la caja chica del saldo de la caja banco
-          const nuevoSaldo = (cajaBancoHoy.saldo_actual || 0) - (cajaChica.monto_actual || 0);
+          // Restar el monto de la caja chica del saldo calculado de la caja banco
+          const saldoActualCalculado = this.calcularSaldoActual(cajaBancoHoy);
+          const nuevoSaldo = saldoActualCalculado - (cajaChica.monto_actual || 0);
 
           await this.cajaBancoService.actualizarSaldoCajaBanco(cajaBancoHoy.id!, nuevoSaldo);
         }
@@ -1281,8 +1331,9 @@ export class ListarCajasComponent implements OnInit {
         });
 
         if (cajaBancoHoy) {
-          // Sumar el monto de la caja chica al saldo de la caja banco (se restó cuando se desactivó)
-          const nuevoSaldo = (cajaBancoHoy.saldo_actual || 0) + (cajaChica.monto_actual || 0);
+          // Sumar el monto de la caja chica al saldo calculado de la caja banco (se restó cuando se desactivó)
+          const saldoActualCalculado = this.calcularSaldoActual(cajaBancoHoy);
+          const nuevoSaldo = saldoActualCalculado + (cajaChica.monto_actual || 0);
 
           await this.cajaBancoService.actualizarSaldoCajaBanco(cajaBancoHoy.id!, nuevoSaldo);
         }
@@ -1321,9 +1372,9 @@ export class ListarCajasComponent implements OnInit {
    * @returns {Promise<void>}
    */
   async eliminarCajaBanco(cajaBanco: CajaBanco): Promise<void> {
-    // Solo permitir eliminar si el saldo inicial es igual al saldo actual
+    // Solo permitir eliminar si el saldo inicial es igual al saldo actual calculado
     const saldoInicial = cajaBanco.saldo_inicial || 0;
-    const saldoActual = cajaBanco.saldo_actual || 0;
+    const saldoActual = this.calcularSaldoActual(cajaBanco);
     
     if (saldoInicial !== saldoActual) {
       Swal.fire({
@@ -1349,7 +1400,7 @@ export class ListarCajasComponent implements OnInit {
           <p><strong>Fecha:</strong> ${this.formatoFecha(cajaBanco.fecha)}</p>
           <p><strong>Usuario:</strong> ${cajaBanco.usuario_nombre || '-'}</p>
           <p><strong>Saldo Inicial:</strong> ${this.formatoMoneda(cajaBanco.saldo_inicial || 0)}</p>
-          <p><strong>Saldo Actual:</strong> ${this.formatoMoneda(cajaBanco.saldo_actual || 0)}</p>
+          <p><strong>Saldo Actual:</strong> ${this.formatoMoneda(saldoActual)}</p>
           <p><strong>Estado:</strong> ${cajaBanco.estado}</p>
           <p style="color: #28a745; margin-top: 1rem;"><strong>✅ Saldos coinciden - puede eliminarse</strong></p>
           <p style="color: red;"><strong>⚠️ Esta acción es PERMANENTE y NO se puede deshacer</strong></p>
@@ -1389,11 +1440,11 @@ export class ListarCajasComponent implements OnInit {
 
   /**
    * Getter para el total de cajas ganadas.
-   * @returns {number} Suma total de montos de cajas chicas cerradas
+   * @returns {number} Suma total de saldos actuales calculados de cajas banco
    */
   getTotalGanado(): number {
     return Math.round(
-      this.cajasFiltradas.reduce((sum, c) => sum + (c.saldo_actual || 0), 0) * 100
+      this.cajasFiltradas.reduce((sum, c) => sum + this.calcularSaldoActual(c), 0) * 100
     ) / 100;
   }
 

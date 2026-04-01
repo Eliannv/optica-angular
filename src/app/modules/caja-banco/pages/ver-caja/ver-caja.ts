@@ -676,9 +676,10 @@ export class VerCajaComponent implements OnInit {
     );
     console.log('Ingresos cajas chicas:', this.resumen.ingresos_cajas_chicas);
 
-    // 2. Otros ingresos: TODOS los movimientos INGRESO
+    // 2. Otros ingresos: movimientos INGRESO excluyendo CIERRE_CAJA_CHICA
+    // (los ingresos de cajas chicas ya están contados en ingresos_cajas_chicas)
     this.resumen.ingresos_otros = sumCents(
-      (this.movimientos || []).filter(m => m.tipo === 'INGRESO'),
+      (this.movimientos || []).filter(m => m.tipo === 'INGRESO' && m.categoria !== 'CIERRE_CAJA_CHICA'),
       m => m.monto || 0
     );
 

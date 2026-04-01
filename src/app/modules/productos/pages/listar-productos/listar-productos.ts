@@ -12,11 +12,11 @@ import { DocumentSnapshot } from '@angular/fire/firestore';
 
 /**
  * Componente para listar y gestionar productos
- * 
+ *
  * @description
  * Permite visualizar productos con filtrado por grupo, búsqueda, ordenamiento, paginación,
  * exportación/importación Excel, activación/desactivación y edición de observaciones.
- * 
+ *
  * @example
  * ```html
  * <app-listar-productos></app-listar-productos>
@@ -35,20 +35,20 @@ export class ListarProductos implements OnInit {
   productosPorPagina: number = 10;
   totalProductos: number = 0;
   Math = Math;
-  
+
   // 🎯 Snapshots para navegación Firestore
   lastVisible: DocumentSnapshot | null = null;
   firstVisible: DocumentSnapshot | null = null;
   hasMore: boolean = false;
   isLoading: boolean = false;
-  
+
   // 🔍 Historial de páginas para navegación hacia atrás
   paginasHistorial: Array<{
     firstDoc: DocumentSnapshot | null;
     lastDoc: DocumentSnapshot | null;
     pageNumber: number;
   }> = [];
-  
+
   productoSeleccionado: Producto | null = null;
   ingresoSeleccionado: Ingreso | null = null;
   mostrarModal: boolean = false;
@@ -62,7 +62,7 @@ export class ListarProductos implements OnInit {
 
   constructor(
     private productosService: ProductosService,
-    private router: Router,
+    public router: Router,
     private route: ActivatedRoute
   ) {}
 
@@ -72,7 +72,7 @@ export class ListarProductos implements OnInit {
 
   /**
    * Inicializa el componente y carga los productos
-   * 
+   *
    * @description
    * Se suscribe a los parámetros de consulta para detectar cambios en el grupo seleccionado
    * y carga SOLO los primeros 10 productos con paginación real desde Firestore.
@@ -80,10 +80,10 @@ export class ListarProductos implements OnInit {
   ngOnInit() {
     this.route.queryParams.subscribe(params => {
       this.grupoSeleccionado = params['grupo'] || '';
-      
+
       // 🚀 PAGINACIÓN REAL: Cargar solo primera página
       this.cargarPrimeraPage();
-      
+
       // ⚠️ Cargar todos los productos SOLO para exportación (lazy)
       this.cargarProductosParaExportacion();
     });
@@ -96,7 +96,7 @@ export class ListarProductos implements OnInit {
     this.isLoading = true;
     this.paginaActual = 1;
     this.paginasHistorial = [];
-    
+
     try {
       const resultado = await this.productosService.getProductosPaginadosReal({
         pageSize: this.productosPorPagina,
@@ -104,12 +104,12 @@ export class ListarProductos implements OnInit {
         terminoBusqueda: this.terminoBusqueda,
         grupoSeleccionado: this.grupoSeleccionado
       });
-      
+
       this.productosPaginados = resultado.productos;
       this.lastVisible = resultado.lastDoc;
       this.firstVisible = resultado.firstDoc;
       this.hasMore = resultado.hasMore;
-      
+
       // Guardar en historial
       if (resultado.firstDoc) {
         this.paginasHistorial.push({
@@ -118,10 +118,10 @@ export class ListarProductos implements OnInit {
           pageNumber: 1
         });
       }
-      
+
       // Actualizar total estimado (solo para UI)
       this.totalProductos = resultado.productos.length;
-      
+
     } catch (error) {
       console.error('Error al cargar productos:', error);
       Swal.fire('Error', 'No se pudieron cargar los productos', 'error');
@@ -137,16 +137,16 @@ export class ListarProductos implements OnInit {
   private cargarProductosParaExportacion(): void {
     this.productosService.getProductosTodosInclusoInactivos().subscribe(productos => {
       this.productos = productos;
-      
+
       // Aplicar los mismos filtros que en la paginación
       let filtrados = [...productos];
-      
+
       if (this.grupoSeleccionado) {
-        filtrados = filtrados.filter(producto => 
+        filtrados = filtrados.filter(producto =>
           producto.grupo?.toUpperCase() === this.grupoSeleccionado.toUpperCase()
         );
       }
-      
+
       if (this.terminoBusqueda.trim()) {
         const termino = this.terminoBusqueda.toLowerCase().trim();
         filtrados = filtrados.filter(producto => {
@@ -165,7 +165,7 @@ export class ListarProductos implements OnInit {
                  idInterno.includes(termino);
         });
       }
-      
+
       this.productosFiltrados = filtrados;
     });
   }
@@ -186,9 +186,9 @@ export class ListarProductos implements OnInit {
     if (!this.hasMore || this.isLoading) {
       return;
     }
-    
+
     this.isLoading = true;
-    
+
     try {
       const resultado = await this.productosService.getProductosPaginadosReal({
         pageSize: this.productosPorPagina,
@@ -198,13 +198,13 @@ export class ListarProductos implements OnInit {
         terminoBusqueda: this.terminoBusqueda,
         grupoSeleccionado: this.grupoSeleccionado
       });
-      
+
       this.productosPaginados = resultado.productos;
       this.lastVisible = resultado.lastDoc;
       this.firstVisible = resultado.firstDoc;
       this.hasMore = resultado.hasMore;
       this.paginaActual++;
-      
+
       // Guardar en historial
       if (resultado.firstDoc) {
         this.paginasHistorial.push({
@@ -213,7 +213,7 @@ export class ListarProductos implements OnInit {
           pageNumber: this.paginaActual
         });
       }
-      
+
     } catch (error) {
       console.error('Error al cargar página siguiente:', error);
       Swal.fire('Error', 'No se pudo cargar la siguiente página', 'error');
@@ -229,29 +229,29 @@ export class ListarProductos implements OnInit {
     if (this.paginaActual <= 1 || this.isLoading) {
       return;
     }
-    
+
     this.isLoading = true;
-    
+
     try {
       // Eliminar la página actual del historial
       this.paginasHistorial.pop();
       this.paginaActual--;
-      
+
       // Obtener la página anterior (ahora la última en el historial)
       const paginaAnterior = this.paginasHistorial[this.paginasHistorial.length - 1];
-      
+
       if (!paginaAnterior) {
         // Si no hay historial, recargar primera página
         await this.cargarPrimeraPage();
         return;
       }
-      
+
       // Si es la primera página, recargarla directamente
       if (paginaAnterior.pageNumber === 1) {
         await this.cargarPrimeraPage();
         return;
       }
-      
+
       // Cargar desde el snapshot del historial usando el lastDoc de la página anterior
       const resultado = await this.productosService.getProductosPaginadosReal({
         pageSize: this.productosPorPagina,
@@ -261,12 +261,12 @@ export class ListarProductos implements OnInit {
         terminoBusqueda: this.terminoBusqueda,
         grupoSeleccionado: this.grupoSeleccionado
       });
-      
+
       this.productosPaginados = resultado.productos;
       this.lastVisible = paginaAnterior.lastDoc;
       this.firstVisible = paginaAnterior.firstDoc;
       this.hasMore = true; // Sabemos que hay más porque veníamos de una página posterior
-      
+
     } catch (error) {
       console.error('Error al cargar página anterior:', error);
       Swal.fire('Error', 'No se pudo cargar la página anterior', 'error');
@@ -282,7 +282,7 @@ export class ListarProductos implements OnInit {
     if (this.paginaActual === 1 || this.isLoading) {
       return;
     }
-    
+
     await this.cargarPrimeraPage();
   }
 
@@ -308,9 +308,9 @@ export class ListarProductos implements OnInit {
 
   /**
    * Activa o desactiva un producto (soft delete)
-   * 
+   *
    * @param producto - Producto a modificar
-   * 
+   *
    * @description
    * Muestra un diálogo de confirmación y alterna el estado activo/inactivo del producto.
    * Recarga automáticamente la página actual tras el cambio.
@@ -318,13 +318,13 @@ export class ListarProductos implements OnInit {
   toggleEstadoProducto(producto: Producto) {
     const esActivo = producto.activo !== false;
     const accion = esActivo ? 'desactivar' : 'activar';
-    const metodo = esActivo 
-      ? this.productosService.desactivarProducto(producto.id!) 
+    const metodo = esActivo
+      ? this.productosService.desactivarProducto(producto.id!)
       : this.productosService.activarProducto(producto.id!);
 
     Swal.fire({
       title: `¿${accion.charAt(0).toUpperCase() + accion.slice(1)} producto?`,
-      text: esActivo 
+      text: esActivo
         ? 'El producto se desactivará pero podrá reactivarlo después'
         : 'El producto será reactivado y aparecerá en las listas',
       icon: 'info',
@@ -335,11 +335,11 @@ export class ListarProductos implements OnInit {
       if (result.isConfirmed) {
         metodo
           .then(() => {
-            const mensaje = esActivo 
-              ? 'Producto desactivado exitosamente' 
+            const mensaje = esActivo
+              ? 'Producto desactivado exitosamente'
               : 'Producto activado exitosamente';
             Swal.fire(esActivo ? 'Desactivado' : 'Activado', mensaje, 'success');
-            
+
             // 🚀 Recargar página actual con paginación real
             this.recargarPaginaActual();
           })
@@ -353,7 +353,7 @@ export class ListarProductos implements OnInit {
 
   /**
    * 🚀 Recarga la página actual de productos
-   * 
+   *
    * @private
    */
   private async recargarPaginaActual(): Promise<void> {
@@ -367,9 +367,9 @@ export class ListarProductos implements OnInit {
 
   /**
    * Permite editar la observación de un producto mediante un diálogo modal
-   * 
+   *
    * @param producto - Producto cuya observación se editará
-   * 
+   *
    * @description
    * Muestra un textarea en SweetAlert2 con la observación actual y actualiza
    * Firestore si el usuario confirma. Actualiza también la lista local.
@@ -393,13 +393,13 @@ export class ListarProductos implements OnInit {
         await this.productosService.updateProducto(producto.id!, {
           observacion: nuevaObservacion || ''
         });
-        
+
         // 🚀 Actualizar en la lista paginada actual
         const index = this.productosPaginados.findIndex(p => p.id === producto.id);
         if (index !== -1) {
           this.productosPaginados[index].observacion = nuevaObservacion || '';
         }
-        
+
         Swal.fire('Guardado', 'Observación actualizada exitosamente', 'success');
       } catch (error) {
         console.error('Error al actualizar observación:', error);
@@ -410,7 +410,7 @@ export class ListarProductos implements OnInit {
 
   /**
    * Muestra el modal con los detalles completos de un producto
-   * 
+   *
    * @param producto - Producto a visualizar
    */
   async verDetalle(producto: Producto) {
@@ -464,7 +464,7 @@ export class ListarProductos implements OnInit {
 
   /**
    * Función de rastreo para ngFor optimizado
-   * 
+   *
    * @param index - Índice del elemento en el array
    * @param producto - Producto actual
    * @returns ID único del producto o el índice como fallback
@@ -475,7 +475,7 @@ export class ListarProductos implements OnInit {
 
   /**
    * 🚀 Aplica filtros y recarga desde la primera página
-   * 
+   *
    * @description
    * Resetea la paginación y vuelve a consultar Firestore con los nuevos filtros.
    */
@@ -502,7 +502,7 @@ export class ListarProductos implements OnInit {
 
   /**
    * 🚀 Cambia el tipo de ordenamiento y recarga
-   * 
+   *
    * @param nuevoOrdenamiento - Tipo de ordenamiento ('reciente' o 'codigo')
    */
   async cambiarOrdenamiento(nuevoOrdenamiento: string): Promise<void> {
@@ -512,35 +512,35 @@ export class ListarProductos implements OnInit {
 
   /**
    * Exporta los productos filtrados a un archivo Excel
-   * 
+   *
    * @description
    * Genera un archivo Excel con el nombre "EXPORTACIÓN PRODUCTOS PASAJE {MES}-{NOMBRE_ADMIN}".
    * Exporta los productos filtrados si existen filtros activos, o todos los productos si no.
    */
   exportarProductos(): void {
-    const productosExportar = this.productosFiltrados.length > 0 
-      ? this.productosFiltrados 
+    const productosExportar = this.productosFiltrados.length > 0
+      ? this.productosFiltrados
       : this.productos;
-    
+
     // Ordenar productos por idInterno ascendente antes de exportar
     const productosOrdenados = [...productosExportar].sort((a, b) => {
       const idA = (a as any).idInterno || 0;
       const idB = (b as any).idInterno || 0;
       return idA - idB;
     });
-    
+
     const meses = [
       'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
       'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
     ];
     const fechaActual = new Date();
     const mesActual = meses[fechaActual.getMonth()];
-    
+
     const usuarioActual = this.authService.getCurrentUser();
     const nombreAdministrador = usuarioActual?.nombre || 'ADMINISTRADOR';
-    
+
     const nombreArchivo = `EXPORTACIÓN PRODUCTOS PASAJE ${mesActual}-${new UpperCasePipe().transform(nombreAdministrador)}`;
-    
+
     this.excelService.exportarProductos(productosOrdenados, nombreArchivo);
   }
 
