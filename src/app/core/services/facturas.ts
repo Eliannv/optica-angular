@@ -394,6 +394,22 @@ export class FacturasService {
   }
 
   /**
+   * Trae TODAS las facturas con estadoPago === 'PENDIENTE' sin filtro de fecha ni cliente.
+   * Usado para el panel de créditos pendientes globales en estadísticas.
+   */
+  async getAllFacturasPendientes(): Promise<any[]> {
+    const q = query(
+      this.facturasRef,
+      where('estadoPago', '==', 'PENDIENTE')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter((f: any) => Number(f?.saldoPendiente || 0) > 0)
+      .sort((a: any, b: any) => Number(b?.saldoPendiente || 0) - Number(a?.saldoPendiente || 0));
+  }
+
+  /**
    * Trae facturas pendientes de un cliente (para pantalla cobrar deuda)
    * Sin orderBy en Firestore para evitar necesidad de índice compuesto
    * Se ordena en el cliente (Angular)
@@ -725,6 +741,7 @@ export class FacturasService {
     startDate?: Date | null;
     endDate?: Date | null;
     fechaExacta?: Date | null;
+    filtroMetodoPago?: string;
   }): Promise<{
     facturas: Factura[];
     lastDoc: DocumentSnapshot | null;
@@ -741,11 +758,12 @@ export class FacturasService {
       currentPage = 1,
       startDate = null,
       endDate = null,
-      fechaExacta = null
+      fechaExacta = null,
+      filtroMetodoPago = 'TODAS'
     } = options;
 
-    // 🔍 SI HAY BÚSQUEDA ACTIVA O FILTROS DE FECHA, traer TODOS y filtrar en cliente
-    if (terminoBusqueda.trim() || startDate || endDate || fechaExacta) {
+    // 🔍 SI HAY BÚSQUEDA ACTIVA, FILTROS DE FECHA O MÉTODO DE PAGO, traer TODOS y filtrar en cliente
+    if (terminoBusqueda.trim() || startDate || endDate || fechaExacta || (filtroMetodoPago && filtroMetodoPago !== 'TODAS')) {
       return this.buscarFacturasSinPaginacion(
         terminoBusqueda,
         filtroTipoFactura,
@@ -753,7 +771,8 @@ export class FacturasService {
         currentPage,
         startDate,
         endDate,
-        fechaExacta
+        fechaExacta,
+        filtroMetodoPago
       );
     }
 
@@ -824,7 +843,8 @@ export class FacturasService {
     currentPage: number = 1,
     startDate: Date | null = null,
     endDate: Date | null = null,
-    fechaExacta: Date | null = null
+    fechaExacta: Date | null = null,
+    filtroMetodoPago: string = 'TODAS'
   ): Promise<{
     facturas: Factura[];
     lastDoc: DocumentSnapshot | null;
@@ -906,6 +926,20 @@ export class FacturasService {
              id.includes(termino) ||
              (clienteId && clienteIdsPorCedula.has(clienteId));
     });
+
+    // Aplicar filtro de método de pago (normalizado para cubrir variantes de mayúsculas/minúsculas)
+    if (filtroMetodoPago && filtroMetodoPago !== 'TODAS') {
+      facturas = facturas.filter(f => {
+        const mp = (f.metodoPago || '').toLowerCase();
+        switch (filtroMetodoPago) {
+          case 'Tarjeta':       return mp.includes('tarj');
+          case 'Transferencia': return mp.includes('trans');
+          case 'Crédito':       return mp.includes('cred');
+          case 'Efectivo':      return !mp.includes('tarj') && !mp.includes('trans') && !mp.includes('cred');
+          default:              return true;
+        }
+      });
+    }
 
     // Aplicar paginación manual (en memoria)
     const offset = (currentPage - 1) * pageSize;

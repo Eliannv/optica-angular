@@ -20,6 +20,7 @@ import { obtenerPeriodo } from '../../../core/utils/fecha-helpers';
 import { ItemVenta } from '../../../core/models/item-venta.model';
 import { Factura } from '../../../core/models/factura.model';
 import { Cliente } from '../../../core/models/cliente.model';
+import JsBarcode from 'jsbarcode';
 
 @Component({
   selector: 'app-crear-venta',
@@ -153,6 +154,8 @@ export class CrearVentaComponent implements OnInit, OnDestroy {
 
   // para ticket
   facturaParaImprimir: any = null;
+  /** Data URL del código de barras de la factura actual */
+  barcodeDataUrl: string = '';
   private _abono = 0;
   saldoPendiente = 0;
 
@@ -3234,6 +3237,24 @@ async procesarGuardadoVenta() {
       fecha: convertirTimestamp(factura.fecha)
     };
 
+    // Generar código de barras para el ticket
+    this.barcodeDataUrl = '';
+    try {
+      const canvas = document.createElement('canvas');
+      JsBarcode(canvas, facturaId, {
+        format: 'CODE128',
+        width: 2,
+        height: 40,
+        displayValue: true,
+        fontSize: 11,
+        margin: 4,
+        textMargin: 2
+      });
+      this.barcodeDataUrl = canvas.toDataURL('image/png');
+    } catch (err) {
+      console.warn('[POS] Error generando barcode de factura:', err);
+    }
+
     console.log('✅ facturaParaImprimir seteada:', this.facturaParaImprimir);
 
     // Forzar detección de cambios para renderizar el ticket
@@ -3403,6 +3424,7 @@ private cleanUndefined(obj: any): any {
       .t-cell { display: block; }
       .t-cut { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
       .t-small { font-size: 11px; }
+      img { max-width: 72mm; height: auto; display: block; margin: 0 auto; }
       @media print {
         @page { size: 80mm auto; margin: 0; }
         html, body { width: 80mm; margin: 0; padding: 0; }

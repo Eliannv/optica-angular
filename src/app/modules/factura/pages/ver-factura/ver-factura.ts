@@ -8,6 +8,7 @@ import { firstValueFrom } from 'rxjs';
 import { ProductosService } from '../../../../core/services/productos';
 import { ClientesService } from '../../../../core/services/clientes';
 import { HistorialClinicoService } from '../../../../core/services/historial-clinico.service';
+import JsBarcode from 'jsbarcode';
 
 /**
  * Componente VerFacturaComponent - Visualización de detalles de factura individual.
@@ -77,6 +78,9 @@ export class VerFacturaComponent implements OnDestroy {
 
   clienteTelefono: string = '';
 
+  /** Data URL de la imagen del código de barras generado para esta factura */
+  barcodeDataUrl: string = '';
+
   /**
    * Indicador de estado de carga.
    * true: Mostrando spinner, esperando que Observable emita
@@ -145,6 +149,7 @@ export class VerFacturaComponent implements OnDestroy {
       if (f && f.tipoFactura !== 'COBRO_DEUDA') {
         // Es una factura normal
         this.factura = f;
+        this.generarBarcode(this.factura);
         await this.cargarHistorialClinicoDesdeFactura(this.factura);
         if (f?.clienteId) {
           this.clientesSrv.getClienteById(f.clienteId).subscribe((cliente: any) => {
@@ -181,6 +186,7 @@ export class VerFacturaComponent implements OnDestroy {
               usuarioId: pago.usuarioId || '',
               usuarioNombre: pago.usuarioNombre || ''
             };
+            this.generarBarcode(this.factura);
             await this.cargarHistorialClinicoDesdeFactura(this.factura);
             
             if (pago?.clienteId) {
@@ -191,6 +197,7 @@ export class VerFacturaComponent implements OnDestroy {
           } else if (f) {
             // Si existe f pero no el pago, usar f de todas formas
             this.factura = f;
+            this.generarBarcode(this.factura);
             await this.cargarHistorialClinicoDesdeFactura(this.factura);
             if (f?.clienteId) {
               this.clientesSrv.getClienteById(f.clienteId).subscribe((cliente: any) => {
@@ -202,6 +209,31 @@ export class VerFacturaComponent implements OnDestroy {
         });
       }
     });
+  }
+
+  /**
+   * Genera el código de barras de la factura usando JsBarcode y lo guarda como Data URL.
+   * Usa el idPersonalizado (10 dígitos) como valor del código de barras.
+   */
+  private generarBarcode(factura: any): void {
+    const valor = factura?.idPersonalizado || factura?.id;
+    if (!valor) return;
+    try {
+      const canvas = document.createElement('canvas');
+      JsBarcode(canvas, valor, {
+        format: 'CODE128',
+        width: 2,
+        height: 40,
+        displayValue: true,
+        fontSize: 11,
+        margin: 4,
+        textMargin: 2
+      });
+      this.barcodeDataUrl = canvas.toDataURL('image/png');
+    } catch (err) {
+      console.warn('[Factura] Error generando barcode:', err);
+      this.barcodeDataUrl = '';
+    }
   }
 
   private async cargarHistorialClinicoDesdeFactura(factura: any): Promise<void> {
@@ -413,6 +445,7 @@ export class VerFacturaComponent implements OnDestroy {
       .t-cell { display: block; }
       .t-cut { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
       .t-small { font-size: 11px; }
+      img { max-width: 72mm; height: auto; display: block; margin: 0 auto; }
       @media print {
         @page { size: 80mm auto; margin: 0; }
         html, body { width: 80mm; margin: 0; padding: 0; }

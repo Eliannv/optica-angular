@@ -51,6 +51,7 @@
         "@angular/cli": "^20.2.1",
         "@angular/compiler-cli": "^20.2.0",
         "@types/jasmine": "~5.1.0",
+        "@types/jsbarcode": "^3.11.4",
         "@types/xlsx": "^0.0.35",
         "electron": "^39.2.7",
         "electron-builder": "^26.0.12",

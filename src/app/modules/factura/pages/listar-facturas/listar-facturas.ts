@@ -9,6 +9,7 @@ import { CajaBancoService } from '../../../../core/services/caja-banco.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { Subscription } from 'rxjs';
 import { RolUsuario } from '../../../../core/models/usuario.model';
+import { Factura } from '../../../../core/models/factura.model';
 import { DocumentSnapshot } from '@angular/fire/firestore';
 import Swal from 'sweetalert2';
 
@@ -49,6 +50,10 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
    * @default ''
    */
   term: string = '';
+
+  /** Valor del campo de escáner de código de barras de facturas */
+  codigoEscaneadoFactura: string = '';
+  private scannerFacturaTimeout: any = null;
 
   // � FILTROS DE PERIODO Y FECHA
   periodoSeleccionado: string | null = null; // Mes/Año en formato 'MM/YYYY' (ej: '01/2026')
@@ -101,12 +106,218 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
    * @private Calculado automáticamente en filtrar()
    */
   totalFacturas: number = 0;
+  facturasParaEstadisticas: any[] = [];
+  filtroMetodoPago: string = 'TODAS';
+  cargandoEstadisticas: boolean = false;
+
+  /** Controla el estado colapsado de la sección de estadísticas. */
+  mostrarEstadisticas: boolean = true;
 
   /**
    * Referencia global a Math (para uso en template con operaciones matemáticas).
    * @type {typeof Math}
    */
   Math = Math;
+
+  // ─── GETTERS DE ESTADÍSTICAS (calculadas desde facturasPaginadas) ─────────
+
+  private get facturasStats(): any[] {
+    if (Array.isArray(this.facturasParaEstadisticas) && this.facturasParaEstadisticas.length > 0) {
+      return this.facturasParaEstadisticas;
+    }
+    return Array.isArray(this.facturasPaginadas) ? this.facturasPaginadas : [];
+  }
+
+  get totalFacturasStats(): number {
+    // En modo TODAS, no contar los registros de cobros de deuda como facturas independientes
+    if (this.filtroTipoFactura === 'TODAS') {
+      return this.facturasStats.filter(f => f?.tipoFactura !== 'COBRO_DEUDA').length;
+    }
+    return this.facturasStats.length;
+  }
+
+  get totalFacturado(): number {
+    return this.facturasStats.reduce((acc, f) => acc + Number(f?.total || 0), 0);
+  }
+
+  get totalAbonado(): number {
+    return this.facturasStats.reduce((acc, f) => acc + Number(f?.abonado || 0), 0);
+  }
+
+  get saldoPendienteTotal(): number {
+    return this.facturasStats.reduce((acc, f) => {
+      if (!f?.esCredito) return acc;
+      return acc + Number(f?.saldoPendiente || 0);
+    }, 0);
+  }
+
+  get ticketPromedio(): number {
+    const count = this.facturasStats.length;
+    if (!count) return 0;
+    return this.totalFacturado / count;
+  }
+
+  get facturaMaxima(): number {
+    if (!this.facturasStats.length) return 0;
+    return Math.max(...this.facturasStats.map(f => Number(f?.total || 0)));
+  }
+
+  get facturaMinima(): number {
+    if (!this.facturasStats.length) return 0;
+    return Math.min(...this.facturasStats.map(f => Number(f?.total || 0)));
+  }
+
+  get ventasPorDia(): { dia: string; fecha: Date; total: number }[] {
+    const agrupado = new Map<string, { fecha: Date; total: number }>();
+
+    this.facturasStats.forEach((f) => {
+      const ms = this.getFechaMs(f);
+      if (!ms) return;
+
+      const fecha = new Date(ms);
+      const inicioDia = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
+      const key = inicioDia.toISOString().split('T')[0];
+      const prev = agrupado.get(key);
+
+      if (prev) {
+        prev.total += Number(f?.total || 0);
+      } else {
+        agrupado.set(key, {
+          fecha: inicioDia,
+          total: Number(f?.total || 0)
+        });
+      }
+    });
+
+    return Array.from(agrupado.values())
+      .sort((a, b) => a.fecha.getTime() - b.fecha.getTime())
+      .map((v) => ({
+        dia: `${String(v.fecha.getDate()).padStart(2, '0')}/${String(v.fecha.getMonth() + 1).padStart(2, '0')}`,
+        fecha: v.fecha,
+        total: v.total
+      }));
+  }
+
+  get maxVentaDia(): number {
+    if (!this.ventasPorDia.length) return 0;
+    return Math.max(...this.ventasPorDia.map(v => v.total));
+  }
+
+  get distribucionMetodoPago(): { metodo: string; cantidad: number; monto: number }[] {
+    const base = ['Efectivo', 'Tarjeta', 'Transferencia', 'Crédito'];
+    const acc = new Map<string, { metodo: string; cantidad: number; monto: number }>();
+
+    base.forEach((metodo) => acc.set(metodo, { metodo, cantidad: 0, monto: 0 }));
+
+    this.facturasStats.forEach((f) => {
+      const metodo = this.normalizarMetodoPago(f?.metodoPago);
+      const registro = acc.get(metodo) || { metodo, cantidad: 0, monto: 0 };
+      registro.cantidad += 1;
+      registro.monto += Number(f?.total || 0);
+      acc.set(metodo, registro);
+    });
+
+    return base.map((metodo) => acc.get(metodo)!).filter(Boolean);
+  }
+
+  get distribucionTipoVenta(): { tipo: string; cantidad: number; porcentaje: number }[] {
+    const total = this.facturasStats.length;
+    const contado = this.facturasStats.filter((f) => (f?.tipoVenta || (f?.esCredito ? 'CREDITO' : 'CONTADO')) === 'CONTADO').length;
+    const credito = this.facturasStats.filter((f) => (f?.tipoVenta || (f?.esCredito ? 'CREDITO' : 'CONTADO')) === 'CREDITO').length;
+
+    return [
+      {
+        tipo: 'CONTADO',
+        cantidad: contado,
+        porcentaje: total ? (contado / total) * 100 : 0
+      },
+      {
+        tipo: 'CREDITO',
+        cantidad: credito,
+        porcentaje: total ? (credito / total) * 100 : 0
+      }
+    ];
+  }
+
+  get creditosPendientes(): Factura[] {
+    return this.facturasStats
+      .filter((f) => Number(f?.saldoPendiente || 0) > 0 && f?.estadoPago === 'PENDIENTE')
+      .sort((a, b) => Number(b?.saldoPendiente || 0) - Number(a?.saldoPendiente || 0)) as Factura[];
+  }
+
+  get conHistorialClinico(): number {
+    return this.facturasStats.filter((f) => Boolean(f?.historialClinicoId)).length;
+  }
+
+  private normalizarMetodoPago(metodoPago: string | undefined): string {
+    const valor = (metodoPago || '').toLowerCase();
+    if (valor.includes('tarj')) return 'Tarjeta';
+    if (valor.includes('trans')) return 'Transferencia';
+    if (valor.includes('cred')) return 'Crédito';
+    return 'Efectivo';
+  }
+
+  private async recargarEstadisticasPeriodo(): Promise<void> {
+    // Solo el filtro de periodo impulsa las estadísticas — ignorar término, fecha exacta y otros filtros
+    let startDate: Date | null = null;
+    let endDate: Date | null = null;
+    if (this.periodoSeleccionado) {
+      const [mes, anio] = this.periodoSeleccionado.split('/').map(Number);
+      startDate = new Date(anio, mes - 1, 1);
+      endDate = new Date(anio, mes, 0); // último día del mes
+    }
+
+    this.cargandoEstadisticas = true;
+
+    try {
+      const [resultadoFacturas, resultadoPagos] = await Promise.all([
+        this.facturasSrv.getFacturasPaginadasReal({
+          pageSize: 5000,
+          lastVisible: null,
+          direction: 'next',
+          terminoBusqueda: '',
+          filtroTipoFactura: 'TODAS',
+          currentPage: 1,
+          startDate,
+          endDate,
+          fechaExacta: null
+        }),
+        this.facturasDeudaSrv.getPagosDeudaPaginadosReal({
+          pageSize: 5000,
+          lastVisible: null,
+          direction: 'next',
+          terminoBusqueda: '',
+          currentPage: 1,
+          startDate,
+          endDate,
+          fechaExacta: null
+        })
+      ]);
+
+      const saldoActualMap = this.buildSaldoActualMap(resultadoPagos.pagos);
+      const facturasNormales = resultadoFacturas.facturas.map(f => {
+        const facturaId = f?.id;
+        const saldoActual = Number((facturaId ? saldoActualMap.get(facturaId) : undefined) ?? f?.saldoPendiente ?? 0);
+        return {
+          ...f,
+          total: Number(f?.total || 0),
+          saldoPendiente: saldoActual,
+          abonado: Number(f?.abonado || 0),
+          tipoFactura: f?.tipoFactura || 'NORMAL'
+        };
+      });
+
+      const facturasDeudaConvertidas = await this.mapearCobrosDeuda(resultadoPagos.pagos);
+      const todasFacturas = [...facturasNormales, ...facturasDeudaConvertidas];
+      todasFacturas.sort((a, b) => this.getFechaMs(b) - this.getFechaMs(a));
+      this.facturasParaEstadisticas = todasFacturas;
+    } catch (error) {
+      console.error('Error recargando estadísticas por periodo:', error);
+      this.facturasParaEstadisticas = [...this.facturasPaginadas];
+    } finally {
+      this.cargandoEstadisticas = false;
+    }
+  }
 
   /**
    * ID de la caja chica actualmente abierta.
@@ -139,6 +350,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.subscriptions.unsubscribe();
     this.facturasPaginadas = [];
+    this.facturasParaEstadisticas = [];
     this.paginasHistorial = [];
   }
 
@@ -271,10 +483,12 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
   } {
     // Fecha exacta tiene prioridad
     if (this.fechaSeleccionada) {
+      // Parsear como medianoche local (evita desfase UTC en zonas UTC-)
+      const [y, m, d] = this.fechaSeleccionada.split('-').map(Number);
       return {
         startDate: null,
         endDate: null,
-        fechaExacta: new Date(this.fechaSeleccionada)
+        fechaExacta: new Date(y, m - 1, d)
       };
     }
 
@@ -466,7 +680,8 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           currentPage: this.paginaActual,
           startDate,
           endDate,
-          fechaExacta
+          fechaExacta,
+          filtroMetodoPago: this.filtroMetodoPago
         });
 
         this.facturasPaginadas = resultado.facturas.map(f => {
@@ -541,7 +756,8 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           currentPage: this.paginaActual,
           startDate,
           endDate,
-          fechaExacta
+          fechaExacta,
+          filtroMetodoPago: this.filtroMetodoPago
         });
 
         const resultadoPagos = await this.facturasDeudaSrv.getPagosDeudaPaginadosReal({
@@ -595,7 +811,14 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
         }
       }
 
+      if (this.filtroMetodoPago !== 'TODAS') {
+        this.facturasPaginadas = this.facturasPaginadas.filter(
+          f => this.normalizarMetodoPago(f?.metodoPago) === this.filtroMetodoPago
+        );
+      }
+
       this.totalFacturas = this.facturasPaginadas.length;
+      await this.recargarEstadisticasPeriodo();
 
     } catch (error) {
       console.error('Error al cargar facturas:', error);
@@ -623,7 +846,8 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           currentPage: this.paginaActual,
           startDate,
           endDate,
-          fechaExacta
+          fechaExacta,
+          filtroMetodoPago: this.filtroMetodoPago
         });
 
         this.facturasPaginadas = resultado.facturas.map(f => {
@@ -671,7 +895,8 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           currentPage: this.paginaActual,
           startDate,
           endDate,
-          fechaExacta
+          fechaExacta,
+          filtroMetodoPago: this.filtroMetodoPago
         });
 
         const resultadoPagos = await this.facturasDeudaSrv.getPagosDeudaPaginadosReal({
@@ -709,6 +934,12 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
 
         this.facturasPaginadas = todasFacturas.slice(0, this.facturasPorPagina);
         this.hasMore = resultadoFacturas.hasMore || resultadoPagos.hasMore;
+      }
+
+      if (this.filtroMetodoPago !== 'TODAS') {
+        this.facturasPaginadas = this.facturasPaginadas.filter(
+          f => this.normalizarMetodoPago(f?.metodoPago) === this.filtroMetodoPago
+        );
       }
 
     } catch (error) {
@@ -754,7 +985,8 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           currentPage: this.paginaActual,
           startDate,
           endDate,
-          fechaExacta
+          fechaExacta,
+          filtroMetodoPago: this.filtroMetodoPago
         });
 
         this.facturasPaginadas = resultado.facturas.map(f => {
@@ -822,7 +1054,8 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
           currentPage: this.paginaActual,
           startDate,
           endDate,
-          fechaExacta
+          fechaExacta,
+          filtroMetodoPago: this.filtroMetodoPago
         });
 
         const resultadoPagos = await this.facturasDeudaSrv.getPagosDeudaPaginadosReal({
@@ -874,6 +1107,12 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
         });
       }
 
+      if (this.filtroMetodoPago !== 'TODAS') {
+        this.facturasPaginadas = this.facturasPaginadas.filter(
+          f => this.normalizarMetodoPago(f?.metodoPago) === this.filtroMetodoPago
+        );
+      }
+
     } catch (error) {
       console.error('Error al cargar página siguiente:', error);
       Swal.fire('Error', 'No se pudo cargar la siguiente página', 'error');
@@ -894,7 +1133,7 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
       const { startDate, endDate, fechaExacta } = this.obtenerFiltrosFecha();
 
       // 🔍 Si hay filtros activos (búsqueda o fechas), usar paginación en memoria
-      const hayFiltrosActivos = this.term.trim() || startDate || endDate || fechaExacta;
+      const hayFiltrosActivos = this.term.trim() || startDate || endDate || fechaExacta || this.filtroMetodoPago !== 'TODAS';
 
       if (hayFiltrosActivos) {
         // Con filtros: simplemente recargar con el nuevo currentPage
@@ -989,6 +1228,12 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
         this.hasMore = true;
       }
 
+      if (this.filtroMetodoPago !== 'TODAS') {
+        this.facturasPaginadas = this.facturasPaginadas.filter(
+          f => this.normalizarMetodoPago(f?.metodoPago) === this.filtroMetodoPago
+        );
+      }
+
     } catch (error) {
       console.error('Error al cargar página anterior:', error);
       Swal.fire('Error', 'No se pudo cargar la página anterior', 'error');
@@ -1023,6 +1268,111 @@ export class ListarFacturasComponent implements OnInit, OnDestroy {
 
   nuevaVenta() {
     this.router.navigate(['/clientes/historial-clinico']);
+  }
+
+  // ─── ESCÁNER DE CÓDIGO DE BARRAS DE FACTURAS ─────────────────────────────
+
+  /**
+   * Manejador de input del escáner: dispara la búsqueda con debounce de 250ms.
+   * Los lectores de código de barras envían todos los caracteres muy rápido.
+   */
+  onBarcodeInputFactura(): void {
+    if (this.scannerFacturaTimeout) {
+      clearTimeout(this.scannerFacturaTimeout);
+    }
+    this.scannerFacturaTimeout = setTimeout(() => {
+      if (this.codigoEscaneadoFactura) {
+        this.buscarFacturaPorCodigoBarras();
+      }
+    }, 250);
+  }
+
+  /** Manejador de Enter en el campo escáner (versión inmediata). */
+  onBarcodeEnterFactura(): void {
+    if (this.scannerFacturaTimeout) {
+      clearTimeout(this.scannerFacturaTimeout);
+      this.scannerFacturaTimeout = null;
+    }
+    this.buscarFacturaPorCodigoBarras();
+  }
+
+  /**
+   * Busca la factura por el código escaneado (idPersonalizado de 10 dígitos)
+   * y navega directo a la vista de detalle.
+   */
+  async buscarFacturaPorCodigoBarras(): Promise<void> {
+    let codigo = (this.codigoEscaneadoFactura || '').replace(/[\r\n\t\x00-\x1F\x7F]/g, '').trim();
+    if (!codigo) return;
+
+    // Normalizar: quitar ceros iniciales para facilitar búsqueda y luego
+    // volver a formatear a 10 dígitos si es numérico
+    const soloDigitos = /^\d+$/.test(codigo);
+    const idBusqueda = soloDigitos ? codigo.replace(/^0+/, '').padStart(10, '0') : codigo;
+
+    this.codigoEscaneadoFactura = '';
+
+    try {
+      const { startDate, endDate, fechaExacta } = this.obtenerFiltrosFecha();
+
+      const [resultadoFacturas, resultadoPagos] = await Promise.all([
+        this.facturasSrv.getFacturasPaginadasReal({
+          pageSize: 5000,
+          lastVisible: null,
+          direction: 'next',
+          terminoBusqueda: idBusqueda,
+          filtroTipoFactura: 'TODAS',
+          currentPage: 1,
+          startDate,
+          endDate,
+          fechaExacta
+        }),
+        this.facturasDeudaSrv.getPagosDeudaPaginadosReal({
+          pageSize: 5000,
+          lastVisible: null,
+          direction: 'next',
+          terminoBusqueda: idBusqueda,
+          currentPage: 1,
+          startDate,
+          endDate,
+          fechaExacta
+        })
+      ]);
+
+      const facturasNormalizadas = resultadoFacturas.facturas || [];
+      const pagosMapeados = await this.mapearCobrosDeuda(resultadoPagos.pagos || []);
+      const universo = [...facturasNormalizadas, ...pagosMapeados];
+
+      const encontrada = universo.find((f: any) => {
+        const idPers = String(f?.idPersonalizado || '').trim();
+        const idDoc = String(f?.id || '').trim();
+        return idPers === idBusqueda || idDoc === idBusqueda || idPers === codigo || idDoc === codigo;
+      });
+
+      if (encontrada?.id) {
+        this.router.navigate(['/facturas', encontrada.id]);
+      } else {
+        const etiquetaPeriodo = this.fechaSeleccionada
+          ? `fecha ${this.fechaSeleccionada}`
+          : (this.periodoSeleccionado ? `periodo ${this.periodoSeleccionado}` : 'periodo actual');
+
+        Swal.fire({
+          icon: 'warning',
+          title: 'Factura no encontrada en el periodo',
+          text: `No se encontró el código '${codigo}' dentro del ${etiquetaPeriodo}.`,
+          confirmButtonText: 'Entendido',
+          timer: 3200,
+          timerProgressBar: true
+        });
+      }
+    } catch (err) {
+      console.error('[Facturas] Error buscando por código de barras:', err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Ocurrió un error al buscar la factura. Intente nuevamente.',
+        confirmButtonText: 'Entendido'
+      });
+    }
   }
 
   async eliminarFactura(factura: any, ev?: Event): Promise<void> {
